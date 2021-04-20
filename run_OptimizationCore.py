@@ -1,19 +1,8 @@
 
 from A_Infrastructure.A1_Config.a_Constants import CONS
 from A_Infrastructure.A2_ToolKits.a_DB import DB
+from C_Model.C2_OptimizationCore.OptimizationCore import OptimizationCore
 
-class OptimizationCore:
-
-    """
-    optimize the prosumaging behavior of all representative "household - environment" combinations.
-    """
-
-    def __init__(self, conn):
-        self.Conn = conn
-
-    def run(self):
-        print(bool(1))
-        pass
 
 if __name__ == "__main__":
 
