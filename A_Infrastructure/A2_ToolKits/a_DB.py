@@ -2,6 +2,7 @@
 import sqlite3
 import pandas as pd
 from A_Infrastructure.A1_Config.a_Constants import CONS
+from A_Infrastructure.A1_Config.b_Register import REG
 
 class DB:
 
@@ -13,12 +14,19 @@ class DB:
         if len(kwargs) > 0:
             condition_temp = " where "
             for key, value in kwargs.items():
-                condition_temp = condition_temp + key + " == " + str(value) + " and "
+                # print(key, str(value))
+                condition_temp = condition_temp + key + " == '" + str(value) + "' and "
             condition = condition_temp[0:-5]
             DataFrame = pd.read_sql('select * from ' + table_name + condition, con=conn)
         else:
             DataFrame = pd.read_sql('select * from ' + table_name, con=conn)
         return DataFrame
+
+    def read_ParameterValue(self, parameter_name):
+        Conn = sqlite3.connect(CONS().DatabasePath + CONS().RootDB + ".sqlite")
+        ParameterValueTable = self.read_DataFrame(REG().Exo_ParameterValue, Conn, Parameter=parameter_name)
+        ParameterValue = ParameterValueTable.iloc[0]["Value"]
+        return ParameterValue
 
     def write_DataFrame(self, table, table_name, column_names, conn):
         table_DataFrame = pd.DataFrame(table, columns=column_names)

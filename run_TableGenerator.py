@@ -13,8 +13,8 @@ class TableGenerator:
         self.Conn = conn
 
     def run(self):
-        Duration = DB().read_DataFrame(REG().Exo_WashingMachineDuration, self.Conn).iloc[0]["Value"]
-        print(Duration)
+        ParameterValue = DB().read_ParameterValue("PumpConsumptionForUnitSpaceHeating")
+        print(ParameterValue)
         pass
 
 if __name__ == "__main__":
