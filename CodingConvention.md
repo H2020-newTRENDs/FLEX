@@ -11,13 +11,15 @@
 
 #### 2. Github cooperation
 
+- always pull before push: pull and merge locally, then push
+- exchange database in other ways
 - remember to pull and push frequently, as long as you are sure that the code is working right
 - inform the others if you want to work on their files
 - ignore _Database and _Figure folders most time. Only push it when you add more tables in it and push it to the github together. Because it takes a lot of time to push it. 
 
 
 
-#### 3. Common github lines
+#### 3. Common github commands
 
 - git pull origin master
 - git add .
@@ -28,9 +30,7 @@
 
 #### 4. Discussion points
 
-- feedback temperature of water in the radiator
-- timeline
-- weekly meetings?
+- timeline - set up the code and database by the end of May (ready for optimization)
 
 
 

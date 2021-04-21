@@ -16,7 +16,7 @@ class OptimizationCore:
         self.Conn = conn
 
     def run(self):
-        print(bool(1))
+        print(DB().read_DataFrame(REG().Gen_ID_OBJ_Environment, self.Conn).iloc[0])
         pass
 
     pass
