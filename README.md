@@ -31,7 +31,7 @@ This ***prosumager*** model is developed for ***NewTRENDs Project*** and ***mast
 
 - ***variable***: **V**ariable**N**ame
 - ***parameter***: **p**arameter**_n**ame
-- ***function***: **calc_****B**uilding**S**pace**H**eating**C**ost
+- ***function***: **calc_B**uilding**S**pace**H**eating**C**ost
 - ***table***: register in the REG, then use it in the code
 
 ##### 3.2 Github cooperation
