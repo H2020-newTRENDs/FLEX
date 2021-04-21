@@ -9,7 +9,7 @@ class CONS:
         # self.DatabasePath = str(self.ProjectPath) + "\_Database\\"
         # self.DatabasePath = "C:\\Users\yus\Dropbox\Academic\Models\ProsumagerDatabase\\"
         self.DatabasePath = "C:\\Users\\mascherbauer\\Dropbox\\ProsumagerDatabase"
-        # @Philipp, @Thomas: you can paste your paths here.
+	# self.DatabasePaath = "C:\Users\thoma\Dropbox\ProsumagerDatabase"
         # We do not to ignore this file then. Everytime we just uncomment our own address and run locally.
 
         self.FiguresPath = str(self.ProjectPath) + "\_Figures\\"
