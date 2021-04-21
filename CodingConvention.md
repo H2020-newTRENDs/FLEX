@@ -19,9 +19,9 @@
 
 #### 3. Common github lines
 
-- cd ***FOLDERNAME***
-- git add ***FILENAME***   or   git add .
-- git commit -m"remark"
+- git pull origin master
+- git add .
+- git commit -m"***remark***"
 - git push origin master
 
 
