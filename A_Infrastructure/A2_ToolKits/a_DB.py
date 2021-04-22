@@ -14,7 +14,6 @@ class DB:
         if len(kwargs) > 0:
             condition_temp = " where "
             for key, value in kwargs.items():
-                # print(key, str(value))
                 condition_temp = condition_temp + key + " == '" + str(value) + "' and "
             condition = condition_temp[0:-5]
             DataFrame = pd.read_sql('select * from ' + table_name + condition, con=conn)
