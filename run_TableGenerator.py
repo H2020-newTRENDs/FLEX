@@ -13,7 +13,7 @@ class TableGenerator:
         self.Conn = conn
 
     def run(self):
-        ParameterValue = DB().read_GlobalParameterValue("PumpConsumptionForUnitSpaceHeating")
+        ParameterValue = DB().read_GlobalParameterValue("PumpConsumptionForUnitSpaceHeating", self.Conn)
         print(ParameterValue)
         pass
 

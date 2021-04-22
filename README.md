@@ -25,7 +25,7 @@ This ***prosumager*** model is developed for ***NewTRENDs Project*** and ***mast
 - fill in the tables of building
 - work on the "B3\_Building.py"
 
-### 3 Coding Convention
+### 3 Coding Conventions
 
 ##### 3.1 Naming convention
 
@@ -34,11 +34,15 @@ This ***prosumager*** model is developed for ***NewTRENDs Project*** and ***mast
 - ***function***: **calc_B**uilding**S**pace**H**eating**C**ost
 - ***table***: register in the REG, then use it in the code
 
-##### 3.2 Github cooperation
+##### 3.2 Commiting to Github
 
 - First, pull when you start working and make sure you are working on the latest version.
 - Second, pull again before pushing, because during your working time, the others may have pushed. However, even though that is the case, the revisions should be merged into your local version automatically, as long as we didn't work on the same row. If you do see the conflicts, solve it locally. ***Always pull before pushing, so that we solve the conflicts locally.***
 - Third, after solving the conflict, pull again (it should be "already up to date"), and push super-fast! Hahaha
+
+##### 3.3 Other conventions
+
+- If you need something from the "Infrastructure", tell Songmin to create them.
 
 ### 4 Git Commands
 
