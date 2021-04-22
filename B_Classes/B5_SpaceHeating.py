@@ -17,17 +17,26 @@ class SpaceHeating:
         self.SpaceHeatingType = para_series["ID_SpaceHeatingType"]
         [self.ID_EnergyCarrier, self.Efficiency] = self.init_SpaceHeating()
         self.SpaceHeatingTankType = para_series["ID_SpaceHeatingTankType"]
-        self.TankSize = DB().read_ExoTableValue(REG().Exo_SpaceHeatingTankSize, self.Conn, ID_SpaceHeatingTankType=self.SpaceHeatingTankType)
-        self.TankSurfaceArea = DB().read_ExoTableValue(REG().Exo_SpaceHeatingTankSurfaceArea, self.Conn, ID_SpaceHeatingTankType=self.SpaceHeatingTankType)
+        [self.TankSize, self.TankSurfaceArea] = self.init_SpaceHeatingTank()
 
     def init_SpaceHeating(self):
 
-        SpaceHeatingTable = DB().read_DataFrame(REG().Exo_SpaceHeatingEfficiency, self.Conn, ID_SpaceHeatingType=self.SpaceHeatingType)
+        SpaceHeatingTable = DB().read_DataFrame(REG().Exo_SpaceHeatingEfficiency, self.Conn,
+                                                ID_SpaceHeatingType=self.SpaceHeatingType)
         ID_EnergyCarrier = SpaceHeatingTable.iloc[0]["ID_EnergyCarrier"]
         Efficiency = SpaceHeatingTable.iloc[0]["Value"]
 
         return [ID_EnergyCarrier, Efficiency]
 
+
+    def init_SpaceHeatingTank(self):
+
+        TankSize = DB().read_ExoTableValue(REG().Exo_SpaceHeatingTankSize, self.Conn,
+                                           ID_SpaceHeatingTankType=self.SpaceHeatingTankType)
+        TankSurfaceArea = DB().read_ExoTableValue(REG().Exo_SpaceHeatingTankSurfaceArea, self.Conn,
+                                                  ID_SpaceHeatingTankType=self.SpaceHeatingTankType)
+
+        return [TankSize, TankSurfaceArea]
 
 
 

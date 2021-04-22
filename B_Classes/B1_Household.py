@@ -3,7 +3,7 @@ from A_Infrastructure.A1_Config.b_Register import REG
 from A_Infrastructure.A2_ToolKits.a_DB import DB
 from B_Classes.B2_Environment import Environment
 from B_Classes.B3_Building import Building
-from B_Classes.B4_Appliances import Appliances
+from B_Classes.B4_ApplianceGroup import ApplianceGroup
 from B_Classes.B5_SpaceHeating import SpaceHeating
 from B_Classes.B6_SpaceCooling import SpaceCooling
 from B_Classes.B7_HotWater import HotWater
@@ -12,6 +12,18 @@ from B_Classes.B9_Battery import Battery
 from B_Classes.B10_ElectricVehicle import ElectricVehicle
 
 class Household:
+
+    """
+    In the updated version, we do not initialize so many attribute values for households and the objects.
+    We only give array of OBJ_types. Then, all the parameter tables are read into memory at the beginning.
+
+    The next classes are instantiated with only one number, and this is the only attribute of it.
+    The main reason to have these classes is to put behavioral functions there, for example, diffusion...
+
+    So, in the yearly model, in each year, agents switch between the rows in table "Gen_ID_OBJ_Households".
+    This single number goes to DataCollector and stored.
+    Following the yearly investment simulation, the saved table is translated to energy consumption and everything.
+    """
 
     """
     Data type:
@@ -49,7 +61,7 @@ class Household:
 
         # Appliances Object
         Table_OBJ_Appliances = DB().read_DataFrame(REG().Gen_ID_OBJ_Appliances, self.Conn, ID=para_series["ID_OBJ_Appliances"])
-        self.Appliances = Appliances(self, Table_OBJ_Appliances.iloc[0], self.Conn)
+        self.Appliances = ApplianceGroup(self, Table_OBJ_Appliances.iloc[0], self.Conn)
 
         # SpaceHeating Object
         Table_OBJ_SpaceHeating = DB().read_DataFrame(REG().Gen_ID_OBJ_SpaceHeating, self.Conn, ID=para_series["ID_OBJ_SpaceHeating"])

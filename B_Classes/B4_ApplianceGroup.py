@@ -2,7 +2,7 @@
 from A_Infrastructure.A1_Config.b_Register import REG
 from A_Infrastructure.A2_ToolKits.a_DB import DB
 
-class Appliances:
+class ApplianceGroup:
 
     """
     Data type:

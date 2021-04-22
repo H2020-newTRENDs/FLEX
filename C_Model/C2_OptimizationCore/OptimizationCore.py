@@ -7,7 +7,9 @@ class OptimizationCore:
     """
     Optimize the prosumaging behavior of all representative "household - environment" combinations.
 
-    Energy price is imported and used here.
+    Read all big fundamental tables at the beginning and keep them in the memory.
+    (1) Appliances parameter table
+    (2) Energy price
     Go over all the aspects and summarize the flexibilities to be optimized.
     Formulate the final optimization problem.
     """
