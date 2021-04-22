@@ -30,7 +30,7 @@ This ***prosumager*** model is developed for ***NewTRENDs Project*** and ***mast
 ##### 3.1 Naming convention
 
 - ***variable***: **V**ariable**N**ame
-- ***parameter***: **p**arameter**_n**ame
+- ***parameter defined in a function***: **p**arameter**_n**ame
 - ***function***: **calc_B**uilding**S**pace**H**eating**C**ost
 - ***table***: register in the REG, then use it in the code
 

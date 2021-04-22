@@ -21,11 +21,13 @@ class DB:
             DataFrame = pd.read_sql('select * from ' + table_name, con=conn)
         return DataFrame
 
-    def read_ParameterValue(self, parameter_name):
+    def read_GlobalParameterValue(self, parameter_name):
         Conn = sqlite3.connect(CONS().DatabasePath + CONS().RootDB + ".sqlite")
-        ParameterValueTable = self.read_DataFrame(REG().Exo_ParameterValue, Conn, Parameter=parameter_name)
+        ParameterValueTable = self.read_DataFrame(REG().Exo_GlobalParameterValue, Conn, Parameter=parameter_name)
         ParameterValue = ParameterValueTable.iloc[0]["Value"]
         return ParameterValue
+
+    # def read_ExoTableValue(self, table_name, ):
 
     def write_DataFrame(self, table, table_name, column_names, conn):
         table_DataFrame = pd.DataFrame(table, columns=column_names)

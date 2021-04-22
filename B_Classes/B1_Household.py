@@ -36,6 +36,7 @@ class Household:
         self.ID_Country = para_series["ID_Country"]
         self.ID_HouseholdType = para_series["ID_HouseholdType"]
         self.ID_AgeGroup = para_series["ID_AgeGroup"]
+        [self.SpaceHeatingTargetTemperature, self.SpaceCoolingTargetTemperature] = self.init_TargetTemperature()
         self.ID_LifeStyleType = para_series["ID_LifeStyleType"]
 
         # Environment Object
@@ -82,3 +83,13 @@ class Household:
         Row_OBJ_ElectricVehicle = int(para_series["ID_OBJ_ElectricVehicle"] - 1)
         Table_OBJ_ElectricVehicle = DB().read_DataFrame(REG().Gen_ID_OBJ_ElectricVehicle, self.Conn)
         self.ElectricVehicle = ElectricVehicle(self, Table_OBJ_ElectricVehicle.iloc[Row_OBJ_ElectricVehicle]["Value"], self.Conn)
+
+    # Target Temperature
+    def init_TargetTemperature(self):
+
+        HeatingTable = DB().read_DataFrame(REG().Exo_SpaceHeatingTargetTemperature, self.Conn)
+        HeatingTargetTemperature = HeatingTable.iloc[int(self.ID_AgeGroup - 1)]["Value"]
+        CoolingTable = DB().read_DataFrame(REG().Exo_SpaceCoolingTargetTemperature, self.Conn)
+        CoolingTargetTemperature = HeatingTable.iloc[int(self.ID_AgeGroup - 1)]["Value"]
+
+        return [HeatingTargetTemperature, CoolingTargetTemperature]
