@@ -42,7 +42,7 @@ class REG:
         self.ID_ElectricVehicleType = self.ID + "ElectricVehicleType"
 
         # Exogenous Table
-        self.Exo_ParameterValue = self.ExogenousData + "ParameterValue"
+        self.Exo_GlobalParameterValue = self.ExogenousData + "GlobalParameterValue"
         self.Exo_BaseYearIrradiation = self.ExogenousData + "BaseYearIrradiation" # from helioclim dataset for year 2010
         self.Exo_BaseYearTemperature = self.ExogenousData + "BaseYearTemperature" # from MERRA2 dataset for year 2010
         self.Exo_EnergyCarrierPrice = self.ExogenousData + "EnergyCarrierPrice"
