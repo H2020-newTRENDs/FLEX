@@ -1,12 +1,12 @@
 import pandas as pd
 import os
 from pathlib import Path
-from _Philipp.Create_set_temp_profile import CREATE_SET_TEMP_PROFILE
-from _Philipp.Create_dhw_energyneed_profile import CREATE_DHW_ENERGYDEMAND_PROFILE
-from _Philipp.Core_rc_model import core_rc_model
+from Create_set_temp_profile import CREATE_SET_TEMP_PROFILE
+from Create_dhw_energyneed_profile import CREATE_DHW_ENERGYDEMAND_PROFILE
+from Prosumager._Philipp.Core_rc_model import core_rc_model
 import h5py
 import timeit
-from _Philipp.Simple_plots import *
+from Simple_plots import *
 
 
 def read_h5(filename):
@@ -158,7 +158,6 @@ def Heatdemand_rc_model(OUTPUT_PATH, OUTPUT_PATH_NUM_BUILD, OUTPUT_PATH_TEMP, RN
     # TODO für testen:
     YEAR = 2050
 
-    input_dir_constant = 'inputdata/'
     BCAT_1_3 = np.ones((6, 3))
     BCAT_4_8 = np.ones((1, 5))
     NUM_GFA_BEFORE_BCAT_1_3 = np.ones((6, 3))
@@ -325,16 +324,18 @@ def Heatdemand_rc_model(OUTPUT_PATH, OUTPUT_PATH_NUM_BUILD, OUTPUT_PATH_TEMP, RN
         print("Time for core calculation: ", timeit.default_timer() - starttime_core)
 
         # save data to h5 file for fast accessability later:
-        saving_path = os.path.join(os.path.split(os.path.abspath(__file__))[0], "outputdata")
-        saving_path = Path(saving_path)
+        saving_path = Path(__file__).parent.resolve()
+        saving_path = saving_path / "outputdata"
         saving_name = 'Building_load_curve_' + output_file_name + '.hdf5'
         save_to_h5(saving_path, saving_name,
                    Q_H_LOAD_8760, Q_C_LOAD_8760, Q_DHW_LOAD_8760, Af, bc_num_building_not_Zero_vctr,
                    climate_region_index, share_Circulation_DHW, temp_8760, Tset_heating_8760_up, Tset_cooling_8760_up)
 
     # load the data from h5 file:
-    filename = 'outputdata/' + 'Building_load_curve_' + output_file_name + '.hdf5'
-    dict_ = read_h5(filename)
+    saving_path = Path(__file__).parent.resolve()
+    saving_path = saving_path / "outputdata"
+    filename = 'Building_load_curve_' + output_file_name + '.hdf5'
+    dict_ = read_h5(saving_path / filename)
 
     # print time
     print("Time for execution: ", timeit.default_timer() - starttime)
