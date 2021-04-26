@@ -6,7 +6,8 @@ class REG:
         # Prefix
         self.ID = "ID_"
         self.OBJ = "OBJ_"
-        self.ExogenousData = "Exo_"
+        self.Parameter = "Par_"
+        self.ScenarioData = "Sce_"
         self.GeneratedData = "Gen_"
 
         # ID Table
@@ -42,38 +43,37 @@ class REG:
         self.ID_ElectricVehicleType = self.ID + "ElectricVehicleType"
 
         # Exogenous Table
-        self.Exo_GlobalParameterValue = self.ExogenousData + "GlobalParameterValue"
-        self.Exo_BaseYearIrradiation = self.ExogenousData + "BaseYearIrradiation" # from helioclim dataset for year 2010
-        self.Exo_BaseYearTemperature = self.ExogenousData + "BaseYearTemperature" # from MERRA2 dataset for year 2010
-        self.Exo_EnergyCarrierPrice = self.ExogenousData + "EnergyCarrierPrice"
-        self.Exo_HourlyElectricityPrice = self.ExogenousData + "HourlyElectricityPrice"
-        self.Exo_HourlyFeedinTariff = self.ExogenousData + "HourlyFeedinTariff"
-        self.Exo_HouseholdPeopleAverage = self.ExogenousData + "HouseholdPeopleAverage"
-        self.Exo_HouseholdPeopleEquivalent = self.ExogenousData + "HouseholdPeopleEquivalent"
-        self.Exo_BaseElectricityProfile = self.ExogenousData + "BaseElectricityProfile"
-        self.Exo_WashingMachinePower = self.ExogenousData + "WashingMachinePower"
-        self.Exo_WashingMachineDuration = self.ExogenousData + "WashingMachineDuration"
-        self.Exo_WashingMachineYearlyUse = self.ExogenousData + "WashingMachineYearlyUse"
-        self.Exo_DryerPower = self.ExogenousData + "DryerPower"
-        self.Exo_DryerDuration = self.ExogenousData + "DryerDuration"
-        self.Exo_DryerYearlyUse = self.ExogenousData + "DryerYearlyUse"
-        self.Exo_DishWasherPower = self.ExogenousData + "DishWasherPower"
-        self.Exo_DishWasherDuration = self.ExogenousData + "DishWasherDuration"
-        self.Exo_DishWasherYearlyUse = self.ExogenousData + "DishWasherYearlyUse"
-        self.Exo_SpaceHeatingTargetTemperature = self.ExogenousData + "SpaceHeatingTargetTemperature"
-        self.Exo_SpaceHeatingEfficiency = self.ExogenousData + "SpaceHeatingEfficiency"
-        self.Exo_SpaceHeatingTankSize = self.ExogenousData + "SpaceHeatingTankSize"
-        self.Exo_SpaceHeatingTankSurfaceArea = self.ExogenousData + "SpaceHeatingTankSurfaceArea"
-        self.Exo_SpaceCoolingTargetTemperature = self.ExogenousData + "SpaceCoolingTargetTemperature"
-        self.Exo_SpaceCoolingEfficiency = self.ExogenousData + "SpaceCoolingEfficiency"
-        self.Exo_HotWaterProfile = self.ExogenousData + "HotWaterProfile"
-        self.Exo_HotWaterEfficiency = self.ExogenousData + "HotWaterEfficiency"
-        self.Exo_PVSize = self.ExogenousData + "PVSize"
-        self.Exo_BatteryCapacity = self.ExogenousData + "BatteryCapacity"
-        self.Exo_EVBatteryCapacity = self.ExogenousData + "EVBatteryCapacity"
+        self.Par_GlobalParameterValue = self.Parameter + "GlobalParameterValue"
+        self.Par_BaseYearIrradiation = self.Parameter + "BaseYearIrradiation" # from helioclim dataset for year 2010
+        self.Par_BaseYearTemperature = self.Parameter + "BaseYearTemperature" # from MERRA2 dataset for year 2010
+        self.Par_EnergyCarrierPrice = self.Parameter + "EnergyCarrierPrice"
+        self.Par_HourlyElectricityPrice = self.Parameter + "HourlyElectricityPrice"
+        self.Par_HourlyFeedinTariff = self.Parameter + "HourlyFeedinTariff"
+        self.Par_HouseholdPeopleAverage = self.Parameter + "HouseholdPeopleAverage"
+        self.Par_HouseholdPeopleEquivalent = self.Parameter + "HouseholdPeopleEquivalent"
+        self.Par_BaseElectricityProfile = self.Parameter + "BaseElectricityProfile"
+        self.Par_WashingMachinePower = self.Parameter + "WashingMachinePower"
+        self.Par_WashingMachineDuration = self.Parameter + "WashingMachineDuration"
+        self.Par_WashingMachineYearlyUse = self.Parameter + "WashingMachineYearlyUse"
+        self.Par_DryerPower = self.Parameter + "DryerPower"
+        self.Par_DryerDuration = self.Parameter + "DryerDuration"
+        self.Par_DryerYearlyUse = self.Parameter + "DryerYearlyUse"
+        self.Par_DishWasherPower = self.Parameter + "DishWasherPower"
+        self.Par_DishWasherDuration = self.Parameter + "DishWasherDuration"
+        self.Par_DishWasherYearlyUse = self.Parameter + "DishWasherYearlyUse"
+        self.Par_SpaceHeatingTargetTemperature = self.Parameter + "SpaceHeatingTargetTemperature"
+        self.Par_SpaceHeatingEfficiency = self.Parameter + "SpaceHeatingEfficiency"
+        self.Par_SpaceHeatingTankSize = self.Parameter + "SpaceHeatingTankSize"
+        self.Par_SpaceHeatingTankSurfaceArea = self.Parameter + "SpaceHeatingTankSurfaceArea"
+        self.Par_SpaceCoolingTargetTemperature = self.Parameter + "SpaceCoolingTargetTemperature"
+        self.Par_SpaceCoolingEfficiency = self.Parameter + "SpaceCoolingEfficiency"
+        self.Par_HotWaterProfile = self.Parameter + "HotWaterProfile"
+        self.Par_HotWaterEfficiency = self.Parameter + "HotWaterEfficiency"
+        self.Par_PVSize = self.Parameter + "PVSize"
+        self.Par_BatteryCapacity = self.Parameter + "BatteryCapacity"
+        self.Par_EVBatteryCapacity = self.Parameter + "EVBatteryCapacity"
 
         # Generated Table
-        self.Gen_ID_OBJ_Environment = self.GeneratedData + self.ID + self.OBJ + "Environment"
         self.Gen_ID_OBJ_Household = self.GeneratedData + self.ID + self.OBJ + "Household"
         self.Gen_ID_OBJ_Building = self.GeneratedData + self.ID + self.OBJ + "Building"
         self.Gen_ID_OBJ_Appliances = self.GeneratedData + self.ID + self.OBJ + "Appliances"
@@ -83,9 +83,6 @@ class REG:
         self.Gen_ID_OBJ_PV = self.GeneratedData + self.ID + self.OBJ + "PV"
         self.Gen_ID_OBJ_Battery = self.GeneratedData + self.ID + self.OBJ + "Battery"
         self.Gen_ID_OBJ_ElectricVehicle = self.GeneratedData + self.ID + self.OBJ + "ElectricVehicle"
-        self.Gen_WashingMachineUseDay = self.GeneratedData + "WashingMachineUseDay"
-        self.Gen_DryerUseDay = self.GeneratedData + "DryerUseDay"
-        self.Gen_DishWasherUseDay = self.GeneratedData + "DishWasherUseDay"
 
 
 
