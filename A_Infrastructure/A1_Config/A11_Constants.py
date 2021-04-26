@@ -9,7 +9,7 @@ class CONS:
 
         self.DatabasePath = "C:\\Users\yus\Dropbox\Academic\Models\ProsumagerDatabase\\"
         # self.DatabasePath = "C:\\Users\\mascherbauer\\Dropbox\\ProsumagerDatabase\\"
-        # self.DatabasePaath = "C:\\Users\\thoma\Dropbox\ProsumagerDatabase\\"
+        # self.DatabasePath = "C:\\Users\\thoma\Dropbox\ProsumagerDatabase\\"
 
         self.FiguresPath = str(self.ProjectPath) + "\_Figures\\"
         self.RootDB = "Prosumager"
