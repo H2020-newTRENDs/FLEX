@@ -1,15 +1,14 @@
 
-from A_Infrastructure.A1_Config.b_Register import REG
-from A_Infrastructure.A2_ToolKits.a_DB import DB
-from B_Classes.B2_Environment import Environment
-from B_Classes.B3_Building import Building
-from B_Classes.B4_ApplianceGroup import ApplianceGroup
-from B_Classes.B5_SpaceHeating import SpaceHeating
-from B_Classes.B6_SpaceCooling import SpaceCooling
-from B_Classes.B7_HotWater import HotWater
-from B_Classes.B8_PV import PV
-from B_Classes.B9_Battery import Battery
-from B_Classes.B10_ElectricVehicle import ElectricVehicle
+from A_Infrastructure.A1_Config.A12_Register import REG
+from A_Infrastructure.A2_ToolKits.A21_DB import DB
+from B_Classes.B2_Building import Building
+from B_Classes.B3_ApplianceGroup import ApplianceGroup
+from B_Classes.B4_SpaceHeating import SpaceHeating
+from B_Classes.B5_SpaceCooling import SpaceCooling
+from B_Classes.B6_HotWater import HotWater
+from B_Classes.B7_PV import PV
+from B_Classes.B8_Battery import Battery
+from B_Classes.B9_ElectricVehicle import ElectricVehicle
 
 class Household:
 
@@ -50,10 +49,6 @@ class Household:
         self.ID_AgeGroup = para_series["ID_AgeGroup"]
         [self.SpaceHeatingTargetTemperature, self.SpaceCoolingTargetTemperature] = self.init_TargetTemperature()
         self.ID_LifeStyleType = para_series["ID_LifeStyleType"]
-
-        # Environment Object
-        Table_OBJ_Environment = DB().read_DataFrame(REG().Gen_ID_OBJ_Environment, self.Conn, ID=para_series["ID_OBJ_Environment"])
-        self.Environment = Environment(self, Table_OBJ_Environment.iloc[0], self.Conn)
 
         # Building Object
         Table_OBJ_Building = DB().read_DataFrame(REG().Gen_ID_OBJ_Building, self.Conn, ID=para_series["ID_OBJ_Building"])

@@ -1,8 +1,8 @@
 
 import sqlite3
 import pandas as pd
-from A_Infrastructure.A1_Config.a_Constants import CONS
-from A_Infrastructure.A1_Config.b_Register import REG
+from A_Infrastructure.A1_Config.A11_Constants import CONS
+from A_Infrastructure.A1_Config.A12_Register import REG
 
 class DB:
 

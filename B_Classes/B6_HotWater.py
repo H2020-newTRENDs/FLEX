@@ -1,8 +1,8 @@
 
-from A_Infrastructure.A1_Config.b_Register import REG
-from A_Infrastructure.A2_ToolKits.a_DB import DB
+from A_Infrastructure.A1_Config.A12_Register import REG
+from A_Infrastructure.A2_ToolKits.A21_DB import DB
 
-class ElectricVehicle:
+class HotWater:
 
     """
     Data type:
