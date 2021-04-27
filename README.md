@@ -13,16 +13,18 @@ This ***prosumager*** model is developed for ***NewTRENDs Project*** and ***mast
 ##### 2.1 Songmin
 
 - keep working on the files in "B\_Classes" and "C1\_TableGenerator"
+- update the database
+- prepare table templates for Philipp
 
 ##### 2.2 Thomas
 
 - get familiar with the code and database
-- fill in the tables except building
+- try some optimization examples
 
 ##### 2.3 Philipp
 
 - get familiar with the code and database
-- fill in the tables of building
+- send Songmin the tables
 - work on the "B3\_Building.py"
 
 ### 3 Coding Conventions

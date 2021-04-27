@@ -76,7 +76,7 @@ class REG:
         # Generated Table
         self.Gen_ID_OBJ_Household = self.GeneratedData + self.ID + self.OBJ + "Household"
         self.Gen_ID_OBJ_Building = self.GeneratedData + self.ID + self.OBJ + "Building"
-        self.Gen_ID_OBJ_Appliances = self.GeneratedData + self.ID + self.OBJ + "Appliances"
+        self.Gen_ID_OBJ_ApplianceGroup = self.GeneratedData + self.ID + self.OBJ + "ApplianceGroup"
         self.Gen_ID_OBJ_SpaceHeating = self.GeneratedData + self.ID + self.OBJ + "SpaceHeating"
         self.Gen_ID_OBJ_SpaceCooling = self.GeneratedData + self.ID + self.OBJ + "SpaceCooling"
         self.Gen_ID_OBJ_HotWater = self.GeneratedData + self.ID + self.OBJ + "HotWater"
