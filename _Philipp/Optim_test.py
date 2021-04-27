@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 from pyomo.opt import SolverStatus, TerminationCondition
 import matplotlib.pyplot as plt
-
+from pyomo.util.infeasible import log_infeasible_constraints
 
 def get_invert_data():
     project_directory_path = Path(__file__).parent.resolve()
@@ -114,56 +114,11 @@ def get_invert_data():
     # solar gains through windows
     Qsol = Awindows_rad_north[0] * sol_rad_n + Awindows_rad_east_west[0] * sol_rad_ea + Awindows_rad_south[0] * sol_rad_s
 
+    # electricity price for 24 hours:
+    elec_price = pd.read_excel(base_results_path / "Elec_price_per_hour.xlsx", engine="openpyxl")
+    elec_price = elec_price.loc[:, "Price (€/MWh)"].dropna().to_numpy()
     return Atot[0], Hve[0], Htr_w[0], Hop[0], Cm[0], Am[0], Qi[0], \
-           temp_outside[0:24], Qsol
-
-
-def room_temperature_rc(Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Qsol, Q_heating,
-                        T_outside, Tm_t_prev):
-    At = 4.5  # 7.2.2.2
-
-    # Kopplung Temp Luft mit Temp Surface Knoten s
-    his = np.float_(3.45)  # 7.2.2.2
-    # kopplung zwischen Masse und  zentralen Knoten s (surface)
-    hms = np.float_(9.1)  # W / m2K from Equ.C.3 (from 12.2.2)
-    Htr_ms = hms * Am  # from 12.2.2 Equ. (64)
-    Htr_em = 1 / (1 / Hop - 1 / Htr_ms)  # from 12.2.2 Equ. (63)
-    # thermischer Kopplungswerte W/K
-    Htr_is = his * Atot
-    # Equ. C.1
-    PHI_ia = 0.5 * Qi
-    # Equ. C.2
-    PHI_m = Am / At * (0.5 * Qi + Qsol)
-    # Equ. C.3
-    PHI_st = (1 - Am / At - Htr_w / 9.1 / At) * (0.5 * Qi + Qsol)
-    # Equ. C.6
-    Htr_1 = np.float_(1) / (np.float_(1) / Hve + np.float_(1) / Htr_is)
-    # Equ. C.7
-    Htr_2 = Htr_1 + Htr_w
-    # Equ.C.8
-    Htr_3 = 1 / (1 / Htr_2 + 1 / Htr_ms)
-
-    # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
-    T_sup = T_outside
-    # Equ. C.5
-    PHI_mtot = PHI_m + Htr_em * T_outside + Htr_3 * (
-            PHI_st + Htr_w * T_outside + Htr_1 * (((PHI_ia + Q_heating) / Hve) + T_sup)) / \
-               Htr_2
-
-    # Equ. C.4
-    Tm_t = (Tm_t_prev * ((Cm / 3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / ((Cm / 3600) + 0.5 * (Htr_3 + Htr_em))
-
-    # Equ. C.9
-    T_m = (Tm_t + Tm_t_prev) / 2
-    # Euq. C.10
-    T_s = (Htr_ms * T_m + PHI_st + Htr_w * T_outside + Htr_1 * (T_sup + (PHI_ia + Q_heating) / Hve)) / (
-            Htr_ms + Htr_w + Htr_1)
-    # Equ. C.11
-    T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + Q_heating) / (Htr_is + Hve)
-    # Equ. C.12
-    T_op = 0.3 * T_air + 0.7 * T_s
-    # T_op is according to norm the inside temperature whereas T_air is the air temperature # TODO which one?
-    return Tm_t, T_op
+           temp_outside[0:24], Qsol, elec_price
 
 
 # testing pyomo very simple example for 6 hours: (6 steps)
@@ -187,126 +142,214 @@ def create_dict(liste):
         dictionary[index] = value
     return dictionary
 
-Atot, Hve, Htr_w, Hop, Cm, Am, Qi, temp_outside, Qsol = get_invert_data()
+Atot, Hve, Htr_w, Hop, Cm, Am, Qi, temp_outside, Qsol, price = get_invert_data()
 
 # fixed starting values:
 tank_starting_temp = 50
 indoor_starting_temp = 22
 
+# constants:
 # water mass in storage
-m_water = 1_000  # l
+m_water = 10_000  # l
 # thermal capacity water
 cp_water = 4.2  # kJ/kgK
+# constant surrounding temp for water tank
+T_a = 20
 
-# var = {1: 20, 2: 25, 3: 15, 4: 12, 5: 25, 6: 20}  # Q_a
-var2 = create_dict([1, 6, 8, 8, 2, 1])  # price
-ta = create_dict([20, 20, 20, 20, 20, 20])  # constant surrounding temp
-tout = create_dict([5, 4, 0, -1, -2, -2])  # outside temperature
-# Q_loss = create_dict([4, 3, 5, 3.2, 3, 2])  # Losses of the building
+At = 4.5  # 7.2.2.2
+
+# Kopplung Temp Luft mit Temp Surface Knoten s
+his = np.float_(3.45)  # 7.2.2.2
+# kopplung zwischen Masse und  zentralen Knoten s (surface)
+hms = np.float_(9.1)  # W / m2K from Equ.C.3 (from 12.2.2)
+Htr_ms = hms * Am  # from 12.2.2 Equ. (64)
+Htr_em = 1 / (1 / Hop - 1 / Htr_ms)  # from 12.2.2 Equ. (63)
+# thermischer Kopplungswerte W/K
+Htr_is = his * Atot
+# Equ. C.1
+PHI_ia = 0.5 * Qi
+
+# Equ. C.6
+Htr_1 = 1 / (1 / Hve + 1 / Htr_is)
+# Equ. C.7
+Htr_2 = Htr_1 + Htr_w
+# Equ.C.8
+Htr_3 = 1 / (1 / Htr_2 + 1 / Htr_ms)
+
+# given values changing over time:
+# electricity price
+elec_price = create_dict(price)
+# outside temperature
+tout = create_dict(temp_outside)
+# solar gains
+Qsol = create_dict(Qsol)
 
 
+# TODO Dimensionskontrolle!
 # model
 m = pyo.AbstractModel()
 
 # parameters
-m.t = pyo.RangeSet(1, 6)
-m.p = pyo.Param(m.t, initialize=var2)
-m.T_a = pyo.Param(m.t, initialize=ta)
-m.T_out = pyo.Param(m.t, initialize=tout)
+m.t = pyo.RangeSet(24)
+# electricity price
+m.p = pyo.Param(m.t, initialize=elec_price)
+# outside temperature
+m.T_outside = pyo.Param(m.t, initialize=tout)
+# solar gains
+m.Q_sol = pyo.Param(m.t, initialize=Qsol)
 
 # variables
+# electricity into boiler
 m.Q_e = pyo.Var(m.t, within=pyo.NonNegativeReals)
+# temperature inside hot water tank
 m.T_tank = pyo.Var(m.t, within=pyo.NonNegativeReals)
-m.Q_a = pyo.Var(m.t, within=pyo.NonNegativeReals)
+# energy used for heating
+m.Q_heating = pyo.Var(m.t, within=pyo.NonNegativeReals)
+# real indoor temperature
 m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals)
+# # mean indoor temperature
+m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
+m.x = pyo.Set([1, 2, 3, 4, 5], bound=(0, 1))
 
 # objective
 def minimize_cost(m):
     rule = sum(m.Q_e[t] * m.p[t] for t in m.t)
     return rule
-
-
 m.OBJ = pyo.Objective(rule=minimize_cost)
 
 
 # constraints
+def mean_room_temperature_rc(m, t):
+    if t == 1:
+        # Equ. C.2
+        PHI_m = Am / At * (0.5 * Qi + m.Q_sol[t])
+        # Equ. C.3
+        PHI_st = (1 - Am / At - Htr_w / 9.1 / At) * (0.5 * Qi + m.Q_sol[t])
+
+        # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
+        # Equ. C.5
+        PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (
+                PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_heating[t]) / Hve) + m.T_outside[t])) / \
+                   Htr_2
+
+        # Equ. C.4
+        return m.Tm_t[t] == (indoor_starting_temp * ((Cm / 3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
+                    (Cm / 3600) + 0.5 * (Htr_3 + Htr_em))
+    else:
+        # Equ. C.2
+        PHI_m = Am / At * (0.5 * Qi + m.Q_sol[t])
+        # Equ. C.3
+        PHI_st = (1 - Am / At - Htr_w / 9.1 / At) * (0.5 * Qi + m.Q_sol[t])
+
+        # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
+        T_sup = m.T_outside[t]
+        # Equ. C.5
+        PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (
+                PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_heating[t]) / Hve) + T_sup)) / \
+                   Htr_2
+
+        # Equ. C.4
+        return m.Tm_t[t] == (m.Tm_t[t - 1] * ((Cm / 3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
+                    (Cm / 3600) + 0.5 * (Htr_3 + Htr_em))
+m.mean_room_temperature = pyo.Constraint(m.t, rule=mean_room_temperature_rc)
+
+
+def room_temperature_rc(m, t):
+    if t == 1:
+        # Equ. C.3
+        PHI_st = (1 - Am / At - Htr_w / 9.1 / At) * (0.5 * Qi + m.Q_sol[t])
+        # Equ. C.9
+        T_m = (m.Tm_t[t] + indoor_starting_temp) / 2
+        T_sup = m.T_outside[t]
+        # Euq. C.10
+        T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (T_sup + (PHI_ia + m.Q_heating[t]) / Hve)) / (
+                Htr_ms + Htr_w + Htr_1)
+        # Equ. C.11
+        T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_heating[t]) / (Htr_is + Hve)
+        # Equ. C.12
+        T_op = 0.3 * T_air + 0.7 * T_s
+        # T_op is according to norm the inside temperature whereas T_air is the air temperature # TODO which one?
+        return m.T_room[t] == T_op
+    else:
+        # Equ. C.3
+        PHI_st = (1 - Am / At - Htr_w / 9.1 / At) * (0.5 * Qi + m.Q_sol[t])
+        # Equ. C.9
+        T_m = (m.Tm_t[t] + m.Tm_t[t-1]) / 2
+        T_sup = m.T_outside[t]
+        # Euq. C.10
+        T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (T_sup + (PHI_ia + m.Q_heating[t]) / Hve)) / (
+                Htr_ms + Htr_w + Htr_1)
+        # Equ. C.11
+        T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_heating[t]) / (Htr_is + Hve)
+        # Equ. C.12
+        T_op = 0.3 * T_air + 0.7 * T_s
+        # T_op is according to norm the inside temperature whereas T_air is the air temperature # TODO which one?
+        return m.T_room[t] == T_op
+m.room_temperature = pyo.Constraint(m.t, rule=room_temperature_rc)
+
+
 def maximum_temperature_tank(m, t):
     return m.T_tank[t] <= 100
-
-
 m.maximum_temperature_tank = pyo.Constraint(m.t, rule=maximum_temperature_tank)
 
 
 def minimum_temperature_tank(m, t):
     return m.T_tank[t] >= 20
-
-
 m.minimum_temperature_tank = pyo.Constraint(m.t, rule=minimum_temperature_tank)
 
 
 def maximum_temperature_room(m, t):
     return m.T_room[t] <= 28
-
-
 m.maximum_temperature_raum = pyo.Constraint(m.t, rule=maximum_temperature_room)
 
 
 def minimum_temperature_room(m, t):
     return m.T_room[t] >= 20
-
-
 m.minimum_temperature_raum = pyo.Constraint(m.t, rule=minimum_temperature_room)
-
-
-def room_temperature(m, t):
-    if t == 1:
-        return m.T_room[t] == indoor_starting_temp - U * Am / Cm * (m.T_room[t] - m.T_out[t]) + m.Q_a[t] / Cm
-    else:
-        return m.T_room[t] == m.T_room[t - 1] - U * Am / Cm * (m.T_room[t] - m.T_out[t]) + m.Q_a[t] / Cm
-
-
-m.room_temperature = pyo.Constraint(m.t, rule=room_temperature)
 
 
 def tank_temperatur(m, t):
     if t == 1:
-        return m.T_tank[t] == tank_starting_temp - m.Q_a[t] / m_water / cp_water * 3600 + \
-               m.Q_e[t] / m_water / cp_water * 3600 - 0.003 * (tank_starting_temp - m.T_a[t])
+        return m.T_tank[t] == tank_starting_temp - m.Q_heating[t] / m_water / cp_water * 3600 + \
+               m.Q_e[t] / m_water / cp_water * 3600 - 0.003 * (tank_starting_temp - T_a)
     else:
-        return m.T_tank[t] == m.T_tank[t - 1] - m.Q_a[t] / m_water / cp_water * 3600 + \
-               m.Q_e[t] / m_water / cp_water * 3600 - 0.003 * (m.T_tank[t] - m.T_a[t])
+        return m.T_tank[t] == m.T_tank[t - 1] - m.Q_heating[t] / m_water / cp_water * 3600 + \
+               m.Q_e[t] / m_water / cp_water * 3600 - 0.003 * (m.T_tank[t] - T_a)
 
 
 m.tank_temperatur = pyo.Constraint(m.t, rule=tank_temperatur)
 
 
 def max_power_tank(m, t):
-    return m.Q_e[t] <= 10_000  # W
-
-
+    return m.Q_e[t] <= 10_000_000  # W
 m.max_power = pyo.Constraint(m.t, rule=max_power_tank)
 
 
 def min_power_tank(m, t):
     return m.Q_e[t] >= 0
-
-
 m.min_power = pyo.Constraint(m.t, rule=min_power_tank)
 
 
 def max_power_heating(m, t):
-    return m.Q_a[t] <= 10_000
-
-
+    return m.Q_heating[t] <= 10_000_000
 m.max_power_heating = pyo.Constraint(m.t, rule=max_power_heating)
 
 
 def min_power_heating(m, t):
-    return m.Q_a[t] >= 0
-
-
+    return m.Q_heating[t] >= 0
 m.min_power_heating = pyo.Constraint(m.t, rule=min_power_heating)
+
+
+def max_mean_indoor_temp(m,t):
+    return m.Tm_t[t] <= 29
+m.max_mean_indoor_temp = pyo.Constraint(m.t, rule=max_mean_indoor_temp)
+
+
+def min_mean_indoor_temp(m,t):
+    return m.Tm_t[t] >= 18
+m.min_mean_indoor_temp = pyo.Constraint(m.t, rule=min_mean_indoor_temp)
+
 
 instance = m.create_instance(report_timing=True)
 opt = pyo.SolverFactory("gurobi")
@@ -317,15 +360,12 @@ print(results)
 # create plots to visualize results
 def show_results():
     Q_e = [instance.Q_e[t]() for t in m.t]
-    price = [var2[i] for i in range(1, 7)]
-    Q_a = [instance.Q_a[t]() for t in m.t]
+    Q_a = [instance.Q_heating[t]() for t in m.t]
     T_room = [instance.T_room[t]() for t in m.t]
     T_tank = [instance.T_tank[t]() for t in m.t]
 
-    # indoor temperature is constant 20°C
-    cost = [list(price)[i] * Q_e[i] for i in range(6)]
     total_cost = instance.OBJ()
-    x_achse = np.arange(6)
+    x_achse = np.arange(24)
 
     fig, (ax1, ax3) = plt.subplots(2, 1)
     ax2 = ax1.twinx()
@@ -358,14 +398,5 @@ def show_results():
     plt.show()
 
 
-if __name__ == "__main__":
-    sol_rad_north, sol_rad_south, sol_rad_east_west, sol_rad_norm, \
-    Atot, Hve, Htr_w, Hop, Cm, Am, Qi, \
-    Awindows_rad_east_west, Awindows_rad_north, Awindows_rad_south, \
-    temp_outside = \
-        get_invert_data()
+# show_results()
 
-
-
-
-    show_results()
