@@ -41,12 +41,14 @@ class REG:
 
         # 2 Scenarios
         # 2.1 Exogenous tables
-        self.Sce_TimeStructure = self.Scenario + "TimeStructure"  # base year: 2010
-        self.Sce_Irradiation = self.Scenario + "Irradiation" # from helioclim dataset for year 2010
+        self.Sce_TimeStructure = self.Scenario + "TimeStructure" # base year: 2010
+        self.Sce_Radiation = self.Scenario + "Radiation" # from helioclim dataset for year 2010
         self.Sce_Temperature = self.Scenario + "Temperature" # from MERRA2 dataset for year 2010
 
         # Generated scenario tables
         # self.Gen_ID_Sce_Environment
+
+
 
         # ------------------------------
         # Part II: Investment simulation
