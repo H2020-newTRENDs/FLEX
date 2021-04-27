@@ -132,7 +132,7 @@ print(pv_grid)
 
 def show_results():
     cost = [list(price)[i] * grid_load[i] for i in range(hours_of_simulation)]
-    total_cost = instance.OBJ()
+    total_cost = instance.Object()
 
     plt.style.use('seaborn-whitegrid')
 

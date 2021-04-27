@@ -364,7 +364,7 @@ def show_results():
     T_room = [instance.T_room[t]() for t in m.t]
     T_tank = [instance.T_tank[t]() for t in m.t]
 
-    total_cost = instance.OBJ()
+    total_cost = instance.Object()
     x_achse = np.arange(24)
 
     fig, (ax1, ax3) = plt.subplots(2, 1)

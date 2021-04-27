@@ -183,7 +183,7 @@ def show_results():
 
     # indoor temperature is constant 20°C
     cost = [list(price)[i] * Q_e[i] for i in range(hours_of_simulation)]
-    total_cost = instance.OBJ()
+    total_cost = instance.Object()
     x_achse = np.arange(hours_of_simulation)
 
     fig, (ax1, ax3) = plt.subplots(2, 1)
