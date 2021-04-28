@@ -10,18 +10,18 @@ This ***prosumager*** model is developed for ***NewTRENDs Project*** and ***mast
 
 ### 2 Next steps
 
-##### 2.1 Songmin
+#### 2.1 Songmin
 
 - keep working on the files in "B\_Classes" and "C1\_TableGenerator"
 - update the database
 - prepare table templates for Philipp
 
-##### 2.2 Thomas
+#### 2.2 Thomas
 
 - get familiar with the code and database
 - try some optimization examples
 
-##### 2.3 Philipp
+#### 2.3 Philipp
 
 - get familiar with the code and database
 - send Songmin the tables
@@ -29,20 +29,20 @@ This ***prosumager*** model is developed for ***NewTRENDs Project*** and ***mast
 
 ### 3 Coding Conventions
 
-##### 3.1 Naming convention
+#### 3.1 Naming convention
 
 - ***variable***: **V**ariable**N**ame
 - ***parameter defined in a function***: **p**arameter_**n**ame
 - ***function***: **calc_B**uilding**S**pace**H**eating**C**ost
 - ***table***: register in the REG, then use it in the code
 
-##### 3.2 Commiting to Github
+#### 3.2 Commiting to Github
 
 - First, pull when you start working and make sure you are working on the latest version.
 - Second, pull again before pushing, because during your working time, the others may have pushed. However, even though that is the case, the revisions should be merged into your local version automatically, as long as we didn't work on the same row. If you do see the conflicts, solve it locally. ***Always pull before pushing, so that we solve the conflicts locally.***
 - Third, after solving the conflict, pull again (it should be "already up to date"), and push super-fast! Hahaha
 
-##### 3.3 Other conventions
+#### 3.3 Other conventions
 
 - If you need something from the "Infrastructure", tell Songmin to create them.
 
@@ -55,7 +55,7 @@ This ***prosumager*** model is developed for ***NewTRENDs Project*** and ***mast
 
 ### 5 Questions
 
-##### 5.1 Hot water profile
+#### 5.1 Hot water profile
 
 For hot water, the optimization constraint is to satisfy a "hot water demand profile" in each hour. The profile should be in the unit of "kWh". This is different from the space heating or cooling, which are to satisfy a "temperature profile" in the unit of degree. 
 
@@ -75,7 +75,7 @@ Second is HOTMAP method. I have tried it. It can work. Basically, there are two 
 
 - In HOTMAP, I think there is lifestyle assumption embedded in the empirical data they used. We may need to have a look at it and see if it is aligned with our scenario assumptions of lifestyle. But this is not a big deal since the total demand of hot water is relative less compared with space heating. We can check it and maybe change it later after Thomas's master thesis.
 
-##### 5.2 Base year for all?
+#### 5.2 Base year for all?
 
 I have radiation and temperature for 2010 and we will use it as base year. But, I am not sure if this one year data is representative? It is real data, but do we need to use more years data to run the optimization? Or, we somehow calibrate a "representative year data"? 
 
