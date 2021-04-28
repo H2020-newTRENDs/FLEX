@@ -53,3 +53,45 @@ This ***prosumager*** model is developed for ***NewTRENDs Project*** and ***mast
 - git commit -m"***comments for this commit***"
 - git push origin master
 
+### 5 Questions
+
+##### 5.1 Hot water profile
+
+For hot water, the optimization constraint is to satisfy a "hot water demand profile" in each hour. The profile should be in the unit of "kWh". This is different from the space heating or cooling, which are to satisfy a "temperature profile" in the unit of degree. 
+
+However, I am not sure how to generate the hourly profile yet. I think we have two ways:
+
+First is the way you did it last time, Philipp. Hot did you do that?
+
+Second is HOTMAP method. I have tried it. It can work. Basically, there are two steps:
+
+**1. Estimate the total annual hot water useful energy demand profile (unit: kWh).**
+
+- Philipp, I see you have "DHW_per_day" in your "User_profiles_example" table. Is it in the unit of kWh? 
+- TABULA also provides estimation for hot water demand, but it's for different building type and age classes. Not sure how this is related to number of persons in the household.
+- Thomas also found a number: for each person, daily hot water demand is 60kg. But we need to translate it to "kWh" first. But this might be complicated because we need to consider the temperature difference between "ground water" and "target temperature" in the hot water tank. This is different in different seasons.
+
+**2. Allocate the annual demand to 8760 hours.**
+
+- In HOTMAP, I think there is lifestyle assumption embedded in the empirical data they used. We may need to have a look at it and see if it is aligned with our scenario assumptions of lifestyle. But this is not a big deal since the total demand of hot water is relative less compared with space heating. We can check it and maybe change it later after Thomas's master thesis.
+
+##### 5.2 Base year for all?
+
+I have radiation and temperature for 2010 and we will use it as base year. But, I am not sure if this one year data is representative? It is real data, but do we need to use more years data to run the optimization? Or, we somehow calibrate a "representative year data"? 
+
+This is also not in hurry. We could discuss about it later.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
