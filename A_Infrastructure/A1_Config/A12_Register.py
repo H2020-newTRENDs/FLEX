@@ -27,7 +27,7 @@ class REG:
         self.ID_PVType = self.ID + "PVType"
         self.ID_BatteryType = self.ID + "BatteryType"
         self.ID_ElectricVehicleType = self.ID + "ElectricVehicleType"
-        # test
+
         # 1.2 Generated tables: objects
         self.Gen_ID_OBJ_Household = self.GeneratedData + self.ID + self.Object + "Household"
         # self.Gen_ID_OBJ_Building = self.GeneratedData + self.ID + self.OBJ + "Building"
