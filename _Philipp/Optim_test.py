@@ -200,9 +200,9 @@ m.Q_sol = pyo.Param(m.t, initialize=Qsol)
 
 # variables
 # electricity into boiler
-m.Q_e = pyo.Var(m.t, within=pyo.NonNegativeReals)
+# m.Q_e = pyo.Var(m.t, within=pyo.NonNegativeReals)
 # temperature inside hot water tank
-m.T_tank = pyo.Var(m.t, within=pyo.NonNegativeReals)
+# m.T_tank = pyo.Var(m.t, within=pyo.NonNegativeReals)
 # energy used for heating
 m.Q_heating = pyo.Var(m.t, within=pyo.NonNegativeReals)
 # real indoor temperature
@@ -210,11 +210,10 @@ m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals)
 # # mean indoor temperature
 m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
-m.x = pyo.Set([1, 2, 3, 4, 5], bound=(0, 1))
 
 # objective
 def minimize_cost(m):
-    rule = sum(m.Q_e[t] * m.p[t] for t in m.t)
+    rule = sum(m.Q_heating[t] * m.p[t] for t in m.t)
     return rule
 m.OBJ = pyo.Objective(rule=minimize_cost)
 
@@ -289,14 +288,14 @@ def room_temperature_rc(m, t):
 m.room_temperature = pyo.Constraint(m.t, rule=room_temperature_rc)
 
 
-def maximum_temperature_tank(m, t):
-    return m.T_tank[t] <= 100
-m.maximum_temperature_tank = pyo.Constraint(m.t, rule=maximum_temperature_tank)
+# def maximum_temperature_tank(m, t):
+#     return m.T_tank[t] <= 100
+# m.maximum_temperature_tank = pyo.Constraint(m.t, rule=maximum_temperature_tank)
 
 
-def minimum_temperature_tank(m, t):
-    return m.T_tank[t] >= 20
-m.minimum_temperature_tank = pyo.Constraint(m.t, rule=minimum_temperature_tank)
+# def minimum_temperature_tank(m, t):
+#     return m.T_tank[t] >= 20
+# m.minimum_temperature_tank = pyo.Constraint(m.t, rule=minimum_temperature_tank)
 
 
 def maximum_temperature_room(m, t):
@@ -309,26 +308,26 @@ def minimum_temperature_room(m, t):
 m.minimum_temperature_raum = pyo.Constraint(m.t, rule=minimum_temperature_room)
 
 
-def tank_temperatur(m, t):
-    if t == 1:
-        return m.T_tank[t] == tank_starting_temp - m.Q_heating[t] / m_water / cp_water * 3600 + \
-               m.Q_e[t] / m_water / cp_water * 3600 - 0.003 * (tank_starting_temp - T_a)
-    else:
-        return m.T_tank[t] == m.T_tank[t - 1] - m.Q_heating[t] / m_water / cp_water * 3600 + \
-               m.Q_e[t] / m_water / cp_water * 3600 - 0.003 * (m.T_tank[t] - T_a)
+# def tank_temperatur(m, t):
+#     if t == 1:
+#         return m.T_tank[t] == tank_starting_temp - m.Q_heating[t] / m_water / cp_water * 3600 + \
+#                m.Q_e[t] / m_water / cp_water * 3600 - 0.003 * (tank_starting_temp - T_a)
+#     else:
+#         return m.T_tank[t] == m.T_tank[t - 1] - m.Q_heating[t] / m_water / cp_water * 3600 + \
+#                m.Q_e[t] / m_water / cp_water * 3600 - 0.003 * (m.T_tank[t] - T_a)
 
 
-m.tank_temperatur = pyo.Constraint(m.t, rule=tank_temperatur)
+# m.tank_temperatur = pyo.Constraint(m.t, rule=tank_temperatur)
 
 
-def max_power_tank(m, t):
-    return m.Q_e[t] <= 10_000_000  # W
-m.max_power = pyo.Constraint(m.t, rule=max_power_tank)
-
-
-def min_power_tank(m, t):
-    return m.Q_e[t] >= 0
-m.min_power = pyo.Constraint(m.t, rule=min_power_tank)
+# def max_power_tank(m, t):
+#     return m.Q_e[t] <= 10_000_000  # W
+# m.max_power = pyo.Constraint(m.t, rule=max_power_tank)
+#
+#
+# def min_power_tank(m, t):
+#     return m.Q_e[t] >= 0
+# m.min_power = pyo.Constraint(m.t, rule=min_power_tank)
 
 
 def max_power_heating(m, t):
@@ -359,10 +358,10 @@ print(results)
 
 # create plots to visualize results
 def show_results():
-    Q_e = [instance.Q_e[t]() for t in m.t]
+    # Q_e = [instance.Q_e[t]() for t in m.t]
     Q_a = [instance.Q_heating[t]() for t in m.t]
     T_room = [instance.T_room[t]() for t in m.t]
-    T_tank = [instance.T_tank[t]() for t in m.t]
+    # T_tank = [instance.T_tank[t]() for t in m.t]
 
     total_cost = instance.Object()
     x_achse = np.arange(24)
@@ -371,7 +370,7 @@ def show_results():
     ax2 = ax1.twinx()
     ax4 = ax3.twinx()
 
-    ax1.bar(x_achse, Q_e, label="boiler power")
+    # ax1.bar(x_achse, Q_e, label="boiler power")
     ax1.plot(x_achse, Q_a, label="heating power", color="green")
     ax2.plot(x_achse, price, color="orange", label="price")
 
@@ -383,10 +382,10 @@ def show_results():
     ax2.legend(lines + lines2, labels + labels2, loc=0)
 
     ax3.plot(x_achse, T_room, label="room temperature", color="blue")
-    ax4.plot(x_achse, T_tank, label="tank temperature", color="orange")
+    # ax4.plot(x_achse, T_tank, label="tank temperature", color="orange")
 
     ax3.set_ylabel("room temperature °C")
-    ax4.set_ylabel("tank temperature °C")
+    # ax4.set_ylabel("tank temperature °C")
     ax3.yaxis.label.set_color('blue')
     ax4.yaxis.label.set_color('orange')
     lines, labels = ax3.get_legend_handles_labels()
