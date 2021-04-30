@@ -71,6 +71,22 @@ Second is HOTMAP method. I have tried it. It can work. Basically, there are two 
 - TABULA also provides estimation for hot water demand, but it's for different building type and age classes. Not sure how this is related to number of persons in the household.
 - Thomas also found a number: for each person, daily hot water demand is 60kg. But we need to translate it to "kWh" first. But this might be complicated because we need to consider the temperature difference between "ground water" and "target temperature" in the hot water tank. This is different in different seasons.
 
+> Update: 
+>
+> Since we have no reliable "temperature data" for hot water consumption, we cannot translate "kg" to "kWh". It seems that the best we have now is this "building dependent annual demand" for hot water from INVERT. Based on HOTMAP data, we allocate this annual number to 8760 hours in a year.
+>
+> On the other hand, in the model we can optimize
+>
+> - "energy from tank to hot water use" in the unit of kWh
+> - "energy from boiler to tank" in the unit of kWh
+>
+> But, it seems we still need a temperature variable in the tank, to calculate the hourly heat loss. We may assume 50 degree as bottom limit if this parameter is not too sensitive?
+>
+> Things not solved:
+>
+> - still, we need to somehow relate the annual hot water demand (kWh) to person instead of living area (m2). Then, we can further introduce "lifestyle assumptions (WFH days)" to the analysis.
+> - one parameter can help: average persons living in each building type.
+
 **2. Allocate the annual demand to 8760 hours.**
 
 - In HOTMAP, I think there is lifestyle assumption embedded in the empirical data they used. We may need to have a look at it and see if it is aligned with our scenario assumptions of lifestyle. But this is not a big deal since the total demand of hot water is relative less compared with space heating. We can check it and maybe change it later after Thomas's master thesis.
@@ -81,7 +97,11 @@ I have radiation and temperature for 2010 and we will use it as base year. But, 
 
 This is also not in hurry. We could discuss about it later.
 
+#### 5.3 Building parameter
 
+- The meaning of "heat transmission parameter"? Conductivity?
+- Compare the parameter in the calculation table from Mahsa.
+- Each row represents a combination of building components? Then, renovation is modeled as switching between rows? Where can we find detailed information of components (impacts and cost)? IWU database?
 
 
 
