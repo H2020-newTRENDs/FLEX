@@ -28,11 +28,13 @@ def get_invert_data():
 
     # load building stock data exportet by invert run:
     YEAR = 2020
-    datei = str(run_number_str) + "__dynamic_calc_data_bc_" + str(YEAR) + ".npz"
-    data_np = np.load(results_path_rcm / datei)
-    data = pd.DataFrame(data=data_np["arr_0"], columns=data_np["arr_1"][0])
-    data.columns = data.columns.str.decode("utf-8")
-    data.columns = data.columns.str.replace(" ", "")
+    datei = str(run_number_str) + "__dynamic_calc_data_bc_" + str(YEAR) + ".csv"
+    data = pd.read_csv(results_path_rcm / datei).drop(0, axis=0)
+
+
+    # data = pd.DataFrame(data=data_np["arr_0"], columns=data_np["arr_1"][0])
+    # data.columns = data.columns.str.decode("utf-8")
+    # data.columns = data.columns.str.replace(" ", "")
 
     datei = run_number_str + '__climate_data_solar_rad_' + str(YEAR) + ".csv"
     sol_rad = pd.read_csv(results_path_rcm / datei)
