@@ -12,5 +12,5 @@ class CONS:
         # self.DatabasePath = "C:\\Users\\thoma\Dropbox\ProsumagerDatabase\\"
 
         self.FiguresPath = str(self.ProjectPath) + "\_Figures\\"
-        self.RootDB = "Prosumager"
+        self.RootDB = "ProsumagerUpdated"
 
