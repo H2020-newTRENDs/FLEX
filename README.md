@@ -60,12 +60,19 @@ This ***prosumager*** model is developed for ***NewTRENDs Project*** and ***mast
 
 - Demand profile
 
-  > From INVERT, we have demand in kWh/m2. Then, we find **average persons living in each building type** and translate it to kWh/m2 for each person. Then, based on HOTMAP data, we allocate the annual demand to hourly profiles, and at the same time, we have distinction between working days and holidays.
+  > - From INVERT, we have demand in kWh/m2. Then, we find **average persons living in each building type** and translate it to kWh/m2 for each person. Then, based on HOTMAP data, we allocate the annual demand to hourly profiles, and at the same time, we have distinction between working days and holidays.
+  > - **Songmin**: I briefly compared relevant parameters from three sources - (1) INVERT; (2) calculation by my colleague at ISI; (3) 60kg per day. We can have a look together in the next meeting.
 
 - Optimization
 
-  > - water is taken from same tank of space heating, then heated up higher with electric heater.
-  > - the energy of electric heater is decided by the tank temperature, but we can assume it's constant for simplication later. Then, in the space heating optimization, hot water is an exogenous heat loss of the tank.
+  > - Water is taken from same tank of space heating, then heated up for higher temperature with electric heater.
+  >
+  > - Then, the energy comsumer by the electric heater is decided by the tank temperature. To simplify the optimization, we can assume that the water feed to the electric heater at a constant temperature. Then, from the space heating optimization perspective, the energy goes to hot water is an exogenous heat loss of the tank.
+  >
+  > - A few questions:
+  >
+  >   > - How about in summer, when the space heating system is turned off?
+  >   > - In the FORECAST mode, I also see oil/gas/coal/biomass boiler for hot water (consumption of these energy carriers). Does this come from the same boiler for space heating? Or, the are used same as the "electric heater" mentioned above? Besides, I also see heat pump for hot water. 
 
 #### 5.2 Base year for all?
 
