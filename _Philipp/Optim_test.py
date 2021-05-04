@@ -201,10 +201,6 @@ m.T_outside = pyo.Param(m.time, initialize=tout)
 m.Q_sol = pyo.Param(m.time, initialize=Qsol)
 
 # variables
-# electricity into boiler
-# m.Q_e = pyo.Var(m.t, within=pyo.NonNegativeReals)
-# temperature inside hot water tank
-# m.T_tank = pyo.Var(m.t, within=pyo.NonNegativeReals)
 # energy used for heating
 m.Q_heating = pyo.Var(m.time, within=pyo.NonNegativeReals)
 # real indoor temperature
@@ -271,7 +267,7 @@ def room_temperature_rc(m, t):
         # Equ. C.12
         T_op = 0.3 * T_air + 0.7 * T_s
         # T_op is according to norm the inside temperature whereas T_air is the air temperature # TODO which one?
-        return m.T_room[t] == T_op
+        return m.T_room[t] == T_air
     else:
         # Equ. C.3
         PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_sol[t])
@@ -286,70 +282,8 @@ def room_temperature_rc(m, t):
         # Equ. C.12
         T_op = 0.3 * T_air + 0.7 * T_s
         # T_op is according to norm the inside temperature whereas T_air is the air temperature # TODO which one?
-        return m.T_room[t] == T_op
+        return m.T_room[t] == T_air
 m.room_temperature = pyo.Constraint(m.time, rule=room_temperature_rc)
-
-
-# def maximum_temperature_tank(m, t):
-#     return m.T_tank[t] <= 100
-# m.maximum_temperature_tank = pyo.Constraint(m.t, rule=maximum_temperature_tank)
-
-
-# def minimum_temperature_tank(m, t):
-#     return m.T_tank[t] >= 20
-# m.minimum_temperature_tank = pyo.Constraint(m.t, rule=minimum_temperature_tank)
-
-
-# def maximum_temperature_room(m, t):
-#     return m.T_room[t] <= 28
-# m.maximum_temperature_raum = pyo.Constraint(m.t, rule=maximum_temperature_room)
-#
-#
-# def minimum_temperature_room(m, t):
-#     return m.T_room[t] >= 20
-# m.minimum_temperature_raum = pyo.Constraint(m.t, rule=minimum_temperature_room)
-
-
-# def tank_temperatur(m, t):
-#     if t == 1:
-#         return m.T_tank[t] == tank_starting_temp - m.Q_heating[t] / m_water / cp_water * 3600 + \
-#                m.Q_e[t] / m_water / cp_water * 3600 - 0.003 * (tank_starting_temp - T_a)
-#     else:
-#         return m.T_tank[t] == m.T_tank[t - 1] - m.Q_heating[t] / m_water / cp_water * 3600 + \
-#                m.Q_e[t] / m_water / cp_water * 3600 - 0.003 * (m.T_tank[t] - T_a)
-
-
-# m.tank_temperatur = pyo.Constraint(m.t, rule=tank_temperatur)
-
-
-# def max_power_tank(m, t):
-#     return m.Q_e[t] <= 10_000_000  # W
-# m.max_power = pyo.Constraint(m.t, rule=max_power_tank)
-#
-#
-# def min_power_tank(m, t):
-#     return m.Q_e[t] >= 0
-# m.min_power = pyo.Constraint(m.t, rule=min_power_tank)
-
-
-# def max_power_heating(m, t):
-#     return m.Q_heating[t] <= 10_000_000
-# m.max_power_heating = pyo.Constraint(m.t, rule=max_power_heating)
-#
-#
-# def min_power_heating(m, t):
-#     return m.Q_heating[t] >= 0
-# m.min_power_heating = pyo.Constraint(m.t, rule=min_power_heating)
-
-
-# def max_mean_indoor_temp(m,t):
-#     return m.Tm_t[t] <= 29
-# m.max_mean_indoor_temp = pyo.Constraint(m.t, rule=max_mean_indoor_temp)
-#
-#
-# def min_mean_indoor_temp(m,t):
-#     return m.Tm_t[t] >= 18
-# m.min_mean_indoor_temp = pyo.Constraint(m.t, rule=min_mean_indoor_temp)
 
 
 instance = m.create_instance(report_timing=True)
@@ -370,6 +304,7 @@ def show_results():
 
     fig, (ax1, ax3) = plt.subplots(2, 1)
     ax2 = ax1.twinx()
+    ax4 = ax3.twinx()
 
     # ax1.bar(x_achse, Q_e, label="boiler power")
     ax1.plot(x_achse, Q_a, label="heating power", color="red")
@@ -380,7 +315,6 @@ def show_results():
     # ax1.yaxis.label.set_color('green')
 
     ax2.set_ylabel("price per kWh")
-    ax2.yaxis.label.set_color('orange')
 
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
@@ -396,9 +330,10 @@ def show_results():
     # ax4.set_ylabel("tank temperature °C")
     ax3.yaxis.label.set_color('blue')
     ax3.legend()
-    plt.grid()
-
+    ax1.grid()
+    ax3.grid()
     ax1.set_title("Total costs: " + str(round(total_cost / 1000, 3)))
+
     plt.show()
 
 
