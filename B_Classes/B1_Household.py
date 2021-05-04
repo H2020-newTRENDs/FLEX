@@ -12,35 +12,6 @@ from B_Classes.B9_ElectricVehicle import ElectricVehicle
 
 class Household:
 
-    """
-    In the updated version, we do not initialize so many attribute values for households and the objects.
-    We only give array of OBJ_types. Then, all the parameter tables are read into memory at the beginning.
-
-    The next classes are instantiated with only one number, and this is the only attribute of it.
-    The main reason to have these classes is to put behavioral functions there, for example, diffusion...
-
-    So, in the yearly model, in each year, agents switch between the rows in table "Gen_ID_OBJ_Households".
-    This single number goes to DataCollector and stored.
-    Following the yearly investment simulation, the saved table is translated to energy consumption and everything.
-    """
-
-    """
-    Data type:
-    (1) self.ID_Country: int
-    (2) self.ID_HouseholdType: int
-    (3) self.ID_AgeGroup: int
-    (4) self.ID_LifeStyleType: int
-    (5) self.Environment: Object
-    (6) self.Building: Object
-    (7) self.Appliances: Object
-    (8) self.SpaceHeating: Object
-    (9) self.SpaceCooling: Object
-    (10) self.HotWater: Object
-    (11) self.PV: Object
-    (12) self.Battery: Object
-    (13) self.ElectricVehicle: Object
-    """
-
     def __init__(self, para_series, conn):
 
         self.Conn = conn

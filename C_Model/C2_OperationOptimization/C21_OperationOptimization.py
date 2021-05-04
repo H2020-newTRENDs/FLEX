@@ -17,10 +17,13 @@ class OptimizationCore:
     def __init__(self, conn):
         self.Conn = conn
 
+
+
+
+
     def run(self):
-        print(DB().read_DataFrame(REG().Gen_ID_OBJ_Environment, self.Conn).iloc[0])
+
         pass
 
-    pass
 
 
