@@ -20,6 +20,9 @@ class REG:
         self.ID_EnergyCarrier = self.ID + "EnergyCarrier"
         self.ID_HouseholdType = self.ID + "HouseholdType"
         self.ID_AgeGroup = self.ID + "AgeGroup"
+        self.ID_BuildingType = self.ID + "BuildingType"
+        self.ID_BuildingAgeClass = self.ID + "BuildingAgeClass"
+        self.ID_BuildingOption = self.ID + "BuildingOption"
         self.ID_DishWasherType = self.ID + "DishWasherType"
         self.ID_DryerType = self.ID + "DryerType"
         self.ID_WashingMachineType = self.ID + "WashingMachineType"
@@ -35,7 +38,7 @@ class REG:
 
         # 1.2 Generated tables: objects
         self.Gen_OBJ_ID_Household = self.GeneratedData + self.Object + self.ID + "Household"
-        # self.Gen_OBJ_ID_Building = self.GeneratedData + self.Object + self.ID + "Building"
+        self.Gen_OBJ_ID_Building = self.GeneratedData + self.Object + self.ID + "Building"
         self.Gen_OBJ_ID_ApplianceGroup = self.GeneratedData + self.Object + self.ID + "ApplianceGroup"
         self.Gen_OBJ_ID_SpaceHeating = self.GeneratedData + self.Object + self.ID + "SpaceHeating"
         self.Gen_OBJ_ID_SpaceCooling = self.GeneratedData + self.Object + self.ID + "SpaceCooling"
