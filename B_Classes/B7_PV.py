@@ -4,20 +4,15 @@ from A_Infrastructure.A2_ToolKits.A21_DB import DB
 
 class PV:
 
-    """
-    Data type:
-    (1)
-    """
-
-    def __init__(self, household, para_series, conn):
-        self.Household = household
-        self.Conn = conn
+    def __init__(self, para_series):
+        self.ID_PVType = para_series["ID_PVType"]
+        self.Size = para_series["Size"]
+        self.PVPower = para_series["PVPower"]
+        self.PVEfficiency = para_series["PVEfficiency"]
 
 
-    def calc_PVGeneration(self):
+    def calc_PVGeneration(self, household):
 
-        # move the generation calculation method in the tool here
-        Irradiation = self.Household.Environment.Irradiation
-        Generation = Irradiation * 0.2 * self.PVSize * self.ff
+        Generation = 0
 
         return Generation

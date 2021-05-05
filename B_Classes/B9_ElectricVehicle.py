@@ -4,11 +4,11 @@ from A_Infrastructure.A2_ToolKits.A21_DB import DB
 
 class ElectricVehicle:
 
-    """
-    Data type:
-    (1)
-    """
+    def __init__(self, para_series):
+        self.ID_ElectricVehicleType = para_series["ID_ElectricVehicleType"]
+        self.BatterySize = para_series["BatterySize"]
+        self.BatteryChargeEfficiency = para_series["BatteryChargeEfficiency"]
+        self.BatteryMaxChargePower = para_series["BatteryMaxChargePower"]
+        self.BatteryDischargeEfficiency = para_series["BatteryDischargeEfficiency"]
+        self.BatteryMaxDischargePower = para_series["BatteryMaxDischargePower"]
 
-    def __init__(self, household, para_series, conn):
-        self.Household = household
-        self.Conn = conn

@@ -4,11 +4,7 @@ from A_Infrastructure.A2_ToolKits.A21_DB import DB
 
 class SpaceCooling:
 
-    """
-    Data type:
-    (1)
-    """
-
-    def __init__(self, household, para_series, conn):
-        self.Household = household
-        self.Conn = conn
+    def __init__(self, para_series):
+        self.ID_SpaceCoolingType = para_series["ID_SpaceCoolingType"]
+        self.ID_EnergyCarrier = para_series["ID_EnergyCarrier"]
+        self.SpaceCoolingEfficiency = para_series["SpaceCoolingEfficiency"]
