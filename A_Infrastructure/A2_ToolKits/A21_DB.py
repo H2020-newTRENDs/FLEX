@@ -37,20 +37,6 @@ class DB:
             DataFrame = pd.read_sql('select * from ' + table_name, con=conn)
         return DataFrame
 
-    def read_ExoTableValue(self, table_name, conn, **kwargs):
-        """
-        Use this function instead of read_DataFrame when:
-        you are sure that there is only one row that satisfies the criteria in **kwargs,
-        and you only need ONE VALUE from that row.
-        """
-        DataFrame = self.read_DataFrame(table_name, conn, **kwargs)
-        Value = DataFrame.iloc[0]["Value"]
-        return Value
-
-    def read_GlobalParameterValue(self, parameter_name, conn):
-        ParameterValue = self.read_ExoTableValue(REG().Exo_GlobalParameterValue, conn, Parameter=parameter_name)
-        return ParameterValue
-
     def write_DataFrame(self, table, table_name, column_names, conn):
         table_DataFrame = pd.DataFrame(table, columns=column_names)
         table_DataFrame.to_sql(table_name, conn, index=False, if_exists='replace', chunksize=1000)

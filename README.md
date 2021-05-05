@@ -2,6 +2,8 @@
 
 This ***prosumager*** model is developed for ***NewTRENDs Project*** and ***master thesis of Thomas***.
 
+Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
+
 
 
 ### 1 Milestones
@@ -13,19 +15,20 @@ This ***prosumager*** model is developed for ***NewTRENDs Project*** and ***mast
 #### 2.1 Songmin
 
 - keep working on the files in "B\_Classes" and "C1\_TableGenerator"
+- Set up one example for start and let Philipp know, to set up the one for building class.
 - update the database
-- prepare table templates for Philipp
 
 #### 2.2 Thomas
 
-- get familiar with the code and database
 - try some optimization examples
+- literature review
+- dynamic COP: pre-calculate a table like electricity price (see the excel). Songmin will set up the table structure and Thomas will fill in the numbers.
 
 #### 2.3 Philipp
 
 - get familiar with the code and database
-- send Songmin the tables
 - work on the "B3\_Building.py"
+- maybe change the calculation with other parameters (-- please let Songmin know which parameters are used)
 
 ### 3 Coding Conventions
 
@@ -55,53 +58,32 @@ This ***prosumager*** model is developed for ***NewTRENDs Project*** and ***mast
 
 ### 5 Questions
 
-#### 5.1 Hot water profile
+#### 5.1 Hot water
 
-For hot water, the optimization constraint is to satisfy a "hot water demand profile" in each hour. The profile should be in the unit of "kWh". This is different from the space heating or cooling, which are to satisfy a "temperature profile" in the unit of degree. 
+- Demand profile
 
-However, I am not sure how to generate the hourly profile yet. I think we have two ways:
+  > - From INVERT, we have demand in kWh/m2. Then, we find **average persons living in each building type** and translate it to kWh/m2 for each person. Then, based on HOTMAP data, we allocate the annual demand to hourly profiles, and at the same time, we have distinction between working days and holidays.
+  > - **Songmin**: I briefly compared relevant parameters from three sources - (1) INVERT; (2) calculation by my colleague at ISI; (3) 60kg per day. We can have a look together in the next meeting.
 
-First is the way you did it last time, Philipp. Hot did you do that?
+- Optimization
 
-Second is HOTMAP method. I have tried it. It can work. Basically, there are two steps:
-
-**1. Estimate the total annual hot water useful energy demand profile (unit: kWh).**
-
-- Philipp, I see you have "DHW_per_day" in your "User_profiles_example" table. Is it in the unit of kWh? 
-- TABULA also provides estimation for hot water demand, but it's for different building type and age classes. Not sure how this is related to number of persons in the household.
-- Thomas also found a number: for each person, daily hot water demand is 60kg. But we need to translate it to "kWh" first. But this might be complicated because we need to consider the temperature difference between "ground water" and "target temperature" in the hot water tank. This is different in different seasons.
-
-> Update: 
->
-> Since we have no reliable "temperature data" for hot water consumption, we cannot translate "kg" to "kWh". It seems that the best we have now is this "building dependent annual demand" for hot water from INVERT. Based on HOTMAP data, we allocate this annual number to 8760 hours in a year.
->
-> On the other hand, in the model we can optimize
->
-> - "energy from tank to hot water use" in the unit of kWh
-> - "energy from boiler to tank" in the unit of kWh
->
-> But, it seems we still need a temperature variable in the tank, to calculate the hourly heat loss. We may assume 50 degree as bottom limit if this parameter is not too sensitive?
->
-> Things not solved:
->
-> - still, we need to somehow relate the annual hot water demand (kWh) to person instead of living area (m2). Then, we can further introduce "lifestyle assumptions (WFH days)" to the analysis.
-> - one parameter can help: average persons living in each building type.
-
-**2. Allocate the annual demand to 8760 hours.**
-
-- In HOTMAP, I think there is lifestyle assumption embedded in the empirical data they used. We may need to have a look at it and see if it is aligned with our scenario assumptions of lifestyle. But this is not a big deal since the total demand of hot water is relative less compared with space heating. We can check it and maybe change it later after Thomas's master thesis.
+  > - Water is taken from same tank of space heating, then heated up for higher temperature with electric heater.
+  >
+  > - Then, the energy comsumer by the electric heater is decided by the tank temperature. To simplify the optimization, we can assume that the water feed to the electric heater at a constant temperature. Then, from the space heating optimization perspective, the energy goes to hot water is an exogenous heat loss of the tank.
+  >
+  > - A few questions:
+  >
+  >   > - How about in summer, when the space heating system is turned off?
+  >   > - In the FORECAST mode, I also see oil/gas/coal/biomass boiler for hot water (consumption of these energy carriers). Does this come from the same boiler for space heating? Or, the are used same as the "electric heater" mentioned above? Besides, I also see heat pump for hot water. 
 
 #### 5.2 Base year for all?
 
-I have radiation and temperature for 2010 and we will use it as base year. But, I am not sure if this one year data is representative? It is real data, but do we need to use more years data to run the optimization? Or, we somehow calibrate a "representative year data"? 
+- No hurry. Come back to it when working on yearly investment simulation part.
 
-This is also not in hurry. We could discuss about it later.
 
 #### 5.3 Building parameter
 
-- The meaning of "heat transmission parameter"? Conductivity?
-- Compare the parameter in the calculation table from Mahsa.
-- Each row represents a combination of building components? Then, renovation is modeled as switching between rows? Where can we find detailed information of components (impacts and cost)? IWU database?
+- when Philipp decides what calculation method to use, we will know which parameters are relevant and to be collected.
 
 
 

@@ -15,9 +15,14 @@ class REG:
         # 1 Objects
         # 1.1 Exogenous tables: ID and parameter
         self.ID_Country = self.ID + "Country"
+        self.ID_DayType = self.ID + "DayType"
+        self.ID_SeasonType = self.ID + "SeasonType"
         self.ID_EnergyCarrier = self.ID + "EnergyCarrier"
         self.ID_HouseholdType = self.ID + "HouseholdType"
         self.ID_AgeGroup = self.ID + "AgeGroup"
+        self.ID_DishWasherType = self.ID + "DishWasherType"
+        self.ID_DryerType = self.ID + "DryerType"
+        self.ID_WashingMachineType = self.ID + "WashingMachineType"
         self.ID_SpaceHeatingBoilerType = self.ID + "SpaceHeatingBoilerType"
         self.ID_SpaceHeatingTankType = self.ID + "SpaceHeatingTankType"
         self.ID_SpaceHeatingPumpType = self.ID + "SpaceHeatingPumpType"
@@ -29,24 +34,41 @@ class REG:
         self.ID_ElectricVehicleType = self.ID + "ElectricVehicleType"
 
         # 1.2 Generated tables: objects
-        self.Gen_ID_OBJ_Household = self.GeneratedData + self.ID + self.Object + "Household"
-        # self.Gen_ID_OBJ_Building = self.GeneratedData + self.ID + self.OBJ + "Building"
-        # self.Gen_ID_OBJ_ApplianceGroup = self.GeneratedData + self.ID + self.OBJ + "ApplianceGroup"
-        self.Gen_ID_OBJ_SpaceHeating = self.GeneratedData + self.ID + self.Object + "SpaceHeating"
-        self.Gen_ID_OBJ_SpaceCooling = self.GeneratedData + self.ID + self.Object + "SpaceCooling"
-        self.Gen_ID_OBJ_HotWater = self.GeneratedData + self.ID + self.Object + "HotWater"
-        self.Gen_ID_OBJ_PV = self.GeneratedData + self.ID + self.Object + "PV"
-        self.Gen_ID_OBJ_Battery = self.GeneratedData + self.ID + self.Object + "Battery"
-        self.Gen_ID_OBJ_ElectricVehicle = self.GeneratedData + self.ID + self.Object + "ElectricVehicle"
+        self.Gen_OBJ_ID_Household = self.GeneratedData + self.Object + self.ID + "Household"
+        # self.Gen_OBJ_ID_Building = self.GeneratedData + self.Object + self.ID + "Building"
+        self.Gen_OBJ_ID_ApplianceGroup = self.GeneratedData + self.Object + self.ID + "ApplianceGroup"
+        self.Gen_OBJ_ID_SpaceHeating = self.GeneratedData + self.Object + self.ID + "SpaceHeating"
+        self.Gen_OBJ_ID_SpaceCooling = self.GeneratedData + self.Object + self.ID + "SpaceCooling"
+        self.Gen_OBJ_ID_HotWater = self.GeneratedData + self.Object + self.ID + "HotWater"
+        self.Gen_OBJ_ID_PV = self.GeneratedData + self.Object + self.ID + "PV"
+        self.Gen_OBJ_ID_Battery = self.GeneratedData + self.Object + self.ID + "Battery"
+        self.Gen_OBJ_ID_ElectricVehicle = self.GeneratedData + self.Object + self.ID + "ElectricVehicle"
 
         # 2 Scenarios
-        # 2.1 Exogenous tables
-        self.Sce_TimeStructure = self.Scenario + "TimeStructure" # base year: 2010
-        self.Sce_Radiation = self.Scenario + "Radiation" # from helioclim dataset for year 2010
-        self.Sce_Temperature = self.Scenario + "Temperature" # from MERRA2 dataset for year 2010
+        # 2.1 Exogenous tables: ID and parameter
+        self.Sce_ID_TimeStructure = self.Scenario + self.ID + "TimeStructure" # base year: 2010
+        self.Sce_ID_LifestyleType = self.Scenario + self.ID + "LifestyleType"
+        self.Sce_ID_TargetTemperature = self.Scenario + self.ID + "TargetTemperature"
+        self.Sce_ID_ElectricVehicleBehavior = self.Scenario + self.ID + "ElectricVehicleBehavior"
+        self.Sce_ID_BaseElectricityProfileType = self.Scenario + self.ID + "BaseElectricityProfileType"
+        self.Sce_ID_ElectricityPriceType = self.Scenario + self.ID + "ElectricityPriceType"
+        self.Sce_ID_FeedinTariffType = self.Scenario + self.ID + "FeedinTariffType"
+        self.Sce_Weather_Radiation = self.Scenario + "Weather_Radiation" # from helioclim dataset for year 2010
+        self.Sce_Weather_Temperature = self.Scenario + "Weather_Temperature" # from MERRA2 dataset for year 2010
+        self.Sce_Technology_HeatPumpCOP = self.Scenario + "Technology_HeatPumpCOP"
+        self.Sce_Demand_BaseElectricityProfile = self.Scenario + "Demand_BaseElectricityProfile"
+        self.Sce_Demand_DishWasher = self.Scenario + "Demand_DishWasher"
+        self.Sce_Demand_Dryer = self.Scenario + "Demand_Dryer"
+        self.Sce_Demand_WashingMachine = self.Scenario + "Demand_WashingMachine"
+        self.Sce_Price_HourlyElectricityPrice = self.Scenario + "Price_HourlyElectricityPrice"
+        self.Sce_Price_HourlyFeedinTariff = self.Scenario + "Price_HourlyFeedinTariff"
 
         # Generated scenario tables
-        # self.Gen_ID_Sce_Environment
+        # self.Gen_Sce_ID_Environment = self.GeneratedData + self.Scenario + self.ID + "Environment"
+        # self.Gen_Sce_ID_TypicalDays = self.GeneratedData + self.Scenario + self.ID + "TypicalDays"
+        # self.Gen_Sce_DishWasherWorkingDays = self.GeneratedData + self.Scenario + "DishWasherWorkingDays"
+        # self.Gen_Sce_DryerWorkingDays = self.GeneratedData + self.Scenario + "DryerWorkingDays"
+        # self.Gen_Sce_WashingMachineWorkingDays = self.GeneratedData + self.Scenario + "WashingMachineWorkingDays"
 
 
 
