@@ -69,7 +69,7 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
   > - For now, I haven't removed the tank in HotWater. **A few questions:**
   >
   >   > - How about in summer, when the space heating system is turned off? 
-  >  > - In the FORECAST mode, I also see oil/gas/coal/biomass boiler for hot water (consumption of these energy carriers). Does this come from the same boiler for space heating? Or, the are used same as the "electric heater" mentioned above? Besides, I also see heat pump for hot water. 
+  >   > - In the FORECAST mode, I also see oil/gas/coal/biomass boiler for hot water (consumption of these energy carriers). Does this come from the same boiler for space heating? Or, the are used same as the "electric heater" mentioned above? Besides, I also see heat pump for hot water. 
 
 
 #### 5.4 Building parameter
