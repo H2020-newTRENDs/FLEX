@@ -37,6 +37,11 @@ class DB:
             DataFrame = pd.read_sql('select * from ' + table_name, con=conn)
         return DataFrame
 
+    def read_DataFrameRow(self, table_name, row_id, conn):
+        DataFrame = self.read_DataFrame(table_name, conn)
+        Series = DataFrame.iloc[row_id]
+        return Series
+
     def write_DataFrame(self, table, table_name, column_names, conn):
         table_DataFrame = pd.DataFrame(table, columns=column_names)
         table_DataFrame.to_sql(table_name, conn, index=False, if_exists='replace', chunksize=1000)

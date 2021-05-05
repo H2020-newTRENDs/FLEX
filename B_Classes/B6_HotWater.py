@@ -4,11 +4,13 @@ from A_Infrastructure.A2_ToolKits.A21_DB import DB
 
 class HotWater:
 
-    """
-    Data type:
-    (1)
-    """
+    def __init__(self, para_series):
+        self.ID_HotWaterBoilerType = para_series["ID_HotWaterBoilerType"]
+        self.ID_EnergyCarrier = para_series["ID_EnergyCarrier"]
+        self.BoilerEfficiency = para_series["BoilerEfficiency"]
+        self.ID_HotWaterTankType = para_series["ID_HotWaterTankType"]
+        self.TankSize = para_series["TankSize"]
+        self.TankSurfaceArea = para_series["TankSurfaceArea"]
+        self.TankLoss = para_series["TankLoss"]
+        self.HotWaterPowerUpLimit = para_series["HotWaterPowerUpLimit"]
 
-    def __init__(self, household, para_series, conn):
-        self.Household = household
-        self.Conn = conn

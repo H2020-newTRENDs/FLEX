@@ -17,48 +17,18 @@ class Household:
         self.Conn = conn
         self.ID_Country = para_series["ID_Country"]
         self.ID_HouseholdType = para_series["ID_HouseholdType"]
+        self.AveragePersons = para_series["AveragePersons"]
+        self.EquivalentPersons = para_series["EquivalentPersons"]
         self.ID_AgeGroup = para_series["ID_AgeGroup"]
-        [self.SpaceHeatingTargetTemperature, self.SpaceCoolingTargetTemperature] = self.init_TargetTemperature()
-        self.ID_LifeStyleType = para_series["ID_LifeStyleType"]
+        # self.Building = Building(DB().read_DataFrameRow(REG().Gen_OBJ_ID_Building, para_series["ID_Building"] - 1, self.Conn))
+        self.ApplianceGroup = ApplianceGroup(DB().read_DataFrameRow(REG().Gen_OBJ_ID_ApplianceGroup, (para_series["ID_ApplianceGroup"] - 1), self.Conn))
+        self.SpaceHeating = SpaceHeating(DB().read_DataFrameRow(REG().Gen_OBJ_ID_SpaceHeating, (para_series["ID_SpaceHeating"] - 1), self.Conn))
+        self.SpaceCooling = SpaceCooling(DB().read_DataFrameRow(REG().Gen_OBJ_ID_SpaceCooling, (para_series["ID_SpaceCooling"] - 1), self.Conn))
+        self.HotWater = HotWater(DB().read_DataFrameRow(REG().Gen_OBJ_ID_HotWater, (para_series["ID_HotWater"] - 1), self.Conn))
+        self.PV = PV(DB().read_DataFrameRow(REG().Gen_OBJ_ID_PV, (para_series["ID_PV"] - 1), self.Conn))
+        self.Battery = Battery(DB().read_DataFrameRow(REG().Gen_OBJ_ID_Battery, (para_series["ID_Battery"]), self.Conn))
+        self.ElectricVehicle = ElectricVehicle(DB().read_DataFrameRow(REG().Gen_OBJ_ID_ElectricVehicle, (para_series["ID_ElectricVehicle"] - 1), self.Conn))
 
-        # Building Object
-        Table_OBJ_Building = DB().read_DataFrame(REG().Gen_ID_OBJ_Building, self.Conn, ID=para_series["ID_OBJ_Building"])
-        self.Building = Building(self, Table_OBJ_Building.iloc[0], self.Conn)
 
-        # Appliances Object
-        Table_OBJ_Appliances = DB().read_DataFrame(REG().Gen_ID_OBJ_Appliances, self.Conn, ID=para_series["ID_OBJ_Appliances"])
-        self.Appliances = ApplianceGroup(self, Table_OBJ_Appliances.iloc[0], self.Conn)
 
-        # SpaceHeating Object
-        Table_OBJ_SpaceHeating = DB().read_DataFrame(REG().Gen_ID_OBJ_SpaceHeating, self.Conn, ID=para_series["ID_OBJ_SpaceHeating"])
-        self.SpaceHeating = SpaceHeating(self, Table_OBJ_SpaceHeating.iloc[0], self.Conn)
 
-        # SpaceCooling Object
-        Table_OBJ_SpaceCooling = DB().read_DataFrame(REG().Gen_ID_OBJ_SpaceCooling, self.Conn, ID=para_series["ID_OBJ_SpaceCooling"])
-        self.SpaceCooling = SpaceCooling(self, Table_OBJ_SpaceCooling.iloc[0], self.Conn)
-
-        # HotWater Object
-        Table_OBJ_HotWater = DB().read_DataFrame(REG().Gen_ID_OBJ_HotWater, self.Conn, ID=para_series["ID_OBJ_HotWater"])
-        self.HotWater = HotWater(self, Table_OBJ_HotWater.iloc[0], self.Conn)
-
-        # PV Object
-        Table_OBJ_PV = DB().read_DataFrame(REG().Gen_ID_OBJ_PV, self.Conn, ID=para_series["ID_OBJ_PV"])
-        self.PV = PV(self, Table_OBJ_PV.iloc[0], self.Conn)
-
-        # Battery Object
-        Table_OBJ_Battery = DB().read_DataFrame(REG().Gen_ID_OBJ_Battery, self.Conn, ID=para_series["ID_OBJ_Battery"])
-        self.Battery = Battery(self, Table_OBJ_Battery.iloc[0], self.Conn)
-
-        # ElectricVehicle Object
-        Table_OBJ_ElectricVehicle = DB().read_DataFrame(REG().Gen_ID_OBJ_ElectricVehicle, self.Conn, ID=para_series["ID_OBJ_ElectricVehicle"])
-        self.ElectricVehicle = ElectricVehicle(self, Table_OBJ_ElectricVehicle.iloc[0], self.Conn)
-
-    # Target Temperature
-    def init_TargetTemperature(self):
-
-        HeatingTable = DB().read_DataFrame(REG().Exo_SpaceHeatingTargetTemperature, self.Conn, ID_AgeGroup=self.ID_AgeGroup)
-        HeatingTargetTemperature = HeatingTable.iloc[0]["Value"]
-        CoolingTable = DB().read_DataFrame(REG().Exo_SpaceCoolingTargetTemperature, self.Conn, ID_AgeGroup=self.ID_AgeGroup)
-        CoolingTargetTemperature = CoolingTable.iloc[0]["Value"]
-
-        return [HeatingTargetTemperature, CoolingTargetTemperature]
