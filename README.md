@@ -33,7 +33,29 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 ### 5 Questions to discuss
 
-#### 5.1 Hot water
+#### 5.1 Literature review
+
+- Summarize the aspects that are optimized in our model and compare it with existing studies
+
+  > - smart appliance
+  > - space heating
+  > - space cooling?
+  > - hot water?
+  > - PV
+  > - battery
+  > - EV
+
+- Apart from covering more aspects in the optimization, are there other contributions?
+
+  > - data resolution?
+  > - geographic coverage?
+
+#### 5.2 Define the functions
+
+- have a look at the updated classes and database
+- go over the optimization process together and define functions in each class
+
+#### 5.3 Hot water
 
 - Demand profile
 
@@ -42,40 +64,17 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 - Optimization
 
-  > - Water is taken from same tank of space heating, then heated up for higher temperature with electric heater.
+  > - Water is taken from same tank of space heating, then heated up for higher temperature with electric heater. Then, the energy comsumer by the electric heater is decided by the tank temperature. To simplify the optimization, we can assume that the water feed to the electric heater at a constant temperature. Then, from the space heating optimization perspective, the energy goes to hot water is an exogenous heat loss of the tank.
   >
-  > - Then, the energy comsumer by the electric heater is decided by the tank temperature. To simplify the optimization, we can assume that the water feed to the electric heater at a constant temperature. Then, from the space heating optimization perspective, the energy goes to hot water is an exogenous heat loss of the tank.
+  > - For now, I haven't removed the tank in HotWater. **A few questions:**
   >
-  > - A few questions:
-  >
-  >   > - How about in summer, when the space heating system is turned off?
-  >   > - In the FORECAST mode, I also see oil/gas/coal/biomass boiler for hot water (consumption of these energy carriers). Does this come from the same boiler for space heating? Or, the are used same as the "electric heater" mentioned above? Besides, I also see heat pump for hot water. 
-
-#### 5.2 Base year for all?
-
-- No hurry. Come back to it when working on yearly investment simulation part.
+  >   > - How about in summer, when the space heating system is turned off? 
+  >  > - In the FORECAST mode, I also see oil/gas/coal/biomass boiler for hot water (consumption of these energy carriers). Does this come from the same boiler for space heating? Or, the are used same as the "electric heater" mentioned above? Besides, I also see heat pump for hot water. 
 
 
-#### 5.3 Building parameter
+#### 5.4 Building parameter
 
 - when Philipp decides what calculation method to use, we will know which parameters are relevant and to be collected.
-
-#### 5.4 How should we deal with space cooling?
-
-- shall we consider to optimization its operation? Or, we just allocate its annual electricity consumption to hourly level?
-
-#### 5.5 Summarize the aspects to optimize
-
-- smart appliance
-- space heating
-- PV
-- battery (EV)
-- space cooling?
-- hot water?
-
-
-
-
 
 
 
