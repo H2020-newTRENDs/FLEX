@@ -3,7 +3,7 @@ from A_Infrastructure.A1_Config.A11_Constants import CONS
 from A_Infrastructure.A1_Config.A12_Register import REG
 from A_Infrastructure.A2_ToolKits.A21_DB import DB
 
-class TableGenerator:
+class Ope_TableGenerator:
 
     def __init__(self, conn):
         self.Conn = conn
@@ -168,6 +168,8 @@ class TableGenerator:
                                                     ID += 1
         DB().write_DataFrame(TargetTable_list, REG().Gen_OBJ_ID_Household, TargetTable_columns, self.Conn)
 
+
+
     def run(self):
         # self.gen_OBJ_ID_Building()
         # self.gen_OBJ_ID_ApplianceGroup()
@@ -179,3 +181,7 @@ class TableGenerator:
         # self.gen_OBJ_ID_ElectricVehicle()
         # self.gen_OBJ_ID_Household()
         pass
+
+
+
+
