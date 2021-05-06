@@ -5,6 +5,24 @@ import pandas as pd
 from pyomo.opt import SolverStatus, TerminationCondition
 import matplotlib.pyplot as plt
 from pyomo.util.infeasible import log_infeasible_constraints
+from A_Infrastructure.A2_ToolKits.A21_DB import DB
+from A_Infrastructure.A1_Config.A12_Register import REG
+from A_Infrastructure.A1_Config.A11_Constants import CONS
+
+
+def create_radiation_gains():
+    data = DB().read_DataFrame(REG().Sce_Weather_Radiation, conn=DB().create_Connection(CONS().RootDB), ID_Country=20)
+    return data.loc[:, "Radiation"].to_numpy()
+# radiation = create_radiation_gains()
+
+
+
+def get_navicat():
+    data = DB().read_DataFrame(REG().Sce_Weather_Temperature, conn=DB().create_Connection(CONS().RootDB), ID_Country=20)
+    temperature = data.loc[:, "Temperature"].to_numpy()
+    return temperature
+
+
 
 def get_invert_data():
     project_directory_path = Path(__file__).parent.resolve()
@@ -22,19 +40,38 @@ def get_invert_data():
     print("temperatures path exists: " + str(results_path_temperatures.exists()))
     print("FWKWK path exists: " + str(results_path_FWKWK_data.exists()))
 
-    # load outside temperature data:
-    temp_data = pd.read_excel(results_path_temperatures / "Input_Weather2015_AT.xlsx", engine="openpyxl")
-    temp_outside = temp_data.loc[:, "Temperature"].to_numpy()
-
     # load building stock data exportet by invert run:
     YEAR = 2020
     datei = str(run_number_str) + "__dynamic_calc_data_bc_" + str(YEAR) + ".csv"
-    data = pd.read_csv(results_path_rcm / datei).drop(0, axis=0)
+    data = pd.read_csv(results_path_rcm / datei).drop(0, axis=0).reset_index(drop=True)
+    haus_1 = data.iloc[0, :]
+    haus_2 = data.iloc[14, :]
+    haus_3 = data.iloc[25, :]
+    haus_DataFrame = pd.concat([haus_1, haus_2, haus_3], axis=1).T  #komplett wertlos aber ich nehm die werte dieser drei häuser
+    haus_DataFrame = haus_DataFrame.drop(columns={"climate_region_index", "Tset", "hwb_norm", "user_profile"})
 
+    # konditionierte Nutzfläche
+    Af = data.loc[:, "Af"].to_numpy()
+    # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
+    Atot = 4.5 * Af  # 7.2.2.2
+    # Airtransfercoefficient
+    Hve = data.loc[:, "Hve"].to_numpy()
+    # Transmissioncoefficient wall
+    Htr_w = data.loc[:, "Htr_w"].to_numpy()
+    # Transmissioncoefficient opake Bauteile
+    Hop = data.loc[:, "Hop"].to_numpy()
+    # Speicherkapazität J/K
+    Cm = data.loc[:, "CM_factor"].to_numpy() * Af
+    # wirksame Massenbezogene Fläche [m^2]
+    Am = data.loc[:, "Am_factor"].to_numpy() * Af
+    # internal gains
+    Qi = data.loc[:, "spec_int_gains_cool_watt"].to_numpy() * Af
+    HWB_norm = data.loc[:, "hwb_norm"].to_numpy()
 
-    # data = pd.DataFrame(data=data_np["arr_0"], columns=data_np["arr_1"][0])
-    # data.columns = data.columns.str.decode("utf-8")
-    # data.columns = data.columns.str.replace(" ", "")
+    # window areas in celestial directions
+    Awindows_rad_east_west = data.loc[:, "average_effective_area_wind_west_east_red_cool"].to_numpy()
+    Awindows_rad_south = data.loc[:, "average_effective_area_wind_south_red_cool"].to_numpy()
+    Awindows_rad_north = data.loc[:, "average_effective_area_wind_north_red_cool"].to_numpy()
 
     datei = run_number_str + '__climate_data_solar_rad_' + str(YEAR) + ".csv"
     sol_rad = pd.read_csv(results_path_rcm / datei)
@@ -60,29 +97,6 @@ def get_invert_data():
     sol_rad_east_west = np.delete(sol_rad_east_west, 0, axis=0)
     sol_rad_south = np.delete(sol_rad_south, 0, axis=0)
 
-    # konditionierte Nutzfläche
-    Af = data.loc[:, "Af"].to_numpy()
-    # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
-    Atot = 4.5 * Af  # 7.2.2.2
-    # Airtransfercoefficient
-    Hve = data.loc[:, "Hve"].to_numpy()
-    # Transmissioncoefficient wall
-    Htr_w = data.loc[:, "Htr_w"].to_numpy()
-    # Transmissioncoefficient opake Bauteile
-    Hop = data.loc[:, "Hop"].to_numpy()
-    # Speicherkapazität J/K
-    Cm = data.loc[:, "CM_factor"].to_numpy() * Af
-    # wirksame Massenbezogene Fläche [m^2]
-    Am = data.loc[:, "Am_factor"].to_numpy() * Af
-    # internal gains
-    Qi = data.loc[:, "spec_int_gains_cool_watt"].to_numpy() * Af
-    HWB_norm = data.loc[:, "hwb_norm"].to_numpy()
-
-    # window areas in celestial directions
-    Awindows_rad_east_west = data.loc[:, "average_effective_area_wind_west_east_red_cool"].to_numpy()
-    Awindows_rad_south = data.loc[:, "average_effective_area_wind_south_red_cool"].to_numpy()
-    Awindows_rad_north = data.loc[:, "average_effective_area_wind_north_red_cool"].to_numpy()
-
     # hours per day
     h = np.arange(1, 25)
     # sol_hx = min(14, max(0, h + 0.5 - 6.5))
@@ -107,35 +121,23 @@ def get_invert_data():
             sol_rad_norm.append(np.sin(3.1415 * i / 13) / 8.2360)
 
     sol_rad_norm = np.array(sol_rad_norm)
-
     # solar radiation: Norm profile multiplied by typical radiation of month times 24 hours for one day
     # TODO create 8760 vector not only for first 24 hours
     sol_rad_n = sol_rad_norm * sol_rad_north[0, 0] * 24
     sol_rad_ea = sol_rad_norm * sol_rad_east_west[0, 0] * 24
     sol_rad_s = sol_rad_norm * sol_rad_south[0, 0] * 24
+
     # solar gains through windows
     Qsol = Awindows_rad_north[0] * sol_rad_n + Awindows_rad_east_west[0] * sol_rad_ea + Awindows_rad_south[0] * sol_rad_s
+    Qsol = np.tile(Qsol, (1, 7)).squeeze()
 
     # electricity price for 24 hours:
     elec_price = pd.read_excel(base_results_path / "Elec_price_per_hour.xlsx", engine="openpyxl")
-    elec_price = elec_price.loc[:, "Price (€/MWh)"].dropna().to_numpy()
-    return Atot[0], Hve[0], Htr_w[0], Hop[0], Cm[0], Am[0], Qi[0], \
-           temp_outside[0:24], Qsol, elec_price
+    elec_price = elec_price.loc[:, "Euro/MWh"].dropna().to_numpy()
 
 
-# testing pyomo very simple example for 6 hours: (6 steps)
-# Hot water tank with input, output, losses depending on inside temperature
-# surrounding temperature T_a = 20°C constant
-# losses Q_loss = 0.003 * (T_inside - T_a) kWh
-# water mass in the tank m = 1000kg, c_p water = 4.2 kJ/kgK
-# Useful energy in the Tank Q = m * cp * (T_inside - T_a)
-# heat demand supplied by the tank is equal to heat transfered to the room
-# input into the tank Q_e = ??? (variable to be determined)
-# price for buying energy every hour p = [1, 6, 8, 8, 2] [price units / kWh]
-# Goal: Minimize operation cost of hot water tank!
-# room temperature is function of thermal capacity, gains and losses
-# room temperature has to stay above 20°C
-# outside temperature is [5, 4, 0, -1, -2, -2] °C
+    return Atot[[0, 14, 25]], Hve[[0, 14, 25]], Htr_w[[0, 14, 25]], Hop[[0, 14, 25]], Cm[[0, 14, 25]], Am[[0, 14, 25]], Qi[[0, 14, 25]], Qsol, elec_price[0:168], haus_DataFrame
+
 
 
 def create_dict(liste):
@@ -144,7 +146,9 @@ def create_dict(liste):
         dictionary[index] = value
     return dictionary
 
-Atot, Hve, Htr_w, Hop, Cm, Am, Qi, temp_outside, Q_solar, price = get_invert_data()
+Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Q_solar, price, haus_DataFrame = get_invert_data()
+temperature = get_navicat()
+temp_outside = temperature[0:168]
 
 # fixed starting values:
 tank_starting_temp = 50
@@ -192,7 +196,8 @@ Qsol = create_dict(Q_solar)
 m = pyo.AbstractModel()
 
 # parameters
-m.time = pyo.RangeSet(24)
+m.indices = pyo.RangeSet(3)    # number of different houses, later len(Atot)
+m.time = pyo.RangeSet(168)   # later just len(elec_price) for whole year
 # electricity price
 m.p = pyo.Param(m.time, initialize=elec_price)
 # outside temperature
@@ -200,24 +205,26 @@ m.T_outside = pyo.Param(m.time, initialize=tout)
 # solar gains
 m.Q_sol = pyo.Param(m.time, initialize=Qsol)
 
+
+
 # variables
 # energy used for heating
-m.Q_heating = pyo.Var(m.time, within=pyo.NonNegativeReals)
+m.Q_heating = pyo.Var(m.indices, m.time, within=pyo.NonNegativeReals)
 # real indoor temperature
-m.T_room = pyo.Var(m.time, within=pyo.NonNegativeReals, bounds=(18, 28))
+m.T_room = pyo.Var(m.indices, m.time, within=pyo.NonNegativeReals, bounds=(20, 28))
 # # mean indoor temperature
-m.Tm_t = pyo.Var(m.time, within=pyo.NonNegativeReals)
+m.Tm_t = pyo.Var(m.indices, m.time, within=pyo.NonNegativeReals, bounds=(0, 50))
 
 
 # objective
-def minimize_cost(m):
-    rule = sum(m.Q_heating[t] * m.p[t] for t in m.time)
-    return rule
-m.OBJ = pyo.Objective(rule=minimize_cost)
+def minimize_cost(m, i):
+    return sum(m.Q_heating[i, t] * m.p[t] for t in m.time)
+
+m.OBJ = pyo.Objective(m.indices, rule=minimize_cost)
 
 
 # constraints
-def mean_room_temperature_rc(m, t):
+def mean_room_temperature_rc(m, t, i):
     if t == 1:
         # Equ. C.2
         PHI_m = Am / Atot * (0.5 * Qi + m.Q_sol[t])
@@ -227,12 +234,12 @@ def mean_room_temperature_rc(m, t):
         # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
         # Equ. C.5
         PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (
-                PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_heating[t]) / Hve) + m.T_outside[t])) / \
+                PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_heating[i, t]) / Hve) + m.T_outside[t])) / \
                    Htr_2
 
         # Equ. C.4
-        return m.Tm_t[t] == (indoor_starting_temp * ((Cm / 3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
-                    (Cm / 3600) + 0.5 * (Htr_3 + Htr_em))
+        return m.Tm_t[i, t] == (indoor_starting_temp * ((Cm) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
+                    (Cm ) + 0.5 * (Htr_3 + Htr_em))
     else:
         # Equ. C.2
         PHI_m = Am / Atot * (0.5 * Qi + m.Q_sol[t])
@@ -243,47 +250,47 @@ def mean_room_temperature_rc(m, t):
         T_sup = m.T_outside[t]
         # Equ. C.5
         PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (
-                PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_heating[t]) / Hve) + T_sup)) / \
+                PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_heating[i, t]) / Hve) + T_sup)) / \
                    Htr_2
 
         # Equ. C.4
-        return m.Tm_t[t] == (m.Tm_t[t - 1] * ((Cm / 3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
-                    (Cm / 3600) + 0.5 * (Htr_3 + Htr_em))
-m.mean_room_temperature = pyo.Constraint(m.time, rule=mean_room_temperature_rc)
+        return m.Tm_t[i, t] == (m.Tm_t[i, t - 1] * ((Cm) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
+                    (Cm ) + 0.5 * (Htr_3 + Htr_em))
+m.mean_room_temperature = pyo.Constraint(m.time, m.indices, rule=mean_room_temperature_rc)
 
 
-def room_temperature_rc(m, t):
+def room_temperature_rc(m, t, i):
     if t == 1:
         # Equ. C.3
         PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_sol[t])
         # Equ. C.9
-        T_m = (m.Tm_t[t] + indoor_starting_temp) / 2
+        T_m = (m.Tm_t[i, t] + indoor_starting_temp) / 2
         T_sup = m.T_outside[t]
         # Euq. C.10
-        T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (T_sup + (PHI_ia + m.Q_heating[t]) / Hve)) / (
+        T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (T_sup + (PHI_ia + m.Q_heating[i, t]) / Hve)) / (
                 Htr_ms + Htr_w + Htr_1)
         # Equ. C.11
-        T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_heating[t]) / (Htr_is + Hve)
+        T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_heating[i, t]) / (Htr_is + Hve)
         # Equ. C.12
         T_op = 0.3 * T_air + 0.7 * T_s
         # T_op is according to norm the inside temperature whereas T_air is the air temperature # TODO which one?
-        return m.T_room[t] == T_air
+        return m.T_room[i, t] == T_air
     else:
         # Equ. C.3
         PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_sol[t])
         # Equ. C.9
-        T_m = (m.Tm_t[t] + m.Tm_t[t-1]) / 2
+        T_m = (m.Tm_t[i, t] + m.Tm_t[i, t-1]) / 2
         T_sup = m.T_outside[t]
         # Euq. C.10
-        T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (T_sup + (PHI_ia + m.Q_heating[t]) / Hve)) / (
+        T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (T_sup + (PHI_ia + m.Q_heating[i, t]) / Hve)) / (
                 Htr_ms + Htr_w + Htr_1)
         # Equ. C.11
-        T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_heating[t]) / (Htr_is + Hve)
+        T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_heating[i, t]) / (Htr_is + Hve)
         # Equ. C.12
         T_op = 0.3 * T_air + 0.7 * T_s
         # T_op is according to norm the inside temperature whereas T_air is the air temperature # TODO which one?
-        return m.T_room[t] == T_air
-m.room_temperature = pyo.Constraint(m.time, rule=room_temperature_rc)
+        return m.T_room[i, t] == T_air
+m.room_temperature = pyo.Constraint(m.time, m.indices, rule=room_temperature_rc)
 
 
 instance = m.create_instance(report_timing=True)
@@ -297,6 +304,7 @@ def show_results():
     Q_a = [instance.Q_heating[t]() for t in m.time]
     T_room = [instance.T_room[t]() for t in m.time]
     T_room_mean = [instance.Tm_t[t]() for t in m.time]
+
     total_cost = instance.OBJ()
 
     # total_cost = instance.Objective()
@@ -321,7 +329,8 @@ def show_results():
     ax2.legend(lines + lines2, labels + labels2, loc=0)
 
     ax3.plot(x_achse, T_room, label="room temperature", color="blue")
-    ax3.plot(x_achse, T_room_mean, label="mean room temperature 0", color="grey")
+    ax3.plot(x_achse, T_room_mean, label="mean room temperature", color="grey")
+    ax3.plot(x_achse, temp_outside, label="outside temp", color="skyblue")
 
     # ax4.plot(x_achse, T_tank, label="tank temperature", color="orange")
 
