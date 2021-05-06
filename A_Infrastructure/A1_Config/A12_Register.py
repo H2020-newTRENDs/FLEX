@@ -6,7 +6,7 @@ class REG:
         # Prefix
         self.ID = "ID_"
         self.Object = "OBJ_"
-        self.Scenario = "Sce_"
+        self.Scenario = "SCE_"
         self.GeneratedData = "Gen_"
 
         # ------------------------------

@@ -76,7 +76,9 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 - when Philipp decides what calculation method to use, we will know which parameters are relevant and to be collected.
 
+#### 5.5 PyCharm tips
 
+- change names for all
 
 
 
