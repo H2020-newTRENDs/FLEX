@@ -6,8 +6,9 @@ class REG:
         # Prefix
         self.ID = "ID_"
         self.Object = "OBJ_"
-        self.Scenario = "SCE_"
+        self.Scenario = "Sce_"
         self.GeneratedData = "Gen_"
+        self.Result = "Res_"
 
         # ------------------------------
         # Part I: Operation optimization
@@ -67,12 +68,14 @@ class REG:
         self.Sce_Price_HourlyFeedinTariff = self.Scenario + "Price_HourlyFeedinTariff"
 
         # Generated scenario tables
-        # self.Gen_Sce_ID_Environment = self.GeneratedData + self.Scenario + self.ID + "Environment"
-        # self.Gen_Sce_ID_TypicalDays = self.GeneratedData + self.Scenario + self.ID + "TypicalDays"
-        # self.Gen_Sce_DishWasherWorkingDays = self.GeneratedData + self.Scenario + "DishWasherWorkingDays"
-        # self.Gen_Sce_DryerWorkingDays = self.GeneratedData + self.Scenario + "DryerWorkingDays"
-        # self.Gen_Sce_WashingMachineWorkingDays = self.GeneratedData + self.Scenario + "WashingMachineWorkingDays"
+        self.Gen_Sce_ID_Environment = self.GeneratedData + self.Scenario + self.ID + "Environment"
+        # self.Gen_Sce_DishWasherUseDays = self.GeneratedData + self.Scenario + "DishWasherWorkingDays"
+        # self.Gen_Sce_DryerUseDays = self.GeneratedData + self.Scenario + "DryerWorkingDays"
+        # self.Gen_Sce_WashingMachineUseDays = self.GeneratedData + self.Scenario + "WashingMachineWorkingDays"
 
+        # Result tables
+        self.Res_MinimizedOperationCost = self.Result + "MinimizedOperationCost"
+        self.Res_SystemOperation = self.Result + "SystemOperation"
 
 
         # ------------------------------

@@ -3,10 +3,15 @@ from A_Infrastructure.A1_Config.A11_Constants import CONS
 from A_Infrastructure.A1_Config.A12_Register import REG
 from A_Infrastructure.A2_ToolKits.A21_DB import DB
 
+
 class Ope_TableGenerator:
 
     def __init__(self, conn):
         self.Conn = conn
+
+    # ---------------------------------------
+    # 1 Functions used to generate the tables
+    # ---------------------------------------
 
     def gen_OBJ_ID_Table_1To1(self, target_table_name, table1):
 
@@ -57,6 +62,15 @@ class Ope_TableGenerator:
         DB().write_DataFrame(TargetTable_list, target_table_name, TargetTable_columns, self.Conn)
 
         return None
+
+    # to be developed
+    def gen_Sce_ApplianceUseDays(self):
+
+        pass
+
+    # -------------------------
+    # 2 Generate the OBJ tables
+    # -------------------------
 
     def gen_OBJ_ID_Building(self):
         BuildingOption = DB().read_DataFrame(REG().ID_BuildingOption, self.Conn)
@@ -168,6 +182,27 @@ class Ope_TableGenerator:
                                                     ID += 1
         DB().write_DataFrame(TargetTable_list, REG().Gen_OBJ_ID_Household, TargetTable_columns, self.Conn)
 
+    # ------------------------------
+    # 3 Generate the scenario tables
+    # ------------------------------
+
+    # to be developed
+    def gen_Sce_Demand_DishWasherUseDays(self):
+
+        pass
+
+    # to be developed
+    def gen_Sce_Demand_DryerUseDays(self):
+
+        pass
+
+    # to be developed
+    def gen_Sce_Demand_WashingMachineUseDays(self):
+
+        pass
+
+
+
 
 
     def run(self):
@@ -181,7 +216,6 @@ class Ope_TableGenerator:
         # self.gen_OBJ_ID_ElectricVehicle()
         # self.gen_OBJ_ID_Household()
         pass
-
 
 
 
