@@ -22,6 +22,7 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 - try some optimization examples
 - dynamic COP: update it in the database
+- communicate with Philipp and start trying to set up the optimization model
 
 #### 2.3 Philipp
 
