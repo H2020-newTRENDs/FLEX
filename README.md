@@ -15,7 +15,8 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 #### 2.1 Songmin
 
-- finished
+- take care of the hot water system
+- typical days only
 
 #### 2.2 Thomas
 
@@ -30,36 +31,27 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 ### 5 Questions to discuss
 
-#### 5.1 Literature review
+#### 5.1 Model optimization coverage
 
-- Summarize the aspects that are optimized in our model and compare it with existing studies
+- smart appliance: dryer, dish washer, washing machine
+- space heating
+- space cooling
+- PV
+- battery
+- EV
 
-  > - smart appliance
-  > - space heating
-  > - space cooling --> like heating, also optimized
-  > - hot water --> totally separated from heating and not optimized
-  > - PV
-  > - battery
-  > - EV
+#### 5.2 Modeling of hot water
 
-- Apart from covering more aspects in the optimization, are there other contributions?
+- Do not optimize
 
-  > - data resolution?
-  > - geographic coverage?
-  > - typical days only? ---> Giacomo profile (this should defined in detail with Thomas)
+  > - calculate the hot water demand for each person, and relate this number to lifestyle assumption, then generate the hourly demand profile
+  > - generate the hourly electricity demand profile (only the electricity consumed by the electrict heater)
+  > - calculate the boiler energy consumption (from 10 to 40 degree), before electric heater?
 
-#### 5.2 Define the functions
+#### 5.3 Only optimize for typical days
 
-- have a look at the updated classes and database
-- go over the optimization process together and define functions in each class
-
-#### 5.3 Hot water
-
-- Demand profile (exogenous, not optimized)
-
-  > - From INVERT, we have demand in kWh/m2. Then, we find **average persons living in each building type** and translate it to kWh/m2 for each person. Then, based on HOTMAP data, we allocate the annual demand to hourly profiles, and at the same time, we have distinction between working days and holidays.
-  > - **Songmin**: I briefly compared relevant parameters from three sources - (1) INVERT; (2) calculation by my colleague at ISI; (3) 60kg per day. We can have a look together in the next meeting.
-
-
+- generate the base electricity demand profile for representative households on typical days
+- we only optimize for the typical days, but they need to be selected carefully
+- based on the results of these typical days, we generate the 8760-hour operation profile of the household
 
 
