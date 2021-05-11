@@ -15,21 +15,18 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 #### 2.1 Songmin
 
-- keep working on the files in "B\_Classes" and "C1\_TableGenerator"
-- Set up one example for start and let Philipp know, to set up the one for building class.
-- update the database
+- finished
 
 #### 2.2 Thomas
 
 - try some optimization examples
-- literature review
-- dynamic COP: pre-calculate a table like electricity price (see the excel). Songmin will set up the table structure and Thomas will fill in the numbers.
+- dynamic COP: update it in the database
 
 #### 2.3 Philipp
 
-- get familiar with the code and database
 - work on the "B3\_Building.py"
-- maybe change the calculation with other parameters (-- please let Songmin know which parameters are used)
+- update building parameter tables --> ID_BuildingOption table
+- write to Giacomo for a profile with heating and cooling for validation
 
 ### 5 Questions to discuss
 
@@ -39,8 +36,8 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
   > - smart appliance
   > - space heating
-  > - space cooling?
-  > - hot water?
+  > - space cooling --> like heating, also optimized
+  > - hot water --> totally separated from heating and not optimized
   > - PV
   > - battery
   > - EV
@@ -49,6 +46,7 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
   > - data resolution?
   > - geographic coverage?
+  > - typical days only? ---> Giacomo profile (this should defined in detail with Thomas)
 
 #### 5.2 Define the functions
 
@@ -57,28 +55,11 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 #### 5.3 Hot water
 
-- Demand profile
+- Demand profile (exogenous, not optimized)
 
   > - From INVERT, we have demand in kWh/m2. Then, we find **average persons living in each building type** and translate it to kWh/m2 for each person. Then, based on HOTMAP data, we allocate the annual demand to hourly profiles, and at the same time, we have distinction between working days and holidays.
   > - **Songmin**: I briefly compared relevant parameters from three sources - (1) INVERT; (2) calculation by my colleague at ISI; (3) 60kg per day. We can have a look together in the next meeting.
 
-- Optimization
-
-  > - Water is taken from same tank of space heating, then heated up for higher temperature with electric heater. Then, the energy comsumer by the electric heater is decided by the tank temperature. To simplify the optimization, we can assume that the water feed to the electric heater at a constant temperature. Then, from the space heating optimization perspective, the energy goes to hot water is an exogenous heat loss of the tank.
-  >
-  > - For now, I haven't removed the tank in HotWater. **A few questions:**
-  >
-  >   > - How about in summer, when the space heating system is turned off? 
-  >   > - In the FORECAST mode, I also see oil/gas/coal/biomass boiler for hot water (consumption of these energy carriers). Does this come from the same boiler for space heating? Or, the are used same as the "electric heater" mentioned above? Besides, I also see heat pump for hot water. 
-
-
-#### 5.4 Building parameter
-
-- when Philipp decides what calculation method to use, we will know which parameters are relevant and to be collected.
-
-#### 5.5 PyCharm tips
-
-- change names for all
 
 
 
