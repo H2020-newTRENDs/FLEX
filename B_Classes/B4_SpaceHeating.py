@@ -19,14 +19,8 @@ class SpaceHeating:
 
     def calc_TankTemperature(self, energy_from_boiler_to_tank, energy_from_tank_to_room):
 
-        """
-        :param energy_from_boiler_to_tank: np.array
-        :param energy_from_tank_to_room: np.array
-        :return TankTemperature: np.array
-        """
 
-        TankTemperature = []
+        TankTemperature = 0
         return TankTemperature
-
 
 
