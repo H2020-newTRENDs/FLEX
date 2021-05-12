@@ -15,8 +15,8 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 #### 2.1 Songmin
 
-- take care of the hot water system
-- typical days only
+- generate the hot water demand profile table
+- calculate the energy demand for hot water
 
 #### 2.2 Thomas
 
@@ -49,10 +49,10 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
   > - generate the hourly electricity demand profile (only the electricity consumed by the electrict heater)
   > - calculate the boiler energy consumption (from 10 to 40 degree), before electric heater?
 
-#### 5.3 Only optimize for typical days
+#### 5.3 Only optimize for typical days or weeks
 
 - generate the base electricity demand profile for representative households on typical days
 - we only optimize for the typical days, but they need to be selected carefully
-- based on the results of these typical days, we generate the 8760-hour operation profile of the household
+- based on the results of these typical days or weeks, we generate the 8760-hour operation profile of the household
 
 
