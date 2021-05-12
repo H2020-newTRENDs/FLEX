@@ -42,7 +42,7 @@ class OperationOptimization:
                                                                       energy_from_tank_to_room)
 
         return TankTemperature
-    
+
     def run_Optimization(self, household_id, environment_id):
         Household = self.gen_Household(household_id)
         # Environment = self.gen_Environment(environment_id)
