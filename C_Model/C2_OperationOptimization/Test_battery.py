@@ -89,7 +89,8 @@ def BatChargeandDischarge(m,t):
     if t == 1:
         return m.sfl[t] == Start_SFL
     else:
-        return m.sfl[t] == m.sfl[t-1] + m.bat_pos[t] -m.bat_neg[t] - m.self_discharge[t]
+        m.sfl[t] = m.sfl[t - 1] + m.bat_pos[t] - m.bat_neg[t] - m.self_discharge[t]
+        return m.sfl[t]
 m.BatChargeandDischarge = pyo.Constraint(m.t, rule=BatChargeandDischarge)
 
 def UseOfPV(m,t):
