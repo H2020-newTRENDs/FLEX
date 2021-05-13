@@ -45,13 +45,14 @@ class OperationOptimization:
 
     def run_Optimization(self, household_id, environment_id):
         Household = self.gen_Household(household_id)
+        print(Household.SpaceHeating.TankSize)
         # Environment = self.gen_Environment(environment_id)
 
         pass
 
     def run(self):
-        for household_id in range(0, 100):
-            for environment_id in range(0, 100):
+        for household_id in range(0, 1):
+            for environment_id in range(0, 1):
                 self.run_Optimization(household_id, environment_id)
         pass
 

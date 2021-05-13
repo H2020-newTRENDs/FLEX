@@ -41,16 +41,22 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 - battery
 - EV
 
-#### 5.2 Modeling of hot water
+#### 5.2 Hot water modeling
 
-- Do not optimize
+- the 8760h demand profile is calcuated for 1 person based on HOTMAP
 
-  > - calculate the hot water demand for each person, and relate this number to lifestyle assumption, then generate the hourly demand profile
-  > - generate the hourly electricity demand profile (only the electricity consumed by the electrict heater)
-  > - calculate the boiler energy consumption (from 10 to 40 degree), before electric heater?
+- no specific tank for hot water, no optimization. The energy consumption is calculted in two parts: 
 
-#### 5.3 Only optimize for typical days or weeks
+  > (1) from 10 to 45, based on either heat pump or other boiler of the space heating system --> water is taken from space heating tank, even in summer, because the tank in summer is only 45 degree, so even though we heat up a large tank only for hot water, the heat loss is limited (we assume). 
+  >
+  > (2) from 45 to 65, based on heat pump.
 
+#### 5.3 Space heating modeling
+
+- only consider heat pump boiler to reduce the optimization cases
+- interaction with hot water: the heat pump boiler of space heating provide the energy heating water from 10 to 45, separately. So, even though the space heating and hot water share one same tank, the hot water doesn't influence the modeling and optimization of space heating system.
+
+#### 5.4 Only optimize for typical days or weeks
 - generate the base electricity demand profile for representative households on typical days
 - we only optimize for the typical days, but they need to be selected carefully
 - based on the results of these typical days or weeks, we generate the 8760-hour operation profile of the household
