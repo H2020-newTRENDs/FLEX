@@ -32,31 +32,27 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 ### 5 Questions to discuss
 
-#### 5.1 Model optimization coverage
+#### 5.1 Space heating and hot water modeling
 
-- smart appliance: dryer, dish washer, washing machine
-- space heating
-- space cooling
-- PV
-- battery
-- EV
+- Both systems share one boiler, and we only consider heat pump boiler to reduce the optimization cases.
 
-#### 5.2 Hot water modeling
+- Both systems share one tank. 
 
-- the 8760h demand profile is calcuated for 1 person based on HOTMAP
-
-- no specific tank for hot water, no optimization. The energy consumption is calculted in two parts: 
-
-  > (1) from 10 to 45, based on either heat pump or other boiler of the space heating system --> water is taken from space heating tank, even in summer, because the tank in summer is only 45 degree, so even though we heat up a large tank only for hot water, the heat loss is limited (we assume). 
+  > (1) We assume water at 45 degree are taken from the tank for hot water demand. We still assume this for summer: the big tank is heated up to 45 degree. Since this temperature is not too high, the heat loss is limited.
   >
-  > (2) from 45 to 65, based on heat pump.
+  > (2) We assume the energy heating water from 10 to 45 is an extra part provided by the boiler, only for hot water demand. So, this is not modeled as "loss of tank" for space heating. This doesn't influence the modeling and optimization of space heating at all. 
 
-#### 5.3 Space heating modeling
+- For hot water demand, the water is further heated up from 45 to 65 (assumption) by an "electric heater". Here, we assume the electric heater is also the same heat pump (boiler). Its energy output should satisfy the hourly demand profile generated based on HOTMAP. Based on HOTMAP, we generate the 8760-hour hot water demand profile for one person by assuming: (1) daily consumption is 60kg; (2) the electric heater heat the water up for 20 degrees.
 
-- only consider heat pump boiler to reduce the optimization cases
-- interaction with hot water: the heat pump boiler of space heating provide the energy heating water from 10 to 45, separately. So, even though the space heating and hot water share one same tank, the hot water doesn't influence the modeling and optimization of space heating system.
+- In summary
 
-#### 5.4 Only optimize for typical days or weeks
+  > (1) We optimize for space heating demand, but do not optimize for hot water demand.
+  >
+  > (2) The total energy consumption for hot water is calculated in two parts: first, heating water from 10 to 45 by the "shared boiler"; second, heating water from 45 to 65 by the "electric heater".
+  >
+  > (3) To reduce the cases for optimization, we only consider heat pump for both "shared boiler" and "electric heater". After the optimization, we can generate energy consumption for other options for the "shared boiler" and "electric heater", for example, a gas boiler and a regular electric heater. But, this is faster than running the optimization.
+
+#### 5.2 Only optimize for typical days or weeks
 - generate the base electricity demand profile for representative households on typical days
 - we only optimize for the typical days, but they need to be selected carefully
 - based on the results of these typical days or weeks, we generate the 8760-hour operation profile of the household
