@@ -75,6 +75,8 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 - Based on this reference point, we can add all the flexibility one by one and show the contribution to reduce the overall cost.
 
+- We can ask Giacomo for data to validate model without optimization.
+
 
 
 
