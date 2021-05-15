@@ -355,4 +355,6 @@ def Heatdemand_rc_model(OUTPUT_PATH, OUTPUT_PATH_NUM_BUILD, OUTPUT_PATH_TEMP, RN
     # plot heating cooling and DHW loads as well as temperature settings and outside temp:
     overview_core(dict2, dict3)
 
+    one_day(dict2, dict3)
+
     a = 1
