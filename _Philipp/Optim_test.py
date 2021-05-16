@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 from pyomo.opt import SolverStatus, TerminationCondition
 import matplotlib.pyplot as plt
+from Core_rc_model import core_model_singel_step
 from pyomo.util.infeasible import log_infeasible_constraints
 from A_Infrastructure.A2_ToolKits.A21_DB import DB
 from A_Infrastructure.A1_Config.A12_Register import REG
@@ -15,9 +16,12 @@ def create_radiation_gains():
     return data.loc[:, "Radiation"].to_numpy()
 # radiation = create_radiation_gains()
 
+def get_elec_profile():
+    data = DB().read_DataFrame(REG().Sce_Demand_BaseElectricityProfile, conn=DB().create_Connection(CONS().RootDB))
+    return data.loc[:, "BaseElectricyProfile"].to_numpy()
 
 
-def get_navicat():
+def get_out_temp():
     data = DB().read_DataFrame(REG().Sce_Weather_Temperature, conn=DB().create_Connection(CONS().RootDB), ID_Country=20)
     temperature = data.loc[:, "Temperature"].to_numpy()
     return temperature
@@ -136,7 +140,8 @@ def get_invert_data():
     elec_price = elec_price.loc[:, "Euro/MWh"].dropna().to_numpy()
 
 
-    return Atot[[0, 14, 25]], Hve[[0, 14, 25]], Htr_w[[0, 14, 25]], Hop[[0, 14, 25]], Cm[[0, 14, 25]], Am[[0, 14, 25]], Qi[[0, 14, 25]], Qsol, elec_price[0:168], haus_DataFrame
+    return Atot[[0, 14, 25]], Hve[[0, 14, 25]], Htr_w[[0, 14, 25]], Hop[[0, 14, 25]], Cm[[0, 14, 25]], Am[[0, 14, 25]],\
+           Qi[[0, 14, 25]], Qsol, elec_price[0:168], Af[[0, 14, 25]]
 
 def create_dict(liste):
     dictionary = {}
@@ -145,8 +150,8 @@ def create_dict(liste):
     return dictionary
 
 
-Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Q_solar, price, haus_DataFrame = get_invert_data()
-temperature = get_navicat()
+Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Q_solar, price, Af = get_invert_data()
+temperature = get_out_temp()
 temp_outside = temperature[0:168]
 
 
@@ -315,10 +320,10 @@ def create_pyomo_model(elec_price, tout, Qsol, Am, Atot, Cm, Hop, Htr_1, Htr_2, 
 
 
 # create plots to visualize results
-def show_results():
+def show_results(Q_HC, Tm_t):
     Q_a = [instance.Q_heating[t]() for t in m.time]
     T_room = [instance.T_room[t]() for t in m.time]
-    T_room_mean = [instance.Tm_t[t]() for t in m.time]
+    T_mass_mean = [instance.Tm_t[t]() for t in m.time]
 
     total_cost = instance.OBJ()
 
@@ -327,7 +332,7 @@ def show_results():
 
     fig, (ax1, ax3) = plt.subplots(2, 1)
     ax2 = ax1.twinx()
-    ax4 = ax3.twinx()
+    # ax4 = ax3.twinx()
 
     # ax1.bar(x_achse, Q_e, label="boiler power")
     ax1.plot(x_achse, Q_a, label="heating power", color="red")
@@ -343,16 +348,16 @@ def show_results():
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax2.legend(lines + lines2, labels + labels2, loc=0)
 
-    ax3.plot(x_achse, T_room, label="room temperature", color="blue")
-    ax3.plot(x_achse, T_room_mean, label="mean room temperature", color="grey")
+    ax3.plot(x_achse, T_room, label="room temp", color="blue")
+    ax3.plot(x_achse, T_mass_mean, label="structure temp", color="grey")
     ax3.plot(x_achse, temp_outside, label="outside temp", color="skyblue")
 
     # ax4.plot(x_achse, T_tank, label="tank temperature", color="orange")
 
-    ax3.set_ylabel("room temperature °C")
+    ax3.set_ylabel("temperature °C")
 
     # ax4.set_ylabel("tank temperature °C")
-    ax3.yaxis.label.set_color('blue')
+    # ax3.yaxis.label.set_color('blue')
     ax3.legend()
     ax1.grid()
     ax3.grid()
@@ -360,13 +365,28 @@ def show_results():
 
     plt.show()
 
+    # COP for heatpump
+    COP = 3
+
+    fig2, (ax1, ax2) = plt.subplots(2, 1)
+
+    ax1.plot(x_achse, Q_a, label="heating optimized", color="red")
+    ax2.plot(x_achse, T_mass_mean, label="thermal mass optimized", color="orange")
+    # plt.plot(x_achse, get_elec_profile(), label="normal elec demand", color="blue")
+    ax1.plot(x_achse, Q_HC, label="heating normal", color="blue")
+    ax2.plot(x_achse, Tm_t, label="thermal mass normal", color="skyblue")
+    ax1.legend()
+    ax2.legend()
+    plt.show()
+
+
+Q_HC_real, Tm_t = core_model_singel_step(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, temp_outside,
+                                   initial_thermal_mass_temp=20, T_air_min=20, T_air_max=28)
 for i in range(3):
 
     instance, m = create_pyomo_model(elec_price, tout, Qsol, Am[i], Atot[i], Cm[i], Hop[i], Htr_1[i], Htr_2[i],
                                      Htr_3[i], Htr_em[i], Htr_is[i], Htr_ms[i], Htr_w[i], Hve[i], PHI_ia[i], Qi[i])
 
 
-
-
-    show_results()
+    show_results(Q_HC_real[:, i], Tm_t[:, i])
 
