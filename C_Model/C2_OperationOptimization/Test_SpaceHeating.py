@@ -42,7 +42,7 @@ tank_starting_energy = m_water*c_water*(tank_starting_temp - t_base)
 def random_price(size):
     return [random.randint(16, 40) for i in size * [None]]
 
-hours_of_simulation = 48
+hours_of_simulation = 24
 
 def random_tout(size):
     return [random.randint(-10, 15) for i in size * [None]]

@@ -8,19 +8,22 @@ from C_Model.C2_OperationOptimization.C21_OperationOptimization import Operation
 if __name__ == "__main__":
 
     CONN = DB().create_Connection(CONS().RootDB)
-    # Ope_TableGenerator(CONN).run()
+    #Ope_TableGenerator(CONN).run()
     OperationOptimization(CONN).run()
 
 
 
 
 
-    # table_name = REG().Sce_ID_TimeStructure
-    # table = DB().read_DataFrame(table_name, CONN, ID_Day=5)
-    # table_select = table.iloc[10]["ID_Day"]
-    # table_select = table.loc[table["ID_Day"] == 5]
-    # print(table_select)
-    # print(table)
+
+    table_name = REG().Sce_ID_TimeStructure
+    #table = DB().read_DataFrame(table_name, CONN, ID_Day=5)
+    #table = DB().read_DataFrame(table_name, CONN)
+    #table_select = table.iloc[10]["ID_Day"]
+    #table_select = table.loc[table["ID_Day"] == 5 ]
+    #print(table_select)
+    #print(type(table_select))
+    #print(table)
 
 
 

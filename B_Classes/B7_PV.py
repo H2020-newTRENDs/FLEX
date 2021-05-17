@@ -11,6 +11,7 @@ class PV:
         self.PVEfficiency = para_series["PVEfficiency"]
 
 
+
     def calc_PVGeneration(self, household):
 
         Generation = 0

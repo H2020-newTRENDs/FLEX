@@ -201,20 +201,42 @@ class Ope_TableGenerator:
 
         pass
 
+    def gen_Sce_ID_Environment(self):
 
+        #not finished, just a test
+        LifestyleType = DB().read_DataFrame(REG().Sce_ID_LifestyleType, self.Conn)
+        TargetTemperature = DB().read_DataFrame(REG().TargetTemperature, self.Conn)
 
+        #selectProfiles
+        #radiation
+        #temperature
+        #electricityprice
+        #COP
 
+        #Gen_Sce only for 3 tables
+        ElectricityPriceType = DB().read_DataFrame(REG().Sce_ID_ElectricityPriceType, self.Conn)
+        ElectricVehicleBehavior = DB().read_DataFrame(REG().Sce_ID_ElectricVehicleBehavior, self.Conn)
+        FeedinTariffType = DB().read_DataFrame(REG().Sce_ID_FeedinTariffType, self.Conn)
+        self.gen_OBJ_ID_Table_3To1(REG().Gen_Sce_ID_Environment,
+                                   ElectricityPriceType,
+                                   ElectricVehicleBehavior,
+                                   FeedinTariffType)
 
     def run(self):
         # self.gen_OBJ_ID_Building()
         # self.gen_OBJ_ID_ApplianceGroup()
         # self.gen_OBJ_ID_SpaceHeating()
         # self.gen_OBJ_ID_SpaceCooling()
-        self.gen_OBJ_ID_HotWater()
+        # self.gen_OBJ_ID_HotWater()
         # self.gen_OBJ_ID_PV()
         # self.gen_OBJ_ID_Battery()
         # self.gen_OBJ_ID_ElectricVehicle()
         # self.gen_OBJ_ID_Household()
+
+        # self.gen_Sce_Demand_DishWasherUseDays()
+        # self.gen_Sce_Demand_DryerUseDays()
+        # self.gen_Sce_Demand_WashingMachineUseDays()
+        # self.gen_Sce_ID_Environment()
         pass
 
 
