@@ -67,6 +67,14 @@ class OperationOptimization:
             return dictionary
 
 
+
+        # toDo
+        # change values to dynamic from db
+        # add battery losses
+        # try to change function to classes
+
+
+
         ID_Hour = create_dict(self.TimeStructure.ID_Hour)
         LoadProfile = create_dict(self.LoadProfile.BaseElectricityProfile)
         PhotovoltaicBaseProfile = self.PhotovoltaicProfile.BasePhotovoltaicProfile
@@ -149,13 +157,13 @@ class OperationOptimization:
 
         # Visulaization
 
-        PhotovoltaicProfile = [PhotovoltaicProfile[i] for i in range(4800, 4824)]
-        LoadProfile = [LoadProfile[i] for i in range(4800, 4824)]
-        StorageFillLevel = [instance.StorageFillLevel[t]() for t in range(4800, 4824)]
+        PhotovoltaicProfile = [PhotovoltaicProfile[i] for i in range(1, 8760)]
+        LoadProfile = [LoadProfile[i] for i in range(1, 8760)]
+        StorageFillLevel = [instance.StorageFillLevel[t]() for t in range(1, 8760)]
 
         plt.figure()
         plt.subplot(211)
-        #plt.plot(PhotovoltaicProfile, label='PV', linewidth = 0.5, color = 'orange')
+        plt.plot(PhotovoltaicProfile, label='PV', linewidth = 0.5, color = 'orange')
         plt.plot(LoadProfile, label = 'HH Load', linewidth = 0.5, color = 'blue')
         plt.title('Household ID: ' +str(household_id) + ' with Exo_Profiles with HH-Demand ' +str(SumOfLoad) + ' kWh / year and PV generation ' + \
                   str(SumOfPV) + ' kWh / year')
