@@ -31,18 +31,18 @@ def overview_core(dic1, dic2):
     fig.show()
 
 
-def one_week(dic1, dic2):
+def one_day(dic1, dic2):
     fig, (ax1, ax2) = plt.subplots(2, 1)
     for key, value in dic1.items():
         ax1.plot(np.arange(len(value)), value, label=str(key))
     ax1.legend()
     ax1.grid()
-    ax1.set_xlim([0, 168])
+    ax1.set_xlim([0, 24])
 
     for key, value in dic2.items():
         ax2.plot(np.arange(len(value)), value, label=str(key))
     ax2.legend()
     ax2.grid()
-    ax2.set_xlim([0, 168])
+    ax2.set_xlim([0, 24])
 
     fig.show()
