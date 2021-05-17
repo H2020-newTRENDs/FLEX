@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 from pyomo.opt import SolverStatus, TerminationCondition
 import matplotlib.pyplot as plt
-from Core_rc_model import core_model_singel_step
+from Core_rc_model import rc_heating_cooling
 from pyomo.util.infeasible import log_infeasible_constraints
 from A_Infrastructure.A2_ToolKits.A21_DB import DB
 from A_Infrastructure.A1_Config.A12_Register import REG
@@ -380,8 +380,8 @@ def show_results(Q_HC, Tm_t):
     plt.show()
 
 
-Q_HC_real, Tm_t = core_model_singel_step(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, temp_outside,
-                                   initial_thermal_mass_temp=20, T_air_min=20, T_air_max=28)
+Q_HC_real, Tm_t = rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, temp_outside,
+                                     initial_thermal_mass_temp=20, T_air_min=20, T_air_max=28)
 for i in range(3):
 
     instance, m = create_pyomo_model(elec_price, tout, Qsol, Am[i], Atot[i], Cm[i], Hop[i], Htr_1[i], Htr_2[i],

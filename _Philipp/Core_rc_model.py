@@ -302,8 +302,8 @@ def core_rc_model(DHW_need_day_m2_8760_up, DHW_loss_Circulation_040_day_m2_8760_
     return Q_H_LOAD_8760, Q_C_LOAD_8760, Q_DHW_LOAD_8760, Af
 
 
-def core_model_singel_step(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside,
-                           initial_thermal_mass_temp=20, T_air_min=20, T_air_max=28):
+def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside,
+                       initial_thermal_mass_temp=20, T_air_min=20, T_air_max=28):
     # check if vectors are the same length:
     def check_length(*args):
         length_1 = len(args[0])
@@ -330,13 +330,9 @@ def core_model_singel_step(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_out
     # Equ. C.1
     PHI_ia = 0.5 * Qi
 
-    def create_empty_arrays(number_rows, number_columns):
-        Tm_t = np.empty(shape=(number_rows, number_columns))
-        T_sup = np.empty(shape=(number_rows,))
-        Q_HC_real = np.empty(shape=(number_rows, number_columns))
-        return Tm_t, Q_HC_real, T_sup
-
-    Tm_t, Q_HC_real, T_sup = create_empty_arrays(len(timesteps), len(Hve))
+    Tm_t = np.empty(shape=(len(timesteps), len(Hve)))
+    T_sup = np.empty(shape=(len(timesteps),))
+    Q_HC_real = np.empty(shape=(len(timesteps), len(Hve)))
     heating_power_10 = Af * 10
     for t in timesteps:  # t is the index for each timestep
         for i in range(len(Hve)):  # i is the index for each individual building
@@ -347,7 +343,7 @@ def core_model_singel_step(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_out
             PHI_st = (1 - Am[i] / Atot[i] - Htr_w[i] / 9.1 / Atot[i]) * (0.5 * Qi[i] + Q_solar[t])
 
             # (T_sup = T_outside weil die Zuluft nicht vorgewärmt oder vorgekühlt wird)
-            T_sup[i] = T_outside[i]
+            T_sup[t] = T_outside[t]
 
             # Equ. C.5
             PHI_mtot_0 = PHI_m + Htr_em[i] * T_outside[t] + Htr_3[i] * (
