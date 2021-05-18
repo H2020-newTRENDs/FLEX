@@ -15,20 +15,20 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 #### 2.1 Songmin
 
-- generate the hot water demand profile table
-- calculate the energy demand for hot water
+- generate the hot water demand profile
 
 #### 2.2 Thomas
 
-- try some optimization examples
-- dynamic COP: update it in the database
-- communicate with Philipp and start trying to set up the optimization model
+- check hot water demand and give Songmin the annual energy consumption (part 1 and part 2) 
+- put COP horizontally (air heating, water heating, air hot water, water hot water)
+- add smart appliances
+- communicate with Philipp and start trying to set up the optimization model --> optimize weeks/months/year
 
 #### 2.3 Philipp
 
-- work on the "B3\_Building.py"
-- update building parameter tables --> ID_BuildingOption table
-- write to Giacomo for a profile with heating and cooling for validation
+- give building parameters to Thomas --> ID_BuildingOption table
+- write to Giacomo for a profile with heating and cooling for validation, and how the hot water is covered
+- communicate with Thomas and start trying to set up the optimization model
 
 ### 5 Questions to discuss
 
@@ -66,13 +66,7 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 - So may we will use the mean value of 4344 kWh. The profile from Giacommo includes the household devices (SmartAppliances), so we have to subtract this (about 600 kWh in our calculation). For this we get 3744 kWh, but we includes the error, that we can subtract the Appliances hourly fitting, only on a 24 hour average. 
 - In the future we can insert more electricity profiles in the database and apply an sensitivity analyses in our model. Also we may can show differences in the economical savings by selecting different profiles (different in yearly demand, but also different in temporal demand).
 
-#### 5.3 Only optimize for typical days or weeks
-
-- generate the base electricity demand profile for representative households on typical days
-- we only optimize for the typical days, but they need to be selected carefully
-- based on the results of these typical days or weeks, we generate the 8760-hour operation profile of the household
-
-#### 5.4 Reference point without optimization
+#### 5.3 Reference point without optimization
 
 - To calculate a reference "operation cost" for the overall system, we need to swithing off the optimization for all the aspects.
 
