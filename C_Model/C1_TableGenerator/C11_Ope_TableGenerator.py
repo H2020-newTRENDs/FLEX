@@ -64,9 +64,28 @@ class Ope_TableGenerator:
         return None
 
     # to be developed
-    def gen_Sce_ApplianceUseDays(self):
+    def gen_Sce_ApplianceUseDays(self, OnDays):
+    # use the cycles of technology and generates a yearly table with 365 days with 1 and 0
 
-        pass
+        Year = 365
+        OffDays = Year - int(OnDays)
+        rest = round(int(OnDays) / OffDays, 2)
+        add = int(OnDays) / OffDays
+        i = 1
+        UseDays = []
+
+        while i <= Year:
+            if rest > 1:
+                UseDays.append(1)
+                rest = rest - 1
+                i = i + 1
+            elif rest < 1:
+                UseDays.append(0)
+                rest = rest + add
+                i = i + 1
+        return UseDays          #returns list of UseDays with 365 values
+
+
 
     # -------------------------
     # 2 Generate the OBJ tables
@@ -186,20 +205,55 @@ class Ope_TableGenerator:
     # 3 Generate the scenario tables
     # ------------------------------
 
-    # to be developed
     def gen_Sce_Demand_DishWasherUseDays(self):
 
+        self.Demand_DishWasher = DB().read_DataFrame(REG().Sce_Demand_DishWasher, self.Conn)
+        Demand_DishWasher = self.Demand_DishWasher
+        Cycle = Demand_DishWasher.DishWasherCycle
+        print(Cycle)
+        Days = self.gen_Sce_ApplianceUseDays(Cycle)
+        print(Days)
+        TargetTable_list = Days
+
+
+        TargetTable_columns = ["DishwasherWorkingDays"]
+        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DishWasherUseDays, TargetTable_columns, self.Conn)
         pass
 
-    # to be developed
+
     def gen_Sce_Demand_DryerUseDays(self):
+        Demand_Dryer = DB().read_DataFrame(REG().Sce_Demand_Dryer, self.Conn)
 
+        self.Demand_WashingMachine = DB().read_DataFrame(REG().Sce_Demand_WashingMachine, self.Conn)
+        Demand_WashingMachine = self.Demand_WashingMachine
+        Cycle = Demand_WashingMachine.WashingMachineCycle   #cycle = WashingMachine, same time period used!
+        print(Cycle)
+        Days = self.gen_Sce_ApplianceUseDays(Cycle)
+        print(Days)
+
+        TargetTable_list = Days
+        TargetTable_columns = ["DryerWorkingDays"]
+        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DryerUseDays, TargetTable_columns, self.Conn)
         pass
 
-    # to be developed
+
     def gen_Sce_Demand_WashingMachineUseDays(self):
 
+        self.Demand_WashingMachine = DB().read_DataFrame(REG().Sce_Demand_WashingMachine, self.Conn)
+        Demand_WashingMachine = self.Demand_WashingMachine
+        Cycle = Demand_WashingMachine.WashingMachineCycle
+        print(Cycle)
+        Days = self.gen_Sce_ApplianceUseDays(Cycle)
+        print(Days)
+
+        TargetTable_list = Days
+        TargetTable_columns = ["WashingMachineWorkingDays"]
+        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_WashingMachineUseDays, TargetTable_columns, self.Conn)
         pass
+
+
+
+
 
     def gen_Sce_ID_Environment(self):
 
@@ -236,6 +290,7 @@ class Ope_TableGenerator:
         # self.gen_Sce_Demand_DishWasherUseDays()
         # self.gen_Sce_Demand_DryerUseDays()
         # self.gen_Sce_Demand_WashingMachineUseDays()
+
         # self.gen_Sce_ID_Environment()
         pass
 
