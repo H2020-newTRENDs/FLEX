@@ -6,6 +6,8 @@ class ApplianceGroup:
 
     def __init__(self, para_series):
 
+
+
         self.ID_DishWasherType = para_series["ID_DishWasherType"]
         self.ID_EnergyCarrier_DishWasher = para_series["ID_EnergyCarrier_DishWasher"]
         self.DishWasherPower = para_series["DishWasherPower"]

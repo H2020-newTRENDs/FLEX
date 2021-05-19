@@ -76,13 +76,13 @@ class REG:
 
         # Generated scenario tables
         self.Gen_Sce_ID_Environment = self.GeneratedData + self.Scenario + self.ID + "Environment"
-        # self.Gen_Sce_DishWasherUseDays = self.GeneratedData + self.Scenario + "DishWasherWorkingDays"
-        # self.Gen_Sce_DryerUseDays = self.GeneratedData + self.Scenario + "DryerWorkingDays"
-        # self.Gen_Sce_WashingMachineUseDays = self.GeneratedData + self.Scenario + "WashingMachineWorkingDays"
+        self.Gen_Sce_DishWasherUseDays = self.GeneratedData + self.Scenario + "DishWasherWorkingDays"
+        self.Gen_Sce_DryerUseDays = self.GeneratedData + self.Scenario + "DryerWorkingDays"
+        self.Gen_Sce_WashingMachineUseDays = self.GeneratedData + self.Scenario + "WashingMachineWorkingDays"
 
         # Result tables
-        self.Res_MinimizedOperationCost = self.Result + "MinimizedOperationCost"
-        self.Res_SystemOperation = self.Result + "SystemOperation"
+        self.Res_MinimizedOperationCost = self.Result + "MinimizedOperationCost" #3: col: IDHH, col IDEnvi, col: cost
+        self.Res_SystemOperation = self.Result + "SystemOperation" #4: col: IDHH, col IDEnvi, , col: IDHour, col: technologies
 
 
         # ------------------------------
