@@ -76,7 +76,7 @@ m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
 # objective
 def minimize_cost(m):
-    rule = sum(m.Q_e[t] * m.p[t] for t in m.t)
+    rule = sum(m.Q_TankHeating[t] * m.p[t] for t in m.t)
     return rule
 m.OBJ = pyo.Objective(rule=minimize_cost)
 
@@ -114,7 +114,7 @@ def room_energy(m, t):
     if t == 1:
         return m.E_room[t] == builiding_starting_energy
     else:
-        return m.E_room[t] == m.E_room[t-1] - U_building*A_building*(m.T_room[t-1]-tout[t-1]) + m.Q_a[t-1]
+        return m.E_room[t] == m.E_room[t-1] - U_building*A_building*(m.T_room[t-1]-tout[t-1]) + m.Q_RoomHeating[t - 1]
 m.room_energy = pyo.Constraint(m.t, rule=room_energy)
 
 def room_temperature(m, t,):
@@ -130,7 +130,7 @@ def tank_energy(m, t):
     if t == 1:
         return m.E_tank[t] == tank_starting_energy
     else:
-        return m.E_tank[t] == m.E_tank[t-1] - m.Q_a[t-1] + m.Q_e[t-1] - U_Tank*A_Tank*(m.T_tank[t-1]-t_base)
+        return m.E_tank[t] == m.E_tank[t-1] - m.Q_RoomHeating[t - 1] + m.Q_TankHeating[t - 1] - U_Tank * A_Tank * (m.T_tank[t - 1] - t_base)
 m.tank_energy = pyo.Constraint(m.t, rule=tank_energy)
 
 
@@ -146,22 +146,22 @@ m.tank_temperature = pyo.Constraint(m.t, rule=tank_temperature)
 
 
 def max_power_tank(m, t):
-    return m.Q_e[t] <= 10_000  # W
+    return m.Q_TankHeating[t] <= 10_000  # W
 m.max_power = pyo.Constraint(m.t, rule=max_power_tank)
 
 
 def min_power_tank(m, t):
-    return m.Q_e[t] >= 0
+    return m.Q_TankHeating[t] >= 0
 m.min_power = pyo.Constraint(m.t, rule=min_power_tank)
 
 
 def max_power_heating(m, t):
-    return m.Q_a[t] <= 10_000
+    return m.Q_RoomHeating[t] <= 10_000
 m.max_power_heating = pyo.Constraint(m.t, rule=max_power_heating)
 
 
 def min_power_heating(m, t):
-    return m.Q_a[t] >= 0
+    return m.Q_RoomHeating[t] >= 0
 m.min_power_heating = pyo.Constraint(m.t, rule=min_power_heating)
 
 instance = m.create_instance(report_timing=True)
@@ -172,9 +172,9 @@ print(results)
 
 # create plots to visualize resultsprice
 def show_results():
-    Q_e = [instance.Q_e[t]() for t in m.t]
+    Q_e = [instance.Q_TankHeating[t]() for t in m.t]
     price = [var2[i] for i in range(1, hours_of_simulation+1)]
-    Q_a = [instance.Q_a[t]() for t in m.t]
+    Q_a = [instance.Q_RoomHeating[t]() for t in m.t]
 
 
     T_room = [instance.T_room[t]() for t in m.t]
