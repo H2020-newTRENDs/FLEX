@@ -28,20 +28,24 @@ class OperationOptimization:
         self.Conn = conn
         self.ID_Household = DB().read_DataFrame(REG().Gen_OBJ_ID_Household, self.Conn)
         self.ID_Environment = DB().read_DataFrame(REG().Gen_Sce_ID_Environment, self.Conn)
+
+
+        # later stage: this is included in the scenario
         self.TimeStructure = DB().read_DataFrame(REG().Sce_ID_TimeStructure, self.Conn)
         self.LoadProfile = DB().read_DataFrame(REG().Sce_Demand_BaseElectricityProfile, self.Conn)
         self.PhotovoltaicProfile = DB().read_DataFrame(REG().Sce_BasePhotovoltaicProfile, self.Conn)
         self.Weather = DB().read_DataFrame(REG().Sce_Weather_Temperature_test, self.Conn)
-        # self.YearlyWeather = DB().read_DataFrame(REG().Sce_Weather_Temperature, self.Conn)
-
+        # self.Weather = DB().read_DataFrame(REG().Sce_Weather_Temperature, self.Conn)
         self.Radiation = DB().read_DataFrame(REG().Sce_Weather_Radiation, self.Conn)
         self.Building = DB().read_DataFrame(REG().ID_BuildingOption, self.Conn)
-        # self.Temperature = DB().read_DataFrame(REG().Sce_Weather_Temperature, self.Conn)
+        self.ElectricityPrice = DB().read_DataFrame(REG().Sce_Price_HourlyElectricityPrice, self.Conn)
         # self.HeatPumpCOP = DB().read_DataFrame(REG().Sce_Technology_HeatPumpCOP, self.Conn)
         # you can import all the necessary tables into the memory here.
-        # Then, it can be faster when we run the optimization problem for many "household - enviornment" combinations.
+        # Then, it can be faster when we run the optimization problem for many "household - environment" combinations.
 
     # %%
+
+
     def gen_Household(self, row_id):
         ParaSeries = self.ID_Household.iloc[row_id]
         HouseholdAgent = Household(ParaSeries, self.Conn)
@@ -59,12 +63,24 @@ class OperationOptimization:
 
         return TankTemperature
 
+
+
+
+
     def run_Optimization(self, household_id, environment_id):
+
         Household = self.gen_Household(household_id)
         print(Household.SpaceHeating.TankSize)
-        # Environment = self.gen_Environment(environment_id)
-        Householdtype = Household.ID_HouseholdType
-        print(Householdtype)
+        # Householdtype = Household.ID_HouseholdType
+        # print(Householdtype)
+        Environment = self.gen_Environment(environment_id)
+        print(Environment.EVDailyElectricityConsumption)
+
+
+
+        # toDO:
+        # error in Htr_w ... may false imported in DB
+
 
         def create_dict(liste):
             dictionary = {}
@@ -72,8 +88,10 @@ class OperationOptimization:
                 dictionary[index] = value
             return dictionary
 
+
         # fixed starting values:
         tank_starting_temp = 25
+        # max tank temperature for boundary of energy
         tank_max_temp = 50
         # sourounding temp of tank
         t_base = 20
@@ -81,15 +99,14 @@ class OperationOptimization:
         thermal_mass_starting_temp = 20
 
         c_water = 4200 / 3600
-        c_air = 718 / 3600
-        density_air = 1.225
 
-
-
-        V_tank = (Household.SpaceHeating.TankSize) / 1000
+        # Parameters of SpaceHeatingTank
+        # Tank mass in kg
+        M_tank = Household.SpaceHeating.TankSize
+        # Surface of Tank in m2
         A_Tank = Household.SpaceHeating.TankSurfaceArea
-        U_Tank = Household.SpaceHeating.TankLoss * 1000                # 0,003
-        m_water = V_tank * 1000
+        # insulation of tank, for calc of losses
+        U_Tank = Household.SpaceHeating.TankLoss
 
 
         def random_price(size):
@@ -97,11 +114,12 @@ class OperationOptimization:
 
         hours_of_simulation = 8760
 
-        def random_tout(size):
-            return [random.randint(-10, 30) for i in size * [None]]
 
         # Building data for indoor temp calculation
         data_building = self.Building
+        #data_building = Household.Building
+
+
         # konditionierte Nutzfläche
         Af = data_building.loc[:, "Af"].to_numpy()
         # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
@@ -138,9 +156,15 @@ class OperationOptimization:
 
         # %%
 
+        # Solar Gains, but to small calculated: in W/m²
         Q_sol = self.Radiation.loc[self.Radiation["ID_Country"] == 5].loc[:, "Radiation"].to_numpy()
+
+        # generates a random price 16-40 ct, for simulation of RTP
+        #elec_price = self.ElectricityPrice.HourlyElectricityPrice
         elec_price = random_price(hours_of_simulation)
         # %%
+
+
         # model
         m = pyo.AbstractModel()
 
@@ -317,6 +341,8 @@ class OperationOptimization:
 
         show_results()
         pass
+
+
 
     def run(self):
         for household_id in range(0, 1):
