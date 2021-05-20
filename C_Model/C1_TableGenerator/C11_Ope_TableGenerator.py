@@ -213,10 +213,11 @@ class Ope_TableGenerator:
         print(Cycle)
         Days = self.gen_Sce_ApplianceUseDays(Cycle)
         print(Days)
-        TargetTable_list = Days
+        TargetTable_list = []
+        for day in range(0, len(Days)):
+            TargetTable_list.append([day + 1,Days[day]])
 
-
-        TargetTable_columns = ["DishwasherWorkingDays"]
+        TargetTable_columns = ["ID_Day", "DishwasherWorkingDays"]
         DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DishWasherUseDays, TargetTable_columns, self.Conn)
         pass
 
@@ -231,8 +232,11 @@ class Ope_TableGenerator:
         Days = self.gen_Sce_ApplianceUseDays(Cycle)
         print(Days)
 
-        TargetTable_list = Days
-        TargetTable_columns = ["DryerWorkingDays"]
+        TargetTable_list = []
+        for day in range(0, len(Days)):
+            TargetTable_list.append([day + 1, Days[day]])
+
+        TargetTable_columns = ["ID_Day","DryerWorkingDays"]
         DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DryerUseDays, TargetTable_columns, self.Conn)
         pass
 
@@ -246,8 +250,11 @@ class Ope_TableGenerator:
         Days = self.gen_Sce_ApplianceUseDays(Cycle)
         print(Days)
 
-        TargetTable_list = Days
-        TargetTable_columns = ["WashingMachineWorkingDays"]
+        TargetTable_list = []
+        for day in range(0, len(Days)):
+            TargetTable_list.append([day + 1, Days[day]])
+
+        TargetTable_columns = ['ID_Day', "WashingMachineWorkingDays"]
         DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_WashingMachineUseDays, TargetTable_columns, self.Conn)
         pass
 

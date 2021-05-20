@@ -8,8 +8,8 @@ from C_Model.C2_OperationOptimization.C21_OperationOptimization import Operation
 if __name__ == "__main__":
 
     CONN = DB().create_Connection(CONS().RootDB)
-    Ope_TableGenerator(CONN).run()
-    #OperationOptimization(CONN).run()
+    # Ope_TableGenerator(CONN).run()
+    # OperationOptimization(CONN).run()
 
 
 
