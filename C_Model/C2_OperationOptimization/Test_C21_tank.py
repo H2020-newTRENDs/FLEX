@@ -5,13 +5,12 @@ import matplotlib.pyplot as plt
 from pyomo.util.infeasible import log_infeasible_constraints
 import random
 
-
 from A_Infrastructure.A1_Config.A12_Register import REG
 from A_Infrastructure.A2_ToolKits.A21_DB import DB
 from B_Classes.B1_Household import Household
 
-class OperationOptimization:
 
+class OperationOptimization:
     """
     Intro
 
@@ -32,7 +31,6 @@ class OperationOptimization:
         self.PhotovoltaicProfile = DB().read_DataFrame(REG().Sce_BasePhotovoltaicProfile, self.Conn)
         self.Weather = DB().read_DataFrame(REG().Sce_Weather_Temperature_test, self.Conn)
         self.YearlyWeather = DB().read_DataFrame(REG().Sce_Weather_Temperature, self.Conn)
-
 
         # self.Radiation = DB().read_DataFrame(REG().Sce_Weather_Radiation, self.Conn)
         # self.Temperature = DB().read_DataFrame(REG().Sce_Weather_Temperature, self.Conn)
@@ -84,7 +82,7 @@ class OperationOptimization:
         U_building = 0.2
         m_air = V_building * density_air
 
-        V_tank = (Household.SpaceHeating.TankSize)/1000
+        V_tank = (Household.SpaceHeating.TankSize) / 1000
         A_Tank = 10
         U_Tank = 0.4
         m_water = V_tank * 1000
@@ -104,10 +102,7 @@ class OperationOptimization:
         # tout = create_dict([-1.3 ,1.6665 ,1,1, 2,2,2,2, 3,3,3,3, 4,4,4,4, 1,1,1,1, 2,2,2,2 ])
         tout = create_dict(self.Weather.Temperature)
 
-
-
         print(tout)
-
 
         var2 = (create_dict(random_price(hours_of_simulation)))
         ta = create_dict([20] * hours_of_simulation)  # constant surrounding temp
@@ -133,7 +128,7 @@ class OperationOptimization:
 
         # objective
         def minimize_cost(m):
-            rule = sum(m.Q_TankHeating[t] * m.p[t] for t in m.t)
+            rule = sum(m.Q_e[t] * m.p[t] for t in m.t)
             return rule
 
         m.OBJ = pyo.Objective(rule=minimize_cost)
@@ -158,6 +153,9 @@ class OperationOptimization:
 
         m.maximum_temperatur_room = pyo.Constraint(m.t, rule=maximum_temperature_room)
 
+        # def maximum_energy_room(m, t):
+        #    return m.E_room[t] <= 586.36
+        # m.maximum_energy_raum = pyo.Constraint(m.t, rule=maximum_energy_room)
 
         def minimum_energy_room(m, t):
             return m.E_room[t] >= 0
@@ -169,7 +167,7 @@ class OperationOptimization:
                 return m.E_room[t] == builiding_starting_energy
             else:
                 return m.E_room[t] == m.E_room[t - 1] - U_building * A_building * (m.T_room[t - 1] - tout[t - 1]) + \
-                       m.Q_RoomHeating[t - 1]
+                       m.Q_a[t - 1]
 
         m.room_energy = pyo.Constraint(m.t, rule=room_energy)
 
@@ -185,8 +183,8 @@ class OperationOptimization:
             if t == 1:
                 return m.E_tank[t] == tank_starting_energy
             else:
-                return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t - 1] + m.Q_TankHeating[t - 1] - U_Tank * A_Tank * (
-                            m.T_tank[t - 1] - t_base)
+                return m.E_tank[t] == m.E_tank[t - 1] - m.Q_a[t - 1] + m.Q_e[t - 1] - U_Tank * A_Tank * (
+                        m.T_tank[t - 1] - t_base)
 
         m.tank_energy = pyo.Constraint(m.t, rule=tank_energy)
 
@@ -199,22 +197,22 @@ class OperationOptimization:
         m.tank_temperature = pyo.Constraint(m.t, rule=tank_temperature)
 
         def max_power_tank(m, t):
-            return m.Q_TankHeating[t] <= 10_000  # W
+            return m.Q_e[t] <= 10_000  # W
 
         m.max_power = pyo.Constraint(m.t, rule=max_power_tank)
 
         def min_power_tank(m, t):
-            return m.Q_TankHeating[t] >= 0
+            return m.Q_e[t] >= 0
 
         m.min_power = pyo.Constraint(m.t, rule=min_power_tank)
 
         def max_power_heating(m, t):
-            return m.Q_RoomHeating[t] <= 10_000
+            return m.Q_a[t] <= 10_000
 
         m.max_power_heating = pyo.Constraint(m.t, rule=max_power_heating)
 
         def min_power_heating(m, t):
-            return m.Q_RoomHeating[t] >= 0
+            return m.Q_a[t] >= 0
 
         m.min_power_heating = pyo.Constraint(m.t, rule=min_power_heating)
 
@@ -225,9 +223,9 @@ class OperationOptimization:
 
         # create plots to visualize resultsprice
         def show_results():
-            Q_e = [instance.Q_TankHeating[t]() for t in m.t]
+            Q_e = [instance.Q_e[t]() for t in m.t]
             price = [var2[i] for i in range(1, hours_of_simulation + 1)]
-            Q_a = [instance.Q_RoomHeating[t]() for t in m.t]
+            Q_a = [instance.Q_a[t]() for t in m.t]
 
             T_room = [instance.T_room[t]() for t in m.t]
             T_tank = [instance.T_tank[t]() for t in m.t]
@@ -273,14 +271,11 @@ class OperationOptimization:
             plt.show()
 
         show_results()
-        pass
 
+        pass
 
     def run(self):
         for household_id in range(0, 1):
             for environment_id in range(0, 1):
                 self.run_Optimization(household_id, environment_id)
         pass
-
-
-
