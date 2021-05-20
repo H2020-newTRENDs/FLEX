@@ -5,9 +5,9 @@ from A_Infrastructure.A2_ToolKits.A21_DB import DB
 class Building:
 
     def __init__(self, para_series):
-        self.ID_BuildingType = para_series["ID_BuildingType"]
-        self.ID_BuildingAgeClass = para_series["ID_BuildingAgeClass"]
-        self.FloorArea = para_series["FloorArea"]
+        #self.ID_BuildingType = para_series["ID_BuildingType"]
+        #self.ID_BuildingAgeClass = para_series["ID_BuildingAgeClass"]
+        #self.FloorArea = para_series["FloorArea"]
         # other attributes to be added
         pass
 
