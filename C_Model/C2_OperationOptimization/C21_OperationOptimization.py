@@ -278,7 +278,7 @@ class OperationOptimization:
     # create plots to visualize resultsprice
 def show_results(instance, ElectricityPrice, HoursOfSimulation, starttime, endtime):
     # total cost after optimization
-    total_cost = instance.OBJ()
+    # total_cost = instance.OBJ()
     Q_TankHeating = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
     Q_RoomHeating = np.array([instance.Q_RoomHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
 
@@ -288,7 +288,7 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, starttime, endti
 
     # cost every hour
     cost_per_hour = ElectricityPrice[starttime: endtime] * Q_TankHeating[starttime: endtime]
-
+    total_cost = sum(cost_per_hour)
     # x axis:
     x_achse = np.arange(starttime, endtime)
 
