@@ -112,7 +112,7 @@ class OperationOptimization:
         # Airtransfercoefficient
         Hve = data_building.loc[:, "Hve"].to_numpy()
         # Transmissioncoefficient wall
-        Htr_w = data_building[:, "Htr_w"].to_numpy()
+        Htr_w = data_building.loc[:, "Htr_w"].to_numpy()
         # Transmissioncoefficient opake Bauteile
         Hop = data_building.loc[:, "Hop"].to_numpy()
         # Speicherkapazität J/K
