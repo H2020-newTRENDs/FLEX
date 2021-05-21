@@ -80,11 +80,11 @@ class OperationOptimization:
             return dictionary
 
         # fixed starting values:
-        T_TankStart = 25
+        T_TankStart = 25  # °C
         # max tank temperature for boundary of energy
-        T_TankMax = 50
+        T_TankMax = 50  # °C
         # sourounding temp of tank
-        T_TankSourounding = 20
+        T_TankSourounding = 20  # °C
         # starting temperature of thermal mass 20°C
         thermal_mass_starting_temp = 20
         CWater = 4200 / 3600
@@ -166,8 +166,8 @@ class OperationOptimization:
         m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # Energy Tank
-        m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals)#, bounds=(CWater * M_WaterTank * (273.15 + T_TankStart), \
-                                                                     # CWater * M_WaterTank * (273.15 + T_TankMax)))
+        m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * M_WaterTank * (273.15 + T_TankStart), \
+                                                                     CWater * M_WaterTank * (273.15 + T_TankMax)))
 
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
         # room temperature
@@ -186,8 +186,8 @@ class OperationOptimization:
             if t == 1:
                 return m.E_tank[t] == CWater * M_WaterTank * (273.15 + T_TankStart)
             else:
-                return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t] + m.Q_TankHeating[t] \
-                       - U_ValueTank * A_SurfaceTank * (m.E_tank[t] / (M_WaterTank * CWater))
+                return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t] + m.Q_TankHeating[t] #\
+                       #- U_ValueTank * A_SurfaceTank * (m.E_tank[t] / (M_WaterTank * CWater))
         m.tank_energy_rule = pyo.Constraint(m.t, rule=tank_energy)
 
         # 5R 1C model:
@@ -264,66 +264,75 @@ class OperationOptimization:
         results = opt.solve(instance, tee=True)
         instance.display("./log.txt")
         print(results)
-        return instance, m
-
-        # create plots to visualize resultsprice
-        def show_results():
-            # total cost after optimization
-            total_cost = instance.OBJ()
-            Q_TankHeating = np.array([instance.Q_TankHeating[t]() for t in m.t])
-            Q_RoomHeating = [instance.Q_RoomHeating[t]() for t in m.t]
-
-            T_room = [instance.T_room[t]() for t in m.t]
-            E_tank = [instance.E_tank[t]() for t in m.t]
-
-            # cost every hour
-            cost_per_hour = ElectricityPrice * Q_TankHeating
-
-            # x axis:
-            x_achse = np.arange(HoursOfSimulation)
-
-            fig, (ax1, ax3) = plt.subplots(2, 1)
-            ax2 = ax1.twinx()
-            ax4 = ax3.twinx()
-            #    ax5 = ax3.twinx()
-            ax2.plot(x_achse, ElectricityPrice, color="red", label="price", linewidth=0.75, linestyle=':')
-            ax1.bar(x_achse, Q_TankHeating, label="HP power", color='blue')
-            ax1.plot(x_achse, Q_RoomHeating, label="Floot heating power", color="green", linewidth=0.75)
-
-
-            ax1.set_ylabel("Energy Wh")
-            ax2.set_ylabel("Price per kWh in Ct/€")
-
-            lines, labels = ax1.get_legend_handles_labels()
-            lines2, labels2 = ax2.get_legend_handles_labels()
-            ax2.legend(lines + lines2, labels + labels2, loc=0)
-
-            ax3.plot(x_achse, T_room, label="Room temperature", color="orange", linewidth=0.5)
-            ax4.plot(x_achse, E_tank, label="Tank energy", color="red", linewidth=0.5)
-            #    ax5.plot(x_achse, T_a, label='Outside temperature', color= 'black')
-
-            ax3.set_ylabel("room temperature °C")
-            ax4.set_ylabel("tank energy Wh")
-            #    ax5.set_ylabel('outside temperature °C')
-            ax3.yaxis.label.set_color('orange')
-            ax4.yaxis.label.set_color('red')
-            #    ax5.yaxis.label.set_color('black')
-            lines, labels = ax3.get_legend_handles_labels()
-            lines2, labels2 = ax4.get_legend_handles_labels()
-            ax4.legend(lines + lines2, labels + labels2, loc=0)
-            plt.grid()
-
-            ax1.set_title("Total costs un Ct/€ " + str(round(total_cost / 1000, 3)))
-            plt.show()
-
+        # return relevant data
+        return instance, ElectricityPrice, HoursOfSimulation
 
     def run(self):
         for household_id in range(0, 1):
             for environment_id in range(0, 1):
-                instance, m = self.run_Optimization(household_id, environment_id)
-        return instance, m
+                instance, ElectricityPrice, HoursOfSimulation = self.run_Optimization(household_id, environment_id)
+                return instance, ElectricityPrice, HoursOfSimulation
+
+
+    # create plots to visualize resultsprice
+def show_results(instance, ElectricityPrice, HoursOfSimulation):
+    # total cost after optimization
+    total_cost = instance.OBJ()
+    Q_TankHeating = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])
+    Q_RoomHeating = [instance.Q_RoomHeating[t]() for t in range(1, HoursOfSimulation + 1)]
+
+    T_room = [instance.T_room[t]() for t in range(1, HoursOfSimulation + 1)]
+    E_tank = [instance.E_tank[t]() for t in range(1, HoursOfSimulation + 1)]
+
+    # cost every hour
+    cost_per_hour = ElectricityPrice * Q_TankHeating
+
+    # x axis:
+    x_achse = np.arange(HoursOfSimulation)
+
+    fig, (ax1, ax3) = plt.subplots(2, 1)
+    ax2 = ax1.twinx()
+    ax4 = ax3.twinx()
+    #    ax5 = ax3.twinx()
+    # ax2.plot(x_achse, ElectricityPrice, color="red", label="price", linewidth=0.75, linestyle=':')
+    ax1.plot(x_achse, Q_TankHeating, label="tank heating power", color='blue')
+    ax1.plot(x_achse, Q_RoomHeating, label="Floor heating power", color="green", linewidth=0.75)
+
+
+    ax1.set_ylabel("Energy Wh")
+    ax2.set_ylabel("Price per kWh in Ct/€")
+
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines + lines2, labels + labels2, loc=0)
+
+    ax3.plot(x_achse, T_room, label="Room temperature", color="orange", linewidth=0.5)
+    ax4.plot(x_achse, E_tank, label="Tank energy", color="red", linewidth=0.5)
+    #    ax5.plot(x_achse, T_a, label='Outside temperature', color= 'black')
+
+    ax3.set_ylabel("room temperature °C")
+    ax4.set_ylabel("tank energy Wh")
+    #    ax5.set_ylabel('outside temperature °C')
+    ax3.yaxis.label.set_color('orange')
+    ax4.yaxis.label.set_color('red')
+    #    ax5.yaxis.label.set_color('black')
+    lines, labels = ax3.get_legend_handles_labels()
+    lines2, labels2 = ax4.get_legend_handles_labels()
+    ax4.legend(lines + lines2, labels + labels2, loc=0)
+    plt.grid()
+
+    ax1.set_title("Total costs un Ct/€ " + str(round(total_cost / 1000, 3)))
+    plt.show()
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
-   OperationOptimization(DB().create_Connection(CONS().RootDB)).run()
+    A = OperationOptimization(DB().create_Connection(CONS().RootDB))
+    instance, ElectricityPrice, HoursOfSimulation = A.run()
+    show_results(instance, ElectricityPrice, HoursOfSimulation)
 
