@@ -158,25 +158,22 @@ class OperationOptimization:
         # solar gains:
         m.Q_solar = pyo.Param(m.t, initialize=create_dict(Q_sol))
         # outside temperature
-        m.T_outside = pyo.Param(m.t, initialize=create_dict(self.Weather.Temperature))
-        # solar gains
-        m.Q_solar = pyo.Param(m.t, initialize=create_dict(Q_sol))
+        m.T_outside = pyo.Param(m.t, initialize=create_dict(self.Weather.Temperature.to_numpy()))
+
 
         # Variables SpaceHeating
         # Energy of HeatPump
         m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # Energy Tank
-        m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * Household.SpaceHeating.TankSize * \
-                                                                     (273.15 + T_TankStart), \
-                                                                     CWater * Household.SpaceHeating.TankSize * \
-                                                                     (273.15 + T_TankMax)))
+        m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals)#, bounds=(CWater * M_WaterTank * (273.15 + T_TankStart), \
+                                                                     # CWater * M_WaterTank * (273.15 + T_TankMax)))
 
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
         # room temperature
-        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 28))
+        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals)#, bounds=(20, 28))
         # thermal mass temperature
-        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 50))
+        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals)#, bounds=(0, 50))
 
 
         # objective
@@ -190,11 +187,7 @@ class OperationOptimization:
                 return m.E_tank[t] == CWater * M_WaterTank * (273.15 + T_TankStart)
             else:
                 return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t] + m.Q_TankHeating[t] \
-                       - U_ValueTank * A_SurfaceTank * \
-                       ((m.E_tank[t] + (M_WaterTank * CWater * T_TankSourounding)) / (M_WaterTank * CWater) \
-                        - T_TankSourounding)
-
-        # Calc_TempTank = (E_tank + m*c*t_sourround) / M_water*C_Water
+                       - U_ValueTank * A_SurfaceTank * (m.E_tank[t] / (M_WaterTank * CWater))
         m.tank_energy_rule = pyo.Constraint(m.t, rule=tank_energy)
 
         # 5R 1C model:
@@ -271,12 +264,13 @@ class OperationOptimization:
         results = opt.solve(instance, tee=True)
         instance.display("./log.txt")
         print(results)
+        return instance, m
 
         # create plots to visualize resultsprice
         def show_results():
             # total cost after optimization
             total_cost = instance.OBJ()
-            Q_TankHeating = [instance.Q_TankHeating[t]() for t in m.t]
+            Q_TankHeating = np.array([instance.Q_TankHeating[t]() for t in m.t])
             Q_RoomHeating = [instance.Q_RoomHeating[t]() for t in m.t]
 
             T_room = [instance.T_room[t]() for t in m.t]
@@ -292,10 +286,10 @@ class OperationOptimization:
             ax2 = ax1.twinx()
             ax4 = ax3.twinx()
             #    ax5 = ax3.twinx()
-
+            ax2.plot(x_achse, ElectricityPrice, color="red", label="price", linewidth=0.75, linestyle=':')
             ax1.bar(x_achse, Q_TankHeating, label="HP power", color='blue')
             ax1.plot(x_achse, Q_RoomHeating, label="Floot heating power", color="green", linewidth=0.75)
-            ax2.plot(x_achse, ElectricityPrice, color="red", label="price", linewidth=0.75, linestyle=':')
+
 
             ax1.set_ylabel("Energy Wh")
             ax2.set_ylabel("Price per kWh in Ct/€")
@@ -322,15 +316,14 @@ class OperationOptimization:
             ax1.set_title("Total costs un Ct/€ " + str(round(total_cost / 1000, 3)))
             plt.show()
 
-        show_results()
-        pass
 
     def run(self):
         for household_id in range(0, 1):
             for environment_id in range(0, 1):
-                self.run_Optimization(household_id, environment_id)
-        pass
+                instance, m = self.run_Optimization(household_id, environment_id)
+        return instance, m
 
 
 if __name__ == "__main__":
-    OperationOptimization(DB().create_Connection(CONS().RootDB)).run()
+   OperationOptimization(DB().create_Connection(CONS().RootDB)).run()
+
