@@ -51,12 +51,15 @@ class REG:
         # 2 Scenarios
         # 2.1 Exogenous tables: ID and parameter
         self.Sce_ID_TimeStructure = self.Scenario + self.ID + "TimeStructure" # base year: 2010
-        self.Sce_ID_LifestyleType = self.Scenario + self.ID + "LifestyleType"
+        #self.Sce_ID_LifestyleType = self.Scenario + self.ID + "LifestyleType"
         self.Sce_ID_TargetTemperature = self.Scenario + self.ID + "TargetTemperature"
         self.Sce_ID_ElectricVehicleBehavior = self.Scenario + self.ID + "ElectricVehicleBehavior"
         self.Sce_ID_BaseElectricityProfileType = self.Scenario + self.ID + "BaseElectricityProfileType"
         self.Sce_ID_ElectricityPriceType = self.Scenario + self.ID + "ElectricityPriceType"
         self.Sce_ID_FeedinTariffType = self.Scenario + self.ID + "FeedinTariffType"
+        self.Sce_ID_HotWaterProfileType = self.Scenario + self.ID + 'HotWaterProfileType'
+        self.Sce_ID_PhotovoltaicProfileType = self.Scenario + self.ID + 'PhotovoltaicProfileType'
+
         self.Sce_Weather_Radiation = self.Scenario + "Weather_Radiation" # from helioclim dataset for year 2010
         self.Sce_Weather_Temperature = self.Scenario + "Weather_Temperature" # from MERRA2 dataset for year 2010
         self.Sce_Technology_HeatPumpCOP = self.Scenario + "Technology_HeatPumpCOP"
@@ -66,10 +69,8 @@ class REG:
         self.Sce_Demand_WashingMachine = self.Scenario + "Demand_WashingMachine"
         self.Sce_Price_HourlyElectricityPrice = self.Scenario + "Price_HourlyElectricityPrice"
         self.Sce_Price_HourlyFeedinTariff = self.Scenario + "Price_HourlyFeedinTariff"
-        self.Sce_Demand_BaseHotWaterProfile = self.Scenario + 'Demand_BaseHotWaterProfile' # based on 1 person; part 1
         self.Sce_HotWaterProfile = self.Scenario + 'HotWaterProfile' # based on 1 person; part 2; hourly profile
-        self.Sce_BasePhotovoltaicProfile = self.Scenario + 'BasePhotovoltaicProfile' # based on 1kWp; hourly profile
-
+        self.Sce_PhotovoltaicProfile = self.Scenario + 'PhotovoltaicProfile' # based on 1kWp; hourly profile
 
         self.Sce_Weather_Temperature_test = self.Scenario + 'Weather_Temperature_test' # only a test with 24 values
 
