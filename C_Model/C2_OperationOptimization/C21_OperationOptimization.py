@@ -33,7 +33,7 @@ class OperationOptimization:
         # later stage: this is included in the scenario
         self.TimeStructure = DB().read_DataFrame(REG().Sce_ID_TimeStructure, self.Conn)
         self.LoadProfile = DB().read_DataFrame(REG().Sce_Demand_BaseElectricityProfile, self.Conn)
-        self.PhotovoltaicProfile = DB().read_DataFrame(REG().Sce_BasePhotovoltaicProfile, self.Conn)
+        self.PhotovoltaicProfile = DB().read_DataFrame(REG().Sce_PhotovoltaicProfile, self.Conn)
         self.Weather = DB().read_DataFrame(REG().Sce_Weather_Temperature_test, self.Conn)
         # self.Weather = DB().read_DataFrame(REG().Sce_Weather_Temperature, self.Conn)
         self.Radiation = DB().read_DataFrame(REG().Sce_Weather_Radiation, self.Conn)
@@ -69,7 +69,7 @@ class OperationOptimization:
         # Householdtype = Household.ID_HouseholdType
         # print(Householdtype)
         Environment = self.gen_Environment(environment_id)
-        print(Environment.EVDailyElectricityConsumption)
+
 
         HoursOfSimulation = 8760
 
