@@ -402,3 +402,5 @@ TSWLatexianTemp*
 
 # generated if using elsarticle.cls
 #*.spl
+*.npz
+/C_Model/C2_OperationOptimization/log.txt
