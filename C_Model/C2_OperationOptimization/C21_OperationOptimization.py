@@ -86,16 +86,16 @@ class OperationOptimization:
         # sourounding temp of tank
         T_TankSourounding = 20  # °C
         # starting temperature of thermal mass 20°C
-        thermal_mass_starting_temp = 20
-        CWater = 4200 / 3600
+        thermal_mass_starting_temp = 20  # °C
+        CWater = 4200 / 3600  # Wh
 
         # Parameters of SpaceHeatingTank
         # Mass of water in tank
-        M_WaterTank = Household.SpaceHeating.TankSize
+        M_WaterTank = Household.SpaceHeating.TankSize  # kg
         # Surface of Tank in m2
-        A_SurfaceTank = Household.SpaceHeating.TankSurfaceArea
+        A_SurfaceTank = Household.SpaceHeating.TankSurfaceArea  # m^2
         # insulation of tank, for calc of losses
-        U_ValueTank = Household.SpaceHeating.TankLoss
+        U_ValueTank = Household.SpaceHeating.TankLoss  # W/m^2K
 
         # Building data for indoor temp calculation
         data_building = self.Building
@@ -104,7 +104,7 @@ class OperationOptimization:
         # COP of HP: TODO implement temperature dependent COP
         COP = 3
 
-        # konditionierte Nutzfläche
+        # konditionierte Nutzfläche m^2
         Af = data_building.loc[:, "Af"].to_numpy()[household_id]
         # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
         Atot = 4.5 * Af  # 7.2.2.2
@@ -120,7 +120,7 @@ class OperationOptimization:
         # wirksame Massenbezogene Fläche [m^2]
         Am = pd.to_numeric(data_building.loc[:, "Am_factor"]).to_numpy() * Af
         Am = Am[household_id]
-        # internal gains
+        # internal gains # W
         Qi = data_building.loc[:, "spec_int_gains_cool_watt"].to_numpy() * Af
         Qi = Qi[household_id]
         # Kopplung Temp Luft mit Temp Surface Knoten s
@@ -144,9 +144,10 @@ class OperationOptimization:
         Q_sol = self.Radiation.loc[self.Radiation["ID_Country"] == 5].loc[:, "Radiation"].to_numpy()
 
         def random_price(size):
-            return [random.randint(16, 40) for i in size * [None]]
+            return [random.randint(16, 16) for i in size * [None]]
         # generates a random price 16-40 ct, for simulation of RTP
-        ElectricityPrice = random_price(HoursOfSimulation)
+        ElectricityPrice = self.ElectricityPrice.loc[self.ElectricityPrice["ID_ElectricityPriceType"]==2].\
+                                    loc[:, "HourlyElectricityPrice"].to_numpy()-0.19
 #%%
         # model
         m = pyo.AbstractModel()
@@ -163,17 +164,17 @@ class OperationOptimization:
 
         # Variables SpaceHeating
         # Energy of HeatPump
-        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 20_000))
 
         # Energy Tank
         m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * M_WaterTank * (273.15 + T_TankStart), \
                                                                      CWater * M_WaterTank * (273.15 + T_TankMax)))
 
-        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 20_000))
         # room temperature
-        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals)#, bounds=(20, 28))
+        m.T_room = pyo.Var(m.t, bounds=(20, 30))
         # thermal mass temperature
-        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals)#, bounds=(0, 50))
+        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 50))
 
 
         # objective
@@ -275,26 +276,27 @@ class OperationOptimization:
 
 
     # create plots to visualize resultsprice
-def show_results(instance, ElectricityPrice, HoursOfSimulation):
+def show_results(instance, ElectricityPrice, HoursOfSimulation, starttime, endtime):
     # total cost after optimization
     total_cost = instance.OBJ()
-    Q_TankHeating = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])
-    Q_RoomHeating = [instance.Q_RoomHeating[t]() for t in range(1, HoursOfSimulation + 1)]
+    Q_TankHeating = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    Q_RoomHeating = np.array([instance.Q_RoomHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
 
-    T_room = [instance.T_room[t]() for t in range(1, HoursOfSimulation + 1)]
-    E_tank = [instance.E_tank[t]() for t in range(1, HoursOfSimulation + 1)]
+    T_room = np.array([instance.T_room[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    T_mass_mean = np.array([instance.Tm_t[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    E_tank = np.array([instance.E_tank[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
 
     # cost every hour
-    cost_per_hour = ElectricityPrice * Q_TankHeating
+    cost_per_hour = ElectricityPrice[starttime: endtime] * Q_TankHeating[starttime: endtime]
 
     # x axis:
-    x_achse = np.arange(HoursOfSimulation)
+    x_achse = np.arange(starttime, endtime)
 
     fig, (ax1, ax3) = plt.subplots(2, 1)
     ax2 = ax1.twinx()
     ax4 = ax3.twinx()
     #    ax5 = ax3.twinx()
-    # ax2.plot(x_achse, ElectricityPrice, color="red", label="price", linewidth=0.75, linestyle=':')
+    ax2.plot(x_achse, ElectricityPrice[starttime:endtime], color="black", label="price", linewidth=0.75, linestyle=':')
     ax1.plot(x_achse, Q_TankHeating, label="tank heating power", color='blue')
     ax1.plot(x_achse, Q_RoomHeating, label="Floor heating power", color="green", linewidth=0.75)
 
@@ -307,7 +309,8 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation):
     ax2.legend(lines + lines2, labels + labels2, loc=0)
 
     ax3.plot(x_achse, T_room, label="Room temperature", color="orange", linewidth=0.5)
-    ax4.plot(x_achse, E_tank, label="Tank energy", color="red", linewidth=0.5)
+    ax3.plot(x_achse, T_mass_mean, label="Mass temperature", color="grey", linewidth=0.5)
+    # ax4.plot(x_achse, E_tank, label="Tank energy", color="red", linewidth=0.5)
     #    ax5.plot(x_achse, T_a, label='Outside temperature', color= 'black')
 
     ax3.set_ylabel("room temperature °C")
@@ -319,7 +322,8 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation):
     lines, labels = ax3.get_legend_handles_labels()
     lines2, labels2 = ax4.get_legend_handles_labels()
     ax4.legend(lines + lines2, labels + labels2, loc=0)
-    plt.grid()
+    ax1.grid()
+    ax3.grid()
 
     ax1.set_title("Total costs un Ct/€ " + str(round(total_cost / 1000, 3)))
     plt.show()
@@ -328,11 +332,10 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation):
 
 
 
-
-
-
 if __name__ == "__main__":
+    starttime = 0
+    endtime = 168
     A = OperationOptimization(DB().create_Connection(CONS().RootDB))
     instance, ElectricityPrice, HoursOfSimulation = A.run()
-    show_results(instance, ElectricityPrice, HoursOfSimulation)
+    show_results(instance, ElectricityPrice, HoursOfSimulation, starttime, endtime)
 
