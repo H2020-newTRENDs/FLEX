@@ -16,8 +16,10 @@ def calculate_angels_of_sun(latitude, longitude, timearray, E_dir_horizontal):
         altitude_sun = np.append(altitude_sun, pysol.get_altitude(latitude, longitude, time.to_pydatetime()))
         azimuth_sun = np.append(azimuth_sun, pysol.get_azimuth(latitude, longitude, time.to_pydatetime()))
 
-    azimuth_sun = azimuth_sun - 180  # weil pysolar bei nord = 0 berechnet
+    azimuth_sun = azimuth_sun - 180  # weil pysolar bei nord=0 anfängt und nicht süd=0
 
+    # S_incident = S_horizontal / sin(altitude_sun)
+    # S_window = S_incident*sin(altitude_sun + 90)
 
     # considering the northern hemisphere:
     # altitude below 0 = night --> no radiation
@@ -93,7 +95,18 @@ if __name__ == "__main__":
     plt.plot(x_achse[0:24], E_dir_nord[0:24], "x", label="nord")
     plt.plot(x_achse[0:24], E_dir[0:24], "x", label="E_dir")
     plt.legend()
-    plt.plot(x_achse[0:24], azimuth_sun[0:24]-180, "x", label="azi")
+    plt.show()
+
+
+    fig2 = plt.figure()
+    ax1 = plt.gca()
+    ax2 = ax1.twinx()
+    ax1.plot(x_achse[3000:3024], azimuth_sun[3000:3024], "x", label="azi", color="orange")
+    ax2.plot(x_achse[3000:3024], altitude_sun[3000:3024], "x", label="altitude")
+    ax1.set_ylabel("azimuth")
+    ax2.set_ylabel("altitude")
+    ax1.legend()
+    ax2.legend()
     plt.show()
 
 
