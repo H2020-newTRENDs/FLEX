@@ -15,6 +15,7 @@ class Household:
     def __init__(self, para_series, conn):
 
         self.Conn = conn
+        self.ID = para_series['ID']
         self.ID_Country = para_series["ID_Country"]
         self.ID_HouseholdType = para_series["ID_HouseholdType"]
         self.AveragePersons = para_series["AveragePersons"]
@@ -24,7 +25,7 @@ class Household:
         self.ApplianceGroup = ApplianceGroup(DB().read_DataFrameRow(REG().Gen_OBJ_ID_ApplianceGroup, (para_series["ID_ApplianceGroup"] - 1), self.Conn))
         self.SpaceHeating = SpaceHeating(DB().read_DataFrameRow(REG().Gen_OBJ_ID_SpaceHeating, (para_series["ID_SpaceHeating"] - 1), self.Conn))
         self.SpaceCooling = SpaceCooling(DB().read_DataFrameRow(REG().Gen_OBJ_ID_SpaceCooling, (para_series["ID_SpaceCooling"] - 1), self.Conn))
-        #self.HotWater = HotWater(DB().read_DataFrameRow(REG().Gen_OBJ_ID_HotWater, (para_series["ID_HotWater"] - 1), self.Conn))
+        self.HotWater = HotWater(DB().read_DataFrameRow(REG().Gen_OBJ_ID_HotWater, (para_series["ID_HotWater"] - 1), self.Conn))
         self.PV = PV(DB().read_DataFrameRow(REG().Gen_OBJ_ID_PV, (para_series["ID_PV"] - 1), self.Conn))
         self.Battery = Battery(DB().read_DataFrameRow(REG().Gen_OBJ_ID_Battery, (para_series["ID_Battery"] - 1), self.Conn))
         self.ElectricVehicle = ElectricVehicle(DB().read_DataFrameRow(REG().Gen_OBJ_ID_ElectricVehicle, (para_series["ID_ElectricVehicle"] - 1), self.Conn))
