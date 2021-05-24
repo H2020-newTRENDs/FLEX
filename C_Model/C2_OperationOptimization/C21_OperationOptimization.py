@@ -17,8 +17,10 @@ from A_Infrastructure.A1_Config.A11_Constants import CONS
 # (1) Include Scenario as Class, create Class Environment
 # (2) Summer 800 Wh of RoomHeating?
 # (3) include cooling
-# (4) analyse model
-
+# (4) Function into classes
+# (5) analyse model
+# (6) PV, battery
+# (7) ... rest of optimization
 
 
 
@@ -40,10 +42,9 @@ class OperationOptimization:
         self.ID_Household = DB().read_DataFrame(REG().Gen_OBJ_ID_Household, self.Conn)
         self.ID_Environment = DB().read_DataFrame(REG().Gen_Sce_ID_Environment, self.Conn)
 
+
         # later stage: this is included in the scenario
         self.TimeStructure = DB().read_DataFrame(REG().Sce_ID_TimeStructure, self.Conn)
-        # self.LoadProfile = DB().read_DataFrame(REG().Sce_Demand_BaseElectricityProfile, self.Conn)
-        # self.PhotovoltaicProfile = DB().read_DataFrame(REG().Sce_PhotovoltaicProfile, self.Conn)
         self.Weather = DB().read_DataFrame(REG().Sce_Weather_Temperature_test, self.Conn)
         self.Radiation = DB().read_DataFrame(REG().Sce_Weather_Radiation, self.Conn)
         self.ElectricityPrice = DB().read_DataFrame(REG().Sce_Price_HourlyElectricityPrice, self.Conn)
@@ -317,7 +318,7 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
     ax1.legend(lines + lines2, labels + labels2, loc=0)
 
     ax3.plot(x_achse, T_room, label="TempRoom", color="orange", linewidth=0.5)
-    ax3.plot(x_achse, T_BuildingMass, label='TempMassBuild.', linewidth=0.25, color='black')
+    ax3.plot(x_achse, T_BuildingMass, label='TempMassBuild.', linewidth=0.15, color='black')
     ax4.plot(x_achse, E_tank, label="EnergyTank", color="red", linewidth=0.25)
 
     ax3.set_ylabel("Temp in °C", color = 'black')
