@@ -12,6 +12,17 @@ from B_Classes.B1_Household import Household
 from A_Infrastructure.A1_Config.A11_Constants import CONS
 
 
+
+# toDo
+# (1) Include Scenario as Class, create Class Environment
+# (2) Summer 800 Wh of RoomHeating?
+# (3) include cooling
+# (4) analyse model
+
+
+
+
+
 class OperationOptimization:
     """
     Intro
@@ -57,6 +68,10 @@ class OperationOptimization:
 
         return TankTemperature
 
+
+
+
+
     def run_Optimization(self, household_id, environment_id):
 
         Household = self.gen_Household(household_id)
@@ -65,6 +80,7 @@ class OperationOptimization:
         print(ID_Household)
         Environment = self.gen_Environment(environment_id)
 
+        # the data of the simulation are indexed for 1 year, start and stoptime in visualization
         HoursOfSimulation = 8760
 
         def create_dict(liste):
@@ -81,13 +97,11 @@ class OperationOptimization:
         # sourounding temp of tank
         T_TankSourounding = 20  # °C
         # starting temperature of thermal mass 20°C
-        thermal_mass_starting_temp = 15
         CWater = 4200 / 3600
 
         # Parameters of SpaceHeatingTank
         # Mass of water in tank
-        # M_WaterTank = Household.SpaceHeating.TankSize
-        M_WaterTank = 2250
+        M_WaterTank = Household.SpaceHeating.TankSize
         # Surface of Tank in m2
         A_SurfaceTank = Household.SpaceHeating.TankSurfaceArea
         # insulation of tank, for calc of losses
@@ -95,9 +109,8 @@ class OperationOptimization:
 
         # Building data for indoor temp calculation
         data_building = Household.Building
-        # data_building = Household.Building
 
-        # konditionierte Nutzfläche
+        # Simulation of Building: konditionierte Nutzfläche
         Af = Household.Building.Af
         # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
         Atot = 4.5 * Af  # 7.2.2.2
@@ -131,6 +144,7 @@ class OperationOptimization:
         # Equ.C.8
         Htr_3 = 1 / (1 / Htr_2 + 1 / Htr_ms)
 
+
         # Solar Gains, but to small calculated: in W/m²
         Q_sol = self.Radiation.loc[self.Radiation["ID_Country"] == 5].loc[:, "Radiation"].to_numpy()
 
@@ -147,17 +161,14 @@ class OperationOptimization:
         j = 0
 
         for i in range(0, len(list(Tout))):
-            # print(Tout[i])
             for j in range(0, len(list(COPtemp))):
                 if COPtemp[j] < Tout[i]:
                     continue
                 else:
                     ListOfDynamicCOP.append(COP[j])
                 break
-        print(ListOfDynamicCOP)
-        print(len(ListOfDynamicCOP))
 
-        # model
+        # model for optimisation
         m = pyo.AbstractModel()
 
         # parameters
@@ -172,17 +183,12 @@ class OperationOptimization:
         m.COP_dynamic = pyo.Param(m.t, initialize=create_dict(ListOfDynamicCOP))
 
         # Variables SpaceHeating
-        # Energy of HeatPump
         m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
-
-        # Energy Tank
         m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * M_WaterTank * (273.15 + T_TankMin), \
                                                                      CWater * M_WaterTank * (273.15 + T_TankMax)))
 
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
-        # room temperature
         m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 50))
-        # thermal mass temperature
         m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 60))
 
         # objective
@@ -253,72 +259,83 @@ class OperationOptimization:
         instance.display("./log.txt")
         print(results)
         # return relevant data
-        return instance, ElectricityPrice, HoursOfSimulation
+        return instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
 
     def run(self):
-        for household_id in range(0, 1):
+        for household_id in range(514723, 514724):
             for environment_id in range(0, 1):
-                instance, ElectricityPrice, HoursOfSimulation = self.run_Optimization(household_id, environment_id)
-                return instance, ElectricityPrice, HoursOfSimulation
+                instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP = self.run_Optimization(household_id,
+                                                                                                        environment_id)
+                return instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
 
-    # create plots to visualize resultsprice
 
+# create plots to visualize resultsprice
 
-def show_results(instance, ElectricityPrice, HoursOfSimulation):
-    # total cost after optimization
+def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP):
+
+    # calculation of JAZ
+    EnergyThermal = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])
+    EnergyElectric = []
+
+    for i in range(1, len(list(EnergyThermal))):
+        HP = EnergyThermal[i] / ListOfDynamicCOP[i - 1]
+        EnergyElectric.append(HP)
+
+    JAZ = (np.sum(EnergyThermal)) / (np.sum(EnergyElectric))
+    print('Test JAZ = ' + str(JAZ))
+
+    # total values
     total_cost = instance.OBJ()
-    Q_TankHeating = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])
-    Q_RoomHeating = [instance.Q_RoomHeating[t]() for t in range(1, HoursOfSimulation + 1)]
-    SumOfTankHeating = np.sum(Q_TankHeating)
+    total_energy = np.sum(EnergyThermal)
 
-    T_room = [instance.T_room[t]() for t in range(1, HoursOfSimulation + 1)]
-    E_tank = [instance.E_tank[t]() for t in range(1, HoursOfSimulation + 1)]
-    T_BuildingMass = [instance.Tm_t[t]() for t in range(1, HoursOfSimulation + 1)]
+    # Visualization
+    starttime = 8000
+    endtime = 8168
 
-    # cost every hour
-    cost_per_hour = ElectricityPrice * Q_TankHeating
+    Q_TankHeating = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    Q_RoomHeating = np.array([instance.Q_RoomHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    T_room = np.array([instance.T_room[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    E_tank = np.array([instance.E_tank[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    T_BuildingMass = np.array([instance.Tm_t[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
 
-    # x axis:
-    x_achse = np.arange(HoursOfSimulation)
+    # Plot
+    x_achse = np.arange(starttime, endtime)
 
     fig, (ax1, ax3) = plt.subplots(2, 1)
     ax2 = ax1.twinx()
     ax4 = ax3.twinx()
-    ax5 = ax3.twinx()
-    #    ax5 = ax3.twinx()
-    # ax2.plot(x_achse, ElectricityPrice, color="red", label="price", linewidth=0.75, linestyle=':')
-    ax1.plot(x_achse, Q_TankHeating, label="Q_TankHeating (HeatPump)", color='blue')
-    ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating (Radiators)", color="green", linewidth=0.75)
+    ax1.plot(x_achse, Q_TankHeating, label="Q_TankHeating", color='blue', linewidth=0.15)
+    ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color="green", linewidth=0.25)
+    ax2.plot(x_achse, ElectricityPrice[starttime:endtime], color="black", label="Price", linewidth=0.50,
+             linestyle=':')
 
     ax1.set_ylabel("Energy Wh")
     ax2.set_ylabel("Price per kWh in Ct/€")
 
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines + lines2, labels + labels2, loc=0)
+    ax1.legend(lines + lines2, labels + labels2, loc=0)
 
-    ax3.plot(x_achse, T_room, label="Room temperature", color="orange", linewidth=0.5)
-    ax4.plot(x_achse, E_tank, label="Tank energy", color="red", linewidth=0.5)
-    ax5.plot(x_achse, T_BuildingMass, label='Temp BuildingMass', linewidth=0.5, color='black')
+    ax3.plot(x_achse, T_room, label="TempRoom", color="orange", linewidth=0.5)
+    ax3.plot(x_achse, T_BuildingMass, label='TempMassBuild.', linewidth=0.25, color='black')
+    ax4.plot(x_achse, E_tank, label="EnergyTank", color="red", linewidth=0.25)
 
-    ax3.set_ylabel("Temp room °C")
-    ax4.set_ylabel("tank energy Wh")
-    # ax5.set_ylabel('Temp ThermalMass °C')
-    ax3.yaxis.label.set_color('orange')
-    ax4.yaxis.label.set_color('red')
-    #    ax5.yaxis.label.set_color('black')
+    ax3.set_ylabel("Temp in °C", color = 'black')
+    ax4.set_ylabel("Tank energy Wh", color = 'black')
+
     lines, labels = ax3.get_legend_handles_labels()
     lines2, labels2 = ax4.get_legend_handles_labels()
-    ax4.legend(lines + lines2, labels + labels2, loc=0)
+    ax3.legend(lines + lines2, labels + labels2, loc=0)
+
     plt.grid()
 
-    ax1.set_title("Total costs in € " + str(round(total_cost / 1000, 2)))
-    # ax1.set_title("Total thermal Energy of HP in kWh: " + str(round(SumOfTankHeating / 1000, 2)))
+    ax1.set_title("Total costs: " + str(round(total_cost / 1000, 2)) + ' € and total energy: ' + str(
+        round(total_energy / 1000, 2)) + ' kWh')
 
     plt.show()
 
 
 if __name__ == "__main__":
     A = OperationOptimization(DB().create_Connection(CONS().RootDB))
-    instance, ElectricityPrice, HoursOfSimulation = A.run()
-    show_results(instance, ElectricityPrice, HoursOfSimulation)
+    instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP = A.run()
+    show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP)
