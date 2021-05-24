@@ -95,6 +95,7 @@ def core_rc_model(DHW_need_day_m2_8760_up, DHW_loss_Circulation_040_day_m2_8760_
     Htr_1 = np.float_(1) / (np.float_(1) / Hve + np.float_(1) / Htr_is)  # Equ. C.6
     Htr_2 = Htr_1 + Htr_w  # Equ. C.7
 
+
     # kopplung zwischen Masse und  zentralen Knoten s (surface)
     hms = np.float_(9.1)  # W / m2K from Equ.C.3 (from 12.2.2)
     Htr_ms = hms * Am  # from 12.2.2 Equ. (64)
@@ -361,12 +362,12 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
                 Tm_t_prev = Tm_t[t-1, i]
 
             # Equ. C.4
-            Tm_t_0 = (Tm_t_prev * (Cm[i] - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_0) / \
-                           (Cm[i] + 0.5 * (Htr_3[i] + Htr_em[i]))
+            Tm_t_0 = (Tm_t_prev * (Cm[i]/3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_0) / \
+                           (Cm[i]/3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
 
             # Equ. C.4 for 10 W/m^2 heating
-            Tm_t_10 = (Tm_t_prev * (Cm[i] - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_10) / \
-                           (Cm[i] + 0.5 * (Htr_3[i] + Htr_em[i]))
+            Tm_t_10 = (Tm_t_prev * (Cm[i]/3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_10) / \
+                           (Cm[i]/3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
 
             # Equ. C.9
             T_m_0 = (Tm_t_0 + Tm_t_prev) / 2
@@ -406,8 +407,8 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
                                 PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] * (
                                 ((PHI_ia[i] + Q_HC_real[t, i]) / Hve[i]) + T_sup[t])) / Htr_2[i]
             # Equ. C.4
-            Tm_t[t, i] = (Tm_t_prev * (Cm[i] - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_real) / \
-                           (Cm[i] + 0.5 * (Htr_3[i] + Htr_em[i]))
+            Tm_t[t, i] = (Tm_t_prev * (Cm[i]/3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_real) / \
+                           (Cm[i]/3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
 
 
             # Equ. C.12
