@@ -13,7 +13,7 @@ from A_Infrastructure.A1_Config.A11_Constants import CONS
 
 
 # toDo
-# (1) Include Scenario as Class, create Class Environment
+# (1) Create Scenario Cases
 # (2) Summer 800 Wh of RoomHeating?
 # (3) include cooling
 # (4) Function into classes
@@ -156,22 +156,30 @@ class OperationOptimization:
                                'HourlyElectricityPrice'].to_numpy()
 
 
-        # Dynamic COP
-        Tout = self.Weather.Temperature
-        COP = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 1].loc[:,
-              'COP_ThermalStorage'].to_numpy()
-        COPtemp = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 1].loc[:,
-                  'TemperatureEnvironment'].to_numpy()
-        ListOfDynamicCOP = []
-        j = 0
+        # Select COP Air(dynamic) or COP Water
+        if Household.SpaceHeating.ID_SpaceHeatingBoilerType == 1:
+            Tout = self.Weather.Temperature
+            COP = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 1].loc[:,
+                  'COP_ThermalStorage'].to_numpy()
+            COPtemp = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 1].loc[:,
+                      'TemperatureEnvironment'].to_numpy()
+            ListOfDynamicCOP = []
+            j = 0
 
-        for i in range(0, len(list(Tout))):
-            for j in range(0, len(list(COPtemp))):
-                if COPtemp[j] < Tout[i]:
-                    continue
-                else:
-                    ListOfDynamicCOP.append(COP[j])
-                break
+            for i in range(0, len(list(Tout))):
+                for j in range(0, len(list(COPtemp))):
+                    if COPtemp[j] < Tout[i]:
+                        continue
+                    else:
+                        ListOfDynamicCOP.append(COP[j])
+                    break
+        elif Household.SpaceHeating.ID_SpaceHeatingBoilerType == 2:
+            COP = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 2].loc[:,
+                  'COP_ThermalStorage'].to_numpy()
+            COP = list(COP)
+            COP = COP * HoursOfSimulation
+            ListOfDynamicCOP = COP
+
 
         # model for optimisation
         m = pyo.AbstractModel()
@@ -268,7 +276,7 @@ class OperationOptimization:
         return instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
 
     def run(self):
-        for household_id in range(514723, 514724):
+        for household_id in range(515999, 516000):
             for environment_id in range(3, 4):
                 instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP = self.run_Optimization(household_id,
                                                                                                         environment_id)
