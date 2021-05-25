@@ -231,7 +231,7 @@ def create_radiation_gains():
 
 def get_elec_profile():
     data = DB().read_DataFrame(REG().Sce_Demand_BaseElectricityProfile, conn=DB().create_Connection(CONS().RootDB))
-    return data.loc[:, "BaseElectricyProfile"].to_numpy()
+    return data.loc[:, "BaseElectricityProfile"].to_numpy()
 
 
 def get_out_temp():
@@ -243,13 +243,14 @@ def get_out_temp():
 
 def get_invert_data():
     #%%
+
     project_directory_path = Path(__file__).parent.resolve()
     base_results_path = project_directory_path / "inputdata"
 
     data = pd.read_excel(base_results_path / "building_dataframe_2015_AUT.xlsx", engine="openpyxl").drop(columns="Unnamed: 0")
     # take only single family houses:
     data = data.loc[data["building_categories_index"]==2]
-#%%
+
     # konditionierte Nutzfläche
     Af = data.loc[:, "Af"].to_numpy()
     # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
@@ -274,15 +275,22 @@ def get_invert_data():
     Awindows_rad_north = data.loc[:, "average_effective_area_wind_north_red_cool"].to_numpy()
 
     # solar gains through windows TODO berechne auf Fensterfläche!
-    Qsol = create_radiation_gains()
+    # Qsol = create_radiation_gains()
+    Q_sol_all = pd.read_csv(base_results_path / "directRadiation_himmelsrichtung.csv", sep=";")
+    Q_sol_north = np.outer(Q_sol_all.loc[:, "RadiationNorth"].to_numpy(), Awindows_rad_north)
+    Q_sol_south = np.outer(Q_sol_all.loc[:, "RadiationSouth"].to_numpy(), Awindows_rad_south)
+    Q_sol_east_west = np.outer((Q_sol_all.loc[:, "RadiationEast"].to_numpy() +
+                                Q_sol_all.loc[:, "RadiationWest"].to_numpy()), Awindows_rad_east_west)
+    Q_sol = Q_sol_north + Q_sol_south + Q_sol_east_west
+
 
 
     # electricity price for 24 hours:
     elec_price = pd.read_excel(base_results_path / "Elec_price_per_hour.xlsx", engine="openpyxl")
-    elec_price = elec_price.loc[:, "Euro/MWh"].dropna().to_numpy()
+    elec_price = elec_price.loc[:, "Euro/MWh"].dropna().to_numpy() + 0.1
 
 
-    return Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Qsol, elec_price, Af
+    return Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Q_sol, elec_price, Af
 
 def create_dict(liste):
     dictionary = {}
@@ -298,7 +306,7 @@ temp_outside = temperature
 
 # fixed starting values:
 tank_starting_temp = 50
-thermal_mass_starting_temp = 20
+thermal_mass_starting_temp = 16
 
 # constants:
 # water mass in storage
@@ -328,9 +336,15 @@ Htr_2 = Htr_1 + Htr_w
 # Equ.C.8
 Htr_3 = 1 / (1 / Htr_2 + 1 / Htr_ms)
 
+# minimum room temperature
+T_air_min = 20
+# maximum room temperature
+T_air_max = 25
+
+
 
 def create_pyomo_model(elec_price, tout, Qsol, Am, Atot, Cm, Hop, Htr_1, Htr_2, Htr_3, Htr_em, Htr_is, Htr_ms,
-                       Htr_w, Hve, PHI_ia, Qi):
+                       Htr_w, Hve, PHI_ia, Qi, COP):
     # model
     m = pyo.AbstractModel()
 
@@ -346,16 +360,18 @@ def create_pyomo_model(elec_price, tout, Qsol, Am, Atot, Cm, Hop, Htr_1, Htr_2, 
 
     # variables
     # energy used for heating
-    m.Q_heating = pyo.Var(m.time, within=pyo.NonNegativeReals)
+    m.Q_heating = pyo.Var(m.time, within=pyo.NonNegativeReals, bounds=(0, 15_000))
+    # energy used for cooling
+    m.Q_cooling = pyo.Var(m.time, within=pyo.NonNegativeReals, bounds=(0, 15_000))
     # real indoor temperature
-    m.T_room = pyo.Var(m.time, within=pyo.NonNegativeReals, bounds=(20, 28))
+    m.T_room = pyo.Var(m.time, within=pyo.NonNegativeReals, bounds=(T_air_min, T_air_max))
     # thermal mass temperature
     m.Tm_t = pyo.Var(m.time, within=pyo.NonNegativeReals, bounds=(0, 50))
 
 
     # objective
     def minimize_cost(m):
-        return sum(m.Q_heating[t] * m.p[t] for t in m.time)
+        return sum((m.Q_heating[t] + m.Q_cooling[t]) / COP * m.p[t] for t in m.time)
     m.OBJ = pyo.Objective(rule=minimize_cost)
 
 
@@ -370,8 +386,8 @@ def create_pyomo_model(elec_price, tout, Qsol, Am, Atot, Cm, Hop, Htr_1, Htr_2, 
             # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
             # Equ. C.5
             PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (
-                    PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_heating[t]) / Hve) + m.T_outside[t])) / \
-                       Htr_2
+                    PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_heating[t] - m.Q_cooling[t]) / Hve) +
+                                                               m.T_outside[t])) / Htr_2
 
             # Equ. C.4
             return m.Tm_t[t] == (thermal_mass_starting_temp * ((Cm/3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
@@ -400,8 +416,8 @@ def create_pyomo_model(elec_price, tout, Qsol, Am, Atot, Cm, Hop, Htr_1, Htr_2, 
             T_sup = m.T_outside[t]
             # Equ. C.5
             PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (
-                    PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_heating[t]) / Hve) + T_sup)) / \
-                       Htr_2
+                    PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_heating[t] - m.Q_cooling[t]) / Hve) +
+                                                               T_sup)) / Htr_2
 
             # Equ. C.4
             return m.Tm_t[t] == (m.Tm_t[t - 1] * ((Cm/3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
@@ -417,10 +433,10 @@ def create_pyomo_model(elec_price, tout, Qsol, Am, Atot, Cm, Hop, Htr_1, Htr_2, 
             T_m = (m.Tm_t[t] + thermal_mass_starting_temp) / 2
             T_sup = m.T_outside[t]
             # Euq. C.10
-            T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (T_sup + (PHI_ia + m.Q_heating[t]) / Hve))/\
-                  (Htr_ms + Htr_w + Htr_1)
+            T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (T_sup + (
+                    PHI_ia + m.Q_heating[t] - m.Q_cooling[t]) / Hve)) / (Htr_ms + Htr_w + Htr_1)
             # Equ. C.11
-            T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_heating[t]) / (Htr_is + Hve)
+            T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_heating[t] - m.Q_cooling[t]) / (Htr_is + Hve)
             # Equ. C.12
             T_op = 0.3 * T_air + 0.7 * T_s
             # T_op is according to norm the inside temperature whereas T_air is the air temperature # TODO which one?
@@ -432,10 +448,10 @@ def create_pyomo_model(elec_price, tout, Qsol, Am, Atot, Cm, Hop, Htr_1, Htr_2, 
             T_m = (m.Tm_t[t] + m.Tm_t[t-1]) / 2
             T_sup = m.T_outside[t]
             # Euq. C.10
-            T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (T_sup + (PHI_ia + m.Q_heating[t]) / Hve))/\
-                  (Htr_ms + Htr_w + Htr_1)
+            T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (T_sup + (
+                    PHI_ia + m.Q_heating[t] - m.Q_cooling[t]) / Hve)) / (Htr_ms + Htr_w + Htr_1)
             # Equ. C.11
-            T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_heating[t]) / (Htr_is + Hve)
+            T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_heating[t] - m.Q_cooling[t]) / (Htr_is + Hve)
             # Equ. C.12
             T_op = 0.3 * T_air + 0.7 * T_s
             # T_op is according to norm the inside temperature whereas T_air is the air temperature # TODO which one?
@@ -445,123 +461,142 @@ def create_pyomo_model(elec_price, tout, Qsol, Am, Atot, Cm, Hop, Htr_1, Htr_2, 
 
     instance = m.create_instance(report_timing=True)
     opt = pyo.SolverFactory("gurobi")
-    results = opt.solve(instance, tee=True)
+    results = opt.solve(instance)#, tee=True)
     print(results)
     instance.display("./log.txt")
     return instance, m
 
 
-def calculate_cost_diff(instance, Q_HC, price):
-    total_cost_optimized = instance.OBJ()/100/1_000  # # €
+def calculate_cost_diff(instance, Q_H, Q_C, price, COP):
+    total_cost_optimized = instance.OBJ() / 100 / 1_000  #  €  (COP is already in instance)
     # total cost not optimized:
-    total_cost_normal = sum(Q_HC * price)/100/1_000  # €
+    total_cost_normal = sum((Q_H + Q_C) * price) / 100 / 1_000 / COP  # €
 
     # difference in energy consumption
-    total_energy_optimized = sum(np.array([instance.Q_heating[t]() for t in m.time])) / 1_000  # kWh
-    total_energy_normal = sum(Q_HC) / 1_000  # kWh
+    total_energy_optimized = sum(np.array([instance.Q_heating[t]() for t in m.time])) / 1_000 / COP  # kWh
+    total_energy_normal = sum(Q_H+Q_C) / 1_000 / COP  # kWh
 
     x_ticks = [1, 2, 3, 4]
+    width = 0.5
     fig = plt.figure()
     ax = plt.gca()
     ax2 = ax.twinx()
     colors = ["blue", "skyblue", "darkred", "orangered"]
-    labels = ["total_cost_normal", "total_cost_optimized", "total_energy_normal", "total_energy_optimized"]
-    ax.bar(x_ticks, [total_cost_normal, total_cost_optimized, 0, 0], label=labels, color=colors)
-    ax.bar(x_ticks, [0, total_cost_normal-total_cost_optimized, 0, 0], color="green", bottom=total_cost_optimized)
-    ax.text(1.85, total_cost_optimized + (total_cost_normal-total_cost_optimized)/2,
-            str(round(total_cost_normal-total_cost_optimized, 2)))
+    labels = ["total cost normal", "total cost optimized", "total energy normal", "total energy optimized"]
+    ax.bar(1, total_cost_normal, color="#305496", edgecolor='black', width=width)
+    ax.bar(2, total_cost_optimized, color='#8EA9DB', edgecolor='black', width=width)
+    ax.bar(2, total_cost_normal-total_cost_optimized, color='#375623', edgecolor='black',
+           bottom=total_cost_optimized, hatch="//", width=width)
 
-    ax2.bar(x_ticks, [0, 0, total_energy_normal, total_energy_optimized], color=colors)
-    ax2.bar(x_ticks, [0, 0, total_energy_optimized-total_energy_normal, 0], color="darkorchid", bottom=total_energy_normal)
+    ax.text(1.85, total_cost_optimized + (total_cost_normal-total_cost_optimized)/2,
+            str(round((total_cost_normal-total_cost_optimized) / total_cost_normal * 100, 2)) + " %")
+
+    ax2.bar(3, total_energy_normal, color='#F47070', edgecolor='black', width=width)
+    ax2.bar(4, total_energy_optimized, color="#F4B084", edgecolor='black', width=width)
+    ax2.bar(3, total_energy_optimized-total_energy_normal, color="#FA9EFA", edgecolor='black',
+            bottom=total_energy_normal, hatch="//", width=width)
+
     ax2.text(2.85, total_energy_normal + (total_energy_optimized-total_energy_normal)/2,
-             str(round(total_energy_optimized-total_energy_normal, 2)))
+             str(round((total_energy_optimized-total_energy_normal) / total_energy_normal * 100, 2)) + " %")
 
     ax.set_xticks(x_ticks)
     ax.set_ylabel("EUR")
     ax2.set_ylabel("kWh")
+    plt.xticks(x_ticks)
     ax.set_xticklabels(labels, rotation=15)
     plt.title("Cost and Energy difference")
+    plt.tight_layout()
+    plt.savefig("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Myfigs\\Cost_energy_diff_total.png")
+    plt.savefig("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Myfigs\\Cost_energy_diff_total.svg")
     plt.show()
 
 # create plots to visualize results
-def show_results(instance, m, Q_HC, Tm_t, Q_solar, price, temp_outside):
-    Q_a = np.array([instance.Q_heating[t]() for t in m.time])
+def show_results(instance, m, Q_H, Q_C, Tm_t, Q_solar, price, temp_outside, elec_profile, COP):
+    red = '#F47070'
+    blue = '#8EA9DB'
+    green = '#A9D08E'
+    orange = '#F4B084'
+    yellow = '#FFD966'
+    grey = '#C9C9C9'
+    pink = '#FA9EFA'
+    dark_green = '#375623'
+    dark_blue = '#305496'
+
+    Q_heating = np.array([instance.Q_heating[t]() for t in m.time]) / 1_000 / COP  # kW
+    Q_cool = np.array([instance.Q_cooling[t]() for t in m.time]) / 1_000 / COP  # kW
     T_room = [instance.T_room[t]() for t in m.time]
     T_mass_mean = [instance.Tm_t[t]() for t in m.time]
-
     total_cost = instance.OBJ()
 
-    # total_cost = instance.Objective()
-    x_achse = np.arange(len(Q_a))
+    x_achse = np.arange(len(Q_heating))
+    # Heating powers and Temperatures
+    fig, (ax1, ax2) = plt.subplots(2, 1)
 
-    fig, (ax1, ax3) = plt.subplots(2, 1)
-    ax2 = ax1.twinx()
-    # ax4 = ax3.twinx()
+    ax2.plot(x_achse, T_mass_mean, label="thermal mass optimized", color=grey)
+    ax2.plot(x_achse, Tm_t, label="thermal mass normal", color="skyblue", linestyle="--")
+    ax2.plot(x_achse, temp_outside, label="outside temperature", color=dark_blue)
+    ax2.plot(x_achse, T_room, label="indoor temperature", color=dark_green)
 
-    # ax1.bar(x_achse, Q_e, label="boiler power")
-    ax1.plot(x_achse, Q_a, label="heating power", color="red")
-    ax1.plot(x_achse, Q_HC, label="heating power normal", color="blue", linestyle="--")
-    ax1.plot(x_achse, Q_solar, label="solar power", color="green")
-    ax2.plot(x_achse, price, color="orange", label="price")
+    ax1.plot(x_achse, (Q_H+Q_C) / COP / 1_000, label="heating normal", color="black", linestyle="--")
+    ax1.plot(x_achse, Q_heating+Q_cool, label="heating optimized", color=red)
+    ax1.plot(x_achse, Q_solar / 1_000, label="solar gains", color=yellow)
 
-    ax1.set_ylabel("energy Wh")
-    # ax1.yaxis.label.set_color('green')
-    ax2.set_ylabel("price per kWh")
-
-    lines, labels = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines + lines2, labels + labels2, loc=0)
-
-    ax3.plot(x_achse, T_room, label="room temp", color="blue")
-    ax3.plot(x_achse, T_mass_mean, label="structure temp", color="grey")
-    ax3.plot(x_achse, temp_outside, label="outside temp", color="skyblue")
-
-    ax3.set_ylabel("temperature °C")
-    # ax3.yaxis.label.set_color('blue')
-    ax3.legend()
-    ax1.grid()
-    ax3.grid()
-    ax1.set_title("Total costs: " + str(round(total_cost / 1000, 3)))
-    plt.show()
-
-
-    fig2, (ax1, ax2) = plt.subplots(2, 1)
-
-    ax1.plot(x_achse, Q_a, label="heating optimized", color="red")
-    ax2.plot(x_achse, T_mass_mean, label="temp thermal mass optimized", color="orange")
-    ax1.plot(x_achse, get_elec_profile()[0:len(Q_a)]*1000, label="normal elec demand", color="green")
-    ax1.plot(x_achse, Q_HC, label="heating normal", color="blue", alpha=0.5)
-    ax2.plot(x_achse, Tm_t, label="temp thermal mass normal", color="skyblue", alpha=0.5)
+    ax1.set_title("Heating power and thermal mass temperature")
+    ax2.set_ylabel("temperature in °C")
+    ax1.set_ylabel("heating power in kWh")
+    ax2.set_xlabel("time in hours")
     ax1.legend()
     ax2.legend()
-    ax1.set_title("Heating + Elec demand")
+    ax1.grid()
+    ax2.grid()
+    plt.tight_layout()
+    fig.savefig("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Myfigs\\Heat_Temp.png")
+    fig.savefig("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Myfigs\\Heat_Temp.svg")
     plt.show()
 
 
-    # COP for heatpump
-    COP = 3
-    fig3 = plt.figure()
-    plt.plot(x_achse, Q_a/3+get_elec_profile()[0:len(Q_a)]*1000, label="elec with optim heating")
-    plt.plot(x_achse, Q_HC/3+get_elec_profile()[0:len(Q_a)]*1000, label="elec normal heating", linestyle="--")
-
-    plt.title("compare elec demands with COP 3")
-    plt.legend()
+    # Compare Electricity consumption graph with price
+    fig2 = plt.figure()
+    ax1 = plt.gca()
+    ax2 = ax1.twinx()
+    ax1.plot(x_achse, (Q_heating + Q_cool), label="elec with optim heating", color=red)
+    ax1.plot(x_achse, (Q_H+Q_C) / COP / 1_000, label="elec normal heating", linestyle="--", color="black")
+    ax2.plot(x_achse, price, label="elec price", color=pink)
+    plt.title(f"compare electricity loads with COP = {COP}")
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines + lines2, labels + labels2)
+    ax1.set_xlabel("time in hours")
+    ax1.set_ylabel("electricity in kW")
+    ax2.set_ylabel("price per kWh")
+    ax1.grid(axis="x")
+    plt.tight_layout()
+    fig2.savefig("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Myfigs\\Elec_Price.png")
+    fig2.savefig("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Myfigs\\Elec_Price.svg")
     plt.show()
 
 
+start_number_toplot = 0
 number_hours_toplot = 8760
-Q_HC_real, Tm_t = rc_heating_cooling(Q_solar[0:number_hours_toplot], Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af,
-                                     temp_outside[0:number_hours_toplot],
-                                     initial_thermal_mass_temp=20, T_air_min=20, T_air_max=28)
+COP = 3
+
 for i in range(1):
+    Q_H_real, Tm_t, Q_C_real = rc_heating_cooling(Q_solar[start_number_toplot:number_hours_toplot, i], Atot, Hve, Htr_w, Hop, Cm,
+                                         Am, Qi, Af,
+                                         temp_outside[start_number_toplot:number_hours_toplot],
+                                         initial_thermal_mass_temp=thermal_mass_starting_temp, T_air_min=T_air_min,
+                                         T_air_max=T_air_max)
 
-    instance, m = create_pyomo_model(price[0:number_hours_toplot], temp_outside[0:number_hours_toplot],
-                                     Q_solar[0:number_hours_toplot], Am[i], Atot[i], Cm[i], Hop[i],
+    instance, m = create_pyomo_model(price[start_number_toplot:number_hours_toplot],
+                                     temp_outside[start_number_toplot:number_hours_toplot],
+                                     Q_solar[start_number_toplot:number_hours_toplot, i], Am[i], Atot[i], Cm[i], Hop[i],
                                      Htr_1[i], Htr_2[i], Htr_3[i], Htr_em[i], Htr_is[i], Htr_ms[i], Htr_w[i], Hve[i],
-                                     PHI_ia[i], Qi[i])
+                                     PHI_ia[i], Qi[i], COP)
 
+    elec_profile = get_elec_profile()[start_number_toplot:number_hours_toplot] * 1_000
 
-    show_results(instance, m, Q_HC_real[:, i], Tm_t[:, i], Q_solar[0:number_hours_toplot],
-                 price[0:number_hours_toplot], temp_outside[0:number_hours_toplot])
+    show_results(instance, m, Q_H_real[:, i], Q_C_real[:, i], Tm_t[:, i], Q_solar[start_number_toplot:number_hours_toplot, i],
+                 price[start_number_toplot:number_hours_toplot], temp_outside[start_number_toplot:number_hours_toplot],
+                 elec_profile, COP)
 
-    calculate_cost_diff(instance, Q_HC_real[:, i], price[0:number_hours_toplot])
+    calculate_cost_diff(instance, Q_H_real[:, i], Q_C_real[:, i], price[start_number_toplot:number_hours_toplot], COP)

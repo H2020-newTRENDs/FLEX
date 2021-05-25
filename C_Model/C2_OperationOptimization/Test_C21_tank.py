@@ -2,16 +2,30 @@ import pyomo.environ as pyo
 import numpy as np
 from pyomo.opt import SolverStatus, TerminationCondition
 import matplotlib.pyplot as plt
+import pandas as pd
 from pyomo.util.infeasible import log_infeasible_constraints
 import random
-
 
 from A_Infrastructure.A1_Config.A12_Register import REG
 from A_Infrastructure.A2_ToolKits.A21_DB import DB
 from B_Classes.B1_Household import Household
+from A_Infrastructure.A1_Config.A11_Constants import CONS
+
+
+
+# toDo
+# (1) Include Scenario as Class, create Class Environment
+# (2) Summer 800 Wh of RoomHeating?
+# (3) include cooling
+# (4) Function into classes
+# (5) analyse model
+# (6) PV, battery
+# (7) ... rest of optimization
+
+
+
 
 class OperationOptimization:
-
     """
     Intro
 
@@ -27,18 +41,16 @@ class OperationOptimization:
         self.Conn = conn
         self.ID_Household = DB().read_DataFrame(REG().Gen_OBJ_ID_Household, self.Conn)
         self.ID_Environment = DB().read_DataFrame(REG().Gen_Sce_ID_Environment, self.Conn)
+
+
+        # later stage: this is included in the scenario
         self.TimeStructure = DB().read_DataFrame(REG().Sce_ID_TimeStructure, self.Conn)
-        self.LoadProfile = DB().read_DataFrame(REG().Sce_Demand_BaseElectricityProfile, self.Conn)
-        self.PhotovoltaicProfile = DB().read_DataFrame(REG().Sce_BasePhotovoltaicProfile, self.Conn)
         self.Weather = DB().read_DataFrame(REG().Sce_Weather_Temperature_test, self.Conn)
-        self.YearlyWeather = DB().read_DataFrame(REG().Sce_Weather_Temperature, self.Conn)
-
-
-        # self.Radiation = DB().read_DataFrame(REG().Sce_Weather_Radiation, self.Conn)
-        # self.Temperature = DB().read_DataFrame(REG().Sce_Weather_Temperature, self.Conn)
-        # self.HeatPumpCOP = DB().read_DataFrame(REG().Sce_Technology_HeatPumpCOP, self.Conn)
+        self.Radiation = DB().read_DataFrame(REG().Sce_Weather_Radiation, self.Conn)
+        self.ElectricityPrice = DB().read_DataFrame(REG().Sce_Price_HourlyElectricityPrice, self.Conn)
+        self.HeatPumpCOP = DB().read_DataFrame(REG().Sce_Technology_HeatPumpCOP, self.Conn)
         # you can import all the necessary tables into the memory here.
-        # Then, it can be faster when we run the optimization problem for many "household - enviornment" combinations.
+        # Then, it can be faster when we run the optimization problem for many "household - environment" combinations.
 
     def gen_Household(self, row_id):
         ParaSeries = self.ID_Household.iloc[row_id]
@@ -57,13 +69,23 @@ class OperationOptimization:
 
         return TankTemperature
 
+
+
+
+
     def run_Optimization(self, household_id, environment_id):
+
         Household = self.gen_Household(household_id)
         print(Household.SpaceHeating.TankSize)
-        # Environment = self.gen_Environment(environment_id)
-        Householdtype = Household.ID_HouseholdType
-        print(Householdtype)
+        ID_Household = Household.ID
+        print(ID_Household)
 
+        Environment = self.gen_Environment(environment_id)
+
+        # the data of the simulation are indexed for 1 year, start and stoptime in visualization
+        HoursOfSimulation = 8760
+
+        # used for the data import in pyomo
         def create_dict(liste):
             dictionary = {}
             for index, value in enumerate(liste, start=1):
@@ -71,216 +93,249 @@ class OperationOptimization:
             return dictionary
 
         # fixed starting values:
-        tank_starting_temp = 50
-        indoor_starting_temp = 22
-        t_base = 20
+        T_TankStart = 45  # °C
+        # min,max tank temperature for boundary of energy
+        T_TankMax = 50  # °C
+        T_TankMin = 25  # °C
+        # sourounding temp of tank
+        T_TankSourounding = 20  # °C
+        # starting temperature of thermal mass 20°C
+        CWater = 4200 / 3600
 
-        c_water = 4200 / 3600
-        c_air = 718 / 3600
-        density_air = 1.225
+        # Parameters of SpaceHeatingTank
+        # Mass of water in tank
+        M_WaterTank = Household.SpaceHeating.TankSize
+        # Surface of Tank in m2
+        A_SurfaceTank = Household.SpaceHeating.TankSurfaceArea
+        # insulation of tank, for calc of losses
+        U_ValueTank = Household.SpaceHeating.TankLoss
 
-        V_building = 400
-        A_building = 300
-        U_building = 0.2
-        m_air = V_building * density_air
+        # Building data for indoor temp calculation
+        data_building = Household.Building
 
-        V_tank = (Household.SpaceHeating.TankSize)/1000
-        A_Tank = 10
-        U_Tank = 0.4
-        m_water = V_tank * 1000
+        # Simulation of Building: konditionierte Nutzfläche
+        Af = Household.Building.Af
+        # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
+        Atot = 4.5 * Af  # 7.2.2.2
+        # Airtransfercoefficient
+        Hve = Household.Building.Hve
+        # Transmissioncoefficient wall
+        Htr_w = Household.Building.Htr_w
+        # Transmissioncoefficient opake Bauteile
+        Hop = Household.Building.Hop
+        # Speicherkapazität J/K
+        Cm = Household.Building.CM_factor * Af
+        # wirksame Massenbezogene Fläche [m^2]
+        Am = float(Household.Building.Am_factor) * Af
+        # internal gains
+        Qi = Household.Building.spec_int_gains_cool_watt * Af
 
-        builiding_starting_energy = m_air * c_air * (indoor_starting_temp - t_base)
-        tank_starting_energy = m_water * c_water * (tank_starting_temp - t_base)
-
-        def random_price(size):
-            return [random.randint(16, 40) for i in size * [None]]
-
-        hours_of_simulation = 8760
-
-        def random_tout(size):
-            return [random.randint(-10, 30) for i in size * [None]]
-
-        # tout = create_dict(random_tout(hours_of_simulation))
-        # tout = create_dict([-1.3 ,1.6665 ,1,1, 2,2,2,2, 3,3,3,3, 4,4,4,4, 1,1,1,1, 2,2,2,2 ])
-        tout = create_dict(self.Weather.Temperature)
-
-
-
-        print(tout)
+        # Kopplung Temp Luft mit Temp Surface Knoten s
+        his = np.float_(3.45)  # 7.2.2.2
+        # kopplung zwischen Masse und  zentralen Knoten s (surface)
+        hms = np.float_(9.1)  # W / m2K from Equ.C.3 (from 12.2.2)
+        Htr_ms = hms * Am  # from 12.2.2 Equ. (64)
+        Htr_em = 1 / (1 / Hop - 1 / Htr_ms)  # from 12.2.2 Equ. (63)
+        # thermischer Kopplungswerte W/K
+        Htr_is = his * Atot
+        # Equ. C.1
+        PHI_ia = 0.5 * Qi
+        # Equ. C.6
+        Htr_1 = 1 / (1 / Hve + 1 / Htr_is)
+        # Equ. C.7
+        Htr_2 = Htr_1 + Htr_w
+        # Equ.C.8
+        Htr_3 = 1 / (1 / Htr_2 + 1 / Htr_ms)
 
 
-        var2 = (create_dict(random_price(hours_of_simulation)))
-        ta = create_dict([20] * hours_of_simulation)  # constant surrounding temp
+        # Solar Gains, but to small calculated: in W/m²
+        Q_sol = self.Radiation.loc[self.Radiation["ID_Country"] == 5].loc[:, "Radiation"].to_numpy()
 
-        # model
+        # RTP from eex
+        ElectricityPrice = self.ElectricityPrice.loc[self.ElectricityPrice['ID_ElectricityPriceType'] == 2].loc[:,
+                           'HourlyElectricityPrice'].to_numpy()
+
+        # Dynamic COP
+        Tout = self.Weather.Temperature
+        COP = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 1].loc[:,
+              'COP_ThermalStorage'].to_numpy()
+        COPtemp = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 1].loc[:,
+                  'TemperatureEnvironment'].to_numpy()
+        ListOfDynamicCOP = []
+        j = 0
+
+        for i in range(0, len(list(Tout))):
+            for j in range(0, len(list(COPtemp))):
+                if COPtemp[j] < Tout[i]:
+                    continue
+                else:
+                    ListOfDynamicCOP.append(COP[j])
+                break
+
+        # model for optimisation
         m = pyo.AbstractModel()
 
         # parameters
-        m.t = pyo.RangeSet(1, hours_of_simulation)
-        m.p = pyo.Param(m.t, initialize=var2)
-        m.T_a = pyo.Param(m.t, initialize=ta)
-        m.T_out = pyo.Param(m.t, initialize=tout)
+        m.t = pyo.RangeSet(1, HoursOfSimulation)
+        # price
+        m.p = pyo.Param(m.t, initialize=create_dict(ElectricityPrice))
+        # solar gains:
+        m.Q_solar = pyo.Param(m.t, initialize=create_dict(Q_sol))
+        # outside temperature
+        m.T_outside = pyo.Param(m.t, initialize=create_dict(self.Weather.Temperature.to_numpy()))
+        # m.T_outside = pyo.Param(m.t, initialize=create_dict(T_Out))
+        m.COP_dynamic = pyo.Param(m.t, initialize=create_dict(ListOfDynamicCOP))
 
-        # variables
-        m.Q_e = pyo.Var(m.t, within=pyo.NonNegativeReals)
-        m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        # Variables SpaceHeating
+        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
+        m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * M_WaterTank * (273.15 + T_TankMin), \
+                                                                     CWater * M_WaterTank * (273.15 + T_TankMax)))
 
-        m.Q_a = pyo.Var(m.t, within=pyo.NonNegativeReals)
-        m.E_room = pyo.Var(m.t, within=pyo.NonNegativeReals)
-
-        m.T_tank = pyo.Var(m.t, within=pyo.NonNegativeReals)
-        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
+        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 50))
+        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 60))
 
         # objective
-        def minimize_cost(m):
-            rule = sum(m.Q_e[t] * m.p[t] for t in m.t)
-            return rule
 
+        def minimize_cost(m):
+            rule = sum(m.Q_TankHeating[t] / m.COP_dynamic[t] * m.p[t] for t in m.t)
+            return rule
         m.OBJ = pyo.Objective(rule=minimize_cost)
 
-        # constraints
-        # def maximum_energy_tank(m, t):
-        #    return m.E_tank[t] <= 35000 #50°C
-        # m.maximum_energy_tank = pyo.Constraint(m.t, rule=maximum_energy_tank)
-
-        def maximum_temperature_tank(m, t):
-            return m.T_tank[t] <= 50
-
-        m.maximum_temperature_tank = pyo.Constraint(m.t, rule=maximum_temperature_tank)
-
-        def minimum_temperature_tank(m, t):
-            return m.T_tank[t] >= 25
-
-        m.minimum_temperature_tank = pyo.Constraint(m.t, rule=minimum_temperature_tank)
-
-        def maximum_temperature_room(m, t):
-            return m.T_room[t] <= 50
-
-        m.maximum_temperatur_room = pyo.Constraint(m.t, rule=maximum_temperature_room)
-
-
-        def minimum_energy_room(m, t):
-            return m.E_room[t] >= 0
-
-        m.minimum_energy_raum = pyo.Constraint(m.t, rule=minimum_energy_room)
-
-        def room_energy(m, t):
-            if t == 1:
-                return m.E_room[t] == builiding_starting_energy
-            else:
-                return m.E_room[t] == m.E_room[t - 1] - U_building * A_building * (m.T_room[t - 1] - tout[t - 1]) + \
-                       m.Q_a[t - 1]
-
-        m.room_energy = pyo.Constraint(m.t, rule=room_energy)
-
-        def room_temperature(m, t, ):
-            if t == 1:
-                return m.T_room[t] == indoor_starting_temp
-            else:
-                return m.T_room[t] == (m.E_room[t] + (m_air * c_air * t_base)) / (m_air * c_air)
-
-        m.room_temperature = pyo.Constraint(m.t, rule=room_temperature)
-
+        # energy input and output of tank energy
         def tank_energy(m, t):
             if t == 1:
-                return m.E_tank[t] == tank_starting_energy
+                return m.E_tank[t] == CWater * M_WaterTank * (273.15 + T_TankStart)
             else:
-                return m.E_tank[t] == m.E_tank[t - 1] - m.Q_a[t - 1] + m.Q_e[t - 1] - U_Tank * A_Tank * (
-                            m.T_tank[t - 1] - t_base)
+                return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t] + m.Q_TankHeating[t] \
+                       - - U_ValueTank * A_SurfaceTank * ((m.E_tank[t] / (M_WaterTank * CWater)) - T_TankSourounding)
+        m.tank_energy_rule = pyo.Constraint(m.t, rule=tank_energy)
 
-        m.tank_energy = pyo.Constraint(m.t, rule=tank_energy)
-
-        def tank_temperature(m, t, ):
+        # 5R 1C model:
+        def thermal_mass_temperature_rc(m, t):
             if t == 1:
-                return m.T_tank[t] == tank_starting_temp
+                return m.Tm_t[t] == 15
+
             else:
-                return m.T_tank[t] == (m.E_tank[t] + (m_water * c_water * t_base)) / (m_water * c_water)
+                # Equ. C.2
+                PHI_m = Am / Atot * (0.5 * Qi + m.Q_solar[t])
+                # Equ. C.3
+                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_solar[t])
 
-        m.tank_temperature = pyo.Constraint(m.t, rule=tank_temperature)
+                # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
+                T_sup = m.T_outside[t]
+                # Equ. C.5
+                PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (
+                        PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_RoomHeating[t]) / Hve) + T_sup)) / \
+                           Htr_2
 
-        def max_power_tank(m, t):
-            return m.Q_e[t] <= 10_000  # W
+                # Equ. C.4
+                return m.Tm_t[t] == (m.Tm_t[t - 1] * ((Cm / 3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
+                        (Cm / 3600) + 0.5 * (Htr_3 + Htr_em))
+        m.thermal_mass_temperature_rule = pyo.Constraint(m.t, rule=thermal_mass_temperature_rc)
 
-        m.max_power = pyo.Constraint(m.t, rule=max_power_tank)
-
-        def min_power_tank(m, t):
-            return m.Q_e[t] >= 0
-
-        m.min_power = pyo.Constraint(m.t, rule=min_power_tank)
-
-        def max_power_heating(m, t):
-            return m.Q_a[t] <= 10_000
-
-        m.max_power_heating = pyo.Constraint(m.t, rule=max_power_heating)
-
-        def min_power_heating(m, t):
-            return m.Q_a[t] >= 0
-
-        m.min_power_heating = pyo.Constraint(m.t, rule=min_power_heating)
+        def room_temperature_rc(m, t):
+            if t == 1:
+                T_air = 20
+                return m.T_room[t] == T_air
+            else:
+                # Equ. C.3
+                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_solar[t])
+                # Equ. C.9
+                T_m = (m.Tm_t[t] + m.Tm_t[t - 1]) / 2
+                T_sup = m.T_outside[t]
+                # Euq. C.10
+                T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (
+                        T_sup + (PHI_ia + m.Q_RoomHeating[t]) / Hve)) / \
+                      (Htr_ms + Htr_w + Htr_1)
+                # Equ. C.11
+                T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_RoomHeating[t]) / (Htr_is + Hve)
+                return m.T_room[t] == T_air
+        m.room_temperature_rule = pyo.Constraint(m.t, rule=room_temperature_rc)
 
         instance = m.create_instance(report_timing=True)
-        opt = pyo.SolverFactory("glpk")
+        # opt = pyo.SolverFactory("glpk")
+        opt = pyo.SolverFactory("gurobi")
         results = opt.solve(instance, tee=True)
+        instance.display("./log.txt")
         print(results)
-
-        # create plots to visualize resultsprice
-        def show_results():
-            Q_e = [instance.Q_e[t]() for t in m.t]
-            price = [var2[i] for i in range(1, hours_of_simulation + 1)]
-            Q_a = [instance.Q_a[t]() for t in m.t]
-
-            T_room = [instance.T_room[t]() for t in m.t]
-            T_tank = [instance.T_tank[t]() for t in m.t]
-            T_a = [tout[i] for i in range(1, hours_of_simulation + 1)]
-
-            # indoor temperature is constant 20°C
-            cost = [list(price)[i] * Q_e[i] for i in range(hours_of_simulation)]
-            total_cost = instance.OBJ()
-            x_achse = np.arange(hours_of_simulation)
-
-            fig, (ax1, ax3) = plt.subplots(2, 1)
-            ax2 = ax1.twinx()
-            ax4 = ax3.twinx()
-            #    ax5 = ax3.twinx()
-
-            ax1.bar(x_achse, Q_e, label="HP power", color='blue')
-            ax1.plot(x_achse, Q_a, label="Floot heating power", color="green", linewidth=0.75)
-            ax2.plot(x_achse, price, color="red", label="price", linewidth=0.75, linestyle=':')
-
-            ax1.set_ylabel("Energy Wh")
-            ax2.set_ylabel("Price per kWh in Ct/€")
-
-            lines, labels = ax1.get_legend_handles_labels()
-            lines2, labels2 = ax2.get_legend_handles_labels()
-            ax2.legend(lines + lines2, labels + labels2, loc=0)
-
-            ax3.plot(x_achse, T_room, label="Room temperature", color="orange", linewidth=0.5)
-            ax4.plot(x_achse, T_tank, label="Tank temperature", color="red", linewidth=0.5)
-            #    ax5.plot(x_achse, T_a, label='Outside temperature', color= 'black')
-
-            ax3.set_ylabel("room temperature °C")
-            ax4.set_ylabel("tank temperature °C")
-            #    ax5.set_ylabel('outside temperature °C')
-            ax3.yaxis.label.set_color('orange')
-            ax4.yaxis.label.set_color('red')
-            #    ax5.yaxis.label.set_color('black')
-            lines, labels = ax3.get_legend_handles_labels()
-            lines2, labels2 = ax4.get_legend_handles_labels()
-            ax4.legend(lines + lines2, labels + labels2, loc=0)
-            plt.grid()
-
-            ax1.set_title("Total costs un Ct/€ " + str(round(total_cost / 1000, 3)))
-            plt.show()
-
-        show_results()
-        pass
-
+        # return relevant data
+        return instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
 
     def run(self):
-        for household_id in range(0, 1):
+        for household_id in range(514723, 514724):
             for environment_id in range(0, 1):
-                self.run_Optimization(household_id, environment_id)
-        pass
+                instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP = self.run_Optimization(household_id,
+                                                                                                        environment_id)
+                return instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
 
 
+# create plots to visualize results price
+def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP):
 
+    # calculation of JAZ
+    EnergyThermal = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])
+    EnergyElectric = []
+
+    for i in range(1, len(list(EnergyThermal))):
+        HP = EnergyThermal[i] / ListOfDynamicCOP[i]
+        EnergyElectric.append(HP)
+
+    JAZ = (np.sum(EnergyThermal)) / (np.sum(EnergyElectric))
+    print('Test JAZ = ' + str(JAZ))
+
+    # total values
+    total_cost = instance.OBJ()
+    total_energy = np.sum(EnergyThermal)
+
+    # Visualization
+    starttime = 8000
+    endtime = 8168
+
+    Q_TankHeating = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    Q_RoomHeating = np.array([instance.Q_RoomHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    T_room = np.array([instance.T_room[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    E_tank = np.array([instance.E_tank[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    T_BuildingMass = np.array([instance.Tm_t[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+
+    # Plot
+    x_achse = np.arange(starttime, endtime)
+
+    fig, (ax1, ax3) = plt.subplots(2, 1)
+    ax2 = ax1.twinx()
+    ax4 = ax3.twinx()
+    ax1.plot(x_achse, Q_TankHeating, label="Q_TankHeating", color='blue', linewidth=0.15)
+    ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color="green", linewidth=0.25)
+    ax2.plot(x_achse, ElectricityPrice[starttime:endtime], color="black", label="Price", linewidth=0.50,
+             linestyle=':')
+
+    ax1.set_ylabel("Energy Wh")
+    ax2.set_ylabel("Price per kWh in Ct/€")
+
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc=0)
+
+    ax3.plot(x_achse, T_room, label="TempRoom", color="orange", linewidth=0.5)
+    ax3.plot(x_achse, T_BuildingMass, label='TempMassBuild.', linewidth=0.15, color='black')
+    ax4.plot(x_achse, E_tank, label="EnergyTank", color="red", linewidth=0.25)
+
+    ax3.set_ylabel("Temp in °C", color = 'black')
+    ax4.set_ylabel("Tank energy Wh", color = 'black')
+
+    lines, labels = ax3.get_legend_handles_labels()
+    lines2, labels2 = ax4.get_legend_handles_labels()
+    ax3.legend(lines + lines2, labels + labels2, loc=0)
+
+    plt.grid()
+
+    ax1.set_title("Total costs: " + str(round(total_cost / 1000, 2)) + ' € and total energy: ' + str(
+        round(total_energy / 1000, 2)) + ' kWh')
+
+    plt.show()
+
+
+if __name__ == "__main__":
+    A = OperationOptimization(DB().create_Connection(CONS().RootDB))
+    instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP = A.run()
+    show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP)
