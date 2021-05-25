@@ -146,7 +146,7 @@ class OperationOptimization:
             ElectricityPrice = self.ElectricityPrice.loc[self.ElectricityPrice['ID_ElectricityPriceType'] == 1].loc[:,
                                'HourlyElectricityPrice'].to_numpy()
             ElectricityPrice = list(ElectricityPrice)
-            ElectricityPrice = ElectricityPrice * 8760
+            ElectricityPrice = ElectricityPrice * HoursOfSimulation
 
         elif ID_ElectricityPriceType == 2:
             ElectricityPrice = self.ElectricityPrice.loc[self.ElectricityPrice['ID_ElectricityPriceType'] == 2].loc[:,
@@ -268,18 +268,19 @@ class OperationOptimization:
         instance.display("./log.txt")
         print(results)
         # return relevant data
-        return instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
+        return instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, T_TankSourounding
 
     def run(self):
         for household_id in range(515999, 516000):
             for environment_id in range(3, 4):
-                instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP = self.run_Optimization(household_id,
-                                                                                                        environment_id)
-                return instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
+                instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, T_TankSourounding = self.run_Optimization(
+                    household_id,
+                    environment_id)
+                return instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, T_TankSourounding
 
 
 # create plots to visualize results price
-def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP):
+def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, T_TankSourounding):
     # calculation of JAZ
     EnergyThermal = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])
     EnergyElectric = []
@@ -296,14 +297,22 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
     total_energy = np.sum(EnergyThermal)
 
     # Visualization
-    starttime = 8000
-    endtime = 8168
+    starttime = 0
+    endtime = 168
 
     Q_TankHeating = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
     Q_RoomHeating = np.array([instance.Q_RoomHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
     T_room = np.array([instance.T_room[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
-    E_tank = np.array([instance.E_tank[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
     T_BuildingMass = np.array([instance.Tm_t[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    E_tank = np.array([instance.E_tank[t]() for t in range(1, HoursOfSimulation + 1)])
+
+    # Generate Tank temperature
+    TankTemperature = []
+    for i in range(0, 8760):
+        T_tank = (E_tank[i] / (M_WaterTank* CWater)) - 273.15
+        TankTemperature.append(T_tank)
+    T_tank = [TankTemperature[i] for i in range(0, HoursOfSimulation)]
+
 
     # Plot
     x_achse = np.arange(starttime, endtime)
@@ -325,10 +334,10 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
 
     ax3.plot(x_achse, T_room, label="TempRoom", color="orange", linewidth=0.5)
     ax3.plot(x_achse, T_BuildingMass, label='TempMassBuild.', linewidth=0.15, color='black')
-    ax4.plot(x_achse, E_tank, label="EnergyTank", color="red", linewidth=0.25)
+    ax4.plot(x_achse, T_tank[starttime: endtime], label="TempTank", color="red", linewidth=0.25)
 
     ax3.set_ylabel("Temp in °C", color='black')
-    ax4.set_ylabel("Tank energy Wh", color='black')
+    ax4.set_ylabel("Tank Temperature in °C", color='black')
 
     lines, labels = ax3.get_legend_handles_labels()
     lines2, labels2 = ax4.get_legend_handles_labels()
@@ -344,5 +353,5 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
 
 if __name__ == "__main__":
     A = OperationOptimization(DB().create_Connection(CONS().RootDB))
-    instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP = A.run()
-    show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP)
+    instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, T_TankSourounding = A.run()
+    show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, T_TankSourounding)
