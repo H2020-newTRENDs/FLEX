@@ -333,7 +333,8 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
 
     Tm_t = np.empty(shape=(len(timesteps), len(Hve)))
     T_sup = np.empty(shape=(len(timesteps),))
-    Q_HC_real = np.empty(shape=(len(timesteps), len(Hve)))
+    Q_H_real = np.empty(shape=(len(timesteps), len(Hve)))
+    Q_C_real = np.empty(shape=(len(timesteps), len(Hve)))
     heating_power_10 = Af * 10
     for t in timesteps:  # t is the index for each timestep
         for i in range(len(Hve)):  # i is the index for each individual building
@@ -394,24 +395,22 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
 
             # Check if air temperature without heating is in between boundaries and calculate actual HC power:
             if T_air_0 >= T_air_min and T_air_0 <= T_air_max:
-                Q_HC_real[t, i] = 0
+                Q_H_real[t, i] = 0
             elif T_air_0 < T_air_min:  # heating is required
-                Q_HC_real[t, i] = heating_power_10[i] * (T_air_min - T_air_0) / (T_air_10 - T_air_0)
+                Q_H_real[t, i] = heating_power_10[i] * (T_air_min - T_air_0) / (T_air_10 - T_air_0)
             elif T_air_0 > T_air_max:  # cooling is required
-                Q_HC_real[t, i] = -heating_power_10[i] * (T_air_max - T_air_0) / (T_air_10 - T_air_0)
+                Q_C_real[t, i] = -heating_power_10[i] * (T_air_max - T_air_0) / (T_air_10 - T_air_0)
 
 
             # now calculate the actual temperature of thermal mass Tm_t with Q_HC_real:
             # Equ. C.5 with actual heating power
             PHI_mtot_real = PHI_m + Htr_em[i] * T_outside[t] + Htr_3[i] * (
                                 PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] * (
-                                ((PHI_ia[i] + Q_HC_real[t, i]) / Hve[i]) + T_sup[t])) / Htr_2[i]
+                                ((PHI_ia[i] + Q_H_real[t, i] + Q_C_real[t, i]) / Hve[i]) + T_sup[t])) / Htr_2[i]
             # Equ. C.4
             Tm_t[t, i] = (Tm_t_prev * (Cm[i]/3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_real) / \
                            (Cm[i]/3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
 
-
-            # Equ. C.12
-            # T_op = 0.3 * T_air + 0.7 * T_s
-
-    return Q_HC_real, Tm_t
+    # turn Q_C positiv:
+    Q_C_real = np.abs(Q_C_real)
+    return Q_H_real, Tm_t, Q_C_real
