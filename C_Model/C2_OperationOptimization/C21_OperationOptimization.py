@@ -79,11 +79,13 @@ class OperationOptimization:
         print(Household.SpaceHeating.TankSize)
         ID_Household = Household.ID
         print(ID_Household)
+
         Environment = self.gen_Environment(environment_id)
 
         # the data of the simulation are indexed for 1 year, start and stoptime in visualization
         HoursOfSimulation = 8760
 
+        # used for the data import in pyomo
         def create_dict(liste):
             dictionary = {}
             for index, value in enumerate(liste, start=1):
@@ -149,6 +151,7 @@ class OperationOptimization:
         # Solar Gains, but to small calculated: in W/m²
         Q_sol = self.Radiation.loc[self.Radiation["ID_Country"] == 5].loc[:, "Radiation"].to_numpy()
 
+        # RTP from eex
         ElectricityPrice = self.ElectricityPrice.loc[self.ElectricityPrice['ID_ElectricityPriceType'] == 2].loc[:,
                            'HourlyElectricityPrice'].to_numpy()
 
@@ -197,16 +200,15 @@ class OperationOptimization:
         def minimize_cost(m):
             rule = sum(m.Q_TankHeating[t] / m.COP_dynamic[t] * m.p[t] for t in m.t)
             return rule
-
         m.OBJ = pyo.Objective(rule=minimize_cost)
 
+        # energy input and output of tank energy
         def tank_energy(m, t):
             if t == 1:
                 return m.E_tank[t] == CWater * M_WaterTank * (273.15 + T_TankStart)
             else:
                 return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t] + m.Q_TankHeating[t] \
                        - - U_ValueTank * A_SurfaceTank * ((m.E_tank[t] / (M_WaterTank * CWater)) - T_TankSourounding)
-
         m.tank_energy_rule = pyo.Constraint(m.t, rule=tank_energy)
 
         # 5R 1C model:
@@ -230,7 +232,6 @@ class OperationOptimization:
                 # Equ. C.4
                 return m.Tm_t[t] == (m.Tm_t[t - 1] * ((Cm / 3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
                         (Cm / 3600) + 0.5 * (Htr_3 + Htr_em))
-
         m.thermal_mass_temperature_rule = pyo.Constraint(m.t, rule=thermal_mass_temperature_rc)
 
         def room_temperature_rc(m, t):
@@ -250,7 +251,6 @@ class OperationOptimization:
                 # Equ. C.11
                 T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_RoomHeating[t]) / (Htr_is + Hve)
                 return m.T_room[t] == T_air
-
         m.room_temperature_rule = pyo.Constraint(m.t, rule=room_temperature_rc)
 
         instance = m.create_instance(report_timing=True)
@@ -270,8 +270,7 @@ class OperationOptimization:
                 return instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
 
 
-# create plots to visualize resultsprice
-
+# create plots to visualize results price
 def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP):
 
     # calculation of JAZ
@@ -279,7 +278,7 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
     EnergyElectric = []
 
     for i in range(1, len(list(EnergyThermal))):
-        HP = EnergyThermal[i] / ListOfDynamicCOP[i - 1]
+        HP = EnergyThermal[i] / ListOfDynamicCOP[i]
         EnergyElectric.append(HP)
 
     JAZ = (np.sum(EnergyThermal)) / (np.sum(EnergyElectric))
