@@ -68,12 +68,19 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 #### 5.3 Reference point without optimization
 
-- To calculate a reference "operation cost" for the overall system, we need to swithing off the optimization for all the aspects.
+To calculate a reference "operation cost" for the overall system, we need to swithing off the optimization for all the aspects.
 
-  > - Appliance: we have the property for this
-  > - PV, Battery and EV: options with zero area or capacity, which also represents the "not adopted" situation
-  > - Space heating and cooling: set extra constraint on the tank and room temperature and set it constant
+> - Appliance: we have the property for this
+> - PV, Battery and EV: options with zero area or capacity, which also represents the "not adopted" situation
+> - Space heating and cooling: set extra constraint on the tank and room temperature and set it constant
 
-- Based on this reference point, we can add all the flexibility one by one and show the contribution to reduce the overall cost.
+Based on this reference point, we can add all the flexibility one by one and show the contribution to reduce the overall cost.
 
-- We can ask Giacomo for data to validate model without optimization.
+We can ask Giacomo for data to validate model without optimization.
+
+#### 5.4 Building standard and size of heat pump
+
+The hourly optimization of space heating requires a minimum power (boundary) of the heat pump to satisfy the heat demand. For the worst building case this is about 20 kW (thermal power). To satisfy the heat demand of a low energy building with this 20 kW brings unrealistic results, because the heat pump will run on 20 kW while the best situation (Photovoltaic or Price) and 20 kW are totally oversized for a low energy building 
+
+- toDo: Include a boundary of the maximum HP Power in the database, connected to the building standard 
+
