@@ -14,7 +14,7 @@ from A_Infrastructure.A1_Config.A11_Constants import CONS
 
 # toDo
 # (1) Create Scenario Cases
-# (2) Summer 800 Wh of RoomHeating?
+# (2) integrate solar gains
 # (3) include cooling
 # (4) Function into classes
 # (5) analyse model
@@ -104,9 +104,6 @@ class OperationOptimization:
         # insulation of tank, for calc of losses
         U_ValueTank = Household.SpaceHeating.TankLoss
 
-        # Building data for indoor temp calculation
-        data_building = Household.Building
-
         # Simulation of Building: konditionierte Nutzfläche
         Af = Household.Building.Af
         # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
@@ -155,7 +152,6 @@ class OperationOptimization:
             ElectricityPrice = self.ElectricityPrice.loc[self.ElectricityPrice['ID_ElectricityPriceType'] == 2].loc[:,
                                'HourlyElectricityPrice'].to_numpy()
 
-
         # Select COP Air(dynamic) or COP Water
         if Household.SpaceHeating.ID_SpaceHeatingBoilerType == 1:
             Tout = self.Weather.Temperature
@@ -179,7 +175,6 @@ class OperationOptimization:
             COP = list(COP)
             COP = COP * HoursOfSimulation
             ListOfDynamicCOP = COP
-
 
         # model for optimisation
         m = pyo.AbstractModel()
@@ -218,7 +213,7 @@ class OperationOptimization:
                 return m.E_tank[t] == CWater * M_WaterTank * (273.15 + T_TankStart)
             else:
                 return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t] + m.Q_TankHeating[t] \
-                       - - U_ValueTank * A_SurfaceTank * ((m.E_tank[t] / (M_WaterTank * CWater)) - T_TankSourounding)
+                       - U_ValueTank * A_SurfaceTank * ((m.E_tank[t] / (M_WaterTank * CWater)) - T_TankSourounding)
 
         m.tank_energy_rule = pyo.Constraint(m.t, rule=tank_energy)
 
@@ -341,7 +336,7 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
 
     plt.grid()
 
-    ax1.set_title("Total costs: " + str(round(total_cost / 1000, 2)) + ' € and total energy: ' + str(
+    ax1.set_title("Total costs: " + str(round(total_cost / 1000, 2)) + ' € and total thermal energy: ' + str(
         round(total_energy / 1000, 2)) + ' kWh')
 
     plt.show()

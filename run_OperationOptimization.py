@@ -9,7 +9,7 @@ if __name__ == "__main__":
 
     CONN = DB().create_Connection(CONS().RootDB)
     # Ope_TableGenerator(CONN).run()
-    OperationOptimization(CONN).run()
+    #OperationOptimization(CONN).run()
 
 
 
