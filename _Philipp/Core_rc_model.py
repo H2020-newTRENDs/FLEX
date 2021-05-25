@@ -357,6 +357,11 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
                                 PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] * (
                                 ((PHI_ia[i] + heating_power_10[i]) / Hve[i]) + T_sup[t])) / Htr_2[i]
 
+            # Equ. C.5 with 10 W/m^2 cooling power
+            PHI_mtot_10_c = PHI_m + Htr_em[i] * T_outside[t] + Htr_3[i] * (
+                                PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] * (
+                                ((PHI_ia[i] - heating_power_10[i]) / Hve[i]) + T_sup[t])) / Htr_2[i]
+
             if t == 0:
                 Tm_t_prev = initial_thermal_mass_temp
             else:
@@ -370,11 +375,18 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
             Tm_t_10 = (Tm_t_prev * (Cm[i]/3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_10) / \
                            (Cm[i]/3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
 
+            # Equ. C.4 for 10 W/m^2 cooling
+            Tm_t_10_c = (Tm_t_prev * (Cm[i]/3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_10_c) / \
+                           (Cm[i]/3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
+
             # Equ. C.9
             T_m_0 = (Tm_t_0 + Tm_t_prev) / 2
 
             # Equ. C.9 for 10 W/m^2 heating
             T_m_10 = (Tm_t_10 + Tm_t_prev) / 2
+
+            # Equ. C.9 for 10 W/m^2 cooling
+            T_m_10_c = (Tm_t_10_c + Tm_t_prev) / 2
 
             # Euq. C.10
             T_s_0 = (Htr_ms[i] * T_m_0 + PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] *
@@ -384,12 +396,20 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
             T_s_10 = (Htr_ms[i] * T_m_10 + PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] *
                      (T_sup[t] + (PHI_ia[i] + heating_power_10[i]) / Hve[i])) / (Htr_ms[i] + Htr_w[i] + Htr_1[i])
 
+            # Euq. C.10 for 10 W/m^2 cooling
+            T_s_10_c = (Htr_ms[i] * T_m_10_c + PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] *
+                     (T_sup[t] + (PHI_ia[i] - heating_power_10[i]) / Hve[i])) / (Htr_ms[i] + Htr_w[i] + Htr_1[i])
+
             # Equ. C.11
             T_air_0 = (Htr_is[i] * T_s_0 + Hve[i] * T_sup[t] + PHI_ia[i] + 0) / \
                       (Htr_is[i] + Hve[i])
 
             # Equ. C.11 for 10 W/m^2 heating
             T_air_10 = (Htr_is[i] * T_s_10 + Hve[i] * T_sup[t] + PHI_ia[i] + heating_power_10[i]) / \
+                       (Htr_is[i] + Hve[i])
+
+            # Equ. C.11 for 10 W/m^2 cooling
+            T_air_10_c = (Htr_is[i] * T_s_10_c + Hve[i] * T_sup[t] + PHI_ia[i] - heating_power_10[i]) / \
                        (Htr_is[i] + Hve[i])
 
 
@@ -399,18 +419,18 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
             elif T_air_0 < T_air_min:  # heating is required
                 Q_H_real[t, i] = heating_power_10[i] * (T_air_min - T_air_0) / (T_air_10 - T_air_0)
             elif T_air_0 > T_air_max:  # cooling is required
-                Q_C_real[t, i] = -heating_power_10[i] * (T_air_max - T_air_0) / (T_air_10 - T_air_0)
+                Q_C_real[t, i] = heating_power_10[i] * (T_air_max - T_air_0) / (T_air_10_c - T_air_0)
 
 
             # now calculate the actual temperature of thermal mass Tm_t with Q_HC_real:
             # Equ. C.5 with actual heating power
             PHI_mtot_real = PHI_m + Htr_em[i] * T_outside[t] + Htr_3[i] * (
                                 PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] * (
-                                ((PHI_ia[i] + Q_H_real[t, i] + Q_C_real[t, i]) / Hve[i]) + T_sup[t])) / Htr_2[i]
+                                ((PHI_ia[i] + Q_H_real[t, i] - Q_C_real[t, i]) / Hve[i]) + T_sup[t])) / Htr_2[i]
             # Equ. C.4
             Tm_t[t, i] = (Tm_t_prev * (Cm[i]/3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_real) / \
                            (Cm[i]/3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
 
     # turn Q_C positiv:
-    Q_C_real = np.abs(Q_C_real)
+    # Q_C_real = np.abs(Q_C_real)
     return Q_H_real, Tm_t, Q_C_real
