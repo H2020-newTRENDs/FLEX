@@ -1,4 +1,3 @@
-
 from A_Infrastructure.A1_Config.A11_Constants import CONS
 from A_Infrastructure.A1_Config.A12_Register import REG
 from A_Infrastructure.A2_ToolKits.A21_DB import DB
@@ -65,7 +64,7 @@ class Ope_TableGenerator:
 
     # to be developed
     def gen_Sce_ApplianceUseDays(self, OnDays):
-    # use the cycles of technology and generates a yearly table with 365 days with 1 and 0
+        # use the cycles of technology and generates a yearly table with 365 days with 1 and 0
 
         Year = 365
         OffDays = Year - int(OnDays)
@@ -83,9 +82,13 @@ class Ope_TableGenerator:
                 UseDays.append(0)
                 rest = rest + add
                 i = i + 1
+<<<<<<< HEAD
         return UseDays          #returns list of UseDays with 365 values
         # randint
 
+=======
+        return UseDays  # returns list of UseDays with 365 values
+>>>>>>> 51839a58abd849d8e6da8fa30960655b2ab99afa
 
     # -------------------------
     # 2 Generate the OBJ tables
@@ -216,29 +219,36 @@ class Ope_TableGenerator:
         TargetTable_list = []
         for day in range(0, len(Days)):
             TargetTable_list.append([day + 1, Days[day]])
+<<<<<<< HEAD
         print(TargetTable_list)
 
 
         # TargetTable_columns = ["DishwasherWorkingDays"]
         # DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DishWasherUseDays, TargetTable_columns, self.Conn)
-        pass
+=======
 
+        TargetTable_columns = ["ID_Day", "DishwasherWorkingDays"]
+        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DishWasherUseDays, TargetTable_columns, self.Conn)
+>>>>>>> 51839a58abd849d8e6da8fa30960655b2ab99afa
+        pass
 
     def gen_Sce_Demand_DryerUseDays(self):
         Demand_Dryer = DB().read_DataFrame(REG().Sce_Demand_Dryer, self.Conn)
 
         self.Demand_WashingMachine = DB().read_DataFrame(REG().Sce_Demand_WashingMachine, self.Conn)
         Demand_WashingMachine = self.Demand_WashingMachine
-        Cycle = Demand_WashingMachine.WashingMachineCycle   #cycle = WashingMachine, same time period used!
+        Cycle = Demand_WashingMachine.WashingMachineCycle  # cycle = WashingMachine, same time period used!
         print(Cycle)
         Days = self.gen_Sce_ApplianceUseDays(Cycle)
         print(Days)
 
-        TargetTable_list = Days
-        TargetTable_columns = ["DryerWorkingDays"]
+        TargetTable_list = []
+        for day in range(0, len(Days)):
+            TargetTable_list.append([day + 1, Days[day]])
+
+        TargetTable_columns = ["ID_Day", "DryerWorkingDays"]
         DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DryerUseDays, TargetTable_columns, self.Conn)
         pass
-
 
     def gen_Sce_Demand_WashingMachineUseDays(self):
 
@@ -249,35 +259,47 @@ class Ope_TableGenerator:
         Days = self.gen_Sce_ApplianceUseDays(Cycle)
         print(Days)
 
-        TargetTable_list = Days
-        TargetTable_columns = ["WashingMachineWorkingDays"]
+        TargetTable_list = []
+        for day in range(0, len(Days)):
+            TargetTable_list.append([day + 1, Days[day]])
+
+        TargetTable_columns = ['ID_Day', "WashingMachineWorkingDays"]
         DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_WashingMachineUseDays, TargetTable_columns, self.Conn)
         pass
 
-
-
-
-
     def gen_Sce_ID_Environment(self):
 
-        #not finished, just a test
-        LifestyleType = DB().read_DataFrame(REG().Sce_ID_LifestyleType, self.Conn)
-        TargetTemperature = DB().read_DataFrame(REG().TargetTemperature, self.Conn)
-
-        #selectProfiles
-        #radiation
-        #temperature
-        #electricityprice
-        #COP
-
-        #Gen_Sce only for 3 tables
         ElectricityPriceType = DB().read_DataFrame(REG().Sce_ID_ElectricityPriceType, self.Conn)
         ElectricVehicleBehavior = DB().read_DataFrame(REG().Sce_ID_ElectricVehicleBehavior, self.Conn)
         FeedinTariffType = DB().read_DataFrame(REG().Sce_ID_FeedinTariffType, self.Conn)
-        self.gen_OBJ_ID_Table_3To1(REG().Gen_Sce_ID_Environment,
-                                   ElectricityPriceType,
-                                   ElectricVehicleBehavior,
-                                   FeedinTariffType)
+        HotWaterProfileType = DB().read_DataFrame(REG().Sce_ID_HotWaterProfileType, self.Conn)
+        PhotovoltaicProfileType = DB().read_DataFrame(REG().Sce_ID_PhotovoltaicProfileType, self.Conn)
+        TargetTemperature = DB().read_DataFrame(REG().Sce_ID_TargetTemperature, self.Conn)
+
+        TargetTable_list = []
+
+        TargetTable_columns = ["ID"]
+
+        TargetTable_columns += ["ID_ElectricityPriceType", "ID_ElectricVehicleBehavior", "ID_FeedinTariffType", \
+                                "ID_HotWaterProfileType", "ID_PhotovoltaicProfileType", "ID_TargetTemperature"]
+
+        ID = 1
+
+        for row1 in range(0, len(ElectricityPriceType)):
+            for row2 in range(0, len(ElectricVehicleBehavior)):
+                for row3 in range(0, len(FeedinTariffType)):
+                    for row4 in range(0, len(HotWaterProfileType)):
+                        for row5 in range(0, len(PhotovoltaicProfileType)):
+                            for row6 in range(0, len(TargetTemperature)):
+                                TargetTable_list.append([ID] +
+                                                        [ElectricityPriceType.iloc[row1]["ID_ElectricityPriceType"]] +
+                                                        [ElectricVehicleBehavior.iloc[row2]["ID_EVDrivingBehaviorType"]] +
+                                                        [FeedinTariffType.iloc[row3]["ID_FeedinTariffType"]] +
+                                                        [HotWaterProfileType.iloc[row4]["ID_HotWaterProfileType"]] +
+                                                        [PhotovoltaicProfileType.iloc[row5]["ID_PhotovoltaicProfile"]] +
+                                                        [TargetTemperature.iloc[row6]["ID_TargetTemperature"]])
+                                ID += 1
+        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_ID_Environment, TargetTable_columns, self.Conn)
 
     def run(self):
         # self.gen_OBJ_ID_Building()
@@ -296,6 +318,3 @@ class Ope_TableGenerator:
 
         # self.gen_Sce_ID_Environment()
         pass
-
-
-
