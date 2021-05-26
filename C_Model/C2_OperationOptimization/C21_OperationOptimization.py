@@ -341,7 +341,7 @@ class OperationOptimization:
 
 # create plots to visualize results price
 def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater,
-                 PhotovoltaicProfile):
+                 PhotovoltaicProfile, colors):
     # calculation of JAZ
     EnergyThermal = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])
     EnergyElectric = []
@@ -392,7 +392,7 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     fig, (ax1, ax3) = plt.subplots(2, 1)
     ax2 = ax1.twinx()
     ax4 = ax3.twinx()
-    ax1.plot(x_achse, Q_TankHeating, label="Q_TankHeating", color='red', linewidth=0.25)
+    ax1.plot(x_achse, Q_TankHeating, label="Q_TankHeating", color=colors["Q_TankHeating"], linewidth=0.25)
     ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color="green", linewidth=0.25)
     ax1.plot(x_achse, Q_RoomCooling, label="Q_RoomCooling", color="blue", linewidth=0.25)
     ax1.plot(x_achse, Q_Solar, label="Q_Solar", color="orange", linewidth=0.5)
@@ -437,7 +437,39 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
 
 
 if __name__ == "__main__":
+    # colorcode
+    red = '#F47070'
+    blue = '#8EA9DB'
+    green = '#36ec36'
+    orange = '#F4B084'
+    yellow = '#FFD966'
+    grey = '#C9C9C9'
+    pink = '#FA9EFA'
+    dark_green = '#375623'
+    dark_blue = '#305496'
+    purple = '#AC0CB0'
+    turquoise = '#3BE0ED'
+    dark_red = '#c70d0d'
+    dark_grey = '#2c2e2e'
+    light_brown = '#db8b55'
+    black = "#000000"
+    red_pink = "#f75d82"
+    colors = {"Q_RoomHeating": dark_red,
+              "Q_TankHeating": red,
+              "Q_RoomCooling": dark_blue,
+              "T_room": purple,
+              "T_room_noDR": pink,
+              "price": dark_grey,
+              "solar_gains": orange,
+              "PhotovoltaicProfile": yellow,
+              "PhotovoltaicFeedin": green,
+              "PhotovoltaicDirect": dark_green,
+              "Q_RoomHeating_noDR": red_pink,
+              "Q_RoomCooling_noDR": turquoise,
+              "GridCover": light_brown,
+              "StorageFillLevel": black}
     A = OperationOptimization(DB().create_Connection(CONS().RootDB))
     instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, PhotovoltaicProfile = A.run()
     show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater,
-                 PhotovoltaicProfile)
+                 PhotovoltaicProfile, colors)
+
