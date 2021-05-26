@@ -82,13 +82,7 @@ class Ope_TableGenerator:
                 UseDays.append(0)
                 rest = rest + add
                 i = i + 1
-<<<<<<< HEAD
-        return UseDays          #returns list of UseDays with 365 values
-        # randint
-
-=======
         return UseDays  # returns list of UseDays with 365 values
->>>>>>> 51839a58abd849d8e6da8fa30960655b2ab99afa
 
     # -------------------------
     # 2 Generate the OBJ tables
@@ -219,17 +213,9 @@ class Ope_TableGenerator:
         TargetTable_list = []
         for day in range(0, len(Days)):
             TargetTable_list.append([day + 1, Days[day]])
-<<<<<<< HEAD
-        print(TargetTable_list)
-
-
-        # TargetTable_columns = ["DishwasherWorkingDays"]
-        # DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DishWasherUseDays, TargetTable_columns, self.Conn)
-=======
 
         TargetTable_columns = ["ID_Day", "DishwasherWorkingDays"]
         DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DishWasherUseDays, TargetTable_columns, self.Conn)
->>>>>>> 51839a58abd849d8e6da8fa30960655b2ab99afa
         pass
 
     def gen_Sce_Demand_DryerUseDays(self):
@@ -312,7 +298,7 @@ class Ope_TableGenerator:
         # self.gen_OBJ_ID_ElectricVehicle()
         # self.gen_OBJ_ID_Household()
 
-        self.gen_Sce_Demand_DishWasherUseDays()
+        # self.gen_Sce_Demand_DishWasherUseDays()
         # self.gen_Sce_Demand_DryerUseDays()
         # self.gen_Sce_Demand_WashingMachineUseDays()
 
