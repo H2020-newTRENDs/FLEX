@@ -221,7 +221,7 @@ class OperationOptimization:
 
         # Variables SpaceHeating
         m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
-        m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * M_WaterTank * (273.15 + T_TankMin), \
+        m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * M_WaterTank * (273.15 + T_TankMin),
                                                                      CWater * M_WaterTank * (273.15 + T_TankMax)))
 
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
@@ -231,7 +231,7 @@ class OperationOptimization:
         m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 60))
 
         # Variables PV and battery
-        m.StorageFillLevel = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 5))
+        m.BatteryFillLevel = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 5))
         m.BatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 4.5))
         m.BatDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 4.5))
         m.GridCover = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 16))
@@ -247,23 +247,23 @@ class OperationOptimization:
 
         m.OBJ = pyo.Objective(rule=minimize_cost)
 
-        def calc_StorageFillLevel(m, t):
+        def calc_BatteryFillLevel_rule(m, t):
             if t == 1:
-                return m.StorageFillLevel[t] == 1
+                return m.BatteryFillLevel[t] == 1
             else:
-                return m.StorageFillLevel[t] == m.StorageFillLevel[t - 1] * 0.02 / 30 / 24 + m.BatCharge[t] * 0.95 - \
+                return m.BatteryFillLevel[t] == m.BatteryFillLevel[t - 1] * 0.02 / 30 / 24 + m.BatCharge[t] * 0.95 - \
                        m.BatDischarge[t] * 1.05
 
-        m.calc_StorageFillLevel = pyo.Constraint(m.t, rule=calc_StorageFillLevel)
+        m.calc_BatteryFillLevel = pyo.Constraint(m.t, rule=calc_BatteryFillLevel_rule)
 
         def calc_UseOfPhotovoltaic(m, t):
             return m.BatCharge[t] == m.PhotovoltaicProfile[t] - m.PhotovoltaicDirect[t] - m.PhotovoltaicFeedin[t]
 
-        m.calc_UseOfPhotovoltaic = pyo.Constraint(m.t, rule=calc_UseOfPhotovoltaic)
+        m.calc_UseOfPhotovoltaic_rule = pyo.Constraint(m.t, rule=calc_UseOfPhotovoltaic)
 
         def calc_ElectricalEnergyBalance(m, t):
-            return m.BatDischarge[t] + m.GridCover[t] - m.PhotovoltaicDirect[t] == m.LoadProfile[t] \
-                   + ((m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1000) + (m.Q_RoomCooling[t] / 3 / 1000)
+            return m.BatDischarge[t] + m.GridCover[t] + m.PhotovoltaicDirect[t] == m.LoadProfile[t] \
+                   + ((m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1_000) + (m.Q_RoomCooling[t] / 3 / 1_000)
 
         m.calc_ElectricalEnergyBalance = pyo.Constraint(m.t, rule=calc_ElectricalEnergyBalance)
 
@@ -294,11 +294,6 @@ class OperationOptimization:
                 PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (
                         PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) /
                                                                     Hve) + T_sup)) / Htr_2
-
-                # PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (
-                #         PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_RoomHeating[t]) /
-                #                                                     Hve) + T_sup)) / Htr_2
-
                 # Equ. C.4
                 return m.Tm_t[t] == (m.Tm_t[t - 1] * ((Cm / 3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
                         (Cm / 3600) + 0.5 * (Htr_3 + Htr_em))
@@ -319,10 +314,6 @@ class OperationOptimization:
                 T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (
                         T_sup + (PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / Hve)) / \
                       (Htr_ms + Htr_w + Htr_1)
-                # T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (
-                #         T_sup + (PHI_ia + m.Q_RoomHeating[t]) / Hve)) / \
-                #       (Htr_ms + Htr_w + Htr_1)
-
                 # Equ. C.11
                 T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / (Htr_is + Hve)
                 # T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_RoomHeating[t]) / (Htr_is + Hve)
@@ -366,20 +357,13 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     starttime = 4657
     endtime = 4681
 
-    ElectricityPrice = np.array([instance.ElectricityPrice[t]() for t in range(1, HoursOfSimulation)])[
-                       starttime: endtime]
+    ElectricityPrice = np.array(list(instance.ElectricityPrice.extract_values().values())[starttime: endtime])
 
     # tank and building
-    Q_Solar = np.array([instance.Q_Solar[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
-
-    Q_TankHeating = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
-    Q_TankHeating = (pd.Series(Q_TankHeating) * 0.001)  # from W to kW
-
-    Q_RoomHeating = np.array([instance.Q_RoomHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
-    Q_RoomHeating = (pd.Series(Q_RoomHeating) * 0.001)  # from W to kW
-
-    Q_RoomCooling = np.array([instance.Q_RoomCooling[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
-    Q_RoomCooling = (pd.Series(Q_RoomCooling) * 0.001)  # from W to kW
+    Q_Solar = np.array(list(instance.Q_Solar.extract_values().values())[starttime: endtime]) / 1_000  # from W to kW
+    Q_TankHeating = np.array(list(instance.Q_TankHeating.extract_values().values())[starttime: endtime]) / 1000  # from W to kW
+    Q_RoomHeating = np.array(list(instance.Q_RoomHeating.extract_values().values())[starttime: endtime]) / 1000  # from W to kW
+    Q_RoomCooling = np.array(list(instance.Q_RoomCooling.extract_values().values())[starttime: endtime]) / 1000  # from W to kW
 
     T_room = np.array([instance.T_room[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
     # T_BuildingMass = np.array([instance.Tm_t[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
@@ -389,7 +373,7 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
 
     # battery, grid and PV
     GridCover = np.array([instance.GridCover[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
-    StorageFillLevel = np.array([instance.StorageFillLevel[t]() for t in range(1, HoursOfSimulation + 1)])[
+    StorageFillLevel = np.array([instance.BatteryFillLevel[t]() for t in range(1, HoursOfSimulation + 1)])[
                        starttime: endtime]
     PhotovoltaicFeedin = np.array([instance.PhotovoltaicFeedin[t]() for t in range(1, HoursOfSimulation + 1)])[
                          starttime: endtime]
