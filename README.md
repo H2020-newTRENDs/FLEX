@@ -79,3 +79,7 @@ The hourly optimization of space heating requires a minimum power (boundary) of 
 
 - toDo: Include a boundary of the maximum HP Power in the database, connected to the building standard 
 
+#### 5.5 Database Solar radiation
+The solar radiation from different cilestial directions is calculated for germany only at the time being. 
+(with longitude and altitude = Würzburg) How can we integrate this into the SQLite database?
+
