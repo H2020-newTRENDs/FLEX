@@ -296,7 +296,7 @@ class Ope_TableGenerator:
         # self.gen_OBJ_ID_PV()
         # self.gen_OBJ_ID_Battery()
         # self.gen_OBJ_ID_ElectricVehicle()
-        # self.gen_OBJ_ID_Household()
+        self.gen_OBJ_ID_Household()
 
         # self.gen_Sce_Demand_DishWasherUseDays()
         # self.gen_Sce_Demand_DryerUseDays()

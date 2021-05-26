@@ -1,4 +1,5 @@
 list = [1,2,3,4,5,6,7]
 
-list_new = [list]*2
-print(list_new)
+new_list = [i *5 for i in list]
+
+print(new_list)
