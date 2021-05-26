@@ -1,5 +1,4 @@
-x = [0.38]
+list = [1,2,3,4,5,6,7]
 
-x = x*5
-
-print(x)
+list_new = [list]*2
+print(list_new)
