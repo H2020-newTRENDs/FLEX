@@ -375,7 +375,7 @@ def create_pyomo_model(elec_price, tout, Qsol, Am, Atot, Cm, Hop, Htr_1, Htr_2, 
 
     # objective
     def minimize_cost(m):
-        return sum((m.Q_heating[t] + m.Q_cooling[t]) / COP * m.p[t] for t in m.time)
+        return sum((m.Q_heating[t] + m.Q_cooling[t]) / COP * m.ElectricityPrice[t] for t in m.time)
     m.OBJ = pyo.Objective(rule=minimize_cost)
 
 
