@@ -91,9 +91,9 @@ class OperationOptimization:
 
         # PV, battery and electricity load profile
         LoadProfile = self.LoadProfile.BaseElectricityProfile.to_numpy()
-        PhotovoltaicBaseProfile = self.PhotovoltaicProfile.PhotovoltaicProfile
+        PhotovoltaicBaseProfile = self.PhotovoltaicProfile.PhotovoltaicProfile.to_numpy()
         PhotovoltaicProfileHH = PhotovoltaicBaseProfile * Household.PV.PVPower
-        PhotovoltaicProfile = PhotovoltaicProfileHH.to_numpy()
+        PhotovoltaicProfile = PhotovoltaicProfileHH
 
         SumOfPV = round(sum(PhotovoltaicProfileHH), 2)
         print(SumOfPV)
@@ -151,9 +151,20 @@ class OperationOptimization:
         Htr_2 = Htr_1 + Htr_w
         # Equ.C.8
         Htr_3 = 1 / (1 / Htr_2 + 1 / Htr_ms)
-
+        path2excel = CONS().DatabasePath
+        # window areas in celestial directions
+        Awindows_rad_east_west = Household.Building.average_effective_area_wind_west_east_red_cool
+        Awindows_rad_south = Household.Building.average_effective_area_wind_south_red_cool
+        Awindows_rad_north = Household.Building.average_effective_area_wind_north_red_cool
+        # solar gains from different celestial directions
+        Q_sol_all = pd.read_csv(CONS().DatabasePath + "directRadiation_himmelsrichtung_GER.csv", sep=";")
+        Q_sol_north = np.outer(Q_sol_all.loc[:, "RadiationNorth"].to_numpy(), Awindows_rad_north)
+        Q_sol_south = np.outer(Q_sol_all.loc[:, "RadiationSouth"].to_numpy(), Awindows_rad_south)
+        Q_sol_east_west = np.outer((Q_sol_all.loc[:, "RadiationEast"].to_numpy() +
+                                    Q_sol_all.loc[:, "RadiationWest"].to_numpy()), Awindows_rad_east_west)
+        Q_sol = (Q_sol_north + Q_sol_south + Q_sol_east_west).squeeze()
         # Solar Gains, but to small calculated: in W/m²
-        Q_sol = self.Radiation.loc[self.Radiation["ID_Country"] == 5].loc[:, "Radiation"].to_numpy()
+        # Q_sol = self.Radiation.loc[self.Radiation["ID_Country"] == 5].loc[:, "Radiation"].to_numpy()
 
         # (1) Scenario Case: select ElectricityPriceType
         if ID_ElectricityPriceType == 1:
@@ -196,9 +207,9 @@ class OperationOptimization:
         # parameters
         m.t = pyo.RangeSet(1, HoursOfSimulation)
         # price
-        m.p = pyo.Param(m.t, initialize=create_dict(ElectricityPrice))
+        m.ElectricityPrice = pyo.Param(m.t, initialize=create_dict(ElectricityPrice))
         # solar gains:
-        m.Q_solar = pyo.Param(m.t, initialize=create_dict(Q_sol))
+        m.Q_Solar = pyo.Param(m.t, initialize=create_dict(Q_sol))
         # outside temperature
         m.T_outside = pyo.Param(m.t, initialize=create_dict(self.Weather.Temperature.to_numpy()))
         # m.T_outside = pyo.Param(m.t, initialize=create_dict(T_Out))
@@ -214,11 +225,12 @@ class OperationOptimization:
                                                                      CWater * M_WaterTank * (273.15 + T_TankMax)))
 
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
-        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 50))
+        # energy used for cooling
+        m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
+        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 26))
         m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 60))
 
         # Variables PV and battery
-
         m.StorageFillLevel = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 5))
         m.BatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 4.5))
         m.BatDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 4.5))
@@ -230,30 +242,30 @@ class OperationOptimization:
 
         # m.Q_TankHeating[t] / m.COP_dynamic[t] * m.p[t]
         def minimize_cost(m):
-            rule = sum(m.GridCover[t] * m.p[t] - m.PhotovoltaicFeedin[t] * 0.08 for t in m.t)
+            rule = sum(m.GridCover[t] * m.ElectricityPrice[t] - m.PhotovoltaicFeedin[t] * 0.08 for t in m.t)
             return rule
 
         m.OBJ = pyo.Objective(rule=minimize_cost)
 
-        # Battery
         def calc_StorageFillLevel(m, t):
             if t == 1:
                 return m.StorageFillLevel[t] == 1
             else:
-                return m.StorageFillLevel[t] == m.StorageFillLevel[t - 1] * 0.9999 + m.BatCharge[t] - m.BatDischarge[t]
+                return m.StorageFillLevel[t] == m.StorageFillLevel[t - 1] * 0.02 / 30 / 24 + m.BatCharge[t] * 0.95 - \
+                       m.BatDischarge[t] * 1.05
 
         m.calc_StorageFillLevel = pyo.Constraint(m.t, rule=calc_StorageFillLevel)
 
-        def calc_BatteryCharge(m, t):
-            return m.BatCharge[t] * 1.05 == m.PhotovoltaicProfile[t] - m.PhotovoltaicDirect[t] - m.PhotovoltaicFeedin[t]
+        def calc_UseOfPhotovoltaic(m, t):
+            return m.BatCharge[t] == m.PhotovoltaicProfile[t] - m.PhotovoltaicDirect[t] - m.PhotovoltaicFeedin[t]
 
-        m.calc_BatteryCharge = pyo.Constraint(m.t, rule=calc_BatteryCharge)
+        m.calc_UseOfPhotovoltaic = pyo.Constraint(m.t, rule=calc_UseOfPhotovoltaic)
 
-        def calc_BatteryDischarge(m, t):
-            return m.BatDischarge[t] * 0.95 == m.LoadProfile[t] - m.GridCover[t] - m.PhotovoltaicDirect[t] + (
-                        (m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1000)
+        def calc_ElectricalEnergyBalance(m, t):
+            return m.BatDischarge[t] + m.GridCover[t] - m.PhotovoltaicDirect[t] == m.LoadProfile[t] \
+                   + ((m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1000) + (m.Q_RoomCooling[t] / 3 / 1000)
 
-        m.calc_BatterDischarge = pyo.Constraint(m.t, rule=calc_BatteryDischarge)
+        m.calc_ElectricalEnergyBalance = pyo.Constraint(m.t, rule=calc_ElectricalEnergyBalance)
 
         # energy input and output of tank energy
         def tank_energy(m, t):
@@ -272,16 +284,20 @@ class OperationOptimization:
 
             else:
                 # Equ. C.2
-                PHI_m = Am / Atot * (0.5 * Qi + m.Q_solar[t])
+                PHI_m = Am / Atot * (0.5 * Qi + m.Q_Solar[t])
                 # Equ. C.3
-                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_solar[t])
+                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_Solar[t])
 
                 # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
                 T_sup = m.T_outside[t]
                 # Equ. C.5
                 PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (
-                        PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_RoomHeating[t]) / Hve) + T_sup)) / \
-                           Htr_2
+                        PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) /
+                                                                    Hve) + T_sup)) / Htr_2
+
+                # PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (
+                #         PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_RoomHeating[t]) /
+                #                                                     Hve) + T_sup)) / Htr_2
 
                 # Equ. C.4
                 return m.Tm_t[t] == (m.Tm_t[t - 1] * ((Cm / 3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
@@ -295,16 +311,21 @@ class OperationOptimization:
                 return m.T_room[t] == T_air
             else:
                 # Equ. C.3
-                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_solar[t])
+                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_Solar[t])
                 # Equ. C.9
                 T_m = (m.Tm_t[t] + m.Tm_t[t - 1]) / 2
                 T_sup = m.T_outside[t]
                 # Euq. C.10
                 T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (
-                        T_sup + (PHI_ia + m.Q_RoomHeating[t]) / Hve)) / \
+                        T_sup + (PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / Hve)) / \
                       (Htr_ms + Htr_w + Htr_1)
+                # T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (
+                #         T_sup + (PHI_ia + m.Q_RoomHeating[t]) / Hve)) / \
+                #       (Htr_ms + Htr_w + Htr_1)
+
                 # Equ. C.11
-                T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_RoomHeating[t]) / (Htr_is + Hve)
+                T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / (Htr_is + Hve)
+                # T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_RoomHeating[t]) / (Htr_is + Hve)
                 return m.T_room[t] == T_air
 
         m.room_temperature_rule = pyo.Constraint(m.t, rule=room_temperature_rc)
@@ -316,19 +337,19 @@ class OperationOptimization:
         instance.display("./log.txt")
         print(results)
         # return relevant data
-        return instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, PhotovoltaicProfile
+        return instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, PhotovoltaicProfile
 
     def run(self):
         for household_id in range(37000, 37001):
             for environment_id in range(3, 4):
-                instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, PhotovoltaicProfile = self.run_Optimization(
+                instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, PhotovoltaicProfile = self.run_Optimization(
                     household_id,
                     environment_id)
-                return instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, PhotovoltaicProfile
+                return instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, PhotovoltaicProfile
 
 
 # create plots to visualize results price
-def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater,
+def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater,
                  PhotovoltaicProfile):
     # calculation of JAZ
     EnergyThermal = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])
@@ -342,16 +363,27 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
     print('Test JAZ = ' + str(JAZ))
 
     # Visualization
-    starttime = 2000
-    endtime = 2048
+    starttime = 4657
+    endtime = 4681
+
+    ElectricityPrice = np.array([instance.ElectricityPrice[t]() for t in range(1, HoursOfSimulation)])[
+                       starttime: endtime]
 
     # tank and building
+    Q_Solar = np.array([instance.Q_Solar[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+
     Q_TankHeating = np.array([instance.Q_TankHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
     Q_TankHeating = (pd.Series(Q_TankHeating) * 0.001)  # from W to kW
+
     Q_RoomHeating = np.array([instance.Q_RoomHeating[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
     Q_RoomHeating = (pd.Series(Q_RoomHeating) * 0.001)  # from W to kW
+
+    Q_RoomCooling = np.array([instance.Q_RoomCooling[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    Q_RoomCooling = (pd.Series(Q_RoomCooling) * 0.001)  # from W to kW
+
     T_room = np.array([instance.T_room[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
     # T_BuildingMass = np.array([instance.Tm_t[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+
     E_tank = np.array([instance.E_tank[t]() for t in range(1, HoursOfSimulation + 1)])
     T_tank = ((pd.Series(E_tank) / (M_WaterTank * CWater)) - 273.15)
 
@@ -368,7 +400,7 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
     # total values
     total_cost = instance.OBJ()
     total_ThermalEnergy = np.sum(EnergyThermal)
-    #total_ElectricalEnergy = np.sum(GridCover) + np.sum(PhotovoltaicDirect) + np.sum(BatDischarge)
+    # total_ElectricalEnergy = np.sum(GridCover) + np.sum(PhotovoltaicDirect) + np.sum(BatDischarge)
 
     # Plot
     x_achse = np.arange(starttime, endtime)
@@ -376,9 +408,11 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
     fig, (ax1, ax3) = plt.subplots(2, 1)
     ax2 = ax1.twinx()
     ax4 = ax3.twinx()
-    ax1.plot(x_achse, Q_TankHeating, label="Q_TankHeating", color='blue', linewidth=0.15)
+    ax1.plot(x_achse, Q_TankHeating, label="Q_TankHeating", color='red', linewidth=0.25)
     ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color="green", linewidth=0.25)
-    ax2.plot(x_achse, ElectricityPrice[starttime:endtime], color="black", label="Price", linewidth=0.50,
+    ax1.plot(x_achse, Q_RoomCooling, label="Q_RoomCooling", color="blue", linewidth=0.25)
+    ax1.plot(x_achse, Q_Solar, label="Q_Solar", color="orange", linewidth=0.5)
+    ax2.plot(x_achse, ElectricityPrice, color="black", label="Price", linewidth=0.50,
              linestyle=':')
 
     ax1.set_ylabel("Energy kW")
@@ -388,9 +422,9 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines + lines2, labels + labels2, loc=0)
 
-    ax3.plot(x_achse, T_room, label="TempRoom", color="orange", linewidth=1.5, linestyle=':')
+    ax3.plot(x_achse, T_room, label="TempRoom", color="red", linewidth=0.15)
     # ax3.plot(x_achse, T_BuildingMass, label='TempMassBuild.', linewidth=0.15, color='black')
-    ax4.plot(x_achse, T_tank[starttime: endtime], label="TempTank", color="red", linewidth=0.15)
+    # ax4.plot(x_achse, T_tank[starttime: endtime], label="TempTank", color="red", linewidth=0.15)
 
     ax3.set_ylabel("Room temperature in °C", color='black')
     ax4.set_ylabel("Tank Temperature in °C", color='black')
@@ -410,7 +444,7 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
     plt.plot(GridCover, linewidth=0.15, label='GridCover', color='red')
     plt.plot(PhotovoltaicFeedin, linewidth=0.15, label='PhotovoltaicFeedin', color='green')
     plt.plot(PhotovoltaicDirect, linewidth=0.4, label='PhotovoltaicDirect', linestyle=':', color='black')
-    plt.plot(PhotovoltaicProfile[starttime:endtime], linewidth=1.5, label ='PhotovoltaicProfile', color = 'yellow')
+    plt.plot(PhotovoltaicProfile[starttime:endtime], linewidth=0.15, label='PhotovoltaicProfile', color='orange')
     plt.legend()
     plt.xlabel('Hour of year')
     plt.ylabel('Power in kW')
@@ -420,6 +454,6 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
 
 if __name__ == "__main__":
     A = OperationOptimization(DB().create_Connection(CONS().RootDB))
-    instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, PhotovoltaicProfile = A.run()
-    show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater,
+    instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, PhotovoltaicProfile = A.run()
+    show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater,
                  PhotovoltaicProfile)

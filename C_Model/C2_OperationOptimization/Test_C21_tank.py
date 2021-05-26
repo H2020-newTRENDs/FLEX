@@ -202,7 +202,7 @@ class OperationOptimization:
         # objective
 
         def minimize_cost(m):
-            rule = sum(m.Q_TankHeating[t] / m.COP_dynamic[t] * m.p[t] for t in m.t)
+            rule = sum(m.Q_TankHeating[t] / m.COP_dynamic[t] * m.ElectricityPrice[t] for t in m.t)
             return rule
 
         m.OBJ = pyo.Objective(rule=minimize_cost)
@@ -224,9 +224,9 @@ class OperationOptimization:
 
             else:
                 # Equ. C.2
-                PHI_m = Am / Atot * (0.5 * Qi + m.Q_solar[t])
+                PHI_m = Am / Atot * (0.5 * Qi + m.Q_Solar[t])
                 # Equ. C.3
-                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_solar[t])
+                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_Solar[t])
 
                 # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
                 T_sup = m.T_outside[t]
@@ -247,7 +247,7 @@ class OperationOptimization:
                 return m.T_room[t] == T_air
             else:
                 # Equ. C.3
-                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_solar[t])
+                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_Solar[t])
                 # Equ. C.9
                 T_m = (m.Tm_t[t] + m.Tm_t[t - 1]) / 2
                 T_sup = m.T_outside[t]
@@ -331,9 +331,9 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines + lines2, labels + labels2, loc=0)
 
-    ax3.plot(x_achse, T_room, label="TempRoom", color="orange", linewidth=1.5, linestyle=':')
+    ax3.plot(x_achse, T_room, label="TempRoom", color="black", linewidth=0.15, linestyle=':')
     # ax3.plot(x_achse, T_BuildingMass, label='TempMassBuild.', linewidth=0.15, color='black')
-    ax4.plot(x_achse, T_tank[starttime: endtime], label="TempTank", color="red", linewidth=0.25)
+    #ax4.plot(x_achse, T_tank[starttime: endtime], label="TempTank", color="red", linewidth=0.25)
 
     ax3.set_ylabel("Room Temperature in °C", color='black')
     ax4.set_ylabel("Tank Temperature in °C", color='black')
