@@ -214,7 +214,6 @@ def create_building_dataframe():
                                         "cum_sub_env_exist_build",
                                         "bc_index",
                                         "Tset",
-                                        "hwb_norm",
                                         "user_profile",
                                         ])
         building_df["country_ID"] = id_country
@@ -288,6 +287,11 @@ def get_invert_data():
     # electricity price for 24 hours:
     elec_price = pd.read_excel(base_results_path / "Elec_price_per_hour.xlsx", engine="openpyxl")
     elec_price = elec_price.loc[:, "Euro/MWh"].dropna().to_numpy() + 0.1
+
+    # elec_price = DB().read_DataFrame(REG().Sce_Price_HourlyElectricityPrice, conn=DB().create_Connection(CONS().RootDB),
+    #                                  ID_ElectricityPriceType=2).loc[:, "HourlyElectricityPrice"].to_numpy()
+
+    # elec_price = np.array([0.1]*8760)
 
 
     return Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Q_sol, elec_price, Af
@@ -473,7 +477,7 @@ def calculate_cost_diff(instance, Q_H, Q_C, price, COP):
     total_cost_normal = sum((Q_H + Q_C) * price) / 100 / 1_000 / COP  # €
 
     # difference in energy consumption
-    total_energy_optimized = sum(np.array([instance.Q_heating[t]() for t in m.time])) / 1_000 / COP  # kWh
+    total_energy_optimized = sum(np.array([instance.Q_heating[t]()+instance.Q_cooling[t]() for t in m.time])) / 1_000 / COP  # kWh
     total_energy_normal = sum(Q_H+Q_C) / 1_000 / COP  # kWh
 
     x_ticks = [1, 2, 3, 4]
@@ -511,7 +515,19 @@ def calculate_cost_diff(instance, Q_H, Q_C, price, COP):
     plt.show()
 
 # create plots to visualize results
-def show_results(instance, m, Q_H, Q_C, Tm_t, Q_solar, price, temp_outside, elec_profile, COP):
+def show_results(instance, m, Q_H_noDR, Q_C_noDR, Tm_t, T_room_noDR, Q_solar, price, temp_outside, elec_profile, COP):
+    # colorcode:
+    # temp_outside = darkblue
+    # indoor temp DR = darkgreen
+    # indoor temp noDR = purple -- #AC0CB0
+    # price = pink
+    # solar gains = yellow
+    # heating DR = red
+    # cooling DR = blue
+    # heating noDR = orange --
+    # cooling noDR = green --
+    # Electricity no DR = grey --
+    # Electricity DR = turquoise #3BE0ED
     red = '#F47070'
     blue = '#8EA9DB'
     green = '#A9D08E'
@@ -521,9 +537,23 @@ def show_results(instance, m, Q_H, Q_C, Tm_t, Q_solar, price, temp_outside, elec
     pink = '#FA9EFA'
     dark_green = '#375623'
     dark_blue = '#305496'
+    purple = '#AC0CB0'
+    turquoise = '#3BE0ED'
+    colors = {"temp_outside": dark_blue,
+              "T_room": dark_green,
+              "T_room_noDR": purple,
+              "price": pink,
+              "solar_gains": yellow,
+              "Q_heating": red,
+              "Q_cooling": blue,
+              "Q_H_noDR": orange,
+              "Q_C_noDR": green,
+              "Electricity_noDR": grey,
+              "Electricity_DR": turquoise}
 
-    Q_heating = np.array([instance.Q_heating[t]() for t in m.time]) / 1_000 / COP  # kW
-    Q_cool = np.array([instance.Q_cooling[t]() for t in m.time]) / 1_000 / COP  # kW
+
+    Q_heating = np.array([instance.Q_heating[t]() for t in m.time]) / 1_000  # kW
+    Q_cooling = np.array([instance.Q_cooling[t]() for t in m.time]) / 1_000  # kW
     T_room = [instance.T_room[t]() for t in m.time]
     T_mass_mean = [instance.Tm_t[t]() for t in m.time]
     total_cost = instance.OBJ()
@@ -532,16 +562,19 @@ def show_results(instance, m, Q_H, Q_C, Tm_t, Q_solar, price, temp_outside, elec
     # Heating powers and Temperatures
     fig, (ax1, ax2) = plt.subplots(2, 1)
 
-    ax2.plot(x_achse, T_mass_mean, label="thermal mass optimized", color=grey)
-    ax2.plot(x_achse, Tm_t, label="thermal mass normal", color="skyblue", linestyle="--")
-    ax2.plot(x_achse, temp_outside, label="outside temperature", color=dark_blue)
-    ax2.plot(x_achse, T_room, label="indoor temperature", color=dark_green)
+    # ax2.plot(x_achse, T_mass_mean, label="thermal mass optimized", color=grey)
+    # ax2.plot(x_achse, Tm_t, label="thermal mass normal", color="skyblue", linestyle="--")
+    ax2.plot(x_achse, temp_outside, label="outside temperature", color=colors["temp_outside"])
+    ax2.plot(x_achse, T_room, label="indoor temperature DR", color=colors["T_room"])
+    ax2.plot(x_achse, T_room_noDR, label="indoor temperature no DR", color=colors["T_room_noDR"])
 
-    ax1.plot(x_achse, (Q_H+Q_C) / COP / 1_000, label="heating normal", color="black", linestyle="--")
-    ax1.plot(x_achse, Q_heating+Q_cool, label="heating optimized", color=red)
-    ax1.plot(x_achse, Q_solar / 1_000, label="solar gains", color=yellow)
+    ax1.plot(x_achse, Q_heating, label="heating DR", color=colors["Q_heating"], alpha=0.8)
+    ax1.plot(x_achse, Q_cooling, label="cooling DR", color=colors["Q_cooling"], alpha=0.8)
+    ax1.plot(x_achse, Q_H_noDR / 1_000, label="heating no DR", color=colors["Q_H_noDR"], linestyle="--")
+    ax1.plot(x_achse, Q_C_noDR / 1_000, label="cooling no DR", color=colors["Q_C_noDR"], linestyle="--")
+    ax1.plot(x_achse, Q_solar / 1_000, label="solar gains", color=colors["solar_gains"], alpha=0.5)
 
-    ax1.set_title("Heating power and thermal mass temperature")
+    ax1.set_title("Heating power and temperatures")
     ax2.set_ylabel("temperature in °C")
     ax1.set_ylabel("heating power in kWh")
     ax2.set_xlabel("time in hours")
@@ -559,9 +592,9 @@ def show_results(instance, m, Q_H, Q_C, Tm_t, Q_solar, price, temp_outside, elec
     fig2 = plt.figure()
     ax1 = plt.gca()
     ax2 = ax1.twinx()
-    ax1.plot(x_achse, (Q_heating + Q_cool), label="elec with optim heating", color=red)
-    ax1.plot(x_achse, (Q_H+Q_C) / COP / 1_000, label="elec normal heating", linestyle="--", color="black")
-    ax2.plot(x_achse, price, label="elec price", color=pink)
+    # ax1.plot(x_achse, (Q_heating+Q_cooling)/COP, label="electricity DR", color=colors["Electricity_DR"])
+    # ax1.plot(x_achse, (Q_H_noDR+Q_C_noDR)/COP/1_000, label="electricity no DR", linestyle="--", color=colors["Electricity_noDR"])
+    ax2.plot(x_achse, price, label="electricity price", color=colors["price"])
     plt.title(f"compare electricity loads with COP = {COP}")
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
@@ -581,11 +614,11 @@ number_hours_toplot = 8760
 COP = 3
 
 for i in range(1):
-    Q_H_real, Tm_t, Q_C_real = rc_heating_cooling(Q_solar[start_number_toplot:number_hours_toplot, i], Atot, Hve, Htr_w, Hop, Cm,
-                                         Am, Qi, Af,
+    Q_H_noDR, Tm_t, Q_C_noDR, T_air_noDR = rc_heating_cooling(Q_solar[start_number_toplot:number_hours_toplot, i], Atot, Hve, Htr_w, Hop, Cm,
+                                                              Am, Qi, Af,
                                          temp_outside[start_number_toplot:number_hours_toplot],
-                                         initial_thermal_mass_temp=thermal_mass_starting_temp, T_air_min=T_air_min,
-                                         T_air_max=T_air_max)
+                                                              initial_thermal_mass_temp=thermal_mass_starting_temp, T_air_min=T_air_min,
+                                                              T_air_max=T_air_max)
 
     instance, m = create_pyomo_model(price[start_number_toplot:number_hours_toplot],
                                      temp_outside[start_number_toplot:number_hours_toplot],
@@ -595,8 +628,12 @@ for i in range(1):
 
     elec_profile = get_elec_profile()[start_number_toplot:number_hours_toplot] * 1_000
 
-    show_results(instance, m, Q_H_real[:, i], Q_C_real[:, i], Tm_t[:, i], Q_solar[start_number_toplot:number_hours_toplot, i],
+    show_results(instance, m, Q_H_noDR[:, i], Q_C_noDR[:, i], Tm_t[:, i], T_air_noDR[:, i], Q_solar[start_number_toplot:number_hours_toplot, i],
                  price[start_number_toplot:number_hours_toplot], temp_outside[start_number_toplot:number_hours_toplot],
                  elec_profile, COP)
 
-    calculate_cost_diff(instance, Q_H_real[:, i], Q_C_real[:, i], price[start_number_toplot:number_hours_toplot], COP)
+    calculate_cost_diff(instance, Q_H_noDR[:, i], Q_C_noDR[:, i], price[start_number_toplot:number_hours_toplot], COP)
+
+
+
+
