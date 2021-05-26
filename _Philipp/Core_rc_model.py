@@ -95,7 +95,6 @@ def core_rc_model(DHW_need_day_m2_8760_up, DHW_loss_Circulation_040_day_m2_8760_
     Htr_1 = np.float_(1) / (np.float_(1) / Hve + np.float_(1) / Htr_is)  # Equ. C.6
     Htr_2 = Htr_1 + Htr_w  # Equ. C.7
 
-
     # kopplung zwischen Masse und  zentralen Knoten s (surface)
     hms = np.float_(9.1)  # W / m2K from Equ.C.3 (from 12.2.2)
     Htr_ms = hms * Am  # from 12.2.2 Equ. (64)
@@ -311,6 +310,7 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
         for vector in args:
             if len(vector) != length_1:
                 raise ValueError("Arrays must have the same size")
+
     check_length(Q_solar, T_outside)
 
     timesteps = np.arange(len(T_outside))
@@ -335,6 +335,7 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
     T_sup = np.empty(shape=(len(timesteps),))
     Q_H_real = np.empty(shape=(len(timesteps), len(Hve)))
     Q_C_real = np.empty(shape=(len(timesteps), len(Hve)))
+    T_air_real = np.empty(shape=(len(timesteps), len(Hve)))
     heating_power_10 = Af * 10
     for t in timesteps:  # t is the index for each timestep
         for i in range(len(Hve)):  # i is the index for each individual building
@@ -350,34 +351,34 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
             # Equ. C.5
             PHI_mtot_0 = PHI_m + Htr_em[i] * T_outside[t] + Htr_3[i] * (
                     PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] * (((PHI_ia[i] + 0) / Hve[i]) + T_sup[t])) / \
-                       Htr_2[i]
+                         Htr_2[i]
 
             # Equ. C.5 with 10 W/m^2 heating power
             PHI_mtot_10 = PHI_m + Htr_em[i] * T_outside[t] + Htr_3[i] * (
-                                PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] * (
-                                ((PHI_ia[i] + heating_power_10[i]) / Hve[i]) + T_sup[t])) / Htr_2[i]
+                    PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] * (
+                    ((PHI_ia[i] + heating_power_10[i]) / Hve[i]) + T_sup[t])) / Htr_2[i]
 
             # Equ. C.5 with 10 W/m^2 cooling power
             PHI_mtot_10_c = PHI_m + Htr_em[i] * T_outside[t] + Htr_3[i] * (
-                                PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] * (
-                                ((PHI_ia[i] - heating_power_10[i]) / Hve[i]) + T_sup[t])) / Htr_2[i]
+                    PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] * (
+                    ((PHI_ia[i] - heating_power_10[i]) / Hve[i]) + T_sup[t])) / Htr_2[i]
 
             if t == 0:
                 Tm_t_prev = initial_thermal_mass_temp
             else:
-                Tm_t_prev = Tm_t[t-1, i]
+                Tm_t_prev = Tm_t[t - 1, i]
 
             # Equ. C.4
-            Tm_t_0 = (Tm_t_prev * (Cm[i]/3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_0) / \
-                           (Cm[i]/3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
+            Tm_t_0 = (Tm_t_prev * (Cm[i] / 3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_0) / \
+                     (Cm[i] / 3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
 
             # Equ. C.4 for 10 W/m^2 heating
-            Tm_t_10 = (Tm_t_prev * (Cm[i]/3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_10) / \
-                           (Cm[i]/3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
+            Tm_t_10 = (Tm_t_prev * (Cm[i] / 3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_10) / \
+                      (Cm[i] / 3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
 
             # Equ. C.4 for 10 W/m^2 cooling
-            Tm_t_10_c = (Tm_t_prev * (Cm[i]/3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_10_c) / \
-                           (Cm[i]/3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
+            Tm_t_10_c = (Tm_t_prev * (Cm[i] / 3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_10_c) / \
+                        (Cm[i] / 3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
 
             # Equ. C.9
             T_m_0 = (Tm_t_0 + Tm_t_prev) / 2
@@ -390,15 +391,15 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
 
             # Euq. C.10
             T_s_0 = (Htr_ms[i] * T_m_0 + PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] *
-                           (T_sup[t] + (PHI_ia[i] + 0) / Hve[i])) / (Htr_ms[i] + Htr_w[i] + Htr_1[i])
+                     (T_sup[t] + (PHI_ia[i] + 0) / Hve[i])) / (Htr_ms[i] + Htr_w[i] + Htr_1[i])
 
             # Euq. C.10 for 10 W/m^2 heating
             T_s_10 = (Htr_ms[i] * T_m_10 + PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] *
-                     (T_sup[t] + (PHI_ia[i] + heating_power_10[i]) / Hve[i])) / (Htr_ms[i] + Htr_w[i] + Htr_1[i])
+                      (T_sup[t] + (PHI_ia[i] + heating_power_10[i]) / Hve[i])) / (Htr_ms[i] + Htr_w[i] + Htr_1[i])
 
             # Euq. C.10 for 10 W/m^2 cooling
             T_s_10_c = (Htr_ms[i] * T_m_10_c + PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] *
-                     (T_sup[t] + (PHI_ia[i] - heating_power_10[i]) / Hve[i])) / (Htr_ms[i] + Htr_w[i] + Htr_1[i])
+                        (T_sup[t] + (PHI_ia[i] - heating_power_10[i]) / Hve[i])) / (Htr_ms[i] + Htr_w[i] + Htr_1[i])
 
             # Equ. C.11
             T_air_0 = (Htr_is[i] * T_s_0 + Hve[i] * T_sup[t] + PHI_ia[i] + 0) / \
@@ -410,8 +411,7 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
 
             # Equ. C.11 for 10 W/m^2 cooling
             T_air_10_c = (Htr_is[i] * T_s_10_c + Hve[i] * T_sup[t] + PHI_ia[i] - heating_power_10[i]) / \
-                       (Htr_is[i] + Hve[i])
-
+                         (Htr_is[i] + Hve[i])
 
             # Check if air temperature without heating is in between boundaries and calculate actual HC power:
             if T_air_0 >= T_air_min and T_air_0 <= T_air_max:
@@ -421,16 +421,30 @@ def rc_heating_cooling(Q_solar, Atot, Hve, Htr_w, Hop, Cm, Am, Qi, Af, T_outside
             elif T_air_0 > T_air_max:  # cooling is required
                 Q_C_real[t, i] = heating_power_10[i] * (T_air_max - T_air_0) / (T_air_10_c - T_air_0)
 
-
             # now calculate the actual temperature of thermal mass Tm_t with Q_HC_real:
             # Equ. C.5 with actual heating power
             PHI_mtot_real = PHI_m + Htr_em[i] * T_outside[t] + Htr_3[i] * (
-                                PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] * (
-                                ((PHI_ia[i] + Q_H_real[t, i] - Q_C_real[t, i]) / Hve[i]) + T_sup[t])) / Htr_2[i]
+                    PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] * (
+                    ((PHI_ia[i] + Q_H_real[t, i] - Q_C_real[t, i]) / Hve[i]) + T_sup[t])) / Htr_2[i]
             # Equ. C.4
-            Tm_t[t, i] = (Tm_t_prev * (Cm[i]/3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_real) / \
-                           (Cm[i]/3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
+            Tm_t[t, i] = (Tm_t_prev * (Cm[i] / 3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_real) / \
+                         (Cm[i] / 3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
 
-    # turn Q_C positiv:
-    # Q_C_real = np.abs(Q_C_real)
-    return Q_H_real, Tm_t, Q_C_real
+            # Equ. C.9
+            T_m_real = (Tm_t[t, i] + Tm_t_prev) / 2
+
+            # Euq. C.10
+            T_s_real = (Htr_ms[i] * T_m_real + PHI_st + Htr_w[i] * T_outside[t] + Htr_1[i] *
+                       (T_sup[t] + (PHI_ia[i] + Q_H_real[t, i] - Q_C_real[t, i]) / Hve[i])) / \
+                       (Htr_ms[i] + Htr_w[i] + Htr_1[i])
+
+            # Equ. C.11 for 10 W/m^2 heating
+            T_air_real[t, i] = (Htr_is[i] * T_s_real + Hve[i] * T_sup[t] + PHI_ia[i] + Q_H_real[t, i] - Q_C_real[t, i]) / \
+                                (Htr_is[i] + Hve[i])
+
+    # fill nan
+    Q_C_real = np.nan_to_num(Q_C_real, nan=0)
+    Q_H_real = np.nan_to_num(Q_H_real, nan=0)
+    T_air_real = np.nan_to_num(T_air_real, nan=0)
+
+    return Q_H_real, Tm_t, Q_C_real, T_air_real
