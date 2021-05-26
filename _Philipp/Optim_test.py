@@ -382,34 +382,8 @@ def create_pyomo_model(elec_price, tout, Qsol, Am, Atot, Cm, Hop, Htr_1, Htr_2, 
     # constraints
     def thermal_mass_temperature_rc(m, t):
         if t == 1:
-            # Equ. C.2
-            PHI_m = Am / Atot * (0.5 * Qi + m.Q_sol[t])
-            # Equ. C.3
-            PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_sol[t])
+            return m.Tm_t[t] == 15
 
-            # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
-            # Equ. C.5
-            PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (
-                    PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_heating[t] - m.Q_cooling[t]) / Hve) +
-                                                               m.T_outside[t])) / Htr_2
-
-            # Equ. C.4
-            return m.Tm_t[t] == (thermal_mass_starting_temp * ((Cm/3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
-                        (Cm/3600) + 0.5 * (Htr_3 + Htr_em))
-        # if t == 168:
-        #     # Equ. C.2
-        #     PHI_m = Am / Atot * (0.5 * Qi + m.Q_sol[t])
-        #     # Equ. C.3
-        #     PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_sol[t])
-        #
-        #     # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
-        #     # Equ. C.5
-        #     PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (
-        #             PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_heating[t]) / Hve) + m.T_outside[t])) / \
-        #                Htr_2
-        #
-        #     # Equ. C.4
-        #     return m.Tm_t[t] == 20
         else:
             # Equ. C.2
             PHI_m = Am / Atot * (0.5 * Qi + m.Q_sol[t])
