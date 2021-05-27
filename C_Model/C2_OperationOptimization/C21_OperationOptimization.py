@@ -212,7 +212,7 @@ class OperationOptimization:
         m.Q_Solar = pyo.Param(m.t, initialize=create_dict(Q_sol))
         # outside temperature
         m.T_outside = pyo.Param(m.t, initialize=create_dict(self.Weather.Temperature.to_numpy()))
-        # m.T_outside = pyo.Param(m.t, initialize=create_dict(T_Out))
+        # COP of heatpump
         m.COP_dynamic = pyo.Param(m.t, initialize=create_dict(ListOfDynamicCOP))
         # electricity load profile
         m.LoadProfile = pyo.Param(m.t, initialize=create_dict(LoadProfile))
@@ -226,17 +226,17 @@ class OperationOptimization:
 
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
         # energy used for cooling
-        m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
-        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 26))
+        m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 6_000))  # 6kW thermal, 2 kW electrical
+        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 24))
         m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 60))
 
         # Variables PV and battery
         m.BatteryFillLevel = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 5))
         m.BatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 4.5))
         m.BatDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 4.5))
-        m.GridCover = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 16))
-        m.PhotovoltaicFeedin = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 16))
-        m.PhotovoltaicDirect = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 16))
+        m.GridCover = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 10.5))  # 380 V * 16 A * 1,73
+        m.PhotovoltaicFeedin = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 10.5))
+        m.PhotovoltaicDirect = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 10.5))
 
         # objective
 
@@ -252,7 +252,8 @@ class OperationOptimization:
             if t == 1:
                 return m.BatteryFillLevel[t] == 1
             else:
-                return m.BatteryFillLevel[t] == m.BatteryFillLevel[t - 1] * (1 - (0.02 / 30 / 24)) + m.BatCharge[t] * 0.95 - \
+                return m.BatteryFillLevel[t] == m.BatteryFillLevel[t - 1] * (1 - (0.02 / 30 / 24)) + m.BatCharge[
+                    t] * 0.95 - \
                        m.BatDischarge[t] * 1.05
 
         m.calc_BatteryFillLevel = pyo.Constraint(m.t, rule=calc_BatteryFillLevel_rule)
@@ -357,12 +358,16 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     print('Test JAZ = ' + str(JAZ))
 
     # Visualization
-    starttime = 4330
-    endtime = 4344
+    starttime = 3000
+    endtime = 3048
 
     # exogenous profiles
     ElectricityPrice = np.array(list(instance.ElectricityPrice.extract_values().values())[starttime: endtime])
+
+    PhotovoltaicProfile = np.array(list(instance.PhotovoltaicProfile.extract_values().values())[starttime: endtime])
     PhotovoltaicDirect = np.array(list(instance.PhotovoltaicDirect.extract_values().values())[starttime: endtime])
+    PhotovoltaicFeedin = np.array(list(instance.PhotovoltaicFeedin.extract_values().values())[starttime: endtime])
+
     LoadProfile = np.array(list(instance.LoadProfile.extract_values().values())[starttime: endtime])
 
     # tank and building
@@ -380,7 +385,6 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     # battery, grid
     GridCover = np.array(list(instance.GridCover.extract_values().values())[starttime: endtime])
     BatteryFillLevel = np.array(list(instance.BatteryFillLevel.extract_values().values())[starttime: endtime])
-    PhotovoltaicFeedin = np.array(list(instance.PhotovoltaicFeedin.extract_values().values())[starttime: endtime])
     BatDischarge = np.array(list(instance.BatDischarge.extract_values().values())[starttime: endtime])
     BatCharge = np.array(list(instance.BatCharge.extract_values().values())[starttime: endtime])
 
@@ -388,16 +392,16 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     total_cost = instance.OBJ()
     total_ThermalEnergy = np.sum(EnergyThermal)
 
-    # Plot (1) & (2) Room and building
+    # Plot (1) Room and building
     x_achse = np.arange(starttime, endtime)
     fig, (ax1, ax3) = plt.subplots(2, 1)
     ax2 = ax1.twinx()
     ax4 = ax3.twinx()
     ax1.plot(x_achse, Q_TankHeating, label="Q_TankHeating", color=colors["Q_TankHeating"], linewidth=0.25)
-    ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color="green", linewidth=0.25)
-    ax1.plot(x_achse, Q_RoomCooling, label="Q_RoomCooling", color="blue", linewidth=0.25)
-    ax1.plot(x_achse, Q_Solar, label="Q_Solar", color="orange", linewidth=0.5)
-    ax2.plot(x_achse, ElectricityPrice, color="black", label="Price", linewidth=0.50, linestyle=':')
+    ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color=colors["Q_RoomHeating"], linewidth=0.25)
+    ax1.plot(x_achse, Q_RoomCooling, label="Q_RoomCooling", color=colors["Q_RoomCooling"], linewidth=0.25)
+    ax1.plot(x_achse, Q_Solar, label="Q_Solar", color=colors["Q_Solar"], linewidth=0.5)
+    ax2.plot(x_achse, ElectricityPrice, color=colors["ElectricityPrice"], label="Price", linewidth=0.50, linestyle=':')
 
     ax1.set_ylabel("Energy kW")
     ax2.set_ylabel("Price per kWh in Ct/€")
@@ -406,9 +410,9 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines + lines2, labels + labels2, loc=0)
 
-    ax3.plot(x_achse, T_room, label="TempRoom", color="red", linewidth=0.15)
-    # ax3.plot(x_achse, T_BuildingMass, label='TempMassBuild.', linewidth=0.15, color='black')
-    ax4.plot(x_achse, T_tank, label="TempTank", color="red", linewidth=0.15)
+    ax3.plot(x_achse, T_room, label="TempRoom", color=colors["T_room"], linewidth=0.15)
+    # ax3.plot(x_achse, T_BuildingMass, label='TempMassBuild.', linewidth=0.15, color=colors["T_BuildingMass"])
+    ax4.plot(x_achse, T_tank, label="TempTank", color=colors["T_tank"], linewidth=0.15)
 
     ax3.set_ylabel("Room temperature in °C", color='black')
     ax4.set_ylabel("Tank Temperature in °C", color='black')
@@ -419,24 +423,64 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
 
     plt.grid()
     ax1.set_title('Total thermal energy: ' + str(round(total_ThermalEnergy / 1000, 2)) + ' kWh')
+    plt.tight_layout()
     plt.show()
 
-    # Plot (3) Electricity balance PV, Battery and Grid
-    plt.figure()
-    plt.plot(BatteryFillLevel, linewidth=1.5, label='BatteryFillLevel', color='gray')
-    plt.plot(BatCharge, linewidth=0.5, label='BatCharge', color='green')
-    plt.plot(BatDischarge, linewidth=0.5, label='BatDischarge', color='red')
+    # Plot (2) Battery Charge, Discharge
+    fig, ax1 = plt.subplots()
 
-    # plt.plot(GridCover, linewidth=0.15, label='GridCover', color='red')
-    # plt.plot(PhotovoltaicFeedin, linewidth=0.15, label='PhotovoltaicFeedin', color='green')
-    # plt.plot(PhotovoltaicDirect, linewidth=0.4, label='PhotovoltaicDirect', linestyle=':', color='blue')
-    plt.plot(PhotovoltaicProfile[starttime:endtime], linewidth=0.15, label='PhotovoltaicProfile', color='orange')
-    plt.legend()
-    plt.xlabel('Hour of year')
-    plt.ylabel('Power in kW')
+    ax1.plot(x_achse, BatteryFillLevel, linewidth=0.5, label='BatteryFillLevel', color=colors["BatteryFillLevel"])
+    ax1.plot(x_achse, BatCharge, linewidth=0.5, label='BatCharge', color='green')
+    ax1.plot(x_achse, BatDischarge, linewidth=0.5, label='BatDischarge', color='red')
+
+    # ax1.plot(x_achse,GridCover, linewidth=0.15, label='GridCover', color=colors["GridCover"])
+    # ax1.plot((x_achse, PhotovoltaicFeedin, linewidth=0.15, label='PhotovoltaicFeedin', color=colors["PhotovoltaicFeedin"])
+    # ax1.plot((x_achse, PhotovoltaicDirect, linewidth=0.4, label='PhotovoltaicDirect', linestyle=':', color=colors["PhotovoltaicDirect"])
+    ax1.plot(x_achse, PhotovoltaicProfile, linewidth=0.15, label='PhotovoltaicProfile',
+             color=colors["PhotovoltaicProfile"])
+
+    ax1.set_ylabel("Power kW")
+
+    ax2 = ax1.twinx()
+    ax2.plot(x_achse, ElectricityPrice, linewidth=0.5, label='ElectricityPrice', color=colors["ElectricityPrice"],
+             linestyle=':')
+    ax2.set_ylabel("Price per kWh in Ct/€")
+
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc=0)
 
     plt.grid()
     plt.title('Costs: ' + str(round(total_cost, 2)) + ' €')
+    plt.tight_layout()
+    plt.show()
+
+    # Plot (3) Electricity balance
+    fig, ax1 = plt.subplots()
+
+    ax1.plot(x_achse, BatteryFillLevel, linewidth=0.5, label='BatteryFillLevel', color=colors["BatteryFillLevel"])
+    ax1.plot(x_achse, GridCover, linewidth=0.15, label='GridCover', color=colors["GridCover"])
+    ax1.plot(x_achse, PhotovoltaicFeedin, linewidth=0.15, label='PhotovoltaicFeedin',
+             color=colors["PhotovoltaicFeedin"])
+    ax1.plot(x_achse, PhotovoltaicDirect, linewidth=0.4, label='PhotovoltaicDirect', linestyle=':',
+             color=colors["PhotovoltaicDirect"])
+    ax1.plot(x_achse, PhotovoltaicProfile, linewidth=0.15, label='PhotovoltaicProfile',
+             color=colors["PhotovoltaicProfile"])
+
+    ax1.set_ylabel("Power kW")
+
+    ax2 = ax1.twinx()
+    ax2.plot(x_achse, ElectricityPrice, linewidth=0.5, label='ElectricityPrice', color=colors["ElectricityPrice"],
+             linestyle=':')
+    ax2.set_ylabel("Price per kWh in Ct/€")
+
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc=0)
+
+    plt.grid()
+    plt.title('in progress')
+    plt.tight_layout()
     plt.show()
 
 
@@ -458,13 +502,15 @@ if __name__ == "__main__":
     light_brown = '#db8b55'
     black = "#000000"
     red_pink = "#f75d82"
+    brown = '#A52A2A'
     colors = {"Q_RoomHeating": dark_red,
               "Q_TankHeating": red,
               "Q_RoomCooling": dark_blue,
               "T_room": purple,
               "T_room_noDR": pink,
-              "price": dark_grey,
-              "solar_gains": orange,
+              "T_tank": brown,
+              "ElectricityPrice": dark_grey,
+              "Q_Solar": orange,
               "PhotovoltaicProfile": yellow,
               "PhotovoltaicFeedin": green,
               "PhotovoltaicDirect": dark_green,
