@@ -1,5 +1,6 @@
 from A_Infrastructure.A1_Config.A12_Register import REG
 from A_Infrastructure.A2_ToolKits.A21_DB import DB
+from A_Infrastructure.A1_Config.A11_Constants import CONS
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -51,44 +52,37 @@ class Building:
 class HeatingCooling_noDR:
 
     def __init__(self, ID_BuildingOption_dataframe):
-        self.index = self.index['index']
-        self.name = self.ID_Household['name']
-        self.building_categories_index = self.ID_Household['building_categories_index']
-        self.number_of_dwellings_per_building = self.ID_Household['number_of_dwellings_per_building']
-        self.areawindows = self.ID_Household['areawindows']
-        self.area_suitable_solar = self.ID_Household['area_suitable_solar']
-        self.ued_dhw = self.ID_Household['ued_dhw']
-        self.AreaWindowEastWest = self.ID_Household['average_effective_area_wind_west_east_red_cool'].to_numpy()
-        self.AreaWindowSouth = self.ID_Household['average_effective_area_wind_south_red_cool'].to_numpy()
-        self.AreaWindowNorth = self.ID_Household['average_effective_area_wind_north_red_cool'].to_numpy()
-        self.InternalGains = self.ID_Household['spec_int_gains_cool_watt'].to_numpy()
-        self.building_categories_index = self.ID_Household['building_categories_index']
-        self.Af = self.ID_Household['Af'].to_numpy()
-        self.Hop = self.ID_Household['Hop'].to_numpy()
-        self.Htr_w = self.ID_Household['Htr_w'].to_numpy()
-        self.Hve = self.ID_Household['Hve'].to_numpy()
-        self.CM_factor = self.ID_Household['CM_factor'].to_numpy()
-        self.Am_factor = self.ID_Household['Am_factor'].to_numpy()
-        self.country_ID = self.ID_Household['country_ID'].to_numpy()
+        self.index = ID_BuildingOption_dataframe['index']
+        self.name = ID_BuildingOption_dataframe['name']
+        self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
+        self.number_of_dwellings_per_building = ID_BuildingOption_dataframe['number_of_dwellings_per_building']
+        self.areawindows =ID_BuildingOption_dataframe['areawindows']
+        self.area_suitable_solar =ID_BuildingOption_dataframe['area_suitable_solar']
+        self.ued_dhw = ID_BuildingOption_dataframe['ued_dhw']
+        self.AreaWindowEastWest = ID_BuildingOption_dataframe['average_effective_area_wind_west_east_red_cool'].to_numpy()
+        self.AreaWindowSouth = ID_BuildingOption_dataframe['average_effective_area_wind_south_red_cool'].to_numpy()
+        self.AreaWindowNorth = ID_BuildingOption_dataframe['average_effective_area_wind_north_red_cool'].to_numpy()
+        self.InternalGains = ID_BuildingOption_dataframe['spec_int_gains_cool_watt'].to_numpy()
+        self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
+        self.Af = ID_BuildingOption_dataframe['Af'].to_numpy()
+        self.Hop = ID_BuildingOption_dataframe['Hop'].to_numpy()
+        self.Htr_w = ID_BuildingOption_dataframe['Htr_w'].to_numpy()
+        self.Hve = ID_BuildingOption_dataframe['Hve'].to_numpy()
+        self.CM_factor = ID_BuildingOption_dataframe['CM_factor'].to_numpy()
+        self.Am_factor = ID_BuildingOption_dataframe['Am_factor'].to_numpy()
+        self.country_ID = ID_BuildingOption_dataframe['country_ID'].to_numpy()
 
 
     def ref_HeatingCooling(self, T_outside, Q_solar=None,
-                           initial_thermal_mass_temp=15, T_air_min=20, T_air_max=28):
+                           initial_thermal_mass_temp=18, T_air_min=20, T_air_max=28):
         """
         This function calculates the heating and cooling demand as well as the indoor temperature for every building
         category based in the 5R1C model. The results are hourls vectors for one year. Q_solar is imported from a CSV
         at the time!
         """
-        # check if vectors are the same length:
-        def check_length(*args):
-            length_1 = len(args[0])
-            for vector in args:
-                if len(vector) != length_1:
-                    raise ValueError("Arrays must have the same size")
-        project_directory_path = Path(__file__).parent.resolve()
-        base_results_path = project_directory_path / "inputdata"
-        check_length(Q_solar, T_outside)
-        Q_sol_all = pd.read_csv(base_results_path / "directRadiation_himmelsrichtung_GER.csv", sep=";")
+
+
+        Q_sol_all = pd.read_csv(CONS().DatabasePath + "\\directRadiation_himmelsrichtung_GER.csv", sep=";")
         Q_sol_north = np.outer(Q_sol_all.loc[:, "RadiationNorth"].to_numpy(), self.AreaWindowNorth)
         Q_sol_south = np.outer(Q_sol_all.loc[:, "RadiationSouth"].to_numpy(), self.AreaWindowSouth)
         Q_sol_east_west = np.outer((Q_sol_all.loc[:, "RadiationEast"].to_numpy() +
@@ -125,110 +119,111 @@ class HeatingCooling_noDR:
         Q_Cooling_noDR = np.empty(shape=(len(timesteps), len(self.Hve)))
         T_Room_noDR = np.empty(shape=(len(timesteps), len(self.Hve)))
         heating_power_10 = self.Af * 10
+
         for t in timesteps:  # t is the index for each timestep
-            for i in range(len(self.Hve)):  # i is the index for each individual building
-                # Equ. C.2
-                PHI_m = Am[i] / Atot[i] * (0.5 * Q_InternalGains[i] + Q_solar[t, i])
-                # Equ. C.3
-                PHI_st = (1 - Am[i] / Atot[i] - self.Htr_w[i] / 9.1 / Atot[i]) * \
-                         (0.5 * Q_InternalGains[i] + Q_solar[t, i])
+            # Equ. C.2
+            PHI_m = Am / Atot * (0.5 * Q_InternalGains + Q_solar[t, :])
+            # Equ. C.3
+            PHI_st = (1 - Am / Atot - self.Htr_w / 9.1 / Atot) * \
+                     (0.5 * Q_InternalGains + Q_solar[t, :])
 
-                # (T_sup = T_outside weil die Zuluft nicht vorgewärmt oder vorgekühlt wird)
-                T_sup[t] = T_outside[t]
+            # (T_sup = T_outside weil die Zuluft nicht vorgewärmt oder vorgekühlt wird)
+            T_sup[t] = T_outside[t]
 
-                # Equ. C.5
-                PHI_mtot_0 = PHI_m + Htr_em[i] * T_outside[t] + Htr_3[i] * (
-                        PHI_st + self.Htr_w[i] * T_outside[t] + Htr_1[i] * (((PHI_ia[i] + 0) / self.Hve[i]) + T_sup[t])) / \
-                             Htr_2[i]
+            # Equ. C.5
+            PHI_mtot_0 = PHI_m + Htr_em * T_outside[t] + Htr_3 * (
+                    PHI_st + self.Htr_w * T_outside[t] + Htr_1 * (((PHI_ia + 0) / self.Hve) + T_sup[t])) / \
+                         Htr_2
 
-                # Equ. C.5 with 10 W/m^2 heating power
-                PHI_mtot_10 = PHI_m + Htr_em[i] * T_outside[t] + Htr_3[i] * (
-                        PHI_st + self.Htr_w[i] * T_outside[t] + Htr_1[i] * (
-                        ((PHI_ia[i] + heating_power_10[i]) / self.Hve[i]) + T_sup[t])) / Htr_2[i]
+            # Equ. C.5 with 10 W/m^2 heating power
+            PHI_mtot_10 = PHI_m + Htr_em * T_outside[t] + Htr_3 * (
+                    PHI_st + self.Htr_w * T_outside[t] + Htr_1 * (
+                    ((PHI_ia + heating_power_10) / self.Hve) + T_sup[t])) / Htr_2
 
-                # Equ. C.5 with 10 W/m^2 cooling power
-                PHI_mtot_10_c = PHI_m + Htr_em[i] * T_outside[t] + Htr_3[i] * (
-                        PHI_st + self.Htr_w[i] * T_outside[t] + Htr_1[i] * (
-                        ((PHI_ia[i] - heating_power_10[i]) / self.Hve[i]) + T_sup[t])) / Htr_2[i]
+            # Equ. C.5 with 10 W/m^2 cooling power
+            PHI_mtot_10_c = PHI_m + Htr_em * T_outside[t] + Htr_3 * (
+                    PHI_st + self.Htr_w * T_outside[t] + Htr_1 * (
+                    ((PHI_ia - heating_power_10) / self.Hve) + T_sup[t])) / Htr_2
 
-                if t == 0:
-                    Tm_t_prev = initial_thermal_mass_temp
-                else:
-                    Tm_t_prev = Tm_t[t - 1, i]
+            if t == 0:
+                Tm_t_prev = initial_thermal_mass_temp
+            else:
+                Tm_t_prev = Tm_t[t - 1, :]
 
-                # Equ. C.4
-                Tm_t_0 = (Tm_t_prev * (Cm[i] / 3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_0) / \
-                         (Cm[i] / 3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
+            # Equ. C.4
+            Tm_t_0 = (Tm_t_prev * (Cm / 3600 - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot_0) / \
+                     (Cm / 3600 + 0.5 * (Htr_3 + Htr_em))
 
-                # Equ. C.4 for 10 W/m^2 heating
-                Tm_t_10 = (Tm_t_prev * (Cm[i] / 3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_10) / \
-                          (Cm[i] / 3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
+            # Equ. C.4 for 10 W/m^2 heating
+            Tm_t_10 = (Tm_t_prev * (Cm / 3600 - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot_10) / \
+                      (Cm / 3600 + 0.5 * (Htr_3 + Htr_em))
 
-                # Equ. C.4 for 10 W/m^2 cooling
-                Tm_t_10_c = (Tm_t_prev * (Cm[i] / 3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_10_c) / \
-                            (Cm[i] / 3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
+            # Equ. C.4 for 10 W/m^2 cooling
+            Tm_t_10_c = (Tm_t_prev * (Cm / 3600 - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot_10_c) / \
+                        (Cm / 3600 + 0.5 * (Htr_3 + Htr_em))
 
-                # Equ. C.9
-                T_m_0 = (Tm_t_0 + Tm_t_prev) / 2
+            # Equ. C.9
+            T_m_0 = (Tm_t_0 + Tm_t_prev) / 2
 
-                # Equ. C.9 for 10 W/m^2 heating
-                T_m_10 = (Tm_t_10 + Tm_t_prev) / 2
+            # Equ. C.9 for 10 W/m^2 heating
+            T_m_10 = (Tm_t_10 + Tm_t_prev) / 2
 
-                # Equ. C.9 for 10 W/m^2 cooling
-                T_m_10_c = (Tm_t_10_c + Tm_t_prev) / 2
+            # Equ. C.9 for 10 W/m^2 cooling
+            T_m_10_c = (Tm_t_10_c + Tm_t_prev) / 2
 
-                # Euq. C.10
-                T_s_0 = (Htr_ms[i] * T_m_0 + PHI_st + self.Htr_w[i] * T_outside[t] + Htr_1[i] *
-                         (T_sup[t] + (PHI_ia[i] + 0) / self.Hve[i])) / (Htr_ms[i] + self.Htr_w[i] + Htr_1[i])
+            # Euq. C.10
+            T_s_0 = (Htr_ms * T_m_0 + PHI_st + self.Htr_w * T_outside[t] + Htr_1 *
+                     (T_sup[t] + (PHI_ia + 0) / self.Hve)) / (Htr_ms + self.Htr_w + Htr_1)
 
-                # Euq. C.10 for 10 W/m^2 heating
-                T_s_10 = (Htr_ms[i] * T_m_10 + PHI_st + self.Htr_w[i] * T_outside[t] + Htr_1[i] *
-                          (T_sup[t] + (PHI_ia[i] + heating_power_10[i]) / self.Hve[i])) / (Htr_ms[i] + self.Htr_w[i] + Htr_1[i])
+            # Euq. C.10 for 10 W/m^2 heating
+            T_s_10 = (Htr_ms * T_m_10 + PHI_st + self.Htr_w * T_outside[t] + Htr_1 *
+                      (T_sup[t] + (PHI_ia + heating_power_10) / self.Hve)) / (Htr_ms + self.Htr_w + Htr_1)
 
-                # Euq. C.10 for 10 W/m^2 cooling
-                T_s_10_c = (Htr_ms[i] * T_m_10_c + PHI_st + self.Htr_w[i] * T_outside[t] + Htr_1[i] *
-                            (T_sup[t] + (PHI_ia[i] - heating_power_10[i]) / self.Hve[i])) / (Htr_ms[i] + self.Htr_w[i] + Htr_1[i])
+            # Euq. C.10 for 10 W/m^2 cooling
+            T_s_10_c = (Htr_ms * T_m_10_c + PHI_st + self.Htr_w * T_outside[t] + Htr_1 *
+                        (T_sup[t] + (PHI_ia - heating_power_10) / self.Hve)) / (Htr_ms + self.Htr_w + Htr_1)
 
-                # Equ. C.11
-                T_air_0 = (Htr_is[i] * T_s_0 + self.Hve[i] * T_sup[t] + PHI_ia[i] + 0) / \
-                          (Htr_is[i] + self.Hve[i])
+            # Equ. C.11
+            T_air_0 = (Htr_is * T_s_0 + self.Hve * T_sup[t] + PHI_ia + 0) / \
+                      (Htr_is + self.Hve)
 
-                # Equ. C.11 for 10 W/m^2 heating
-                T_air_10 = (Htr_is[i] * T_s_10 + self.Hve[i] * T_sup[t] + PHI_ia[i] + heating_power_10[i]) / \
-                           (Htr_is[i] + self.Hve[i])
+            # Equ. C.11 for 10 W/m^2 heating
+            T_air_10 = (Htr_is * T_s_10 + self.Hve * T_sup[t] + PHI_ia + heating_power_10) / \
+                       (Htr_is + self.Hve)
 
-                # Equ. C.11 for 10 W/m^2 cooling
-                T_air_10_c = (Htr_is[i] * T_s_10_c + self.Hve[i] * T_sup[t] + PHI_ia[i] - heating_power_10[i]) / \
-                             (Htr_is[i] + self.Hve[i])
+            # Equ. C.11 for 10 W/m^2 cooling
+            T_air_10_c = (Htr_is * T_s_10_c + self.Hve * T_sup[t] + PHI_ia - heating_power_10) / \
+                         (Htr_is + self.Hve)
 
+            for i in range(len(self.Hve)):
                 # Check if air temperature without heating is in between boundaries and calculate actual HC power:
-                if T_air_0 >= T_air_min and T_air_0 <= T_air_max:
+                if T_air_0[i] >= T_air_min and T_air_0[i] <= T_air_max:
                     Q_Heating_noDR[t, i] = 0
-                elif T_air_0 < T_air_min:  # heating is required
-                    Q_Heating_noDR[t, i] = heating_power_10[i] * (T_air_min - T_air_0) / (T_air_10 - T_air_0)
-                elif T_air_0 > T_air_max:  # cooling is required
-                    Q_Cooling_noDR[t, i] = heating_power_10[i] * (T_air_max - T_air_0) / (T_air_10_c - T_air_0)
+                elif T_air_0[i] < T_air_min:  # heating is required
+                    Q_Heating_noDR[t, i] = heating_power_10[i] * (T_air_min - T_air_0[i]) / (T_air_10[i] - T_air_0[i])
+                elif T_air_0[i] > T_air_max:  # cooling is required
+                    Q_Cooling_noDR[t, i] = heating_power_10[i] * (T_air_max - T_air_0[i]) / (T_air_10_c[i] - T_air_0[i])
 
-                # now calculate the actual temperature of thermal mass Tm_t with Q_HC_real:
-                # Equ. C.5 with actual heating power
-                PHI_mtot_real = PHI_m + Htr_em[i] * T_outside[t] + Htr_3[i] * (
-                        PHI_st + self.Htr_w[i] * T_outside[t] + Htr_1[i] * (
-                        ((PHI_ia[i] + Q_Heating_noDR[t, i] - Q_Cooling_noDR[t, i]) / self.Hve[i]) + T_sup[t])) / Htr_2[i]
-                # Equ. C.4
-                Tm_t[t, i] = (Tm_t_prev * (Cm[i] / 3600 - 0.5 * (Htr_3[i] + Htr_em[i])) + PHI_mtot_real) / \
-                             (Cm[i] / 3600 + 0.5 * (Htr_3[i] + Htr_em[i]))
+            # now calculate the actual temperature of thermal mass Tm_t with Q_HC_real:
+            # Equ. C.5 with actual heating power
+            PHI_mtot_real = PHI_m + Htr_em * T_outside[t] + Htr_3 * (
+                    PHI_st + self.Htr_w * T_outside[t] + Htr_1 * (
+                    ((PHI_ia + Q_Heating_noDR[t, :] - Q_Cooling_noDR[t, :]) / self.Hve) + T_sup[t])) / Htr_2
+            # Equ. C.4
+            Tm_t[t, :] = (Tm_t_prev * (Cm / 3600 - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot_real) / \
+                         (Cm / 3600 + 0.5 * (Htr_3 + Htr_em))
 
-                # Equ. C.9
-                T_m_real = (Tm_t[t, i] + Tm_t_prev) / 2
+            # Equ. C.9
+            T_m_real = (Tm_t[t, :] + Tm_t_prev) / 2
 
-                # Euq. C.10
-                T_s_real = (Htr_ms[i] * T_m_real + PHI_st + self.Htr_w[i] * T_outside[t] + Htr_1[i] *
-                            (T_sup[t] + (PHI_ia[i] + Q_Heating_noDR[t, i] - Q_Cooling_noDR[t, i]) / self.Hve[i])) / \
-                           (Htr_ms[i] + self.Htr_w[i] + Htr_1[i])
+            # Euq. C.10
+            T_s_real = (Htr_ms * T_m_real + PHI_st + self.Htr_w * T_outside[t] + Htr_1 *
+                        (T_sup[t] + (PHI_ia + Q_Heating_noDR[t, :] - Q_Cooling_noDR[t, :]) / self.Hve)) / \
+                       (Htr_ms + self.Htr_w + Htr_1)
 
-                # Equ. C.11 for 10 W/m^2 heating
-                T_Room_noDR[t, i] = (Htr_is[i] * T_s_real + self.Hve[i] * T_sup[t] + PHI_ia[i] +
-                                     Q_Heating_noDR[t, i] - Q_Cooling_noDR[t, i]) / (Htr_is[i] + self.Hve[i])
+            # Equ. C.11 for 10 W/m^2 heating
+            T_Room_noDR[t, :] = (Htr_is * T_s_real + self.Hve * T_sup[t] + PHI_ia +
+                                 Q_Heating_noDR[t, :] - Q_Cooling_noDR[t, :]) / (Htr_is + self.Hve)
 
         # fill nan
         Q_Cooling_noDR = np.nan_to_num(Q_Cooling_noDR, nan=0)
