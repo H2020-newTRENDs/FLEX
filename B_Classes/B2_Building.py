@@ -40,39 +40,39 @@ class Building:
         self.Am_factor = para_series['Am_factor']
         self.country_ID = para_series['country_ID']
 
-
-        # self.ID_Household = DB().read_DataFrame(REG().Gen_OBJ_ID_Household, self.Conn)
-        # self.ID = self.ID_Household['ID']
-        # self.index = self.index['index']
-        # self.name = self.ID_Household['name']
-        # self.building_categories_index = self.ID_Household['building_categories_index']
-        # self.number_of_dwellings_per_building = self.ID_Household['number_of_dwellings_per_building']
-        # self.areawindows = self.ID_Household['areawindows']
-        # self.area_suitable_solar = self.ID_Household['area_suitable_solar']
-        # self.ued_dhw = self.ID_Household['ued_dhw']
-        # self.AreaWindowEastWest = self.ID_Household['average_effective_area_wind_west_east_red_cool'].to_numpy()
-        # self.AreaWindowSouth = self.ID_Household['average_effective_area_wind_south_red_cool'].to_numpy()
-        # self.AreaWindowNorth = self.ID_Household['average_effective_area_wind_north_red_cool'].to_numpy()
-        # self.InternalGains = self.ID_Household['spec_int_gains_cool_watt'].to_numpy()
-        # self.building_categories_index = self.ID_Household['building_categories_index']
-        # self.Af = self.ID_Household['Af'].to_numpy()
-        # self.Hop = self.ID_Household['Hop'].to_numpy()
-        # self.Htr_w = self.ID_Household['Htr_w'].to_numpy()
-        # self.Hve = self.ID_Household['Hve'].to_numpy()
-        # self.CM_factor = self.ID_Household['CM_factor'].to_numpy()
-        # self.Am_factor = self.ID_Household['Am_factor'].to_numpy()
-        # self.country_ID = self.ID_Household['country_ID'].to_numpy()
+        def calc_IndoorTemperature(self, Energy_TankToRoom_t, OutdoorTemperature_t):
+            """
+            :param Energy_TankToRoom_t: float
+            :param OutdoorTemperature_t: float
+            :return: IndoorTemperature_tp1: float
+            """
 
 
-    def calc_IndoorTemperature(self, Energy_TankToRoom_t, OutdoorTemperature_t):
+class HeatingCooling_noDR:
 
-        """
-        :param Energy_TankToRoom_t: float
-        :param OutdoorTemperature_t: float
-        :return: IndoorTemperature_tp1: float
-        """
+    def __init__(self, ID_BuildingOption_dataframe):
+        self.index = self.index['index']
+        self.name = self.ID_Household['name']
+        self.building_categories_index = self.ID_Household['building_categories_index']
+        self.number_of_dwellings_per_building = self.ID_Household['number_of_dwellings_per_building']
+        self.areawindows = self.ID_Household['areawindows']
+        self.area_suitable_solar = self.ID_Household['area_suitable_solar']
+        self.ued_dhw = self.ID_Household['ued_dhw']
+        self.AreaWindowEastWest = self.ID_Household['average_effective_area_wind_west_east_red_cool'].to_numpy()
+        self.AreaWindowSouth = self.ID_Household['average_effective_area_wind_south_red_cool'].to_numpy()
+        self.AreaWindowNorth = self.ID_Household['average_effective_area_wind_north_red_cool'].to_numpy()
+        self.InternalGains = self.ID_Household['spec_int_gains_cool_watt'].to_numpy()
+        self.building_categories_index = self.ID_Household['building_categories_index']
+        self.Af = self.ID_Household['Af'].to_numpy()
+        self.Hop = self.ID_Household['Hop'].to_numpy()
+        self.Htr_w = self.ID_Household['Htr_w'].to_numpy()
+        self.Hve = self.ID_Household['Hve'].to_numpy()
+        self.CM_factor = self.ID_Household['CM_factor'].to_numpy()
+        self.Am_factor = self.ID_Household['Am_factor'].to_numpy()
+        self.country_ID = self.ID_Household['country_ID'].to_numpy()
 
-    def rc_heating_cooling(self, Q_solar, T_outside,
+
+    def ref_HeatingCooling(self, T_outside, Q_solar=None,
                            initial_thermal_mass_temp=15, T_air_min=20, T_air_max=28):
         """
         This function calculates the heating and cooling demand as well as the indoor temperature for every building
