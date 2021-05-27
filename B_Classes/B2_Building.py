@@ -7,31 +7,61 @@ from pathlib import Path
 
 class Building:
 
-    def __init__(self):
+    def __init__(self, para_series):
         # self.ID_BuildingType = para_series["ID_BuildingType"]
         # self.ID_BuildingAgeClass = para_series["ID_BuildingAgeClass"]
         # self.FloorArea = para_series["FloorArea"]
-        self.ID_Household = DB().read_DataFrame(REG().Gen_OBJ_ID_Household, self.Conn)
-        self.ID = self.ID_Household['ID']
-        self.index = self.index['index']
-        self.name = self.ID_Household['name']
-        self.building_categories_index = self.ID_Household['building_categories_index']
-        self.number_of_dwellings_per_building = self.ID_Household['number_of_dwellings_per_building']
-        self.areawindows = self.ID_Household['areawindows']
-        self.area_suitable_solar = self.ID_Household['area_suitable_solar']
-        self.ued_dhw = self.ID_Household['ued_dhw']
-        self.AreaWindowEastWest = self.ID_Household['average_effective_area_wind_west_east_red_cool'].to_numpy()
-        self.AreaWindowSouth = self.ID_Household['average_effective_area_wind_south_red_cool'].to_numpy()
-        self.AreaWindowNorth = self.ID_Household['average_effective_area_wind_north_red_cool'].to_numpy()
-        self.InternalGains = self.ID_Household['spec_int_gains_cool_watt'].to_numpy()
-        self.building_categories_index = self.ID_Household['building_categories_index']
-        self.Af = self.ID_Household['Af'].to_numpy()
-        self.Hop = self.ID_Household['Hop'].to_numpy()
-        self.Htr_w = self.ID_Household['Htr_w'].to_numpy()
-        self.Hve = self.ID_Household['Hve'].to_numpy()
-        self.CM_factor = self.ID_Household['CM_factor'].to_numpy()
-        self.Am_factor = self.ID_Household['Am_factor'].to_numpy()
-        self.country_ID = self.ID_Household['country_ID'].to_numpy()
+
+        self.ID = para_series['ID']
+        self.f1 = para_series['f1']
+        self.index = para_series['index']
+        self.name = para_series['name']
+        self.construction_period_start = para_series['construction_period_start']
+        self.construction_period_end = para_series['construction_period_end']
+        self.building_categories_index = para_series['building_categories_index']
+        self.number_of_dwellings_per_building = para_series['number_of_dwellings_per_building']
+        self.horizontal_shading_building = para_series['horizontal_shading_building']  #
+        self.areawindows = para_series['areawindows']
+        self.area_suitable_solar = para_series['area_suitable_solar']
+        self.ued_dhw = para_series['ued_dhw']
+        self.average_effective_area_wind_west_east_red_cool \
+            = para_series['average_effective_area_wind_west_east_red_cool']
+        self.average_effective_area_wind_south_red_cool \
+            = para_series['average_effective_area_wind_south_red_cool']
+        self.average_effective_area_wind_north_red_cool \
+            = para_series['average_effective_area_wind_north_red_cool']
+        self.spec_int_gains_cool_watt = para_series['spec_int_gains_cool_watt']
+        self.building_categories_index = para_series['building_categories_index']
+        self.Af = para_series['Af']
+        self.Hop = para_series['Hop']
+        self.Htr_w = para_series['Htr_w']
+        self.Hve = para_series['Hve']
+        self.CM_factor = para_series['CM_factor']
+        self.Am_factor = para_series['Am_factor']
+        self.country_ID = para_series['country_ID']
+
+
+        # self.ID_Household = DB().read_DataFrame(REG().Gen_OBJ_ID_Household, self.Conn)
+        # self.ID = self.ID_Household['ID']
+        # self.index = self.index['index']
+        # self.name = self.ID_Household['name']
+        # self.building_categories_index = self.ID_Household['building_categories_index']
+        # self.number_of_dwellings_per_building = self.ID_Household['number_of_dwellings_per_building']
+        # self.areawindows = self.ID_Household['areawindows']
+        # self.area_suitable_solar = self.ID_Household['area_suitable_solar']
+        # self.ued_dhw = self.ID_Household['ued_dhw']
+        # self.AreaWindowEastWest = self.ID_Household['average_effective_area_wind_west_east_red_cool'].to_numpy()
+        # self.AreaWindowSouth = self.ID_Household['average_effective_area_wind_south_red_cool'].to_numpy()
+        # self.AreaWindowNorth = self.ID_Household['average_effective_area_wind_north_red_cool'].to_numpy()
+        # self.InternalGains = self.ID_Household['spec_int_gains_cool_watt'].to_numpy()
+        # self.building_categories_index = self.ID_Household['building_categories_index']
+        # self.Af = self.ID_Household['Af'].to_numpy()
+        # self.Hop = self.ID_Household['Hop'].to_numpy()
+        # self.Htr_w = self.ID_Household['Htr_w'].to_numpy()
+        # self.Hve = self.ID_Household['Hve'].to_numpy()
+        # self.CM_factor = self.ID_Household['CM_factor'].to_numpy()
+        # self.Am_factor = self.ID_Household['Am_factor'].to_numpy()
+        # self.country_ID = self.ID_Household['country_ID'].to_numpy()
 
 
     def calc_IndoorTemperature(self, Energy_TankToRoom_t, OutdoorTemperature_t):
