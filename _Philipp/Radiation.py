@@ -89,12 +89,16 @@ if __name__ == "__main__":
     import pandas as pd
     import matplotlib.pyplot as plt
     # testing the skript
-    latitude = 48.193461
-    longitude = 16.352117
+    # vienna:
+    # latitude = 48.193461
+    # longitude = 16.352117
+    # würzburg:
+    latitude = 49.791183
+    longitude = 9.938962
     timearray = pd.date_range("01-01-2010 00:00:00", "01-01-2011 00:00:00", freq="H", closed="left",
                               tz=datetime.timezone.utc)
 
-    data = DB().read_DataFrame(REG().Sce_Weather_Radiation, conn=DB().create_Connection(CONS().RootDB), ID_Country=20)
+    data = DB().read_DataFrame(REG().Sce_Weather_Radiation, conn=DB().create_Connection(CONS().RootDB), ID_Country=5)
     E_dir = data.loc[:, "Radiation"].to_numpy()
 
     azimuth_sun, altitude_sun, E_nord, E_sued, E_ost, E_west, E_dir = calculate_angels_of_sun(latitude, longitude, timearray, E_dir)
@@ -106,7 +110,8 @@ if __name__ == "__main__":
     solar_power["RadiationSouth"] = E_sued
     solar_power["RadiationWest"] = E_west
     solar_power = solar_power.fillna(0)
-    solar_power.to_csv("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Prosumager\\_Philipp\\inputdata\\directRadiation_himmelsrichtung.csv", sep=";")
+    # solar_power.to_sql("Sce_Weather_Radiation", con=DB().create_Connection(CONS().RootDB), index=False, if_exists='append', chunksize=1000)
+    solar_power.to_csv("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Prosumager\\_Philipp\\inputdata\\directRadiation_himmelsrichtung_GER.csv", sep=";")
 
     plt_anfang = 0
     plt_ende = 8760
