@@ -64,31 +64,42 @@ class HeatingCooling_noDR:
         self.AreaWindowNorth = ID_BuildingOption_dataframe['average_effective_area_wind_north_red_cool'].to_numpy()
         self.InternalGains = ID_BuildingOption_dataframe['spec_int_gains_cool_watt'].to_numpy()
         self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
-        self.Af = ID_BuildingOption_dataframe['Af'].to_numpy()
         self.Hop = ID_BuildingOption_dataframe['Hop'].to_numpy()
         self.Htr_w = ID_BuildingOption_dataframe['Htr_w'].to_numpy()
         self.Hve = ID_BuildingOption_dataframe['Hve'].to_numpy()
         self.CM_factor = ID_BuildingOption_dataframe['CM_factor'].to_numpy()
         self.Am_factor = ID_BuildingOption_dataframe['Am_factor'].to_numpy()
-        self.country_ID = ID_BuildingOption_dataframe['country_ID'].to_numpy()
+        # self.country_ID = ID_BuildingOption_dataframe['country_ID'].to_numpy()
+        try:
+            self.Af = ID_BuildingOption_dataframe['Af'].to_numpy()
+        except:
+            self.Af = ID_BuildingOption_dataframe["areafloor"].to_numpy()
+
+
 
 
     def ref_HeatingCooling(self, T_outside, Q_solar=None,
-                           initial_thermal_mass_temp=18, T_air_min=20, T_air_max=28):
+                           initial_thermal_mass_temp=18, T_air_min=20, T_air_max=26):
         """
         This function calculates the heating and cooling demand as well as the indoor temperature for every building
         category based in the 5R1C model. The results are hourls vectors for one year. Q_solar is imported from a CSV
         at the time!
         """
+        if type(T_outside) is np.ndarray:
+            pass
+        else:
+            T_outside = T_outside.loc[:, "Temperature"]
 
-        T_outside = T_outside.loc[:, "Temperature"]
-
-        Q_sol_all = pd.read_csv(CONS().DatabasePath + "\\directRadiation_himmelsrichtung_GER.csv", sep=";")
-        Q_sol_north = np.outer(Q_sol_all.loc[:, "RadiationNorth"].to_numpy(), self.AreaWindowNorth)
-        Q_sol_south = np.outer(Q_sol_all.loc[:, "RadiationSouth"].to_numpy(), self.AreaWindowSouth)
-        Q_sol_east_west = np.outer((Q_sol_all.loc[:, "RadiationEast"].to_numpy() +
-                                    Q_sol_all.loc[:, "RadiationWest"].to_numpy()), self.AreaWindowEastWest)
-        Q_solar = Q_sol_north + Q_sol_south + Q_sol_east_west
+        if Q_solar is None:
+            Q_sol_all = pd.read_csv(CONS().DatabasePath + "\\directRadiation_himmelsrichtung_GER.csv", sep=";")
+            Q_sol_north = np.outer(Q_sol_all.loc[:, "RadiationNorth"].to_numpy(), self.AreaWindowNorth)
+            Q_sol_south = np.outer(Q_sol_all.loc[:, "RadiationSouth"].to_numpy(), self.AreaWindowSouth)
+            Q_sol_east_west = np.outer((Q_sol_all.loc[:, "RadiationEast"].to_numpy() +
+                                        Q_sol_all.loc[:, "RadiationWest"].to_numpy()), self.AreaWindowEastWest)
+            Q_solar = Q_sol_north + Q_sol_south + Q_sol_east_west
+            print("Q_solar is calculated from csv file")
+        else:
+            pass
         # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
         Atot = 4.5 * self.Af
         # Speicherkapazität J/K
