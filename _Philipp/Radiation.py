@@ -58,10 +58,10 @@ def calculate_angels_of_sun(latitude, longitude, timearray, E_dir_horizontal):
 
 
     # Direkt radiation:
-    E_dir_sued = E_dir_horizontal * cos_theta_sued #/ np.sin(np.deg2rad(altitude_sun))
-    E_dir_west = E_dir_horizontal * cos_theta_west #/ np.sin(np.deg2rad(altitude_sun))
-    E_dir_ost = E_dir_horizontal * cos_theta_ost #/ np.sin(np.deg2rad(altitude_sun))
-    E_dir_nord = E_dir_horizontal * cos_theta_nord #/ np.sin(np.deg2rad(altitude_sun))
+    E_dir_sued = np.nan_to_num(E_dir_horizontal * cos_theta_sued, nan=0) #/ np.sin(np.deg2rad(altitude_sun))
+    E_dir_west = np.nan_to_num(E_dir_horizontal * cos_theta_west, nan=0) #/ np.sin(np.deg2rad(altitude_sun))
+    E_dir_ost = np.nan_to_num(E_dir_horizontal * cos_theta_ost, nan=0) #/ np.sin(np.deg2rad(altitude_sun))
+    E_dir_nord = np.nan_to_num(E_dir_horizontal * cos_theta_nord, nan=0) #/ np.sin(np.deg2rad(altitude_sun))
 
     # diffuse Strahlung:
     E_diff_ost = E_dir_horizontal * (1 + np.cos(np.deg2rad(azimuth_ost))) / 2
@@ -95,6 +95,9 @@ if __name__ == "__main__":
     # würzburg:
     latitude = 49.791183
     longitude = 9.938962
+    # Frankfurt
+    # latitude = 50.11
+    # longitude = 8.680965
     timearray = pd.date_range("01-01-2010 00:00:00", "01-01-2011 00:00:00", freq="H", closed="left",
                               tz=datetime.timezone.utc)
 
