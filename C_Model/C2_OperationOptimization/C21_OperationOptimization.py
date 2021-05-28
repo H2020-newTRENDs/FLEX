@@ -237,12 +237,14 @@ class OperationOptimization:
         m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 60))
 
         # Variables PV and battery
-        m.BatteryFillLevel = pyo.Var(m.t, initialize= 1, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.Capacity))
-        m.BatCharge = pyo.Var(m.t, initialize= 0, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxChargePower))
-        m.BatDischarge = pyo.Var(m.t, initialize= 0, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxDischargePower))
+        m.StateOfCharge = pyo.Var(m.t, initialize=1, within=pyo.NonNegativeReals,
+                                  bounds=(0, Household.Battery.Capacity))
+        m.BatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxChargePower))
+        m.BatDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxDischargePower))
         m.GridCover = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 10.5))  # 380 V * 16 A * 1,73 = 10,5 kW
         m.PhotovoltaicFeedin = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 10.5))
         m.PhotovoltaicDirect = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 10.5))
+        m.SumOfLoads = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # objective
 
@@ -254,28 +256,45 @@ class OperationOptimization:
         m.OBJ = pyo.Objective(rule=minimize_cost)
 
         # Battery
-        def calc_BatteryFillLevel_rule(m, t):
+        def calc_StateOfCharge(m, t):
             if t == 1:
-                return m.BatteryFillLevel[t] == 1
+                return m.StateOfCharge[t] == 1
             else:
-                return m.BatteryFillLevel[t] == m.BatteryFillLevel[t - 1] \
+                return m.StateOfCharge[t] == m.StateOfCharge[t - 1] \
                        + m.BatCharge[t-1] * Household.Battery.ChargeEfficiency \
                        - m.BatDischarge[t-1] * (1 + (1 - Household.Battery.DischargeEfficiency)) \
-                       - (Household.Battery.Capacity * 0.02 / 30 / 24)                              # self discharge
+                    # - (Household.Battery.Capacity * 0.02 / 30 / 24)  # self discharge
                 # SelfDischarge into Database -> 2 % with Capacity
 
-        m.calc_BatteryFillLevel = pyo.Constraint(m.t, rule=calc_BatteryFillLevel_rule)
+        m.calc_BatteryFillLevel = pyo.Constraint(m.t, rule=calc_StateOfCharge)
 
-        # Photovoltaic
+        # def setToZero(m, t):
+        #     if t == 1:
+        #         return m.StateOfCharge[t] == m.StateOfCharge[t]
+        #     elif m.StateOfCharge[t-1] == 0.0:
+        #         return m.BatDischarge[t] == 0
+        #     else:
+        #         return m.BatDischarge[t] == m.BatDischarge[t]
+        # m.setToZero = pyo.Constraint(m.t, rule=setToZero)
+
+        # # Photovoltaic
         def calc_UseOfPhotovoltaic(m, t):
             return m.BatCharge[t] == m.PhotovoltaicProfile[t] - m.PhotovoltaicDirect[t] - m.PhotovoltaicFeedin[t]
 
         m.calc_UseOfPhotovoltaic_rule = pyo.Constraint(m.t, rule=calc_UseOfPhotovoltaic)
 
+        # Sum of the Loads
+        def calc_SumOfLoads(m, t):
+            return m.SumOfLoads[t] == m.LoadProfile[t] \
+                   + ((m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1_000) + (m.Q_RoomCooling[t] / 3 / 1_000)
+
+        m.calc_SumOfLoads = pyo.Constraint(m.t, rule=calc_SumOfLoads)
+
         # Electrical energy balance: supply and demand
         def calc_ElectricalEnergyBalance(m, t):
-            return m.BatDischarge[t] + m.GridCover[t] + m.PhotovoltaicDirect[t] == m.LoadProfile[t] \
-                   + ((m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1_000) + (m.Q_RoomCooling[t] / 3 / 1_000)  # W to kW
+
+            return m.SumOfLoads[t] + m.PhotovoltaicFeedin[t] + m.BatCharge[t] == m.GridCover[t] + m.BatDischarge[t] + \
+                   m.PhotovoltaicProfile[t]
 
         m.calc_ElectricalEnergyBalance = pyo.Constraint(m.t, rule=calc_ElectricalEnergyBalance)
 
@@ -366,8 +385,8 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     print('Test JAZ = ' + str(JAZ))
 
     # Visualization
-    starttime = 3025
-    endtime = 3035
+    starttime = 1
+    endtime = 8760
 
     # exogenous profiles
     ElectricityPrice = np.array(list(instance.ElectricityPrice.extract_values().values())[starttime: endtime])
@@ -376,7 +395,7 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     PhotovoltaicDirect = np.array(list(instance.PhotovoltaicDirect.extract_values().values())[starttime: endtime])
     PhotovoltaicFeedin = np.array(list(instance.PhotovoltaicFeedin.extract_values().values())[starttime: endtime])
 
-    LoadProfile = np.array(list(instance.LoadProfile.extract_values().values())[starttime: endtime])
+    SumOfLoads = np.array(list(instance.SumOfLoads.extract_values().values())[starttime: endtime])
 
     # tank and building
     Q_Solar = np.array(list(instance.Q_Solar.extract_values().values())[starttime: endtime]) / 1_000  # from W to kW
@@ -392,7 +411,7 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
 
     # battery, grid
     GridCover = np.array(list(instance.GridCover.extract_values().values())[starttime: endtime])
-    BatteryFillLevel = np.array(list(instance.BatteryFillLevel.extract_values().values())[starttime: endtime])
+    StateOfCharge = np.array(list(instance.StateOfCharge.extract_values().values())[starttime: endtime])
     BatDischarge = np.array(list(instance.BatDischarge.extract_values().values())[starttime: endtime])
     BatCharge = np.array(list(instance.BatCharge.extract_values().values())[starttime: endtime])
 
@@ -419,7 +438,6 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     ax1.legend(lines + lines2, labels + labels2, loc=0)
 
     ax3.plot(x_achse, T_room, label="TempRoom", color=colors["T_room"], linewidth=0.15)
-    # ax3.plot(x_achse, T_BuildingMass, label='TempMassBuild.', linewidth=0.15, color=colors["T_BuildingMass"])
     ax4.plot(x_achse, T_tank, label="TempTank", color=colors["T_tank"], linewidth=0.15)
 
     ax3.set_ylabel("Room temperature in °C", color='black')
@@ -430,65 +448,60 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     ax3.legend(lines + lines2, labels + labels2, loc=0)
 
     plt.grid()
-    ax1.set_title('Total thermal energy: ' + str(round(total_ThermalEnergy / 1000, 2)) + ' kWh')
+    ax1.set_title('Yearly heating energy: ' + str(round(total_ThermalEnergy / 1000, 2)) + ' kWh')
     plt.tight_layout()
+    fig.savefig('Room and building', dpi=600)
     plt.show()
 
-    # Plot (2) Battery Charge, Discharge
+    # Plot (2) SoC: Charge and Discharge
     fig, ax1 = plt.subplots()
 
-    ax1.plot(x_achse, BatteryFillLevel, linewidth=0.5, label='BatteryFillLevel', color=colors["BatteryFillLevel"])
-    ax1.plot(x_achse, BatCharge, linewidth=0.5, label='BatCharge', color='green')
-    ax1.plot(x_achse, BatDischarge, linewidth=0.5, label='BatDischarge', color='red')
-
-    # ax1.plot(x_achse,GridCover, linewidth=0.15, label='GridCover', color=colors["GridCover"])
-    # ax1.plot((x_achse, PhotovoltaicFeedin, linewidth=0.15, label='PhotovoltaicFeedin', color=colors["PhotovoltaicFeedin"])
-    # ax1.plot((x_achse, PhotovoltaicDirect, linewidth=0.4, label='PhotovoltaicDirect', linestyle=':', color=colors["PhotovoltaicDirect"])
-    ax1.plot(x_achse, PhotovoltaicProfile, linewidth=0.15, label='PhotovoltaicProfile',
-             color=colors["PhotovoltaicProfile"])
-
+    ax1.plot(x_achse, BatCharge, linewidth=0.5, label='BatCharge', color=colors["BatCharge"])
+    ax1.plot(x_achse, BatDischarge, linewidth=0.5, label='BatDischarge', color=colors["BatDischarge"])
     ax1.set_ylabel("Power kW")
 
     ax2 = ax1.twinx()
-    ax2.plot(x_achse, ElectricityPrice, linewidth=0.5, label='ElectricityPrice', color=colors["ElectricityPrice"],
-             linestyle=':')
-    ax2.set_ylabel("Price per kWh in Ct/€")
+    ax2.plot(x_achse, StateOfCharge, linewidth=3, label='SoC', color=colors["StateOfCharge"], alpha=0.2)
 
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines + lines2, labels + labels2, loc=0)
+    ax2.set_ylabel("SoC in kWh")
 
-    plt.grid()
-    plt.title('Costs: ' + str(round(total_cost, 2)) + ' €')
+    plt.title('SoC: Charge and Discharge')
     plt.tight_layout()
+    fig.savefig('Battery Charge Discharge', dpi=600)
     plt.show()
 
-    # Plot (3) Electricity balance
+    # Plot (3) Use of the PV Power
     fig, ax1 = plt.subplots()
 
-    ax1.plot(x_achse, BatteryFillLevel, linewidth=0.5, label='BatteryFillLevel', color=colors["BatteryFillLevel"])
-    ax1.plot(x_achse, GridCover, linewidth=0.15, label='GridCover', color=colors["GridCover"])
-    ax1.plot(x_achse, PhotovoltaicFeedin, linewidth=0.15, label='PhotovoltaicFeedin',
-             color=colors["PhotovoltaicFeedin"])
-    ax1.plot(x_achse, PhotovoltaicDirect, linewidth=0.4, label='PhotovoltaicDirect', linestyle=':',
-             color=colors["PhotovoltaicDirect"])
-    ax1.plot(x_achse, PhotovoltaicProfile, linewidth=0.15, label='PhotovoltaicProfile',
-             color=colors["PhotovoltaicProfile"])
+    ax1.plot(x_achse, BatCharge, linewidth=0.5, label='BatCharge', color=colors["BatCharge"])
+    ax1.plot(x_achse, PhotovoltaicFeedin, linewidth=0.5, label='PhotovoltaicFeedin', color=colors["PhotovoltaicFeedin"])
+    ax1.plot(x_achse, PhotovoltaicDirect, linewidth=0.5, label='PhotovoltaicDirect', color=colors["PhotovoltaicDirect"])
+    ax1.plot(x_achse, PhotovoltaicProfile, linewidth=3, label='PhotovoltaicProfile',
+             color=colors["PhotovoltaicProfile"], alpha=0.25)
 
     ax1.set_ylabel("Power kW")
-
-    ax2 = ax1.twinx()
-    ax2.plot(x_achse, ElectricityPrice, linewidth=0.5, label='ElectricityPrice', color=colors["ElectricityPrice"],
-             linestyle=':')
-    ax2.set_ylabel("Price per kWh in Ct/€")
-
-    lines, labels = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines + lines2, labels + labels2, loc=0)
-
-    plt.grid()
-    plt.title('in progress')
+    plt.legend()
+    plt.title('(3) Use of the PV Power')
     plt.tight_layout()
+    fig.savefig('Use of the PV Power', dpi=600)
+    plt.show()
+
+    # Plot (4) Supply of Loads
+    fig, ax1 = plt.subplots()
+
+    ax1.plot(x_achse, SumOfLoads, linewidth=3, label='SumOfLoads', color=colors["SumOfLoads"], alpha=0.1)
+    ax1.plot(x_achse, GridCover, linewidth=0.5, label='GridCover', color=colors["GridCover"])
+    ax1.plot(x_achse, BatDischarge, linewidth=0.5, label='BatDischarge', color=colors["BatDischarge"])
+    ax1.plot(x_achse, PhotovoltaicDirect, linewidth=0.5, label='PhotovoltaicDirect', color=colors["PhotovoltaicDirect"])
+
+    ax1.set_ylabel("Power kW")
+    plt.legend()
+    plt.title('(4) Supply of Loads)')
+    plt.tight_layout()
+    fig.savefig('Supply of Loads', dpi=600)
     plt.show()
 
 
@@ -525,7 +538,10 @@ if __name__ == "__main__":
               "Q_RoomHeating_noDR": red_pink,
               "Q_RoomCooling_noDR": turquoise,
               "GridCover": light_brown,
-              "BatteryFillLevel": black}
+              'BatCharge': orange,
+              'BatDischarge': red,
+              'SumOfLoads': black,
+              "StateOfCharge": black}
     A = OperationOptimization(DB().create_Connection(CONS().RootDB))
     instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, PhotovoltaicProfile = A.run()
     show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater,
