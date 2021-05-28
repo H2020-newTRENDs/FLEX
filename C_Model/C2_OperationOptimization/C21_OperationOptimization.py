@@ -548,6 +548,22 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     fig.savefig('Supply of Loads', dpi=600)
     plt.show()
 
+    # Plot (5) Loads
+    fig, ax1 = plt.subplots()
+
+    ax1.plot(x_achse, SumOfLoads, linewidth=1, label='SumOfLoads', color=colors["SumOfLoads"], alpha=0.5)
+    ax1.plot(x_achse, BatCharge, linewidth=0.5, label='BatCharge', color=colors["BatCharge"], alpha=0.5)
+    ax1.plot(x_achse, ElectricityDemandHeatPump, linewidth=0.3, label='ElectricityDemandHeatPump', color='orange', alpha=0.6)
+    ax1.plot(x_achse, ElectricityCooling, linewidth=0.5, label='ElectricityCooling', color='blue', alpha=0.6)
+    ax1.plot(x_achse, LoadProfile, linewidth=0.5, label='LoadProfile', color='green', alpha=0.6)
+
+    ax1.set_ylabel("Power kW")
+    plt.legend()
+    plt.title('(5) Electrical Loads')
+    plt.tight_layout()
+    fig.savefig('Electrical Loads', dpi=600)
+    plt.show()
+
 
 if __name__ == "__main__":
     # colorcode
