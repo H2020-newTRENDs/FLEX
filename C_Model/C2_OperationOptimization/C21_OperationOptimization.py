@@ -39,12 +39,12 @@ class OperationOptimization:
         self.ID_Household = DB().read_DataFrame(REG().Gen_OBJ_ID_Household, self.Conn)
         self.ID_Environment = DB().read_DataFrame(REG().Gen_Sce_ID_Environment, self.Conn)
 
-        # later stage: this is included in the scenario
         self.TimeStructure = DB().read_DataFrame(REG().Sce_ID_TimeStructure, self.Conn)
         self.Weather = DB().read_DataFrame(REG().Sce_Weather_Temperature_test, self.Conn)
         self.Radiation = DB().read_DataFrame(REG().Sce_Weather_Radiation, self.Conn)
         self.ElectricityPrice = DB().read_DataFrame(REG().Sce_Price_HourlyElectricityPrice, self.Conn)
         self.HeatPumpCOP = DB().read_DataFrame(REG().Sce_Technology_HeatPumpCOP, self.Conn)
+        self.FeedinTariff = DB().read_DataFrame(REG().Sce_Price_HourlyFeedinTariff, self.Conn)
 
         self.LoadProfile = DB().read_DataFrame(REG().Sce_Demand_BaseElectricityProfile, self.Conn)
         self.PhotovoltaicProfile = DB().read_DataFrame(REG().Sce_PhotovoltaicProfile, self.Conn)
@@ -71,8 +71,10 @@ class OperationOptimization:
     def run_Optimization(self, household_id, environment_id):
 
         Household = self.gen_Household(household_id)
+        print('TankSize: ')
         print(Household.SpaceHeating.TankSize)
         ID_Household = Household.ID
+        print('Household ID: ')
         print(ID_Household)
 
         Environment = self.gen_Environment(environment_id)
@@ -96,8 +98,10 @@ class OperationOptimization:
         PhotovoltaicProfile = PhotovoltaicProfileHH
 
         SumOfPV = round(sum(PhotovoltaicProfileHH), 2)
+        print('Sum of yearly PV; ')
         print(SumOfPV)
         SumOfLoad = round(sum(self.LoadProfile.BaseElectricityProfile), 2)
+        print('Sum of yearly ElectricityBaseLoad: ')
         print(SumOfLoad)
 
         # fixed starting values:
@@ -208,6 +212,8 @@ class OperationOptimization:
         m.t = pyo.RangeSet(1, HoursOfSimulation)
         # price
         m.ElectricityPrice = pyo.Param(m.t, initialize=create_dict(ElectricityPrice))
+        # m.FeedinTariff = pyo.Param(m.t, initialize=create_dict(FeedinTariff)) # only 1 constant value
+
         # solar gains:
         m.Q_Solar = pyo.Param(m.t, initialize=create_dict(Q_sol))
         # outside temperature
@@ -220,21 +226,21 @@ class OperationOptimization:
         m.PhotovoltaicProfile = pyo.Param(m.t, initialize=create_dict(PhotovoltaicProfile))
 
         # Variables SpaceHeating
-        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
+        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))  # max Power of Boiler; DB?
         m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * M_WaterTank * (273.15 + T_TankMin),
                                                                      CWater * M_WaterTank * (273.15 + T_TankMax)))
-
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
+
         # energy used for cooling
         m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 6_000))  # 6kW thermal, 2 kW electrical
-        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 24))
+        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 24))  # Change to TargetTemp
         m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 60))
 
         # Variables PV and battery
-        m.BatteryFillLevel = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 5))
-        m.BatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 4.5))
-        m.BatDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 4.5))
-        m.GridCover = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 10.5))  # 380 V * 16 A * 1,73
+        m.BatteryFillLevel = pyo.Var(m.t, initialize= 1, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.Capacity))
+        m.BatCharge = pyo.Var(m.t, initialize= 0, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxChargePower))
+        m.BatDischarge = pyo.Var(m.t, initialize= 0, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxDischargePower))
+        m.GridCover = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 10.5))  # 380 V * 16 A * 1,73 = 10,5 kW
         m.PhotovoltaicFeedin = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 10.5))
         m.PhotovoltaicDirect = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 10.5))
 
@@ -242,7 +248,7 @@ class OperationOptimization:
 
         # m.Q_TankHeating[t] / m.COP_dynamic[t] * m.p[t]
         def minimize_cost(m):
-            rule = sum(m.GridCover[t] * m.ElectricityPrice[t] - m.PhotovoltaicFeedin[t] * 0.08 for t in m.t)
+            rule = sum(m.GridCover[t] * m.ElectricityPrice[t] - m.PhotovoltaicFeedin[t] * 0.0792 for t in m.t)
             return rule
 
         m.OBJ = pyo.Objective(rule=minimize_cost)
@@ -252,9 +258,11 @@ class OperationOptimization:
             if t == 1:
                 return m.BatteryFillLevel[t] == 1
             else:
-                return m.BatteryFillLevel[t] == m.BatteryFillLevel[t - 1] * (1 - (0.02 / 30 / 24)) + m.BatCharge[
-                    t] * 0.95 - \
-                       m.BatDischarge[t] * 1.05
+                return m.BatteryFillLevel[t] == m.BatteryFillLevel[t - 1] \
+                       + m.BatCharge[t-1] * Household.Battery.ChargeEfficiency \
+                       - m.BatDischarge[t-1] * (1 + (1 - Household.Battery.DischargeEfficiency)) \
+                       - (Household.Battery.Capacity * 0.02 / 30 / 24)                              # self discharge
+                # SelfDischarge into Database -> 2 % with Capacity
 
         m.calc_BatteryFillLevel = pyo.Constraint(m.t, rule=calc_BatteryFillLevel_rule)
 
@@ -267,7 +275,7 @@ class OperationOptimization:
         # Electrical energy balance: supply and demand
         def calc_ElectricalEnergyBalance(m, t):
             return m.BatDischarge[t] + m.GridCover[t] + m.PhotovoltaicDirect[t] == m.LoadProfile[t] \
-                   + ((m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1_000) + (m.Q_RoomCooling[t] / 3 / 1_000)
+                   + ((m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1_000) + (m.Q_RoomCooling[t] / 3 / 1_000)  # W to kW
 
         m.calc_ElectricalEnergyBalance = pyo.Constraint(m.t, rule=calc_ElectricalEnergyBalance)
 
@@ -358,8 +366,8 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     print('Test JAZ = ' + str(JAZ))
 
     # Visualization
-    starttime = 3000
-    endtime = 3048
+    starttime = 3025
+    endtime = 3035
 
     # exogenous profiles
     ElectricityPrice = np.array(list(instance.ElectricityPrice.extract_values().values())[starttime: endtime])
