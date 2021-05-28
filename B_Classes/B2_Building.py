@@ -81,6 +81,7 @@ class HeatingCooling_noDR:
         at the time!
         """
 
+        T_outside = T_outside.loc[:, "Temperature"]
 
         Q_sol_all = pd.read_csv(CONS().DatabasePath + "\\directRadiation_himmelsrichtung_GER.csv", sep=";")
         Q_sol_north = np.outer(Q_sol_all.loc[:, "RadiationNorth"].to_numpy(), self.AreaWindowNorth)
