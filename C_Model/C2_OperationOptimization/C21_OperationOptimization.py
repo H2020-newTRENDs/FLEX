@@ -48,6 +48,7 @@ class OperationOptimization:
 
         self.LoadProfile = DB().read_DataFrame(REG().Sce_Demand_BaseElectricityProfile, self.Conn)
         self.PhotovoltaicProfile = DB().read_DataFrame(REG().Sce_PhotovoltaicProfile, self.Conn)
+        self.HotWaterProfile = DB().read_DataFrame(REG().Sce_Demand_HotWaterProfile, self.Conn)
         # you can import all the necessary tables into the memory here.
         # Then, it can be faster when we run the optimization problem for many "household - environment" combinations.
 
@@ -181,7 +182,7 @@ class OperationOptimization:
             ElectricityPrice = self.ElectricityPrice.loc[self.ElectricityPrice['ID_ElectricityPriceType'] == 2].loc[:,
                                'HourlyElectricityPrice'].to_numpy()
 
-        # Select COP Air(dynamic) or COP Water
+        # (2) Select COP Air or COP Water for Space Heating
         if Household.SpaceHeating.ID_SpaceHeatingBoilerType == 1:
             Tout = self.Weather.Temperature
             COP = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 1].loc[:,
@@ -205,6 +206,39 @@ class OperationOptimization:
             COP = COP * HoursOfSimulation
             ListOfDynamicCOP = COP
 
+        # (2) Select COP Air or COP Water for HotWater
+
+        if Household.SpaceHeating.ID_SpaceHeatingBoilerType == 1:
+            Tout = self.Weather.Temperature
+            COP = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 1].loc[:,
+                  'COP_HotWater'].to_numpy()
+            COPtemp = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 1].loc[:,
+                      'TemperatureEnvironment'].to_numpy()
+            COP_HotWater = []
+            j = 0
+
+            for i in range(0, len(list(Tout))):
+                for j in range(0, len(list(COPtemp))):
+                    if COPtemp[j] < Tout[i]:
+                        continue
+                    else:
+                        COP_HotWater.append(COP[j])
+                    break
+        elif Household.SpaceHeating.ID_SpaceHeatingBoilerType == 2:
+            COP = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 2].loc[:,
+                  'COP_HotWater'].to_numpy()
+            COP = list(COP)
+            COP = COP * HoursOfSimulation
+            COP_HotWater = COP
+
+        print(COP_HotWater)
+
+        # Hot Water Part 1
+        HotWaterProfile1 = self.HotWaterProfile.loc[self.HotWaterProfile['ID_HotWaterProfileType'] == 1].loc[:,
+                           'HotWaterPart1'].to_numpy()
+        HotWaterProfile2 = self.HotWaterProfile.loc[self.HotWaterProfile['ID_HotWaterProfileType'] == 1].loc[:,
+                           'HotWaterPart2'].to_numpy()
+
         # model for optimisation
         m = pyo.AbstractModel()
 
@@ -224,6 +258,10 @@ class OperationOptimization:
         m.LoadProfile = pyo.Param(m.t, initialize=create_dict(LoadProfile))
         # PV profile
         m.PhotovoltaicProfile = pyo.Param(m.t, initialize=create_dict(PhotovoltaicProfile))
+        # HotWater
+        m.HWPart1 = pyo.Param(m.t, initialize=create_dict(HotWaterProfile1))
+        m.HWPart2 = pyo.Param(m.t, initialize=create_dict(HotWaterProfile2))
+        m.COP_HotWater = pyo.Param(m.t, initialize=create_dict(COP_HotWater))
 
         # Variables SpaceHeating
         m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))  # max Power of Boiler; DB?
@@ -277,7 +315,10 @@ class OperationOptimization:
         # Sum of the Loads
         def calc_SumOfLoads(m, t):
             return m.SumOfLoads[t] == m.LoadProfile[t] \
-                   + ((m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1_000) + (m.Q_RoomCooling[t] / 3 / 1_000)
+                   + ((m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1_000) \
+                   + (m.Q_RoomCooling[t] / 3 / 1_000) \
+                   + (m.HWPart1[t] / m.COP_dynamic[t]) \
+                   + (m.HWPart2[t] / m.COP_HotWater[t])
 
         m.calc_SumOfLoads = pyo.Constraint(m.t, rule=calc_SumOfLoads)
 
@@ -365,7 +406,8 @@ class OperationOptimization:
 def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, colors):
 
     starttime = 6000
-    endtime = 6096
+    endtime = 6150
+
     # exogenous profiles
     ElectricityPrice = np.array(list(instance.ElectricityPrice.extract_values().values())[starttime: endtime])
     PhotovoltaicProfile = np.array(list(instance.PhotovoltaicProfile.extract_values().values())[starttime: endtime])
@@ -396,6 +438,14 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     PhotovoltaicDirect = np.array(list(instance.PhotovoltaicDirect.extract_values().values())[starttime: endtime])
     PhotovoltaicFeedin = np.array(list(instance.PhotovoltaicFeedin.extract_values().values())[starttime: endtime])
     SumOfLoads = np.array(list(instance.SumOfLoads.extract_values().values())[starttime: endtime])
+
+    # Hot water
+    HotWater1 = np.array(list(instance.HWPart1.extract_values().values())[starttime: endtime]) / \
+                np.array(list(instance.COP_dynamic.extract_values().values())[starttime: endtime])
+
+    HotWater2 = np.array(list(instance.HWPart2.extract_values().values())[starttime: endtime]) / \
+                np.array(list(instance.COP_HotWater.extract_values().values())[starttime: endtime])
+    HotWater = HotWater1 + HotWater2
 
     # yearly values
     total_cost = instance.OBJ()
@@ -446,11 +496,21 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     YearlyBaseLoad = np.sum(LoadProfile)
     print('Yearly base electricity demand (y) : ' + str(YearlyBaseLoad) + ' kWh')
 
+    YearlyHW1 = np.sum(HotWater1)
+    print('Yearly hot water part 1 electricity demand (y) : ' + str(YearlyHW1) + ' kWh')
+
+    YearlyHW2 = np.sum(HotWater2)
+    print('Yearly hot water part 2 electricity demand (y) : ' + str(YearlyHW2) + ' kWh')
+
+    YearlyHW = np.sum(HotWater)
+    print('Yearly hot water 1+2 electricity demand (y) : ' + str(YearlyHW) + ' kWh')
+
     SelfConsumption = round((YearlyUseOfPhotovoltaic + YearlyStoredEnergy) / YearlyPVGeneration, 2)
     SelfSufficiency = round((YearlyUseOfPhotovoltaic + YearlyStoredEnergy) / YearlyElectricityDemand, 2)
 
-    # Plot (1) Room and building
     x_achse = np.arange(starttime, endtime)
+
+    # Plot (1) Room and building
     fig, (ax1, ax3) = plt.subplots(2, 1)
     ax2 = ax1.twinx()
     ax4 = ax3.twinx()
@@ -483,106 +543,134 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
         '(1) + (2) Yearly heat generation: ' + str(round(YearlyHeatGeneration / 1000, 2)) + ' kWh ' + 'APF: ' + \
         str(JAZ))
     plt.tight_layout()
-    fig.savefig('Room and building', dpi=600)
+    fig.savefig('Room and building', dpi=300)
     plt.show()
 
-    # Plot (2) SoC: Charge and Discharge
-    fig, ax1 = plt.subplots()
-
-    ax1.plot(x_achse, BatCharge, linewidth=0.5, label='BatCharge', color=colors["BatCharge"], alpha=0.8)
-    ax1.plot(x_achse, BatDischarge, linewidth=0.5, label='BatDischarge', color=colors["BatDischarge"], alpha=0.8)
-    ax1.set_ylabel("Power kW")
-
-    ax2 = ax1.twinx()
-    ax2.plot(x_achse, StateOfCharge, linewidth=0.75, label='SoC', color=colors["StateOfCharge"], alpha=0.2)
-
-    lines, labels = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines + lines2, labels + labels2, loc=0)
-    ax2.set_ylabel("SoC in kWh")
-
-    plt.title('(2) SoC: Charge and Discharge')
-    plt.tight_layout()
-    fig.savefig('Battery Charge Discharge', dpi=600)
-    plt.show()
-
-    # Plot (3) Use of the PV Power
-    fig, ax1 = plt.subplots()
-
-    ax1.plot(x_achse, BatCharge, linewidth=0.5, label='BatCharge', color=colors["BatCharge"], alpha=0.6)
-    ax1.plot(x_achse, PhotovoltaicFeedin, linewidth=0.5, label='PhotovoltaicFeedin', color=colors["PhotovoltaicFeedin"],
-             alpha=0.6)
-    ax1.plot(x_achse, PhotovoltaicDirect, linewidth=0.5, label='PhotovoltaicDirect', color=colors["PhotovoltaicDirect"],
-             alpha=0.6)
-    ax1.plot(x_achse, PhotovoltaicProfile, linewidth=1.5, label='PhotovoltaicProfile',
-             color=colors["PhotovoltaicProfile"], alpha=0.3)
-
-    ax1.set_ylabel("Power kW")
-    plt.legend()
-    plt.title('(3) Use of the PV Power')
-    plt.tight_layout()
-    fig.savefig('Use of the PV Power', dpi=600)
-    plt.show()
-
-    # Plot (4) Supply of Loads
-    fig, ax1 = plt.subplots()
-
-    ax1.plot(x_achse, SumOfLoads, linewidth=0.5, label='SumOfLoads', color=colors["SumOfLoads"], alpha=0.2)
-    ax1.plot(x_achse, GridCover, linewidth=0.5, label='GridCover', color=colors["GridCover"], alpha=0.6)
-    ax1.plot(x_achse, BatDischarge, linewidth=0.5, label='BatDischarge', color=colors["BatDischarge"], alpha=0.6)
-    ax1.plot(x_achse, PhotovoltaicDirect, linewidth=0.5, label='PhotovoltaicDirect', color=colors["PhotovoltaicDirect"],
-             alpha=0.6)
-
-    ax1.set_ylabel("Power kW")
-    plt.legend()
-    plt.title('(4) Supply of Loads: ' + 'Self-consumption: ' + str(SelfConsumption) + ' Self-sufficiency: ' + str(
-        SelfSufficiency))
-    plt.tight_layout()
-    fig.savefig('Supply of Loads', dpi=600)
-    plt.show()
-
-    # Plot (5) Loads
-    fig, ax1 = plt.subplots()
-
-    ax1.plot(x_achse, SumOfLoads, linewidth=1, label='SumOfLoads', color=colors["SumOfLoads"], alpha=0.5)
-    ax1.plot(x_achse, BatCharge, linewidth=0.5, label='BatCharge', color=colors["BatCharge"], alpha=0.5)
-    ax1.plot(x_achse, ElectricityDemandHeatPump, linewidth=0.3, label='ElectricityDemandHeatPump', color='orange',
-             alpha=0.6)
-    ax1.plot(x_achse, ElectricityCooling, linewidth=0.5, label='ElectricityCooling', color='blue', alpha=0.6)
-    ax1.plot(x_achse, LoadProfile, linewidth=0.5, label='LoadProfile', color='green', alpha=0.6)
-
-    ax1.set_ylabel("Power kW")
-    plt.legend()
-    plt.title('(5) Electrical Loads')
-    plt.tight_layout()
-    fig.savefig('Electrical Loads', dpi=600)
-    plt.show()
+    # # Plot (2) SoC: Charge and Discharge
+    # fig, ax1 = plt.subplots()
+    #
+    # ax1.plot(x_achse, BatCharge, linewidth=0.5, label='BatCharge', color=colors["BatCharge"], alpha=0.8)
+    # ax1.plot(x_achse, BatDischarge, linewidth=0.5, label='BatDischarge', color=colors["BatDischarge"], alpha=0.8)
+    # ax1.set_ylabel("Power kW")
+    #
+    # ax2 = ax1.twinx()
+    # ax2.plot(x_achse, StateOfCharge, linewidth=0.75, label='SoC', color=colors["StateOfCharge"], alpha=0.2)
+    #
+    # lines, labels = ax1.get_legend_handles_labels()
+    # lines2, labels2 = ax2.get_legend_handles_labels()
+    # ax1.legend(lines + lines2, labels + labels2, loc = 'upper right')
+    # ax2.set_ylabel("SoC in kWh")
+    #
+    # plt.title('(2) SoC: Charge and Discharge')
+    # plt.tight_layout()
+    # fig.savefig('Battery Charge Discharge', dpi=300)
+    # plt.show()
+    #
+    # # Plot (3) Use of the PV Power
+    # fig, ax1 = plt.subplots()
+    #
+    # ax1.plot(x_achse, BatCharge, linewidth=0.5, label='BatCharge', color=colors["BatCharge"], alpha=0.6)
+    # ax1.plot(x_achse, PhotovoltaicFeedin, linewidth=0.5, label='PhotovoltaicFeedin', color=colors["PhotovoltaicFeedin"],
+    #          alpha=0.6)
+    # ax1.plot(x_achse, PhotovoltaicDirect, linewidth=0.5, label='PhotovoltaicDirect', color=colors["PhotovoltaicDirect"],
+    #          alpha=0.6)
+    # ax1.plot(x_achse, PhotovoltaicProfile, linewidth=1.5, label='PhotovoltaicProfile',
+    #          color=colors["PhotovoltaicProfile"], alpha=0.3)
+    #
+    # ax1.set_ylabel("Power kW")
+    # plt.legend(loc = 'upper right')
+    # plt.title('(3) Use of the PV Power')
+    # plt.tight_layout()
+    # fig.savefig('Use of the PV Power', dpi=300)
+    # plt.show()
+    #
+    # # Plot (4) Supply of Loads
+    # fig, ax1 = plt.subplots()
+    #
+    # ax1.plot(x_achse, SumOfLoads, linewidth=0.5, label='SumOfLoads', color=colors["SumOfLoads"], alpha=0.2)
+    # ax1.plot(x_achse, GridCover, linewidth=0.5, label='GridCover', color=colors["GridCover"], alpha=0.6)
+    # ax1.plot(x_achse, BatDischarge, linewidth=0.5, label='BatDischarge', color=colors["BatDischarge"], alpha=0.6)
+    # ax1.plot(x_achse, PhotovoltaicDirect, linewidth=0.5, label='PhotovoltaicDirect', color=colors["PhotovoltaicDirect"],
+    #          alpha=0.6)
+    #
+    # ax1.set_ylabel("Power kW")
+    # plt.legend(loc = 'upper right')
+    # plt.title('(4) Supply of Loads: ' + 'Self-consumption: ' + str(SelfConsumption) + ' Self-sufficiency: ' + str(
+    #     SelfSufficiency))
+    # plt.tight_layout()
+    # fig.savefig('Supply of Loads', dpi=300)
+    # plt.show()
+    #
+    # # Plot (5) Loads
+    # fig, ax1 = plt.subplots()
+    #
+    # ax1.plot(x_achse, SumOfLoads, linewidth=1, label='SumOfLoads', color=colors["SumOfLoads"], alpha=0.5)
+    # ax1.plot(x_achse, BatCharge, linewidth=0.5, label='BatCharge', color=colors["BatCharge"], alpha=0.5)
+    # ax1.plot(x_achse, ElectricityDemandHeatPump, linewidth=0.3, label='ElectricityDemandHeatPump', color='orange',
+    #          alpha=0.6)
+    # ax1.plot(x_achse, ElectricityCooling, linewidth=0.5, label='ElectricityCooling', color='blue', alpha=0.6)
+    # ax1.plot(x_achse, LoadProfile, linewidth=0.5, label='LoadProfile', color='green', alpha=0.6)
+    #
+    # ax1.set_ylabel("Power kW")
+    # plt.legend(loc = 'upper right')
+    # plt.title('(5) Electrical Loads')
+    # plt.tight_layout()
+    # fig.savefig('Electrical Loads', dpi=300)
+    # plt.show()
 
     # Plt (6) Test with bar diagramm
 
     plt.figure(figsize=(16, 9))
     plt.bar(x_achse, LoadProfile, color="red", label="LoadProfile")
-    plt.bar(x_achse, ElectricityCooling, color="blue", bottom=np.array(LoadProfile),
+
+    plt.bar(x_achse, HotWater, color="blue", bottom=np.array(LoadProfile), label="HotWater")
+
+    plt.bar(x_achse, ElectricityCooling, color="cyan", bottom=np.array(LoadProfile) + np.array(HotWater),
             label="ElectricityCooling")
     plt.bar(x_achse, ElectricityDemandHeatPump, color="grey",
-            bottom=np.array(LoadProfile) + np.array(ElectricityCooling), label="ElectricityDemandHeatPump")
+            bottom=np.array(LoadProfile) + np.array(HotWater) + np.array(ElectricityCooling),
+            label="ElectricityDemandHeatPump")
     plt.bar(x_achse, BatCharge, color="orange",
-            bottom=np.array(LoadProfile) + np.array(ElectricityDemandHeatPump) + np.array(ElectricityCooling),
+            bottom=np.array(LoadProfile) + np.array(HotWater) + np.array(ElectricityDemandHeatPump) + np.array(
+                ElectricityCooling),
             label="BatCharge")
     plt.bar(x_achse, PhotovoltaicFeedin, color="green",
-            bottom=np.array(LoadProfile) + np.array(ElectricityDemandHeatPump) + np.array(ElectricityCooling) + np.array(BatCharge),
+            bottom=np.array(LoadProfile) + np.array(HotWater) + np.array(ElectricityDemandHeatPump) + np.array(
+                ElectricityCooling) + np.array(BatCharge),
             label="PhotovoltaicFeedin")
 
-
     plt.plot(x_achse, PhotovoltaicProfile, linewidth=2, label='PhotovoltaicProfile',
-             color=colors["PhotovoltaicProfile"], alpha=0.30)
-    plt.legend()
+             color=colors["PhotovoltaicProfile"], alpha=0.50)
+    plt.plot(x_achse, GridCover, linewidth=1, label='GridCover',
+             color= 'black', alpha=0.50)
+    plt.plot(x_achse, BatDischarge, linewidth=1, label='BatDischarge',
+             color=colors["BatDischarge"], alpha=0.5)
+
+
+    plt.legend(loc = 'upper right')
     plt.ylabel('Power in kWh')
     plt.xlabel('Hour of year')
     plt.title('(6) Sum of Loads')
     plt.grid()
-    plt.savefig('Electrical Loads in bar diagramm', dpi=600)
+    plt.savefig('Electrical Loads in bar diagramm', dpi=300)
     plt.show()
+
+    # # hot water plot
+    #
+    # plt.figure(figsize=(16, 9))
+    # plt.bar(x_achse, HotWater1, color="blue", label="HotWater1")
+    # plt.bar(x_achse, HotWater2, color="green", bottom=np.array(HotWater1),
+    #         label="HotWater2")
+    #
+    # plt.plot(x_achse, HotWater, linewidth=2, label='HotWater',
+    #          color='red', alpha=0.30)
+    # plt.legend()
+    # plt.ylabel('Power in kWh')
+    # plt.xlabel('Hour of year')
+    # plt.title('(7) Hot Water Demand ')
+    # plt.grid()
+    # plt.savefig('HotWater', dpi=600)
+    # plt.show()
 
 
 if __name__ == "__main__":
