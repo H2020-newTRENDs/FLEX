@@ -69,10 +69,10 @@ class REG:
         self.Sce_Demand_WashingMachine = self.Scenario + "Demand_WashingMachine"
         self.Sce_Price_HourlyElectricityPrice = self.Scenario + "Price_HourlyElectricityPrice"
         self.Sce_Price_HourlyFeedinTariff = self.Scenario + "Price_HourlyFeedinTariff"
-        self.Sce_HotWaterProfile = self.Scenario + 'HotWaterProfile' # based on 1 person; part 2; hourly profile
+        self.Sce_Demand_HotWaterProfile = self.Scenario + 'Demand_HotWaterProfile'
         self.Sce_PhotovoltaicProfile = self.Scenario + 'PhotovoltaicProfile' # based on 1kWp; hourly profile
 
-        self.Sce_Weather_Temperature_test = self.Scenario + 'Weather_Temperature_test' # only a test with 24 values
+        self.Sce_Weather_Temperature_test = self.Scenario + 'Weather_Temperature_test'
 
 
         # Generated scenario tables
