@@ -125,11 +125,11 @@ class HeatingCooling_noDR:
         # Equ. C.1
         PHI_ia = 0.5 * Q_InternalGains
 
-        Tm_t = np.empty(shape=(len(timesteps), len(self.Hve)))
-        T_sup = np.empty(shape=(len(timesteps),))
-        Q_Heating_noDR = np.empty(shape=(len(timesteps), len(self.Hve)))
-        Q_Cooling_noDR = np.empty(shape=(len(timesteps), len(self.Hve)))
-        T_Room_noDR = np.empty(shape=(len(timesteps), len(self.Hve)))
+        Tm_t = np.zeros(shape=(len(timesteps), len(self.Hve)))
+        T_sup = np.zeros(shape=(len(timesteps),))
+        Q_Heating_noDR = np.zeros(shape=(len(timesteps), len(self.Hve)))
+        Q_Cooling_noDR = np.zeros(shape=(len(timesteps), len(self.Hve)))
+        T_Room_noDR = np.zeros(shape=(len(timesteps), len(self.Hve)))
         heating_power_10 = self.Af * 10
 
         for t in timesteps:  # t is the index for each timestep
@@ -158,7 +158,7 @@ class HeatingCooling_noDR:
                     ((PHI_ia - heating_power_10) / self.Hve) + T_sup[t])) / Htr_2
 
             if t == 0:
-                Tm_t_prev = initial_thermal_mass_temp
+                Tm_t_prev = np.array([initial_thermal_mass_temp] * len(self.Hve))
             else:
                 Tm_t_prev = Tm_t[t - 1, :]
 
