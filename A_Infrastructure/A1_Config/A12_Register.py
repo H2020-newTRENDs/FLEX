@@ -81,6 +81,8 @@ class REG:
         self.Gen_Sce_DryerUseDays = self.GeneratedData + self.Scenario + "DryerWorkingDays"
         self.Gen_Sce_WashingMachineUseDays = self.GeneratedData + self.Scenario + "WashingMachineWorkingDays"
 
+        # Gen_Sce_SolarRadiationDirections...
+
         # Result tables
         self.Res_MinimizedOperationCost = self.Result + "MinimizedOperationCost" #3: col: IDHH, col IDEnvi, col: cost
         self.Res_SystemOperation = self.Result + "SystemOperation" #4: col: IDHH, col IDEnvi, , col: IDHour, col: technologies

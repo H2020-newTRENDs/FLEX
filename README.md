@@ -65,9 +65,9 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 To calculate a reference "operation cost" for the overall system, we need to swithing off the optimization for all the aspects.
 
-> - Appliance: we have the property for this
-> - PV, Battery and EV: options with zero area or capacity, which also represents the "not adopted" situation
-> - Space heating and cooling: set extra constraint on the tank and room temperature and set it constant
+> 1. Appliance: we have the property for this
+> 2. PV, Battery and EV: options with zero area or capacity, which also represents the "not adopted" situation
+> 3. Space heating and cooling: set extra constraint on the tank and room temperature and set it constant
 
 Based on this reference point, we can add all the flexibility one by one and show the contribution to reduce the overall cost.
 
@@ -82,4 +82,6 @@ The hourly optimization of space heating requires a minimum power (boundary) of 
 #### 5.5 Database Solar radiation
 The solar radiation from different cilestial directions is calculated for germany only at the time being. 
 (with longitude and altitude = Würzburg) How can we integrate this into the SQLite database?
+
+- The temperature of each country is the average of all 10x10 km regions
 

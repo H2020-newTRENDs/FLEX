@@ -156,6 +156,8 @@ class OperationOptimization:
         Htr_2 = Htr_1 + Htr_w
         # Equ.C.8
         Htr_3 = 1 / (1 / Htr_2 + 1 / Htr_ms)
+
+        # Calculation of solar gains
         path2excel = CONS().DatabasePath
         # window areas in celestial directions
         Awindows_rad_east_west = Household.Building.average_effective_area_wind_west_east_red_cool
@@ -405,8 +407,8 @@ class OperationOptimization:
 # create plots to visualize results price
 def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, colors):
 
-    starttime = 6000
-    endtime = 6150
+    starttime = 7000
+    endtime = 7150
 
     # exogenous profiles
     ElectricityPrice = np.array(list(instance.ElectricityPrice.extract_values().values())[starttime: endtime])
