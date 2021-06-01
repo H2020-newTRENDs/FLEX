@@ -2,6 +2,7 @@ import pyomo.environ as pyo
 from pyomo.opt import SolverStatus, TerminationCondition
 from pyomo.util.infeasible import log_infeasible_constraints
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def create_dict(liste):
@@ -10,11 +11,15 @@ def create_dict(liste):
         dictionary[index] = value
     return dictionary
 
+# toDo:
+# Generate Input with 1 / 0 with Leave and come time from DB
+# Include stationary battery system in model
+# EV Demand calculation
 
-HoD = create_dict([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-                   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24])
 
-CarAtHome = create_dict([1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+
+
+CarAtHome = create_dict([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                          1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
 
 LoadProfile = create_dict([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -27,89 +32,83 @@ HoursOfSimulation = 48
 FiT = create_dict([0.08] * HoursOfSimulation)
 GridPrice = create_dict([0.30] * HoursOfSimulation)
 
-print(LoadProfile)
-print(PhotovoltaicProfile)
-print(FiT)
-print(GridPrice)
-
 m = pyo.AbstractModel()
 
 # Parameters
-m.t = pyo.RangeSet(1, HoursOfSimulation)
+m.t = pyo.RangeSet(HoursOfSimulation)
 m.LoadProfile = pyo.Param(m.t, initialize=LoadProfile)
 m.PhotovoltaicProfile = pyo.Param(m.t, initialize=PhotovoltaicProfile)
 m.FiT = pyo.Param(m.t, initialize=FiT)
 m.GridPrice = pyo.Param(m.t, initialize=GridPrice)
 m.CarAtHome = pyo.Param(m.t, initialize=CarAtHome)
-m.HoD = pyo.Param(m.t, initialize=HoD)
 
 # Variables
-m.StateOfCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 10))
-m.BatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 20))
-m.BatDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 20))
-m.GridCover = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 100))
-m.PhotovoltaicFeedin = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 100))
-m.PhotovoltaicDirect = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 100))
-m.SumOfLoads = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 100))
+# EV
+m.EVSoC = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 10))
+m.SolarEVCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11))
+m.GridEVCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11))
+m.EVBatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11))
+m.EVDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11))
+
+
+
+# Grid and PV
+m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11))
+m.GridDirect = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11))
+m.PhotovoltaicFeedin = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11))
+m.PhotovoltaicDirect = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11))
 
 
 # objective
 def minimize_cost(m):
-    rule = sum(m.GridCover[t] * m.GridPrice[t] - m.PhotovoltaicFeedin[t] * m.FiT[t] for t in m.t)
+    rule = sum(m.Grid[t] * m.GridPrice[t] - m.PhotovoltaicFeedin[t] * m.FiT[t] for t in m.t)
     return rule
-
 
 m.OBJ = pyo.Objective(rule=minimize_cost)
 
-
-# # Photovoltaic
-def calc_UseOfPhotovoltaic(m, t):
-    if m.CarAtHome[t] == 1:
-        return m.PhotovoltaicDirect[t] + m.BatCharge[t] + m.PhotovoltaicFeedin[t] == m.PhotovoltaicProfile[t]
-    if m.CarAtHome[t] == 0:
-        return m.PhotovoltaicDirect[t] + m.PhotovoltaicFeedin[t] == m.PhotovoltaicProfile[t]
-
-m.calc_UseOfPhotovoltaic_rule = pyo.Constraint(m.t, rule=calc_UseOfPhotovoltaic)
-
-
-# Electrical energy balance: supply and demand
+# (1) Energy balance of supply == demand
 def calc_ElectricalEnergyBalance(m, t):
-    if m.CarAtHome[t] == 1:
-        return m.PhotovoltaicFeedin[t] + m.BatCharge[t]  == m.GridCover[t] + m.BatDischarge[t] + \
-                m.PhotovoltaicProfile[t] - m.LoadProfile[t]
-    if m.CarAtHome[t] == 0:
-        return m.PhotovoltaicFeedin[t]  == m.GridCover[t] + m.PhotovoltaicProfile[t] - m.LoadProfile[t]
+    return m.Grid[t] + m.PhotovoltaicProfile[t] + m.EVDischarge[t] * CarAtHome[t]  == m.PhotovoltaicFeedin[t] + \
+           m.LoadProfile[t] + m.EVBatCharge[t] * CarAtHome[t]
 
 m.calc_ElectricalEnergyBalance = pyo.Constraint(m.t, rule=calc_ElectricalEnergyBalance)
 
+# (2) Use of Photovoltaic
+def calc_UseOfPhotovoltaic(m, t):
+    return m.SolarEVCharge[t] * CarAtHome[t] + m.PhotovoltaicFeedin[t] + m.PhotovoltaicDirect[t]  == \
+           m.PhotovoltaicProfile[t]
 
-def calc_SoC(m, t):
-    if m.CarAtHome[t] == 1:
-        if t == 1:
-            return m.StateOfCharge[t] == 0
-        elif t == 8:
-            return m.StateOfCharge[t] == 8
-        else:
-            return m.StateOfCharge[t] == m.StateOfCharge[t - 1] + m.BatCharge[t - 1] - m.BatDischarge[t - 1]
+m.calc_UseOfPhotovoltaic = pyo.Constraint(m.t, rule=calc_UseOfPhotovoltaic)
 
-    elif m.CarAtHome[t] == 0:
-        if t == 1:
-            return m.StateOfCharge[t] == 0
-        else:
-            return m.StateOfCharge[t] == m.StateOfCharge[t - 1] * 0.8
+# (3) Use of Grid
+def calc_UseOfGrid(m, t):
+    return m.Grid[t] == m.GridDirect[t] + m.GridEVCharge[t] * CarAtHome[t]
+
+m.calc_UseOfGrid = pyo.Constraint(m.t, rule=calc_UseOfGrid)
+
+# (4) Supply of Load
+def calc_SupplyOfLoads(m, t):
+    return m.EVDischarge[t] * CarAtHome[t] + m.PhotovoltaicDirect[t] + m.GridDirect[t] == m.LoadProfile[t]
+m.calc_SupplyOfLoads = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
+
+# (5) Charge of EVBattery
+def calc_EVBatteryCharge(m, t):
+    return m.EVBatCharge[t] == m.SolarEVCharge[t] * CarAtHome[t] + m.GridEVCharge[t] * CarAtHome[t]
+m.calc_EVBatteryCharge = pyo.Constraint(m.t, rule=calc_EVBatteryCharge)
+
+# (6) SoC of EVBattery
+def calc_EVSoC(m, t):
+    if t == 1:
+        return m.EVSoC[t] == 0
+    else:
+        return m.EVSoC[t] == m.EVSoC[t - 1] - 1 * (1 - CarAtHome[t]) \
+               + m.EVBatCharge[t - 1] * 0.95 * CarAtHome[t] - m.EVDischarge[t - 1] * 1.05 * \
+               CarAtHome[t]
+
+m.calc_EVSoC = pyo.Constraint(m.t, rule=calc_EVSoC)
 
 
-m.calc_SoC = pyo.Constraint(m.t, rule=calc_SoC)
 
-
-def ChargetoZero(m, t):
-    if m.CarAtHome[t] == 1:
-        return m.PhotovoltaicDirect[t] + m.BatCharge[t] + m.PhotovoltaicFeedin[t] == m.PhotovoltaicProfile[t]
-    elif m.CarAtHome[t] == 0:
-        return m.BatCharge[t] == 0
-
-
-m.ChargetoZero = pyo.Constraint(m.t, rule=ChargetoZero)
 
 instance = m.create_instance(report_timing=True)
 opt = pyo.SolverFactory("gurobi")
@@ -120,37 +119,46 @@ total_cost = instance.OBJ()
 
 print(total_cost)
 
-PhotovoltaicProfile = [PhotovoltaicProfile[i] for i in range(1, 48)]
-LoadProfile = [LoadProfile[i] for i in range(1, 48)]
-CarAtHome = [CarAtHome[i] for i in range(1, 48)]
+# Visualization
+PhotovoltaicProfile = np.array(list(instance.PhotovoltaicProfile.extract_values().values()))
+CarAtHome = np.array(list(instance.CarAtHome.extract_values().values()))
 
-StateOfCharge = [instance.StateOfCharge[t]() for t in m.t]
-BatCharge = [instance.BatCharge[t]() for t in m.t]
-BatDischarge = [instance.BatDischarge[t]() for t in m.t]
-GridCover = [instance.GridCover[t]() for t in m.t]
-PhotovoltaicDirect = [instance.PhotovoltaicDirect[t]() for t in m.t]
-StateOfCharge = [instance.StateOfCharge[t]() for t in m.t]
+#EVBatCharge = np.array(list(instance.EVBatCharge.extract_values().values()))
+EVBatCharge = np.nan_to_num(np.array(np.array([instance.EVBatCharge[t]() for t in m.t]), dtype=np.float), nan=0)
+EVBatDischarge = np.nan_to_num(np.array(np.array([instance.EVDischarge[t]() for t in m.t]), dtype=np.float), nan=0)
 
-plt.figure()
-plt.plot(BatCharge, color='green', label='BatCharge', linewidth=2, alpha=0.3)
-plt.plot(BatDischarge, color='red', label='BatDischarge', linewidth=1, alpha=0.3)
-plt.plot(StateOfCharge, color='black', label='SoC', linewidth=2, alpha=0.4, linestyle='dashed')
-plt.plot(CarAtHome, color='grey', label='ControlTime', linewidth=2, alpha=0.2)
-plt.plot(PhotovoltaicProfile, color='orange', label='PhotovoltaicProfile', alpha=0.2, linewidth=2)
+#EVBatDischarge = np.array(list(instance.EVDischarge.extract_values().values()))
 
-plt.title('PV')
-plt.legend()
+Grid = np.array(list(instance.Grid.extract_values().values()))
+EVSoC = np.array(list(instance.EVSoC.extract_values().values()))
 
-plt.show()
+#
 
-plt.figure()
-plt.plot(PhotovoltaicProfile, color='grey', label='PhotovoltaicProfile', linestyle='dashed')
-plt.plot(GridCover, color='red', label='GridCover', linestyle='dashed', linewidth=0.5)
-plt.plot(PhotovoltaicDirect, color='green', label='PhotovoltaicDirect', linewidth=0.5)
-plt.plot(BatDischarge, color='blue', label='BatDischarge', linewidth=0.5)
-plt.plot(LoadProfile, color='pink', label='LoadProfile', linewidth=0.5)
 
-plt.title('Check')
-plt.legend()
 
+
+x_achse = np.arange(48)
+fig, ax1 = plt.subplots()
+
+ax1.bar(x_achse, Grid, linewidth=1, label='Grid', color='black', alpha=0.2)
+ax1.bar(x_achse, EVBatCharge, bottom = Grid, linewidth=1, label='EVBatCharge', color='green', alpha=0.2)
+ax1.bar(x_achse, EVBatDischarge, bottom = Grid, linewidth=1, label='EVBatDischarge', color='red', alpha=0.2)
+ax1.plot(x_achse, EVSoC, linewidth=2, label='EVSoC', color= 'grey', alpha=0.3, linestyle = 'dotted')
+ax1.plot(x_achse, PhotovoltaicProfile, linewidth=3, label='PV', color= 'orange', alpha=0.1)
+
+
+
+
+ax1.set_ylabel("Power kW")
+
+ax2 = ax1.twinx()
+ax2.plot(x_achse, CarAtHome, linewidth=1, label='CarAtHome', color='blue', alpha=0.1)
+ax2.fill_between(x_achse, CarAtHome, alpha = 0.05)
+lines, labels = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax1.legend(lines + lines2, labels + labels2, loc='upper right')
+ax2.set_ylabel("Car At Home, 1 or 0")
+
+plt.title('Integration of EV')
+plt.tight_layout()
 plt.show()
