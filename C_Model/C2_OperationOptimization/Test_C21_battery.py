@@ -229,7 +229,7 @@ class OperationOptimization:
 
         # m.Q_TankHeating[t] / m.COP_dynamic[t] * m.p[t]
         def minimize_cost(m):
-            rule = sum(m.GridCover[t] * m.ElectricityPrice[t] - m.PhotovoltaicFeedin[t] * 0.08 for t in m.t)
+            rule = sum(m.GridDirect[t] * m.ElectricityPrice[t] - m.PhotovoltaicFeedin[t] * 0.08 for t in m.t)
             return rule
 
         m.OBJ = pyo.Objective(rule=minimize_cost)
@@ -239,17 +239,17 @@ class OperationOptimization:
             if t == 1:
                 return m.StorageFillLevel[t] == 1
             else:
-                return m.StorageFillLevel[t] == m.StorageFillLevel[t - 1] * 0.02/30/24 + m.BatCharge[t] - m.BatDischarge[t]
+                return m.StorageFillLevel[t] == m.StorageFillLevel[t - 1] * 0.02 / 30 / 24 + m.EVBatCharge[t] - m.EVDischarge[t]
 
         m.calc_StorageFillLevel = pyo.Constraint(m.t, rule=calc_StorageFillLevel)
 
         def calc_BatteryCharge(m, t):
-            return m.BatCharge[t] * 1.05 == m.PhotovoltaicProfile[t] - m.PhotovoltaicDirect[t] - m.PhotovoltaicFeedin[t]
+            return m.EVBatCharge[t] * 1.05 == m.PhotovoltaicProfile[t] - m.PhotovoltaicDirect[t] - m.PhotovoltaicFeedin[t]
 
         m.calc_BatteryCharge = pyo.Constraint(m.t, rule=calc_BatteryCharge)
 
         def calc_BatteryDischarge(m, t):
-            return m.BatDischarge[t] * 0.95 == m.LoadProfile[t] - m.GridCover[t] - m.PhotovoltaicDirect[t] + (
+            return m.EVDischarge[t] * 0.95 == m.LoadProfile[t] - m.GridDirect[t] - m.PhotovoltaicDirect[t] + (
                         (m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1000)
 
         m.calc_BatterDischarge = pyo.Constraint(m.t, rule=calc_BatteryDischarge)
@@ -355,14 +355,14 @@ def show_results(instance, ElectricityPrice, HoursOfSimulation, ListOfDynamicCOP
     T_tank = ((pd.Series(E_tank) / (M_WaterTank * CWater)) - 273.15)
 
     # battery, grid and PV
-    GridCover = np.array([instance.GridCover[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    GridCover = np.array([instance.GridDirect[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
     StorageFillLevel = np.array([instance.StorageFillLevel[t]() for t in range(1, HoursOfSimulation + 1)])[
                        starttime: endtime]
     PhotovoltaicFeedin = np.array([instance.PhotovoltaicFeedin[t]() for t in range(1, HoursOfSimulation + 1)])[
                          starttime: endtime]
     PhotovoltaicDirect = np.array([instance.PhotovoltaicDirect[t]() for t in range(1, HoursOfSimulation + 1)])[
                          starttime: endtime]
-    BatDischarge = np.array([instance.BatDischarge[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
+    BatDischarge = np.array([instance.EVDischarge[t]() for t in range(1, HoursOfSimulation + 1)])[starttime: endtime]
 
     # total values
     total_cost = instance.OBJ()

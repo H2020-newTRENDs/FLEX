@@ -510,41 +510,41 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
 
     x_achse = np.arange(starttime, endtime)
 
-    # Plot (1) Room and building
-    fig, (ax1, ax3) = plt.subplots(2, 1)
-    ax2 = ax1.twinx()
-    ax4 = ax3.twinx()
-    ax1.plot(x_achse, Q_TankHeating, label="Q_TankHeating", color=colors["Q_TankHeating"], linewidth=0.25, alpha=0.6)
-    ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color=colors["Q_RoomHeating"], linewidth=0.25, alpha=0.6)
-    ax1.plot(x_achse, Q_RoomCooling, label="Q_RoomCooling", color=colors["Q_RoomCooling"], linewidth=0.25, alpha=0.6)
-    ax1.plot(x_achse, Q_Solar, label="Q_Solar", color=colors["Q_Solar"], linewidth=0.5, alpha=0.6)
-    ax2.plot(x_achse, ElectricityPrice, color=colors["ElectricityPrice"], label="Price", linewidth=0.50, linestyle=':',
-             alpha=0.6)
-
-    ax1.set_ylabel("Energy kW")
-    ax2.set_ylabel("Price per kWh in Ct/€")
-
-    lines, labels = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines + lines2, labels + labels2, loc=0)
-
-    ax3.plot(x_achse, T_room, label="TempRoom", color=colors["T_room"], linewidth=0.15, alpha=0.8)
-    ax4.plot(x_achse, T_tank, label="TempTank", color=colors["T_tank"], linewidth=0.15, alpha=0.8)
-
-    ax3.set_ylabel("Room temperature in °C", color='black')
-    ax4.set_ylabel("Tank Temperature in °C", color='black')
-
-    lines, labels = ax3.get_legend_handles_labels()
-    lines2, labels2 = ax4.get_legend_handles_labels()
-    ax3.legend(lines + lines2, labels + labels2, loc=0)
-
-    plt.grid()
-    ax1.set_title(
-        '(1) + (2) Yearly heat generation: ' + str(round(YearlyHeatGeneration / 1000, 2)) + ' kWh ' + 'APF: ' + \
-        str(JAZ))
-    plt.tight_layout()
-    fig.savefig('Room and building', dpi=300)
-    plt.show()
+    # # Plot (1) Room and building
+    # fig, (ax1, ax3) = plt.subplots(2, 1)
+    # ax2 = ax1.twinx()
+    # ax4 = ax3.twinx()
+    # ax1.plot(x_achse, Q_TankHeating, label="Q_TankHeating", color=colors["Q_TankHeating"], linewidth=0.25, alpha=0.6)
+    # ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color=colors["Q_RoomHeating"], linewidth=0.25, alpha=0.6)
+    # ax1.plot(x_achse, Q_RoomCooling, label="Q_RoomCooling", color=colors["Q_RoomCooling"], linewidth=0.25, alpha=0.6)
+    # ax1.plot(x_achse, Q_Solar, label="Q_Solar", color=colors["Q_Solar"], linewidth=0.5, alpha=0.6)
+    # ax2.plot(x_achse, ElectricityPrice, color=colors["ElectricityPrice"], label="Price", linewidth=0.50, linestyle=':',
+    #          alpha=0.6)
+    #
+    # ax1.set_ylabel("Energy kW")
+    # ax2.set_ylabel("Price per kWh in Ct/€")
+    #
+    # lines, labels = ax1.get_legend_handles_labels()
+    # lines2, labels2 = ax2.get_legend_handles_labels()
+    # ax1.legend(lines + lines2, labels + labels2, loc=0)
+    #
+    # ax3.plot(x_achse, T_room, label="TempRoom", color=colors["T_room"], linewidth=0.15, alpha=0.8)
+    # ax4.plot(x_achse, T_tank, label="TempTank", color=colors["T_tank"], linewidth=0.15, alpha=0.8)
+    #
+    # ax3.set_ylabel("Room temperature in °C", color='black')
+    # ax4.set_ylabel("Tank Temperature in °C", color='black')
+    #
+    # lines, labels = ax3.get_legend_handles_labels()
+    # lines2, labels2 = ax4.get_legend_handles_labels()
+    # ax3.legend(lines + lines2, labels + labels2, loc=0)
+    #
+    # plt.grid()
+    # ax1.set_title(
+    #     '(1) + (2) Yearly heat generation: ' + str(round(YearlyHeatGeneration / 1000, 2)) + ' kWh ' + 'APF: ' + \
+    #     str(JAZ))
+    # plt.tight_layout()
+    # fig.savefig('Room and building', dpi=300)
+    # plt.show()
 
     # # Plot (2) SoC: Charge and Discharge
     # fig, ax1 = plt.subplots()
@@ -646,31 +646,55 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     plt.plot(x_achse, BatDischarge, linewidth=1, label='BatDischarge',
              color=colors["BatDischarge"], alpha=0.5)
 
-
-    plt.legend(loc = 'upper right')
+    plt.legend(loc='upper right')
     plt.ylabel('Power in kWh')
     plt.xlabel('Hour of year')
     plt.title('(6) Sum of Loads')
     plt.grid()
-    plt.savefig('Electrical Loads in bar diagramm', dpi=300)
+    plt.savefig('(6) Electrical Loads in bar diagramm', dpi=300)
     plt.show()
 
-    # # hot water plot
-    #
-    # plt.figure(figsize=(16, 9))
-    # plt.bar(x_achse, HotWater1, color="blue", label="HotWater1")
-    # plt.bar(x_achse, HotWater2, color="green", bottom=np.array(HotWater1),
-    #         label="HotWater2")
-    #
-    # plt.plot(x_achse, HotWater, linewidth=2, label='HotWater',
-    #          color='red', alpha=0.30)
-    # plt.legend()
-    # plt.ylabel('Power in kWh')
-    # plt.xlabel('Hour of year')
-    # plt.title('(7) Hot Water Demand ')
-    # plt.grid()
-    # plt.savefig('HotWater', dpi=600)
-    # plt.show()
+
+    # (7) Solar gains and cooling
+
+    fig, ax1 = plt.subplots()
+
+    ax1.plot(x_achse, Q_RoomHeating, linewidth=2, label='Q_RoomHeating', color=colors["Q_RoomHeating"], alpha=0.5)
+    ax1.plot(x_achse, Q_RoomCooling, linewidth=2, label='Q_RoomCooling', color=colors["Q_RoomCooling"], alpha=0.5)
+    ax1.plot(x_achse, Q_Solar, linewidth=2, label='Q_Solar',color=colors["Q_Solar"], alpha=0.1)
+    ax1.fill_between(x_achse, Q_Solar, color =colors["Q_Solar"] )
+    ax1.set_ylabel("Power kW")
+
+    ax2 = ax1.twinx()
+    ax2.plot(x_achse, T_room, linewidth=2.5, label='T_room', color='grey', alpha=0.5, linestyle = 'dotted')
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper right')
+    ax2.set_ylabel("Temperature in °C")
+
+
+    plt.legend(loc = 'upper right')
+    plt.title('Heating, cooling and solar gains')
+    plt.tight_layout()
+    fig.savefig(' (7) Heating, cooling and solar gains', dpi=300)
+    plt.show()
+
+    # (8) hot water plot
+
+    plt.figure(figsize=(16, 9))
+    plt.bar(x_achse, HotWater1, color="blue", label="HotWater1")
+    plt.bar(x_achse, HotWater2, color="green", bottom=np.array(HotWater1),
+            label="HotWater2")
+
+    plt.plot(x_achse, HotWater, linewidth=4, label='HotWater',
+             color='red', alpha=0.30)
+    plt.legend()
+    plt.ylabel('Power in kWh')
+    plt.xlabel('Hour of year')
+    plt.title('(8) Hot Water Demand ')
+    plt.grid()
+    plt.savefig('(8) HotWater', dpi=600)
+    plt.show()
 
 
 if __name__ == "__main__":
