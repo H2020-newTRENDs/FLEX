@@ -53,7 +53,7 @@ class REG:
         self.Sce_ID_TimeStructure = self.Scenario + self.ID + "TimeStructure" # base year: 2010
         #self.Sce_ID_LifestyleType = self.Scenario + self.ID + "LifestyleType"
         self.Sce_ID_TargetTemperature = self.Scenario + self.ID + "TargetTemperature"
-        self.Sce_ID_ElectricVehicleBehavior = self.Scenario + self.ID + "ElectricVehicleBehavior"
+
         self.Sce_ID_BaseElectricityProfileType = self.Scenario + self.ID + "BaseElectricityProfileType"
         self.Sce_ID_ElectricityPriceType = self.Scenario + self.ID + "ElectricityPriceType"
         self.Sce_ID_FeedinTariffType = self.Scenario + self.ID + "FeedinTariffType"
@@ -67,6 +67,7 @@ class REG:
         self.Sce_Demand_DishWasher = self.Scenario + "Demand_DishWasher"
         self.Sce_Demand_Dryer = self.Scenario + "Demand_Dryer"
         self.Sce_Demand_WashingMachine = self.Scenario + "Demand_WashingMachine"
+        self.Sce_Demand_ElectricVehicleBehavior = self.Scenario + "Demand_ElectricVehicleBehavior"
         self.Sce_Price_HourlyElectricityPrice = self.Scenario + "Price_HourlyElectricityPrice"
         self.Sce_Price_HourlyFeedinTariff = self.Scenario + "Price_HourlyFeedinTariff"
         self.Sce_Demand_HotWaterProfile = self.Scenario + 'Demand_HotWaterProfile'
@@ -80,6 +81,8 @@ class REG:
         self.Gen_Sce_DishWasherUseDays = self.GeneratedData + self.Scenario + "DishWasherWorkingDays"
         self.Gen_Sce_DryerUseDays = self.GeneratedData + self.Scenario + "DryerWorkingDays"
         self.Gen_Sce_WashingMachineUseDays = self.GeneratedData + self.Scenario + "WashingMachineWorkingDays"
+
+        self.Gen_Sce_CarAtHomeHours = self.GeneratedData + self.Scenario + 'CarAtHomeHours'
 
         # Gen_Sce_SolarRadiationDirections...
 

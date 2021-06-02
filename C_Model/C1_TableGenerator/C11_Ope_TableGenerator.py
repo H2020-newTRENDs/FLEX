@@ -207,7 +207,7 @@ class Ope_TableGenerator:
         self.Demand_DishWasher = DB().read_DataFrame(REG().Sce_Demand_DishWasher, self.Conn)
         Demand_DishWasher = self.Demand_DishWasher
         Cycle = Demand_DishWasher.DishWasherCycle
-        print(Cycle)
+        print('this is the cycle' + str(Cycle))
         Days = self.gen_Sce_ApplianceUseDays(Cycle)
         print(Days)
         TargetTable_list = []
@@ -287,6 +287,35 @@ class Ope_TableGenerator:
                                 ID += 1
         DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_ID_Environment, TargetTable_columns, self.Conn)
 
+    def gen_Sce_CarAtHomeHours(self):
+
+        self.Demand_ElectricVehicleBehavior = DB().read_DataFrame(REG().Sce_Demand_ElectricVehicleBehavior, self.Conn)
+        ElectricVehicleBehavior = self.Demand_ElectricVehicleBehavior
+        LeaveTime = int(ElectricVehicleBehavior.EVLeaveHomeClock)
+        ArriveTime = int(ElectricVehicleBehavior.EVArriveHomeClock)
+
+
+        list = []
+
+        for i in range(0, LeaveTime):
+            list.append(1)
+        for i in range(LeaveTime, ArriveTime):
+            list.append(0)
+        for i in range(ArriveTime, 24):
+            list.append((1))
+
+        Hours = list * 365
+
+        TargetTable_columns = ['ID_Hour', "CarAtHomeHours"]
+
+        TargetTable_list = []
+        for Hour in range(0, len(Hours)):
+            TargetTable_list.append([Hour + 1, Hours[Hour]])
+
+        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_CarAtHomeHours, TargetTable_columns, self.Conn)
+        pass
+
+
     def run(self):
         # self.gen_OBJ_ID_Building()
         # self.gen_OBJ_ID_ApplianceGroup()
@@ -303,6 +332,7 @@ class Ope_TableGenerator:
         # self.gen_Sce_Demand_WashingMachineUseDays()
 
         # self.gen_Sce_ID_Environment()
+        # self.gen_Sce_CarAtHomeHours()
 
         # +Radiation
         pass
