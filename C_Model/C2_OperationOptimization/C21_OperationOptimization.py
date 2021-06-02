@@ -407,8 +407,8 @@ class OperationOptimization:
 # create plots to visualize results price
 def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, colors):
 
-    starttime = 7000
-    endtime = 7150
+    starttime = 1
+    endtime = 8760
 
     # exogenous profiles
     ElectricityPrice = np.array(list(instance.ElectricityPrice.extract_values().values())[starttime: endtime])
