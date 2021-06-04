@@ -20,7 +20,7 @@ EVDischargeDriving = 5
 HoursOfSimulation = 96
 
 if EVCapacity == 0:
-    CarAtHome = create_dict([0] * HoursOfSimulation)
+    CarAtHome = create_dict([1] * HoursOfSimulation)
 else:
     CarAtHome = create_dict([1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -41,7 +41,7 @@ PhotovoltaicProfile = create_dict([0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 5, 5, 5, 
 
 FiT = create_dict([0.08] * HoursOfSimulation)
 GridPrice = create_dict([0.30] * HoursOfSimulation)
-V2G = create_dict([1] * HoursOfSimulation)          # from database?
+V2G = create_dict([0] * HoursOfSimulation)          # from database?
 
 
 
@@ -129,7 +129,7 @@ m.calc_SumOfFeedin = pyo.Constraint(m.t, rule=calc_SumOfFeedin)
 
 # (5)
 def calc_SupplyOfLoads(m, t):
-    return m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] + m.EV2Load[t] * m.V2G[t] * m.CarStatus[t] == m.Load[t]
+    return m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] + m.EV2Load[t] * m.V2B[t] * m.CarStatus[t] == m.Load[t]
 
 
 m.calc_SupplyOfLoads = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
@@ -162,7 +162,7 @@ def calc_BatCharge(m, t):
     if BatCapacity == 0:
         return m.BatCharge[t] == 0
     else:
-        return m.BatCharge[t] == m.PV2Bat[t] + m.EV2Bat[t] * m.V2G[t]
+        return m.BatCharge[t] == m.PV2Bat[t] + m.EV2Bat[t] * m.V2B[t]
 
 
 m.calc_BatCharge = pyo.Constraint(m.t, rule=calc_BatCharge)
@@ -199,12 +199,12 @@ def calc_EVDischarge(m, t):
         return m.EVDischarge[t] == 0
     elif EVCapacity == 0:
         return m.EVDischarge[t] == 0
-    elif m.CarStatus[t] == 0 and m.V2G[t] == 1:
+    elif m.CarStatus[t] == 0 and m.V2B[t] == 1:
         return m.EVDischarge[t] == 0
     elif m.t[t] == HoursOfSimulation:
         return m.EVDischarge[t] == 0
     else:
-        return m.EVDischarge[t] == m.EV2Load[t] * m.V2G[t] * m.CarStatus[t] + m.EV2Bat[t] * m.V2G[t] * m.CarStatus[t]
+        return m.EVDischarge[t] == m.EV2Load[t] * m.V2B[t] * m.CarStatus[t] + m.EV2Bat[t] * m.V2B[t] * m.CarStatus[t]
 
 
 m.calc_EVDischarge = pyo.Constraint(m.t, rule=calc_EVDischarge)
