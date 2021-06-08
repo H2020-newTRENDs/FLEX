@@ -85,3 +85,8 @@ The solar radiation from different cilestial directions is calculated for german
 
 - The temperature of each country is the average of all 10x10 km regions
 
+#### 5.6 V2B and Driving profiles 
+The bidirectional charge / discharge of the EV offers the possibility to use the EV as a battery. 
+
+- V2B: Discharge the EV to supply Loads or charge the EV
+- At the moment the car is every day from 7-17 away. Special profiles for saturday and sunday offers a potential for V2B
