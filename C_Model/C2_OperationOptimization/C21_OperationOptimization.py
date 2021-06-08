@@ -4,7 +4,10 @@ from pyomo.opt import SolverStatus, TerminationCondition
 import matplotlib.pyplot as plt
 import pandas as pd
 from pyomo.util.infeasible import log_infeasible_constraints
-import random
+
+import matplotlib.dates as mdates
+import datetime
+
 
 from A_Infrastructure.A1_Config.A12_Register import REG
 from A_Infrastructure.A2_ToolKits.A21_DB import DB
@@ -90,17 +93,19 @@ class OperationOptimization:
         #########################################################################################
         # EV
 
+        # BatteryCapacity = 0
         if Household.ElectricVehicle.BatterySize == 0:
             CarAtHome = create_dict([0] * HoursOfSimulation)
-            V2B = create_dict([0] * HoursOfSimulation)
+            V2B = create_dict([0] * HoursOfSimulation)      #V2B = Vehicle to building
 
+        # BatteryCapacity =/ 0
         else:
             CarAtHome = create_dict(self.CarAtHome.CarAtHomeHours.to_numpy())
 
             # Swichting the Vehicle to Grid 1 or 0
             V2B = create_dict([1] * HoursOfSimulation)
 
-        # Set car demand to zero, for testing saving
+        # Set car demand to zero, for testing saving, 1 or 0
         CarDemand = 1
 
         print('The EV Batterysize is: ' + str(Household.ElectricVehicle.BatterySize))
@@ -313,7 +318,7 @@ class OperationOptimization:
         m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 60))
 
         # EV
-        m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
+        m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21)) #380 * 32 * 1,72
         m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
         m.Grid2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
 
@@ -331,7 +336,6 @@ class OperationOptimization:
         m.BatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxChargePower))
         m.Bat2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxDischargePower))
         m.Bat2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxDischargePower))
-        # m.Bat2Grid...
 
         m.EVDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals,
                                 bounds=(0, Household.ElectricVehicle.BatteryMaxDischargePower))
@@ -342,8 +346,6 @@ class OperationOptimization:
         m.EV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals,
                            bounds=(0, Household.ElectricVehicle.BatteryMaxDischargePower))
         m.EVSoC = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.ElectricVehicle.BatterySize))
-
-        # m. EVtoGrid...
 
         # objective
 
@@ -571,8 +573,8 @@ class OperationOptimization:
 
 # create plots to visualize results price
 def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, colors):
-    starttime = 2000
-    endtime = 2096
+    starttime = 1000
+    endtime = 1100
 
     # exogenous profiles
     ElectricityPrice = np.array(list(instance.ElectricityPrice.extract_values().values())[starttime: endtime])
@@ -655,7 +657,15 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     PV2EV = np.nan_to_num(
         np.array(np.array(list(instance.PV2EV.extract_values().values())[starttime: endtime]), dtype=np.float), nan=0)
 
+
     x_achse = np.arange(starttime, endtime)
+
+    timearray = pd.date_range("01-01-2010 00:00:00", "01-01-2011 00:00:00", freq="H", closed="left",
+                              tz=datetime.timezone.utc)
+
+
+
+
 
     #  (1) EV ####################################################################################################
     fig, ax1 = plt.subplots()
@@ -775,6 +785,21 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     ax1.bar(x_achse, Bat2Load, bottom=PV2Load, label='Bat2Load', color='orange', alpha=0.5)
     ax1.bar(x_achse, Grid2Load, bottom=PV2Load + Bat2Load, label='Grid2Load', color='pink', alpha=0.5)
     ax1.bar(x_achse, EV2Load, bottom=PV2Load + Bat2Load + Grid2Load, label='EV2Load', color='brown', alpha=0.5)
+
+    # timearray = pd.date_range("01-01-2010 00:00:00", "01-01-2011 00:00:00", freq="H", closed="left",
+    #                           tz=datetime.timezone.utc)
+    #
+    # y = np.arange(100)
+    # plt.plot(timearray[1000:1100], y)
+    # ax1 = plt.gca()
+    # ax1.xaxis.set(
+    #     major_locator=mdates.DayLocator(),
+    #     major_formatter=mdates.DateFormatter("\n\n%b-%d"),
+    #     minor_locator=mdates.HourLocator((0, 12)),
+    #     minor_formatter=mdates.DateFormatter("%H"),)
+    #
+    # plt.tight_layout()
+    # plt.show()
 
     ax1.set_ylabel("Power in kW")
     lines, labels = ax1.get_legend_handles_labels()
