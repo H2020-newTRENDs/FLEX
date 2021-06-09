@@ -46,6 +46,9 @@ class OperationOptimization:
         self.WashingMachineHours = DB().read_DataFrame(REG().Gen_Sce_WashingMachineHours, self.Conn)
         self.Sce_Demand_WashingMachine = DB().read_DataFrame(REG().Sce_Demand_WashingMachine, self.Conn)
 
+        self.DryerHours = DB().read_DataFrame(REG().Gen_Sce_DryerHours, self.Conn)
+        self.Sce_Demand_Dryer = DB().read_DataFrame(REG().Sce_Demand_Dryer, self.Conn)
+
 
         # you can import all the necessary tables into the memory here.
         # Then, it can be faster when we run the optimization problem for many "household - environment" combinations.
@@ -100,7 +103,7 @@ class OperationOptimization:
         ########### new for Smart Technologies #####################################################
 
         # This is 1, only if there is no Dishwasher in the household, then 0
-        DishWasherAdoption = 0
+        DishWasherAdoption = 1
 
         DishWasherTheoreticalHours = (self.DishWasherHours.DishWasherHours.to_numpy()) * DishWasherAdoption
         HourOfDay = self.TimeStructure.ID_DayHour.to_numpy()
@@ -541,7 +544,7 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
                  PhotovoltaicProfile):
     # Visualization
     starttime = 3000
-    endtime = 3200
+    endtime = 3050
 
     # battery, grid and PV
 
