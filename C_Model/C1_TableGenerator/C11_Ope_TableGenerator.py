@@ -63,7 +63,7 @@ class Ope_TableGenerator:
         return None
 
     # to be developed
-    def gen_Sce_ApplianceUseDays(self, OnDays):
+    def gen_Sce_ApplianceUseHours(self, OnDays):
         # use the cycles of technology and generates a yearly table with 365 days with 1 and 0
 
         Year = 365
@@ -82,7 +82,19 @@ class Ope_TableGenerator:
                 UseDays.append(0)
                 rest = rest + add
                 i = i + 1
-        return UseDays  # returns list of UseDays with 365 values
+
+        TheorecitalOnHours = []
+        for day in UseDays:
+            if day == 1:
+                TheorecitalOnHours.extend(
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+
+            elif day == 0:
+                TheorecitalOnHours.extend(
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+
+
+        return TheorecitalOnHours  # returns list of UseDays with 365 values
 
     # -------------------------
     # 2 Generate the OBJ tables
@@ -202,55 +214,55 @@ class Ope_TableGenerator:
     # 3 Generate the scenario tables
     # ------------------------------
 
-    def gen_Sce_Demand_DishWasherUseDays(self):
+    def gen_Sce_Demand_DishWasherHours(self):
 
         self.Demand_DishWasher = DB().read_DataFrame(REG().Sce_Demand_DishWasher, self.Conn)
         Demand_DishWasher = self.Demand_DishWasher
         Cycle = Demand_DishWasher.DishWasherCycle
         print('this is the cycle' + str(Cycle))
-        Days = self.gen_Sce_ApplianceUseDays(Cycle)
-        print(Days)
+        hours = self.gen_Sce_ApplianceUseHours(Cycle)
+        print(hours)
         TargetTable_list = []
-        for day in range(0, len(Days)):
-            TargetTable_list.append([day + 1, Days[day]])
+        for hour in range(0, len(hours)):
+            TargetTable_list.append([hour + 1, hours[hour]])
 
-        TargetTable_columns = ["ID_Day", "DishwasherWorkingDays"]
-        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DishWasherUseDays, TargetTable_columns, self.Conn)
+        TargetTable_columns = ["ID_Hour", "DishWasherHours"]
+        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DishWasherHours, TargetTable_columns, self.Conn)
         pass
 
-    def gen_Sce_Demand_DryerUseDays(self):
+    def gen_Sce_Demand_DryerHours(self):
         Demand_Dryer = DB().read_DataFrame(REG().Sce_Demand_Dryer, self.Conn)
 
         self.Demand_WashingMachine = DB().read_DataFrame(REG().Sce_Demand_WashingMachine, self.Conn)
         Demand_WashingMachine = self.Demand_WashingMachine
         Cycle = Demand_WashingMachine.WashingMachineCycle  # cycle = WashingMachine, same time period used!
         print(Cycle)
-        Days = self.gen_Sce_ApplianceUseDays(Cycle)
-        print(Days)
+        hours = self.gen_Sce_ApplianceUseHours(Cycle)
+        print(hours)
 
         TargetTable_list = []
-        for day in range(0, len(Days)):
-            TargetTable_list.append([day + 1, Days[day]])
+        for hour in range(0, len(hours)):
+            TargetTable_list.append([hour + 1, hours[hour]])
 
-        TargetTable_columns = ["ID_Day", "DryerWorkingDays"]
-        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DryerUseDays, TargetTable_columns, self.Conn)
+        TargetTable_columns = ["ID_Hour", "DryerHours"]
+        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DryerHours, TargetTable_columns, self.Conn)
         pass
 
-    def gen_Sce_Demand_WashingMachineUseDays(self):
+    def gen_Sce_Demand_WashingMachineHours(self):
 
         self.Demand_WashingMachine = DB().read_DataFrame(REG().Sce_Demand_WashingMachine, self.Conn)
         Demand_WashingMachine = self.Demand_WashingMachine
         Cycle = Demand_WashingMachine.WashingMachineCycle
         print(Cycle)
-        Days = self.gen_Sce_ApplianceUseDays(Cycle)
-        print(Days)
+        hours = self.gen_Sce_ApplianceUseHours(Cycle)
+        print(hours)
 
         TargetTable_list = []
-        for day in range(0, len(Days)):
-            TargetTable_list.append([day + 1, Days[day]])
+        for hour in range(0, len(hours)):
+            TargetTable_list.append([hour + 1, hours[hour]])
 
-        TargetTable_columns = ['ID_Day', "WashingMachineWorkingDays"]
-        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_WashingMachineUseDays, TargetTable_columns, self.Conn)
+        TargetTable_columns = ['ID_Hour', "WashingMachineHours"]
+        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_WashingMachineHours, TargetTable_columns, self.Conn)
         pass
 
     def gen_Sce_ID_Environment(self):
@@ -327,9 +339,9 @@ class Ope_TableGenerator:
         # self.gen_OBJ_ID_ElectricVehicle()
         # self.gen_OBJ_ID_Household()
 
-        # self.gen_Sce_Demand_DishWasherUseDays()
-        # self.gen_Sce_Demand_DryerUseDays()
-        # self.gen_Sce_Demand_WashingMachineUseDays()
+        # self.gen_Sce_Demand_DishWasherHours()
+        self.gen_Sce_Demand_DryerHours()
+        # self.gen_Sce_Demand_WashingMachineHours()
 
         # self.gen_Sce_ID_Environment()
         # self.gen_Sce_CarAtHomeHours()
