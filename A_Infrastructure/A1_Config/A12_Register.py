@@ -78,9 +78,9 @@ class REG:
 
         # Generated scenario tables
         self.Gen_Sce_ID_Environment = self.GeneratedData + self.Scenario + self.ID + "Environment"
-        self.Gen_Sce_DishWasherUseDays = self.GeneratedData + self.Scenario + "DishWasherUseDays"
-        self.Gen_Sce_DryerUseDays = self.GeneratedData + self.Scenario + "DryerUseDays"
-        self.Gen_Sce_WashingMachineUseDays = self.GeneratedData + self.Scenario + "WashingMachineUseDays"
+        self.Gen_Sce_DishWasherHours = self.GeneratedData + self.Scenario + "DishWasherHours"
+        self.Gen_Sce_DryerHours = self.GeneratedData + self.Scenario + "DryerHours"
+        self.Gen_Sce_WashingMachineHours = self.GeneratedData + self.Scenario + "WashingMachineHours"
 
         self.Gen_Sce_CarAtHomeHours = self.GeneratedData + self.Scenario + 'CarAtHomeHours'
 

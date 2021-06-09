@@ -12,7 +12,6 @@ from B_Classes.B1_Household import Household
 from A_Infrastructure.A1_Config.A11_Constants import CONS
 
 
-
 class OperationOptimization:
     """
     Intro
@@ -41,8 +40,13 @@ class OperationOptimization:
         self.PhotovoltaicProfile = DB().read_DataFrame(REG().Sce_PhotovoltaicProfile, self.Conn)
 
         # new
-        self.DishWasherDays = DB().read_DataFrame(REG().Gen_Sce_DishWasherUseDays, self.Conn)
+        self.DishWasherHours = DB().read_DataFrame(REG().Gen_Sce_DishWasherHours, self.Conn)
         self.Sce_Demand_DishWasher = DB().read_DataFrame(REG().Sce_Demand_DishWasher, self.Conn)
+
+        self.WashingMachineHours = DB().read_DataFrame(REG().Gen_Sce_WashingMachineHours, self.Conn)
+        self.Sce_Demand_WashingMachine = DB().read_DataFrame(REG().Sce_Demand_WashingMachine, self.Conn)
+
+
         # you can import all the necessary tables into the memory here.
         # Then, it can be faster when we run the optimization problem for many "household - environment" combinations.
 
@@ -95,36 +99,57 @@ class OperationOptimization:
 
         ########### new for Smart Technologies #####################################################
 
-        DishWasherWorkingDays = self.DishWasherDays.DishwasherWorkingDays.to_numpy()
+        # This is 1, only if there is no Dishwasher in the household, then 0
+        DishWasherAdoption = 0
+
+        DishWasherTheoreticalHours = (self.DishWasherHours.DishWasherHours.to_numpy()) * DishWasherAdoption
         HourOfDay = self.TimeStructure.ID_DayHour.to_numpy()
-
-        # from theoretical ON days to ON hours
-
-        DishWasherTheorecitalHours = []
-        for day in DishWasherWorkingDays:
-            if day == 1:
-                DishWasherTheorecitalHours.extend(
-                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
-
-            elif day == 0:
-                DishWasherTheorecitalHours.extend(
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-
         DishWasherCycle = int(self.Sce_Demand_DishWasher.DishWasherCycle)
         DishWasherDuration = int(self.Sce_Demand_DishWasher.DishWasherDuration)
+
+        # This is for testing a lower duration, max = 3
         # DishWasherDuration= 1
+
         DishWasherPower = Household.ApplianceGroup.DishWasherPower
         DishWasherSmartStatus = Household.ApplianceGroup.DishWasherShifting
 
-        print('Smart:' +str(DishWasherSmartStatus))
+        # This is for setting a smart status manually, 0 or 1
+        DishWasherSmartStatus = 1
 
+
+        # -----------------------------------------------------------------------------
+
+        # This is 1, only if there is no Dishwasher in the household, then 0
+        WashingMachineAdoption = 1
+
+        WashingMachineTheoreticalHours = (self.WashingMachineHours.WashingMachineHours.to_numpy()) *WashingMachineAdoption
+        WashingMachineCycle = int(self.Sce_Demand_WashingMachine.WashingMachineCycle)
+        WashingMachineDuration = int(self.Sce_Demand_WashingMachine.WashingMachineDuration)
+
+        # This is for testing a lower duration, max = 3
+        # WashingMachineDuration= 3
+
+        WashingMachinePower = Household.ApplianceGroup.WashingMachinePower
+        WashingMachineSmartStatus = Household.ApplianceGroup.WashingMachineShifting
+
+        # This is for setting a smart status manually, 0 or 1
+        WashingMachineSmartStatus = 1
+
+        # -----------------------------------------------------------------------------
+        # This is 1, only if there is no Dishwasher in the household, then 0
+        DryerAdoption = 1
 
         # toDo:
-        # (0) Done: Last day of year? With or 8759 or 8760 ...
-        # (1) Smart ON / OFF: use fixed use time
-        # (2) Done: changing Demand Profiles with different duration hours: Between 1-3 Hours is in code
-        # (3) if valid: change UseDays to UseHours in databank
-        # (4) create Gen_Sce_Appliances... + extent Environment with DemandProfiles of SmartApp
+        # () Done: Last day of year? With or 8759 or 8760 ...
+        # () Done: changing Demand Profiles with different duration hours: Between 1-3 Hours is in code
+        # () Done: if valid: change UseDays to UseHours in databank
+        # () Done: Smart ON / OFF: use fixed use time, all functions included?
+        # () Done: Adoption to 1 and 0
+        # () Extend to WaschingMachine
+        # (-) How to use Dryer? Profile?
+        # (-) Extend to Dryer
+        # (-) Minimize LoadProfile
+        # (-) create Gen_Sce_Appliances... + extent Environment with DemandProfiles of SmartApp
 
         #################################################################################################
 
@@ -240,8 +265,12 @@ class OperationOptimization:
 
         ########## new Parameter for Smart Technologies #####################################
 
-        m.TheoreticalHours = pyo.Param(m.t, within=pyo.Binary, initialize=create_dict(DishWasherTheorecitalHours))
+        m.DishWasherTheoreticalHours = pyo.Param(m.t, within=pyo.Binary,
+                                                 initialize=create_dict(DishWasherTheoreticalHours))
         m.HourOfDay = pyo.Param(m.t, initialize=create_dict(HourOfDay))
+
+        m.WashingMachineTheoreticalHours = pyo.Param(m.t, within=pyo.Binary,
+                                                 initialize=create_dict(WashingMachineTheoreticalHours))
 
         ######################################################################################
 
@@ -278,6 +307,15 @@ class OperationOptimization:
         m.DishWasher2 = pyo.Var(m.t, within=pyo.Binary)
         m.DishWasher3 = pyo.Var(m.t, within=pyo.Binary)
         m.DishWasherStart = pyo.Var(m.t, within=pyo.Binary)
+        # ------------------------------------------------------
+
+        m.WashingMachine1 = pyo.Var(m.t, within=pyo.Binary)
+        m.WashingMachine2 = pyo.Var(m.t, within=pyo.Binary)
+        m.WashingMachine3 = pyo.Var(m.t, within=pyo.Binary)
+        m.WashingMachineStart = pyo.Var(m.t, within=pyo.Binary)
+
+        m.Dryer1 = pyo.Var(m.t, within=pyo.Binary)
+        m.Dryer2 = pyo.Var(m.t, within=pyo.Binary)
 
         ###############################################################################################
 
@@ -324,7 +362,7 @@ class OperationOptimization:
         def calc_DishWasherHours2(m, t):
             if t == 8759 or t == 8760:
                 return m.DishWasher2[t] == 0
-            elif m.TheoreticalHours[t] == 1 and (DishWasherDuration == 2 or DishWasherDuration == 3):
+            elif m.DishWasherTheoreticalHours[t] == 1 and (DishWasherDuration == 2 or DishWasherDuration == 3):
                 return m.DishWasher1[t] == m.DishWasher2[t + 1]
             return m.DishWasher2[t] == 0
 
@@ -333,7 +371,7 @@ class OperationOptimization:
         def calc_DishWasherHours3(m, t):
             if t == 8758 or t == 8759 or t == 8760:
                 return m.DishWasher2[t] == 0
-            elif m.TheoreticalHours[t] == 1 and DishWasherDuration == 3:
+            elif m.DishWasherTheoreticalHours[t] == 1 and DishWasherDuration == 3:
                 return m.DishWasher1[t] == m.DishWasher3[t + 2]
             return m.DishWasher3[t] == 0
 
@@ -342,11 +380,68 @@ class OperationOptimization:
         def calc_DishWasherStartTime(m, t):
             if m.t[t] == 1:
                 return m.DishWasherStart[t] == 0
-            elif m.TheoreticalHours[t] == 1 and m.HourOfDay[t] == 24:
-                return m.DishWasherStart[t] == m.DishWasherStart[t - 1] - 1
-            return m.DishWasherStart[t] == m.DishWasherStart[t - 1] + m.DishWasher1[t] * m.TheoreticalHours[t]
+            elif m.DishWasherTheoreticalHours[t] == 1 and m.HourOfDay[t] == 7 and DishWasherSmartStatus == 0:
+                return m.DishWasher1[t] == 1
+            elif m.DishWasherTheoreticalHours[t] == 1 and m.HourOfDay[t] == 24:
+                return m.DishWasherStart[t] == m.DishWasherStart[t - 1] - 1 * DishWasherSmartStatus
+            return m.DishWasherStart[t] == m.DishWasherStart[t - 1] \
+                   + m.DishWasher1[t] * m.DishWasherTheoreticalHours[t] * DishWasherSmartStatus
 
         m.calc_DishWasherStartTime = pyo.Constraint(m.t, rule=calc_DishWasherStartTime)
+
+        # ------------------------------------------------------------------------------------------------
+
+        def calc_WashingMachineHours2(m, t):
+            if t >= 8759:
+                return m.WashingMachine2[t] == 0
+            elif m.WashingMachineTheoreticalHours[t] == 1 and (
+                    WashingMachineDuration == 2 or WashingMachineDuration == 3):
+                return m.WashingMachine1[t] == m.WashingMachine2[t + 1]
+            return m.WashingMachine2[t] == 0
+
+        m.calc_WashingMachineHours2 = pyo.Constraint(m.t, rule=calc_WashingMachineHours2)
+
+        def calc_WashingMachineHours3(m, t):
+            if t >= 8758:
+                return m.WashingMachine2[t] == 0
+            elif m.WashingMachineTheoreticalHours[t] == 1 and WashingMachineDuration == 3:
+                return m.WashingMachine1[t] == m.WashingMachine3[t + 2]
+            return m.WashingMachine3[t] == 0
+
+        m.calc_WashingMachineHours3 = pyo.Constraint(m.t, rule=calc_WashingMachineHours3)
+
+        def calc_WashingMachineStartTime(m, t):
+            if m.t[t] == 1:
+                return m.WashingMachineStart[t] == 0
+            elif m.WashingMachineTheoreticalHours[t] == 1 and m.HourOfDay[t] == 20 and WashingMachineSmartStatus == 0:
+                return m.WashingMachine1[t] == 1
+            elif m.WashingMachineTheoreticalHours[t] == 1 and m.HourOfDay[t] == 24:
+                return m.WashingMachineStart[t] == m.WashingMachineStart[t - 1] - 1 * WashingMachineSmartStatus
+            return m.WashingMachineStart[t] == m.WashingMachineStart[t - 1] \
+                   + m.WashingMachine1[t] * m.WashingMachineTheoreticalHours[t] * WashingMachineSmartStatus
+
+        m.calc_WashingMachineStartTime = pyo.Constraint(m.t, rule=calc_WashingMachineStartTime)
+
+        # -------------------------------------------------------------------------------
+        def calc_Dryer1(m, t):
+            if t >= 8757:
+                return m.Dryer1[t] == 0
+            if DryerAdoption == 0:
+                return m.Dryer1[t] == 0
+            return m.WashingMachine1[t] == m.Dryer1[t+3]
+
+        m.calc_Dryer1 = pyo.Constraint(m.t, rule=calc_Dryer1)
+
+        def calc_Dryer2(m, t):
+            if t >= 8756:
+                return m.Dryer2[t] == 0
+            if DryerAdoption == 0:
+                return m.Dryer2[t] == 0
+            return m.WashingMachine1[t] == m.Dryer2[t+4]
+
+        m.calc_Dryer2 = pyo.Constraint(m.t, rule=calc_Dryer2)
+
+        #------------------------------------------------------------------
 
         # (6)
         def calc_SumOfLoads(m, t):
@@ -354,7 +449,9 @@ class OperationOptimization:
                 return m.Load[t] == m.LoadProfile[t]
             else:
                 return m.Load[t] == m.LoadProfile[t] \
-                + (m.DishWasher1[t] + m.DishWasher2[t] + m.DishWasher3[t]) * DishWasherPower
+                       + (m.DishWasher1[t] + m.DishWasher2[t] + m.DishWasher3[t]) * DishWasherPower \
+                       + (m.WashingMachine1[t] + m.WashingMachine2[t] + m.WashingMachine3[t]) * WashingMachinePower \
+                       + (m.Dryer1[t] + m.Dryer2[t])*1.5
 
         m.calc_SumOfLoads = pyo.Constraint(m.t, rule=calc_SumOfLoads)
 
@@ -443,8 +540,8 @@ class OperationOptimization:
 def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater,
                  PhotovoltaicProfile):
     # Visualization
-    starttime = 2400
-    endtime = 2496
+    starttime = 3000
+    endtime = 3200
 
     # battery, grid and PV
 
@@ -454,11 +551,22 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     BatCharge = np.array(list(instance.BatCharge.extract_values().values())[starttime: endtime])
     Load = np.array(list(instance.Load.extract_values().values())[starttime: endtime])
 
-    TheoreticalHours = np.array(list(instance.TheoreticalHours.extract_values().values())[starttime: endtime])
+    DishWasherTheoreticalHours = np.array(list(instance.DishWasherTheoreticalHours.extract_values().values())[starttime: endtime])
     DishWasher1 = np.array(list(instance.DishWasher1.extract_values().values())[starttime: endtime])
     DishWasher2 = np.array(list(instance.DishWasher2.extract_values().values())[starttime: endtime])
     DishWasher3 = np.array(list(instance.DishWasher3.extract_values().values())[starttime: endtime])
     DishWasher = DishWasher1 + DishWasher2 + DishWasher3
+
+    WashingMachineTheoreticalHours = np.array(
+        list(instance.WashingMachineTheoreticalHours.extract_values().values())[starttime: endtime])
+    WashingMachine1 = np.array(list(instance.WashingMachine1.extract_values().values())[starttime: endtime])
+    WashingMachine2 = np.array(list(instance.WashingMachine2.extract_values().values())[starttime: endtime])
+    WashingMachine3 = np.array(list(instance.WashingMachine3.extract_values().values())[starttime: endtime])
+    WashingMachine = WashingMachine1 + WashingMachine2 + WashingMachine3
+
+    Dryer1 = np.array(list(instance.Dryer1.extract_values().values())[starttime: endtime])
+    Dryer2 = np.array(list(instance.Dryer2.extract_values().values())[starttime: endtime])
+    Dryer = Dryer1 + Dryer2
 
     total_cost = instance.OBJ()
 
@@ -471,10 +579,15 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     # plt.bar(x_achse, BatCharge, label='PhotovoltaicFeedin', color='green')
     plt.plot(x_achse, Load, label='Load', color='red')
 
-    plt.bar(x_achse, TheoreticalHours, label='TheoreticalHours', color='grey', alpha=0.10)
-    # plt.fill_between(x_achse, TheoreticalHours, color = 'grey', alpha = 0.10, label = 'TheoreticalHours')
+    plt.bar(x_achse, DishWasherTheoreticalHours, label='DishWasherTheoreticalHours', color='blue', alpha=0.05)
+    plt.bar(x_achse, WashingMachineTheoreticalHours, bottom = DishWasherTheoreticalHours, label='WashingMachineTheoreticalHours', color='orange', alpha=0.10)
+
 
     plt.bar(x_achse, DishWasher, label='DishWasher', color='blue', alpha=0.4)
+    plt.bar(x_achse, WashingMachine, bottom = DishWasher, label='WashingMachine', color='orange', alpha=0.6)
+    plt.bar(x_achse, Dryer, bottom = DishWasher + WashingMachine, label='Dryer', color='green', alpha=0.6)
+
+
 
     plt.legend()
     plt.xlabel('Hour of year')
