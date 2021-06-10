@@ -37,6 +37,8 @@ class OperationOptimization:
         self.TimeStructure = DB().read_DataFrame(REG().Sce_ID_TimeStructure, self.Conn)
         self.Weather = DB().read_DataFrame(REG().Sce_Weather_Temperature_test, self.Conn)
         self.Radiation = DB().read_DataFrame(REG().Sce_Weather_Radiation, self.Conn)
+        self.Radiation_SkyDirections = DB().read_DataFrame(REG().Sce_Weather_Radiation_SkyDirections, self.Conn)
+
         self.ElectricityPrice = DB().read_DataFrame(REG().Sce_Price_HourlyElectricityPrice, self.Conn)
         self.FiT = DB().read_DataFrame(REG().Sce_Price_HourlyFeedinTariff, self.Conn)
         self.HeatPumpCOP = DB().read_DataFrame(REG().Sce_Technology_HeatPumpCOP, self.Conn)
@@ -134,7 +136,6 @@ class OperationOptimization:
         # DishWasherSmartStatus = 0
 
         print(DishWasherSmartStatus)
-
 
         # (3.1.2) WashingMachine
 
@@ -287,20 +288,18 @@ class OperationOptimization:
         Htr_3 = 1 / (1 / Htr_2 + 1 / Htr_ms)
 
         # Calculation of solar gains
-        path2excel = CONS().DatabasePath
+
         # window areas in celestial directions
         Awindows_rad_east_west = Household.Building.average_effective_area_wind_west_east_red_cool
         Awindows_rad_south = Household.Building.average_effective_area_wind_south_red_cool
         Awindows_rad_north = Household.Building.average_effective_area_wind_north_red_cool
         # solar gains from different celestial directions
-        Q_sol_all = pd.read_csv(CONS().DatabasePath + "directRadiation_himmelsrichtung_GER.csv", sep=";")
-        Q_sol_north = np.outer(Q_sol_all.loc[:, "RadiationNorth"].to_numpy(), Awindows_rad_north)
-        Q_sol_south = np.outer(Q_sol_all.loc[:, "RadiationSouth"].to_numpy(), Awindows_rad_south)
-        Q_sol_east_west = np.outer((Q_sol_all.loc[:, "RadiationEast"].to_numpy() +
-                                    Q_sol_all.loc[:, "RadiationWest"].to_numpy()), Awindows_rad_east_west)
+
+        Q_sol_north = np.outer(self.Radiation_SkyDirections.RadiationNorth, Awindows_rad_north)
+        Q_sol_south = np.outer(self.Radiation_SkyDirections.RadiationSouth, Awindows_rad_south)
+        Q_sol_east_west = np.outer(self.Radiation_SkyDirections.RadiationEast + \
+                                   self.Radiation_SkyDirections.RadiationWest, Awindows_rad_east_west)
         Q_sol = (Q_sol_north + Q_sol_south + Q_sol_east_west).squeeze()
-        # Solar Gains, but to small calculated: in W/m²
-        # Q_sol = self.Radiation.loc[self.Radiation["ID_Country"] == 5].loc[:, "Radiation"].to_numpy()
 
         ############################################################################################
         # (3.5) Pricing of electricity
@@ -828,7 +827,6 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     starttime = 6000
     endtime = 6168
 
-
     ############################################################################################
     # (5.2) Handover of generated profiles
 
@@ -1130,7 +1128,7 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
 
     ax1.bar(x_achse, -EV2Load, bottom=+-Grid2Load + -Grid2EV + -PV2Load + -Bat2Load + -Bat2EV, label='EVDischarge',
             color='brown', alpha=0.5)
-    ax1.bar(x_achse, -EV2Bat, bottom=+-Grid2Load + -Grid2EV + -PV2Load + -Bat2Load +-EV2Load, color='brown', alpha=0.5)
+    ax1.bar(x_achse, -EV2Bat, bottom=+-Grid2Load + -Grid2EV + -PV2Load + -Bat2Load + -EV2Load, color='brown', alpha=0.5)
 
     ax1.set_ylabel("Power in kW")
     lines, labels = ax1.get_legend_handles_labels()
@@ -1147,7 +1145,6 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     fig, ax1 = plt.subplots()
     ax1.plot(x_achse, Load, label='Load', linewidth=0.5, color='grey')
     ax1.plot(x_achse, PhotovoltaicProfile, label='PhotovoltaicProfile', linewidth=0.7, color='orange')
-
 
     ax1.bar(x_achse, DishWasher, label='DishWasher', color='blue', alpha=0.3)
     ax1.bar(x_achse, WashingMachine, bottom=DishWasher, label='WashingMachine', color='orange', alpha=0.3)
