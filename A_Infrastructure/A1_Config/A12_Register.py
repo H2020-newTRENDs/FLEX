@@ -74,7 +74,7 @@ class REG:
         self.Sce_PhotovoltaicProfile = self.Scenario + 'PhotovoltaicProfile' # based on 1kWp; hourly profile
         self.Sce_Weather_Radiation_SkyDirections = self.Scenario + 'Weather_Radiation_SkyDirections' # Philipp
 
-        self.Sce_Weather_Temperature_test = self.Scenario + 'Weather_Temperature_test'
+        #self.Sce_Weather_Temperature_test = self.Scenario + 'Weather_Temperature_test'
 
 
         # Generated scenario tables
