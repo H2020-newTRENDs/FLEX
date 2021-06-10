@@ -35,7 +35,7 @@ class OperationOptimization:
         self.ID_Environment = DB().read_DataFrame(REG().Gen_Sce_ID_Environment, self.Conn)
 
         self.TimeStructure = DB().read_DataFrame(REG().Sce_ID_TimeStructure, self.Conn)
-        self.Weather = DB().read_DataFrame(REG().Sce_Weather_Temperature_test, self.Conn)
+        self.Weather = DB().read_DataFrame(REG().Sce_Weather_Temperature, self.Conn)
         self.Radiation = DB().read_DataFrame(REG().Sce_Weather_Radiation, self.Conn)
         self.Radiation_SkyDirections = DB().read_DataFrame(REG().Sce_Weather_Radiation_SkyDirections, self.Conn)
 
@@ -229,6 +229,11 @@ class OperationOptimization:
         SumOfLoad = round(sum(self.LoadProfile.BaseElectricityProfile), 2)
 
         ############################################################################################
+
+        # Cooling
+        print('cooling')
+        print(Household.SpaceCooling.SpaceCoolingEfficiency)
+
         # (3.4) Defintion of parameters for Heating and Cooling
 
         # (3.4.1) Tank
@@ -809,8 +814,8 @@ class OperationOptimization:
         return instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater
 
     def run(self):
-        for household_id in range(37000, 37001):
-            for environment_id in range(3, 4):
+        for household_id in range(55295, 55296):
+            for environment_id in range(1, 2):
                 instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater = self.run_Optimization(
                     household_id,
                     environment_id)

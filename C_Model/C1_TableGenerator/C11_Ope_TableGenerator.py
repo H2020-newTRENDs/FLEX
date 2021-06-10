@@ -134,10 +134,7 @@ class Ope_TableGenerator:
 
     def gen_OBJ_ID_HotWater(self):
         HotWaterBoiler = DB().read_DataFrame(REG().ID_HotWaterBoilerType, self.Conn)
-        HotWaterTank = DB().read_DataFrame(REG().ID_HotWaterTankType, self.Conn)
-        self.gen_OBJ_ID_Table_2To1(REG().Gen_OBJ_ID_HotWater,
-                                   HotWaterBoiler,
-                                   HotWaterTank)
+        self.gen_OBJ_ID_Table_1To1(REG().Gen_OBJ_ID_HotWater, HotWaterBoiler)
         return None
 
     def gen_OBJ_ID_PV(self):
@@ -268,7 +265,6 @@ class Ope_TableGenerator:
     def gen_Sce_ID_Environment(self):
 
         ElectricityPriceType = DB().read_DataFrame(REG().Sce_ID_ElectricityPriceType, self.Conn)
-        ElectricVehicleBehavior = DB().read_DataFrame(REG().Sce_ID_ElectricVehicleBehavior, self.Conn)
         FeedinTariffType = DB().read_DataFrame(REG().Sce_ID_FeedinTariffType, self.Conn)
         HotWaterProfileType = DB().read_DataFrame(REG().Sce_ID_HotWaterProfileType, self.Conn)
         PhotovoltaicProfileType = DB().read_DataFrame(REG().Sce_ID_PhotovoltaicProfileType, self.Conn)
@@ -278,24 +274,22 @@ class Ope_TableGenerator:
 
         TargetTable_columns = ["ID"]
 
-        TargetTable_columns += ["ID_ElectricityPriceType", "ID_ElectricVehicleBehavior", "ID_FeedinTariffType", \
-                                "ID_HotWaterProfileType", "ID_PhotovoltaicProfileType", "ID_TargetTemperature"]
+        TargetTable_columns += ["ID_ElectricityPriceType","ID_TargetTemperature", "ID_FeedinTariffType", \
+                                "ID_HotWaterProfileType", "ID_PhotovoltaicProfileType"]
 
         ID = 1
 
         for row1 in range(0, len(ElectricityPriceType)):
-            for row2 in range(0, len(ElectricVehicleBehavior)):
+            for row2 in range(0, len(TargetTemperature)):
                 for row3 in range(0, len(FeedinTariffType)):
                     for row4 in range(0, len(HotWaterProfileType)):
                         for row5 in range(0, len(PhotovoltaicProfileType)):
-                            for row6 in range(0, len(TargetTemperature)):
                                 TargetTable_list.append([ID] +
                                                         [ElectricityPriceType.iloc[row1]["ID_ElectricityPriceType"]] +
-                                                        [ElectricVehicleBehavior.iloc[row2]["ID_EVDrivingBehaviorType"]] +
+                                                        [TargetTemperature.iloc[row2]["ID_TargetTemperature"]] +
                                                         [FeedinTariffType.iloc[row3]["ID_FeedinTariffType"]] +
                                                         [HotWaterProfileType.iloc[row4]["ID_HotWaterProfileType"]] +
-                                                        [PhotovoltaicProfileType.iloc[row5]["ID_PhotovoltaicProfile"]] +
-                                                        [TargetTemperature.iloc[row6]["ID_TargetTemperature"]])
+                                                        [PhotovoltaicProfileType.iloc[row5]["ID_PhotovoltaicProfile"]])
                                 ID += 1
         DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_ID_Environment, TargetTable_columns, self.Conn)
 
@@ -373,7 +367,7 @@ class Ope_TableGenerator:
         # self.gen_OBJ_ID_PV()
         # self.gen_OBJ_ID_Battery()
         # self.gen_OBJ_ID_ElectricVehicle()
-        # self.gen_OBJ_ID_Household()
+        self.gen_OBJ_ID_Household()
 
         # self.gen_Sce_Demand_DishWasherHours()
         # self.gen_Sce_Demand_DryerHours()

@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     start = time.process_time()
     B = HeatingCooling_noDR(DB().read_DataFrame(REG().ID_BuildingOption, CONN))
-    Temperature_outside = DB().read_DataFrame(REG().Sce_Weather_Temperature_test, CONN)
+    Temperature_outside = DB().read_DataFrame(REG().Sce_Weather_Temperature, CONN)
     Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR = B.ref_HeatingCooling(Temperature_outside)
     print(time.process_time() - start)
 
