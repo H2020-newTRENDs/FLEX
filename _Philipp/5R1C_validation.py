@@ -71,7 +71,7 @@ def showResults_noDR(Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_
 
 
 
-def showResults_Sprungantwort(Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR):
+def showResults_Sprungantwort(Q_noDR, T_Room_noDR, T_thermalMass_noDR, heatORcool):
     red = '#F47070'
     dark_red = '#a10606'
     blue = '#8EA9DB'
@@ -87,7 +87,7 @@ def showResults_Sprungantwort(Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_the
     plt.style.use('ggplot')
     colors = [red, blue, green]
     colors2 = [dark_red, dark_blue, dark_green]
-    x_achse = np.arange(len(Q_Heating_noDR))
+    x_achse = np.arange(len(Q_noDR))
     plt.style.use('ggplot')
     width = 1
 
@@ -97,8 +97,8 @@ def showResults_Sprungantwort(Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_the
     ax2 = ax1.twinx()
     for i in range(3):
         ax1.plot(x_achse, T_thermalMass_noDR[:, i], label="thermal mass temperature " + str(i+1), color=colors2[i], alpha=0.8, linewidth=width, linestyle=":")
-        ax2.plot(x_achse, Q_Heating_noDR[:, i] / 1_000, label="heating power " + str(i + 1), color=colors[i], alpha=0.8, linestyle="--", linewidth=width)
-    ax1.plot(x_achse, T_Room_noDR[:, 0], label="indoor temperature ", color="black", alpha=0.8, linewidth=width)
+        ax2.plot(x_achse, Q_noDR[:, i] / 1_000, label=heatORcool+" power " + str(i + 1), color=colors[i], alpha=0.8, linestyle="--", linewidth=width)
+    ax1.plot(x_achse, T_Room_noDR[:, 0], label="indoor temperature ", color="black", alpha=0.8, linewidth=1.5)
 
     ax1.set_ylim(T_thermalMass_noDR.min(), T_thermalMass_noDR.max())
     ax1.set_yticks(np.linspace(ax1.get_yticks()[0], ax1.get_yticks()[-1], len(ax1.get_yticks())))
@@ -107,36 +107,84 @@ def showResults_Sprungantwort(Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_the
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax2.legend(lines + lines2, labels + labels2)
-    plt.title("thermal response 5R1C")
+    plt.title("thermal response 5R1C "+heatORcool)
     ax1.set_ylabel("temperature in °C")
-    ax2.set_ylabel("heating power in kW")
+    ax2.set_ylabel(heatORcool+" power in kW")
     plt.xlabel("time in hours")
     plt.tight_layout()
-    fig3.savefig("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Myfigs\\Paper_figs\\Sprungantwort.svg")
+    fig3.savefig("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Myfigs\\Paper_figs\\Sprungantwort_"+heatORcool+".svg")
     plt.show()
 
-    fig2 = plt.figure()
-    for i in range(3):
-        plt.plot(T_thermalMass_noDR[:, i], Q_Heating_noDR[:, i] / 1_000 , color=colors[i])
-    plt.show()
+    # fig2 = plt.figure()
+    # for i in range(3):
+    #     plt.plot(T_thermalMass_noDR[:, i], Q_noDR[:, i] / 1_000, color=colors[i])
+    # plt.show()
 
 
-def Sprungantwort(base_input_path):
+def get_constant_Q_Tm_t(base_input_path, T_outside):
+    # start time steps to calculate constant values
+    runtime = 100
+    # # Heizen:
+    # define building data
+    buildingData = pd.read_excel(base_input_path / "Sprungantwort_tests.xlsx", engine="openpyxl")
+    B = HeatingCooling_noDR(buildingData)
+    # starte mit 100 stunde, dann checken ob sich konstantes Tm_t eingestellt hat
+    Temperature_outside = np.array([T_outside] * runtime)
+    Q_sol = np.array([[0] * 3] * runtime)
+    Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR = B.ref_HeatingCooling(Temperature_outside,
+                                                                                           Q_solar=Q_sol,
+                                                                                           initial_thermal_mass_temp=21,
+                                                                                           T_air_min=20,
+                                                                                           T_air_max=26)
+    # check if stationary condition has set in
+    while -1e-6 >= T_thermalMass_noDR[-1, 0] - T_thermalMass_noDR[-2, 0] or \
+           1e-6 <= T_thermalMass_noDR[-1, 0] - T_thermalMass_noDR[-2, 0]:
+        runtime += 100
+        Temperature_outside = np.array([T_outside] * runtime)
+        Q_sol = np.array([[0] * 3] * runtime)
+        Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR = B.ref_HeatingCooling(Temperature_outside,
+                                                                           Q_solar=Q_sol,
+                                                                           initial_thermal_mass_temp=21,
+                                                                           T_air_min=20,
+                                                                           T_air_max=26)
+
+
+
+    return Q_Heating_noDR[-1, 0], Q_Cooling_noDR[-1, 0], T_Room_noDR[-1, 0], T_thermalMass_noDR[-1, 0]
+
+
+
+
+def Sprungantwort():
+    # path:
+    project_directory_path = Path(__file__).parent.resolve()
+    base_input_path = project_directory_path / "inputdata"
     # # Heizen:
     # define building data
     buildingData = pd.read_excel(base_input_path / "Sprungantwort_tests.xlsx", engine="openpyxl")
     B = HeatingCooling_noDR(buildingData)
 
     stunden_anzahl = 24
-    outdoorTemp = -5
-    Temperature_outside = np.array([outdoorTemp] * stunden_anzahl)
+    outdoorTemp_heating = -5
+    Temperature_outside = np.array([outdoorTemp_heating] * stunden_anzahl)
     Q_sol = np.array([[0] * 3] * stunden_anzahl)
     Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR = B.ref_HeatingCooling(Temperature_outside,
                                                                        Q_solar=Q_sol,
                                                                        initial_thermal_mass_temp=21,
                                                                        T_air_min=20,
                                                                        T_air_max=26)
-    showResults_Sprungantwort(Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR)
+    showResults_Sprungantwort(Q_Heating_noDR, T_Room_noDR, T_thermalMass_noDR, "heating")
+
+    stunden_anzahl = 48
+    outdoorTemp_cooling = 30
+    Temperature_outside = np.array([outdoorTemp_cooling] * stunden_anzahl)
+    Q_sol = np.array([[0] * 3] * stunden_anzahl)
+    Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR = B.ref_HeatingCooling(Temperature_outside,
+                                                                       Q_solar=Q_sol,
+                                                                       initial_thermal_mass_temp=21,
+                                                                       T_air_min=20,
+                                                                       T_air_max=26)
+    showResults_Sprungantwort(Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR, "cooling")
 
 
 def Sprungantwort_Strompreis(base_input_path):
@@ -250,12 +298,12 @@ def compare_solar_radation():
         T_air_max=26)
     fig, (ax1, ax2) = plt.subplots(2, 1)
     x_achse = np.arange(len(Q_Heating_noDR))
-    ax1.plot(x_achse, Q_sol[:, 0], label="rad gains pysolar")
-    ax1.plot(x_achse, Q_sol_EPlus[:, 0], label="rad gains E+", alpha=0.8)
+    ax1.bar(x_achse, Q_sol[:, 0], label="rad gains pysolar")
+    ax1.bar(x_achse, Q_sol_EPlus[:, 0], label="rad gains E+", alpha=0.5)
     ax1.legend()
 
-    ax2.plot(x_achse, Q_Heating_noDR[:, 0], label="heating pysolar")
-    ax2.plot(x_achse, Q_Heating_noDR_Eplus[:, 0], label="heating E+ solar", alpha=0.8)
+    ax2.bar(x_achse, Q_Heating_noDR[:, 0], label="heating pysolar")
+    ax2.bar(x_achse, Q_Heating_noDR_Eplus[:, 0], label="heating E+ solar", alpha=0.5)
     ax2.legend()
     fig.savefig("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Myfigs\\Paper_figs\\SolarRadiationVergleichEPlus.svg")
     plt.show()
@@ -265,10 +313,16 @@ def compare_solar_radation():
     print(f"totale Heitlast E+: {Q_Heating_noDR_Eplus[:, 0].sum() / 1_000_000:.4} MWh")
 
 if __name__=="__main__":
+    # path:
+    project_directory_path = Path(__file__).parent.resolve()
+    base_input_path = project_directory_path / "inputdata"
+
     # Sprungantwort()
-    compare_solar_radation()
+    # compare_solar_radation()
+
+    Q_Heating_noDR_constant, Q_Cooling_noDR_constant, T_Room_noDR_constant, T_thermalMass_noDR_constant = \
+        get_constant_Q_Tm_t(base_input_path, -5)
 
 
 
 
-    # showResults_noDR(Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR, plot_EPlus=True)
