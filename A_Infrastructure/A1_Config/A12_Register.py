@@ -72,6 +72,7 @@ class REG:
         self.Sce_Price_HourlyFeedinTariff = self.Scenario + "Price_HourlyFeedinTariff"
         self.Sce_Demand_HotWaterProfile = self.Scenario + 'Demand_HotWaterProfile'
         self.Sce_PhotovoltaicProfile = self.Scenario + 'PhotovoltaicProfile' # based on 1kWp; hourly profile
+        self.Sce_Weather_Radiation_SkyDirections = self.Scenario + 'Weather_Radiation_SkyDirections' # Philipp
 
         self.Sce_Weather_Temperature_test = self.Scenario + 'Weather_Temperature_test'
 
