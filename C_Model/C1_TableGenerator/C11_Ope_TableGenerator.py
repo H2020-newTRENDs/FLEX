@@ -306,23 +306,59 @@ class Ope_TableGenerator:
         LeaveTime = int(ElectricVehicleBehavior.EVLeaveHomeClock)
         ArriveTime = int(ElectricVehicleBehavior.EVArriveHomeClock)
 
+        self.TimeStructure = DB().read_DataFrame(REG().Sce_ID_TimeStructure, self.Conn)
+        TimeStructure = self.TimeStructure
+        ID_DayType = TimeStructure.ID_DayType
 
-        list = []
+        print(ID_DayType)
+        print(type(ID_DayType))
 
-        for i in range(0, LeaveTime):
-            list.append(1)
-        for i in range(LeaveTime, ArriveTime):
-            list.append(0)
-        for i in range(ArriveTime, 24):
-            list.append((1))
+        # list of ID_DayType has 8760 values, this is reduced to 365 values with the type of day
 
-        Hours = list * 365
+        j = 0
+        DayType = []
+        for i in ID_DayType:
+            if i == 1:
+                j = j + 1
+                if j == 24:
+                    DayType.append(1)
+                    j = 0
+            elif i == 2:
+                j = j + 1
+                if j == 24:
+                    DayType.append(2)
+                    j = 0
+            elif i == 3:
+                j = j + 1
+                if j == 24:
+                    DayType.append(3)
+                    j = 0
+        print(DayType)
+        print(len(DayType))
+
+        # generate from list daytype the hours of use of the car, weekend it is not used now
+
+        CarStatus = []
+        for i in DayType:
+            if i == 1:
+                for i in range(0, LeaveTime):
+                    CarStatus.append(1)
+                for i in range(LeaveTime, ArriveTime):
+                    CarStatus.append(0)
+                for i in range(ArriveTime, 24):
+                    CarStatus.append((1))
+            elif i == 2 or i == 3:
+                for i in range(0,24):
+                    CarStatus.append(1)
+
+        print(CarStatus)
+        print(len(CarStatus))
 
         TargetTable_columns = ['ID_Hour', "CarAtHomeHours"]
 
         TargetTable_list = []
-        for Hour in range(0, len(Hours)):
-            TargetTable_list.append([Hour + 1, Hours[Hour]])
+        for Hour in range(0, len(CarStatus)):
+            TargetTable_list.append([Hour + 1, CarStatus[Hour]])
 
         DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_CarAtHomeHours, TargetTable_columns, self.Conn)
         pass
@@ -330,7 +366,7 @@ class Ope_TableGenerator:
 
     def run(self):
         # self.gen_OBJ_ID_Building()
-        self.gen_OBJ_ID_ApplianceGroup()
+        # self.gen_OBJ_ID_ApplianceGroup()
         # self.gen_OBJ_ID_SpaceHeating()
         # self.gen_OBJ_ID_SpaceCooling()
         # self.gen_OBJ_ID_HotWater()
