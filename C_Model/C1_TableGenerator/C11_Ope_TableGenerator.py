@@ -94,7 +94,7 @@ class Ope_TableGenerator:
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
 
-        return TheorecitalOnHours  # returns list of UseDays with 365 values
+        return TheorecitalOnHours  # returns list of UseHours with 8760 values
 
     # -------------------------
     # 2 Generate the OBJ tables

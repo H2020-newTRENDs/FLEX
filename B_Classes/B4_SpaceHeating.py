@@ -17,10 +17,5 @@ class SpaceHeating:
         self.PumpConsumptionRate = para_series["PumpConsumptionRate"]
         self.HeatingPowerUpLimit = para_series["HeatingPowerUpLimit"]
 
-    def calc_TankTemperature(self, energy_from_boiler_to_tank, energy_from_tank_to_room):
-
-
-        TankTemperature = 0
-        return TankTemperature
 
 
