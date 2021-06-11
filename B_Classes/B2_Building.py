@@ -41,23 +41,32 @@ class Building:
         self.Am_factor = para_series['Am_factor']
         self.country_ID = para_series['country_ID']
 
+        def calc_IndoorTemperature(self, Energy_TankToRoom_t, OutdoorTemperature_t):
+            """
+            :param Energy_TankToRoom_t: float
+            :param OutdoorTemperature_t: float
+            :return: IndoorTemperature_tp1: float
+            """
 
 
 class HeatingCooling_noDR:
 
     def __init__(self, ID_BuildingOption_dataframe):
-        self.index = ID_BuildingOption_dataframe['index']
-        self.name = ID_BuildingOption_dataframe['name']
-        self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
-        self.number_of_dwellings_per_building = ID_BuildingOption_dataframe['number_of_dwellings_per_building']
-        self.areawindows =ID_BuildingOption_dataframe['areawindows']
-        self.area_suitable_solar =ID_BuildingOption_dataframe['area_suitable_solar']
-        self.ued_dhw = ID_BuildingOption_dataframe['ued_dhw']
-        self.AreaWindowEastWest = ID_BuildingOption_dataframe['average_effective_area_wind_west_east_red_cool'].to_numpy()
-        self.AreaWindowSouth = ID_BuildingOption_dataframe['average_effective_area_wind_south_red_cool'].to_numpy()
-        self.AreaWindowNorth = ID_BuildingOption_dataframe['average_effective_area_wind_north_red_cool'].to_numpy()
+        try:
+            self.index = ID_BuildingOption_dataframe['index']
+            self.name = ID_BuildingOption_dataframe['name']
+            self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
+            self.number_of_dwellings_per_building = ID_BuildingOption_dataframe['number_of_dwellings_per_building']
+            self.areawindows =ID_BuildingOption_dataframe['areawindows']
+            self.area_suitable_solar =ID_BuildingOption_dataframe['area_suitable_solar']
+            self.ued_dhw = ID_BuildingOption_dataframe['ued_dhw']
+            self.AreaWindowEastWest = ID_BuildingOption_dataframe['average_effective_area_wind_west_east_red_cool'].to_numpy()
+            self.AreaWindowSouth = ID_BuildingOption_dataframe['average_effective_area_wind_south_red_cool'].to_numpy()
+            self.AreaWindowNorth = ID_BuildingOption_dataframe['average_effective_area_wind_north_red_cool'].to_numpy()
+            self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
+        except:
+            pass
         self.InternalGains = ID_BuildingOption_dataframe['spec_int_gains_cool_watt'].to_numpy()
-        self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
         self.Hop = ID_BuildingOption_dataframe['Hop'].to_numpy()
         self.Htr_w = ID_BuildingOption_dataframe['Htr_w'].to_numpy()
         self.Hve = ID_BuildingOption_dataframe['Hve'].to_numpy()
@@ -73,7 +82,7 @@ class HeatingCooling_noDR:
 
 
     def ref_HeatingCooling(self, T_outside, Q_solar=None,
-                           initial_thermal_mass_temp=18, T_air_min=20, T_air_max=26):
+                           initial_thermal_mass_temp=20, T_air_min=20, T_air_max=26):
         """
         This function calculates the heating and cooling demand as well as the indoor temperature for every building
         category based in the 5R1C model. The results are hourls vectors for one year. Q_solar is imported from a CSV
@@ -235,5 +244,6 @@ class HeatingCooling_noDR:
         Q_Cooling_noDR = np.nan_to_num(Q_Cooling_noDR, nan=0)
         Q_Heating_noDR = np.nan_to_num(Q_Heating_noDR, nan=0)
         T_Room_noDR = np.nan_to_num(T_Room_noDR, nan=0)
+        Tm_t = np.nan_to_num(Tm_t, nan=0)
 
-        return Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR
+        return Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t
