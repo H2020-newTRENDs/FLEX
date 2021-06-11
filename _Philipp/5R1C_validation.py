@@ -121,37 +121,114 @@ def showResults_Sprungantwort(Q_noDR, T_Room_noDR, T_thermalMass_noDR, heatORcoo
     # plt.show()
 
 
-def get_constant_Q_Tm_t(base_input_path, T_outside):
+def get_constant_Q_Tm_t(Buildings, T_outside, T_min_indoor, T_max_indoor):
     # start time steps to calculate constant values
     runtime = 100
-    # # Heizen:
-    # define building data
-    buildingData = pd.read_excel(base_input_path / "Sprungantwort_tests.xlsx", engine="openpyxl")
-    B = HeatingCooling_noDR(buildingData)
     # starte mit 100 stunde, dann checken ob sich konstantes Tm_t eingestellt hat
     Temperature_outside = np.array([T_outside] * runtime)
     Q_sol = np.array([[0] * 3] * runtime)
-    Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR = B.ref_HeatingCooling(Temperature_outside,
+    # initial thermal mass temperature should be between T_min_indoor and T_max_indoor (22°C should always be ok)
+    Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR = Buildings.ref_HeatingCooling(Temperature_outside,
                                                                                            Q_solar=Q_sol,
-                                                                                           initial_thermal_mass_temp=21,
-                                                                                           T_air_min=20,
-                                                                                           T_air_max=26)
+                                                                                           initial_thermal_mass_temp=22,
+                                                                                           T_air_min=T_min_indoor,
+                                                                                           T_air_max=T_max_indoor)
     # check if stationary condition has set in
-    while -1e-6 >= T_thermalMass_noDR[-1, 0] - T_thermalMass_noDR[-2, 0] or \
-           1e-6 <= T_thermalMass_noDR[-1, 0] - T_thermalMass_noDR[-2, 0]:
-        runtime += 100
-        Temperature_outside = np.array([T_outside] * runtime)
-        Q_sol = np.array([[0] * 3] * runtime)
-        Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR = B.ref_HeatingCooling(Temperature_outside,
-                                                                           Q_solar=Q_sol,
-                                                                           initial_thermal_mass_temp=21,
-                                                                           T_air_min=20,
-                                                                           T_air_max=26)
+    for i in range(T_thermalMass_noDR.shape[1]):
+        while -1e-6 >= T_thermalMass_noDR[-1, i] - T_thermalMass_noDR[-2, i] or \
+               1e-6 <= T_thermalMass_noDR[-1, i] - T_thermalMass_noDR[-2, i]:
+            runtime += 100
+            Temperature_outside = np.array([T_outside] * runtime)
+            Q_sol = np.array([[0] * 3] * runtime)
+            Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR = Buildings.ref_HeatingCooling(Temperature_outside,
+                                                                               Q_solar=Q_sol,
+                                                                               initial_thermal_mass_temp=22,
+                                                                               T_air_min=T_min_indoor,
+                                                                               T_air_max=T_max_indoor)
 
 
 
-    return Q_Heating_noDR[-1, 0], Q_Cooling_noDR[-1, 0], T_Room_noDR[-1, 0], T_thermalMass_noDR[-1, 0]
+    return Q_Heating_noDR[-1, :], Q_Cooling_noDR[-1, :], T_Room_noDR[-1, :], T_thermalMass_noDR[-1, :]
 
+
+def calculate_LoadShiftPotential(Buildings, hours_of_preheating, hours_of_shifting, T_outside,
+                                    T_min_indoor, T_max_indoor, T_offset_indoor=2):
+    # calculate the thermal mass temperature when there is thermal equilibrium:
+    Q_Heating_noDR_constant, Q_Cooling_noDR_constant, T_Room_noDR_constant, T_thermalMass_noDR_constant = \
+        get_constant_Q_Tm_t(Buildings, T_outside, T_min_indoor, T_max_indoor)
+
+    # create temperature and solar gains array
+    Temperature_outside = np.array([T_outside] * hours_of_preheating)
+    # no solar gains are considered
+    Q_sol = np.array([[0] * 3] * hours_of_preheating)
+    # calculate the thermal mass temperature after the time of preheating as well as heating/cooling power
+    # this is done by raising the minimum indoor temperature for heating and lowering it for cooling by 2°C
+    Q_PreHeating_noDR, Q_PreCooling_noDR, T_PreRoom_noDR, T_PrethermalMass_noDR = Buildings.ref_HeatingCooling(Temperature_outside,
+                                                                                           Q_solar=Q_sol,
+                                                                                           initial_thermal_mass_temp=T_thermalMass_noDR_constant,
+                                                                                           T_air_min=T_min_indoor+T_offset_indoor,
+                                                                                           T_air_max=T_max_indoor-T_offset_indoor)
+
+    # now calculate the heating/cooling power with the old indoor temperature settings starting from the values
+    # calculated in the preheating:
+    # create temperature and solar gains array
+    Temperature_outside = np.array([T_outside] * hours_of_shifting)
+    # no solar gains are considered
+    Q_sol = np.array([[0] * 3] * hours_of_shifting)
+    Q_ReducedHeating_noDR, Q_ReducedCooling_noDR, T_ReducedRoom_noDR, T_ReducedthermalMass_noDR = Buildings.ref_HeatingCooling(
+        Temperature_outside,
+        Q_solar=Q_sol,
+        initial_thermal_mass_temp=T_PrethermalMass_noDR[-1, :],  # take the last one
+        T_air_min=T_min_indoor,
+        T_air_max=T_max_indoor)
+
+    # calculate and plot the difference between steady state and shifting demand:
+    # total thermal power during preheating when load is constant:
+    Q_Heating_constant_total_preheating = Q_Heating_noDR_constant * hours_of_preheating
+    Q_Heating_constant_total_shifting = Q_Heating_noDR_constant * hours_of_shifting
+    Q_PreHeating_noDR_total = Q_PreHeating_noDR.sum(axis=0)
+    Q_ReducedHeating_noDR_total = Q_ReducedHeating_noDR.sum(axis=0)
+
+    ExcessHeatPreheat = Q_PreHeating_noDR_total - Q_Heating_constant_total_preheating
+    SaveHeatShifting = Q_Heating_constant_total_shifting - Q_ReducedHeating_noDR_total
+
+    fig0 = plt.figure()
+    plt.bar(["preheating", "discharging"], [ExcessHeatPreheat[0], SaveHeatShifting[0]], color=["red", "green"])
+    plt.show()
+
+    # plot results for one building:
+    x_achse = np.arange(hours_of_preheating+hours_of_shifting)
+    Q_Heating_plot = np.append(Q_PreHeating_noDR[:, 0], Q_ReducedHeating_noDR[:, 0])
+    T_thermalMass_plot = np.append(T_PrethermalMass_noDR[:, 0], T_ReducedthermalMass_noDR[:, 0])
+    T_Room_plot = np.append(T_PreRoom_noDR[:, 0], T_ReducedRoom_noDR[:, 0])
+
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
+    ax1.bar(x_achse, Q_Heating_plot, label="heating power", color="red")
+    ax1.axhline(Q_Heating_noDR_constant[0], xmin=0, xmax=1, label="constant heating power", color="black")
+    ax1.vlines(x=0, ymin=Q_Heating_noDR_constant[0], ymax=Q_Heating_plot[0], color="red")
+    ax1.axvline(x=hours_of_preheating-1, color="black", linestyle="--", linewidth=0.5)
+
+    ax2.plot(x_achse, T_thermalMass_plot, label="thermal mass temp", color="blue")
+    ax2.hlines(T_thermalMass_noDR_constant[0], xmin=0, xmax=hours_of_preheating+hours_of_shifting-1, color="purple", label="constant thermal mass temp")
+    ax2.vlines(x=0, ymin=T_thermalMass_noDR_constant[0], ymax=T_thermalMass_plot[0], color="blue")
+    ax2.axvline(x=hours_of_preheating-1, color="black", linestyle="--", linewidth=0.5)
+
+    ax3.plot(x_achse, T_Room_plot, label="Room temp", color="green")
+    ax3.hlines(T_Room_noDR_constant[0], xmin=0, xmax=hours_of_preheating+hours_of_shifting-1,  color="skyblue", label="constant room temp")
+    ax3.vlines(x=0, ymin=T_Room_noDR_constant[0], ymax=T_Room_plot[0], color="green")
+    ax3.axvline(x=hours_of_preheating-1, color="black", linestyle="--", linewidth=0.5)
+
+    ax1.legend()
+    ax2.legend()
+    ax3.legend()
+    ax1.set_ylabel("heating power in W")
+    ax2.set_ylabel("temperature in °C")
+    ax3.set_ylabel("temperature in °C")
+    ax3.set_xlabel("hours")
+    ax1.set_title("Load shift at " + str(T_outside) + " °C")
+    plt.tight_layout()
+    plt.show()
+    a=1
 
 
 
@@ -298,9 +375,10 @@ def compare_solar_radation():
         T_air_max=26)
     fig, (ax1, ax2) = plt.subplots(2, 1)
     x_achse = np.arange(len(Q_Heating_noDR))
-    ax1.bar(x_achse, Q_sol[:, 0], label="rad gains pysolar")
-    ax1.bar(x_achse, Q_sol_EPlus[:, 0], label="rad gains E+", alpha=0.5)
+    ax1.plot(x_achse, Q_sol[:, 0], label="rad gains pysolar")
+    ax1.plot(x_achse, Q_sol_EPlus[:, 0], label="rad gains E+", alpha=0.5)
     ax1.legend()
+    ax1.set_ylim(0, 10_000)
 
     ax2.bar(x_achse, Q_Heating_noDR[:, 0], label="heating pysolar")
     ax2.bar(x_achse, Q_Heating_noDR_Eplus[:, 0], label="heating E+ solar", alpha=0.5)
@@ -316,12 +394,23 @@ if __name__=="__main__":
     # path:
     project_directory_path = Path(__file__).parent.resolve()
     base_input_path = project_directory_path / "inputdata"
+    # define building data
+    buildingData = pd.read_excel(base_input_path / "Sprungantwort_tests.xlsx", engine="openpyxl")
+    Buildings = HeatingCooling_noDR(buildingData)
 
     # Sprungantwort()
     # compare_solar_radation()
 
-    Q_Heating_noDR_constant, Q_Cooling_noDR_constant, T_Room_noDR_constant, T_thermalMass_noDR_constant = \
-        get_constant_Q_Tm_t(base_input_path, -5)
+    hours_of_preheating = 3
+    hours_of_shifting = 3
+    T_outside = -5
+    T_min_indoor = 20
+    T_max_indoor = 26
+    T_offset_indoor = 2
+    calculate_LoadShiftPotential(Buildings, hours_of_preheating, hours_of_shifting, T_outside,
+                                 T_min_indoor, T_max_indoor, T_offset_indoor=T_offset_indoor)
+
+
 
 
 
