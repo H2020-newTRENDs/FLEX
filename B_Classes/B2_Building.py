@@ -161,7 +161,10 @@ class HeatingCooling_noDR:
                     ((PHI_ia - heating_power_10) / self.Hve) + T_sup[t])) / Htr_2
 
             if t == 0:
-                Tm_t_prev = np.array([initial_thermal_mass_temp] * len(self.Hve))
+                if type(initial_thermal_mass_temp) == int or type(initial_thermal_mass_temp) == float:
+                    Tm_t_prev = np.array([initial_thermal_mass_temp] * len(self.Hve))
+                else:  # initial temperature is already a vector
+                    Tm_t_prev = initial_thermal_mass_temp
             else:
                 Tm_t_prev = Tm_t[t - 1, :]
 
