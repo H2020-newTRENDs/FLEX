@@ -71,13 +71,7 @@ class OperationOptimization:
         EnvironmentSeries = self.ID_Environment.iloc[row_id]
         return EnvironmentSeries
 
-    def stateTransition_SpaceHeatingTankTemperature(self, Household,
-                                                    energy_from_boiler_to_tank,
-                                                    energy_from_tank_to_room):
-        TankTemperature = Household.SpaceHeating.calc_TankTemperature(energy_from_boiler_to_tank,
-                                                                      energy_from_tank_to_room)
 
-        return TankTemperature
 
     def run_Optimization(self, household_id, environment_id):
 
@@ -142,8 +136,7 @@ class OperationOptimization:
         # This is 1, only if there is no Dishwasher in the household, then 0
         WashingMachineAdoption = 1
 
-        WashingMachineTheoreticalHours = (
-                                             self.WashingMachineHours.WashingMachineHours.to_numpy()) * WashingMachineAdoption
+        WashingMachineTheoreticalHours = (self.WashingMachineHours.WashingMachineHours.to_numpy()) * WashingMachineAdoption
         WashingMachineCycle = int(self.Sce_Demand_WashingMachine.WashingMachineCycle)
         WashingMachineDuration = int(self.Sce_Demand_WashingMachine.WashingMachineDuration)
         WashingMachinePower = Household.ApplianceGroup.WashingMachinePower
@@ -356,6 +349,7 @@ class OperationOptimization:
                     else:
                         ListOfDynamicCOP.append(COP[j])
                     break
+
         elif Household.SpaceHeating.ID_SpaceHeatingBoilerType == 2:
             COP = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 2].loc[:,
                   'COP_ThermalStorage'].to_numpy()
