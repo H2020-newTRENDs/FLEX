@@ -11,4 +11,5 @@ class ElectricVehicle:
         self.BatteryMaxChargePower = para_series["BatteryMaxChargePower"]
         self.BatteryDischargeEfficiency = para_series["BatteryDischargeEfficiency"]
         self.BatteryMaxDischargePower = para_series["BatteryMaxDischargePower"]
+        self.V2B = para_series["V2B"]
 
