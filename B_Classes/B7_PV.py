@@ -6,14 +6,6 @@ class PV:
 
     def __init__(self, para_series):
         self.ID_PVType = para_series["ID_PVType"]
-        self.Size = para_series["Size"]
         self.PVPower = para_series["PVPower"]
-        self.PVEfficiency = para_series["PVEfficiency"]
+        self.PVPower_unit = para_series["PVPower_unit"]
 
-
-
-    def calc_PVGeneration(self, household):
-
-        Generation = 0
-
-        return Generation

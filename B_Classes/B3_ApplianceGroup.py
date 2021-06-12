@@ -12,14 +12,21 @@ class ApplianceGroup:
         self.ID_EnergyCarrier_DishWasher = para_series["ID_EnergyCarrier_DishWasher"]
         self.DishWasherPower = para_series["DishWasherPower"]
         self.DishWasherShifting = para_series["DishWasherShifting"]
+        self.DishWasherAdoption = para_series["DishWasherAdoption"]
+
         self.ID_DryerType = para_series["ID_DryerType"]
         self.ID_EnergyCarrier_Dryer = para_series["ID_EnergyCarrier_Dryer"]
         self.DryerPower = para_series["DryerPower"]
         self.DryerShifting = para_series["DryerShifting"]
+        self.DryerAdoption = para_series["DryerAdoption"]
+
         self.ID_WashingMachineType = para_series["ID_WashingMachineType"]
         self.ID_EnergyCarrier_WashingMachine = para_series["ID_EnergyCarrier_WashingMachine"]
         self.WashingMachinePower = para_series["WashingMachinePower"]
         self.WashingMachineShifting = para_series["WashingMachineShifting"]
+        self.WashingMachineAdoption = para_series["WashingMachineAdoption"]
+
+
 
 
 

@@ -284,13 +284,13 @@ class OperationOptimization:
 
         # (2)
         def calc_UseOfGrid(m, t):
-            return m.Grid[t] == m.Grid2Load[t] + m.Grid2EV[t] * m.CarStatus[t]
+            return m.Grid[t] == m.Grid2Load[t] + m.Grid2EV[t] * m.CarAtHomeStatus[t]
 
         m.calc_UseOfGrid = pyo.Constraint(m.t, rule=calc_UseOfGrid)
 
         # (3)
         def calc_UseOfPV(m, t):
-            return m.PV2Load[t] + m.PV2Bat[t] + m.PV2Grid[t] + m.PV2EV[t] * m.CarStatus[t] == m.PhotovoltaicProfile[t]
+            return m.PV2Load[t] + m.PV2Bat[t] + m.PV2Grid[t] + m.PV2EV[t] * m.CarAtHomeStatus[t] == m.PhotovoltaicProfile[t]
 
         m.calc_UseOfPV = pyo.Constraint(m.t, rule=calc_UseOfPV)
 
@@ -302,7 +302,7 @@ class OperationOptimization:
 
         # (5)
         def calc_SupplyOfLoads(m, t):
-            return m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] + m.EV2Load[t] * m.V2B[t] * m.CarStatus[t] == m.Load[t]
+            return m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] + m.EV2Load[t] * m.V2B[t] * m.CarAtHomeStatus[t] == m.Load[t]
 
         m.calc_SupplyOfLoads = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
 
@@ -321,7 +321,7 @@ class OperationOptimization:
             elif m.t[t] == HoursOfSimulation:
                 return m.BatDischarge[t] == 0
             else:
-                return m.BatDischarge[t] == m.Bat2Load[t] + m.Bat2EV[t] * m.CarStatus[t]
+                return m.BatDischarge[t] == m.Bat2Load[t] + m.Bat2EV[t] * m.CarAtHomeStatus[t]
 
         m.calc_BatDischarge = pyo.Constraint(m.t, rule=calc_BatDischarge)
 
@@ -349,11 +349,11 @@ class OperationOptimization:
         def calc_EVCharge(m, t):
             if EVCapacity == 0:
                 return m.EVCharge[t] == 0
-            elif m.CarStatus[t] == 0:
+            elif m.CarAtHomeStatus[t] == 0:
                 return m.EVCharge[t] == 0
             else:
-                return m.EVCharge[t] * m.CarStatus[t] == m.Grid2EV[t] * m.CarStatus[t] + m.PV2EV[t] * m.CarStatus[t] + \
-                       m.Bat2EV[t] * m.CarStatus[t]
+                return m.EVCharge[t] * m.CarAtHomeStatus[t] == m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.PV2EV[t] * m.CarAtHomeStatus[t] + \
+                       m.Bat2EV[t] * m.CarAtHomeStatus[t]
 
         m.calc_EVCharge = pyo.Constraint(m.t, rule=calc_EVCharge)
 
@@ -363,13 +363,13 @@ class OperationOptimization:
                 return m.EVDischarge[t] == 0
             elif EVCapacity == 0:
                 return m.EVDischarge[t] == 0
-            elif m.CarStatus[t] == 0 and m.V2B[t] == 1:
+            elif m.CarAtHomeStatus[t] == 0 and m.V2B[t] == 1:
                 return m.EVDischarge[t] == 0
             elif m.t[t] == HoursOfSimulation:
                 return m.EVDischarge[t] == 0
             else:
-                return m.EVDischarge[t] == m.EV2Load[t] * m.V2B[t] * m.CarStatus[t] + m.EV2Bat[t] * m.V2B[t] * \
-                       m.CarStatus[t]
+                return m.EVDischarge[t] == m.EV2Load[t] * m.V2B[t] * m.CarAtHomeStatus[t] + m.EV2Bat[t] * m.V2B[t] * \
+                       m.CarAtHomeStatus[t]
 
         m.calc_EVDischarge = pyo.Constraint(m.t, rule=calc_EVDischarge)
 
@@ -380,9 +380,9 @@ class OperationOptimization:
             elif EVCapacity == 0:
                 return m.EVSoC[t] == 0
             else:
-                return m.EVSoC[t] == m.EVSoC[t - 1] + (m.EVCharge[t] * m.CarStatus[t] * 0.95) - (
-                            m.EVDischarge[t] * m.CarStatus[
-                        t] * 1.05) - (3 * (1 - m.CarStatus[t]))
+                return m.EVSoC[t] == m.EVSoC[t - 1] + (m.EVCharge[t] * m.CarAtHomeStatus[t] * 0.95) - (
+                            m.EVDischarge[t] * m.CarAtHomeStatus[
+                        t] * 1.05) - (3 * (1 - m.CarAtHomeStatus[t]))
 
         m.calc_EVSoC = pyo.Constraint(m.t, rule=calc_EVSoC)
 

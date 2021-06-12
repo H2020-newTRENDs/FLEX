@@ -227,23 +227,6 @@ class Ope_TableGenerator:
         DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DishWasherHours, TargetTable_columns, self.Conn)
         pass
 
-    def gen_Sce_Demand_DryerHours(self):
-        Demand_Dryer = DB().read_DataFrame(REG().Sce_Demand_Dryer, self.Conn)
-
-        self.Demand_WashingMachine = DB().read_DataFrame(REG().Sce_Demand_WashingMachine, self.Conn)
-        Demand_WashingMachine = self.Demand_WashingMachine
-        Cycle = Demand_WashingMachine.WashingMachineCycle  # cycle = WashingMachine, same time period used!
-        print(Cycle)
-        hours = self.gen_Sce_ApplianceUseHours(Cycle)
-        print(hours)
-
-        TargetTable_list = []
-        for hour in range(0, len(hours)):
-            TargetTable_list.append([hour + 1, hours[hour]])
-
-        TargetTable_columns = ["ID_Hour", "DryerHours"]
-        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DryerHours, TargetTable_columns, self.Conn)
-        pass
 
     def gen_Sce_Demand_WashingMachineHours(self):
 
@@ -367,10 +350,9 @@ class Ope_TableGenerator:
         # self.gen_OBJ_ID_PV()
         # self.gen_OBJ_ID_Battery()
         # self.gen_OBJ_ID_ElectricVehicle()
-        self.gen_OBJ_ID_Household()
+        # self.gen_OBJ_ID_Household()
 
         # self.gen_Sce_Demand_DishWasherHours()
-        # self.gen_Sce_Demand_DryerHours()
         # self.gen_Sce_Demand_WashingMachineHours()
 
         # self.gen_Sce_ID_Environment()

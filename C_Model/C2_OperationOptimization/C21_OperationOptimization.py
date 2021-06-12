@@ -47,7 +47,7 @@ class OperationOptimization:
         self.LoadProfile = DB().read_DataFrame(REG().Sce_Demand_BaseElectricityProfile, self.Conn)
         self.PhotovoltaicProfile = DB().read_DataFrame(REG().Sce_PhotovoltaicProfile, self.Conn)
         self.HotWaterProfile = DB().read_DataFrame(REG().Sce_Demand_HotWaterProfile, self.Conn)
-        self.CarAtHome = DB().read_DataFrame(REG().Gen_Sce_CarAtHomeHours, self.Conn)
+        self.CarAtHomeStatus = DB().read_DataFrame(REG().Gen_Sce_CarAtHomeHours, self.Conn)
         self.Demand_EV = DB().read_DataFrame(REG().Sce_Demand_ElectricVehicleBehavior, self.Conn)
 
         self.DishWasherHours = DB().read_DataFrame(REG().Gen_Sce_DishWasherHours, self.Conn)
@@ -56,7 +56,6 @@ class OperationOptimization:
         self.WashingMachineHours = DB().read_DataFrame(REG().Gen_Sce_WashingMachineHours, self.Conn)
         self.Sce_Demand_WashingMachine = DB().read_DataFrame(REG().Sce_Demand_WashingMachine, self.Conn)
 
-        self.DryerHours = DB().read_DataFrame(REG().Gen_Sce_DryerHours, self.Conn)
         self.Sce_Demand_Dryer = DB().read_DataFrame(REG().Sce_Demand_Dryer, self.Conn)
 
         # you can import all the necessary tables into the memory here.
@@ -70,8 +69,6 @@ class OperationOptimization:
     def gen_Environment(self, row_id):
         EnvironmentSeries = self.ID_Environment.iloc[row_id]
         return EnvironmentSeries
-
-
 
     def run_Optimization(self, household_id, environment_id):
 
@@ -90,7 +87,7 @@ class OperationOptimization:
         ID_ElectricityPriceType = Environment.ID_ElectricityPriceType
         ID_FiT = Environment.ID_FeedinTariffType
 
-        # used for the data import in pyomo
+        # fucntion to convert a list into a dict (needed for pyomo data input)
         def create_dict(liste):
             dictionary = {}
             for index, value in enumerate(liste, start=1):
@@ -112,44 +109,28 @@ class OperationOptimization:
         # (3.1.1) DishWasher
 
         # This is 1, only if there is no Dishwasher in the household, then 0
-        DishWasherAdoption = 1
+        DishWasherAdoption = Household.ApplianceGroup.DishWasherAdoption
 
         DishWasherTheoreticalHours = (self.DishWasherHours.DishWasherHours.to_numpy()) * DishWasherAdoption
         HourOfDay = self.TimeStructure.ID_DayHour.to_numpy()
-        DishWasherCycle = int(self.Sce_Demand_DishWasher.DishWasherCycle)
         DishWasherDuration = int(self.Sce_Demand_DishWasher.DishWasherDuration)
+        DishWasherStartTime = int(self.Sce_Demand_DishWasher.DishWasherStartTime)
 
         DishWasherPower = Household.ApplianceGroup.DishWasherPower
-        print(DishWasherPower)
         DishWasherSmartStatus = Household.ApplianceGroup.DishWasherShifting
 
-        # This is for testing a lower duration, max = 3
-        # DishWasherDuration= 1
-
-        # This is for setting a smart status manually, 0 or 1
-        # DishWasherSmartStatus = 0
-
-        print(DishWasherSmartStatus)
-
-        # (3.1.2) WashingMachine
+         # (3.1.2) WashingMachine
 
         # This is 1, only if there is no Dishwasher in the household, then 0
-        WashingMachineAdoption = 1
+        WashingMachineAdoption = Household.ApplianceGroup.WashingMachineAdoption
 
-        WashingMachineTheoreticalHours = (self.WashingMachineHours.WashingMachineHours.to_numpy()) * WashingMachineAdoption
-        WashingMachineCycle = int(self.Sce_Demand_WashingMachine.WashingMachineCycle)
+        WashingMachineTheoreticalHours = (
+                                             self.WashingMachineHours.WashingMachineHours.to_numpy()) * WashingMachineAdoption
         WashingMachineDuration = int(self.Sce_Demand_WashingMachine.WashingMachineDuration)
+        WashingMachineStartTime = int(self.Sce_Demand_WashingMachine.WashingMachineStartTime)
+
         WashingMachinePower = Household.ApplianceGroup.WashingMachinePower
-        print(WashingMachinePower)
         WashingMachineSmartStatus = Household.ApplianceGroup.WashingMachineShifting
-
-        # This is for testing a lower duration, max = 3
-        # WashingMachineDuration= 3
-
-        # This is for setting a smart status manually, 0 or 1
-        # WashingMachineSmartStatus = 0
-
-        print(WashingMachineSmartStatus)
 
         # (3.1.3) Dryer
 
@@ -158,7 +139,8 @@ class OperationOptimization:
 
         # This is 1, only if there is no Dishwasher in the household, then 0
         DryerPower = Household.ApplianceGroup.DryerPower
-        DryerAdoption = 1
+        DryerDuration = int(self.Sce_Demand_Dryer.DryerDuration)
+        DryerAdoption = Household.ApplianceGroup.DryerAdoption
 
         # toDo:
         # () Done: Last day of year? With or 8759 or 8760 ...
@@ -177,26 +159,16 @@ class OperationOptimization:
 
         # (3.2.1) Check if the EV adopted, by checking the capacity of the EV
 
-        # Case: BatteryCapacity = 0
+        # Case: BatteryCapacity = 0: EV not adopted
         if Household.ElectricVehicle.BatterySize == 0:
-            CarAtHome = create_dict([0] * HoursOfSimulation)
-            V2B = create_dict([0] * HoursOfSimulation)  # V2B = Vehicle to building
+            CarAtHomeStatus = create_dict([0] * HoursOfSimulation)
+            V2B = 0                         # Vif EV is not adopted, V2B have to be 0
 
-        # Case: BatteryCapacity =/ 0
+        # Case: BatteryCapacity > 0: EV is adopted
         else:
-            CarAtHome = create_dict(self.CarAtHome.CarAtHomeHours.to_numpy())
+            CarAtHomeStatus = create_dict(self.CarAtHomeStatus.CarAtHomeHours.to_numpy())
+            V2B = Household.ElectricVehicle.V2B
 
-            # Swichting the Vehicle to Grid 1 or 0
-            V2B = create_dict([1] * HoursOfSimulation)
-
-        # (3.2.2) Option to set the EV demand to zero
-
-        # Set car demand to zero, for testing saving, 1 or 0
-        CarDemand = 1
-
-        print('The EV Batterysize is: ' + str(Household.ElectricVehicle.BatterySize))
-        print('The Batterysize is : ' + str(Household.Battery.Capacity))
-        print('The PV Size is: ' + str(Household.PV.PVPower))
 
         # (2.3) Calculation of the hourly EV demand for the discharge of the EV, if not at home
         EV_DailyDemand = int(self.Demand_EV.EVDailyElectricityConsumption)
@@ -240,6 +212,10 @@ class OperationOptimization:
         T_TankSourounding = 20  # °C
         # starting temperature of thermal mass 20°C
         CWater = 4200 / 3600
+
+        # Set into DB for scenario
+        HeatingTargetTemperature = 20
+        CoolingTargetTemperature = 24
 
         # Parameters of SpaceHeatingTank
         # Mass of water in tank
@@ -420,12 +396,10 @@ class OperationOptimization:
         m.HWPart2 = pyo.Param(m.t, initialize=create_dict(HotWaterProfile2))
         m.COP_HotWater = pyo.Param(m.t, initialize=create_dict(COP_HotWater))
 
-        # Vehicle to Grid Status
-        m.V2B = pyo.Param(m.t, initialize=V2B)
-        m.CarStatus = pyo.Param(m.t, initialize=CarAtHome)
+        # CarAtHomeStatus
+        m.CarAtHomeStatus = pyo.Param(m.t, initialize=CarAtHomeStatus)
 
         # Smart Technologies
-
         m.DishWasherTheoreticalHours = pyo.Param(m.t, within=pyo.Binary,
                                                  initialize=create_dict(DishWasherTheoreticalHours))
         m.HourOfDay = pyo.Param(m.t, initialize=create_dict(HourOfDay))
@@ -442,24 +416,24 @@ class OperationOptimization:
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
 
         # energy used for cooling
-        m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 6_000))  # 6kW thermal, 2 kW electrical
-        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 24))  # Change to TargetTemp
+        m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceCooling.SpaceCoolingPower))  # 6kW thermal, 2 kW electrical
+        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(HeatingTargetTemperature, CoolingTargetTemperature))  # Change to TargetTemp
         m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 60))
 
-        # Grid
+        # Grid, limit set by 21 kW
         m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))  # 380 * 32 * 1,72
         m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
         m.Grid2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
 
         # PV
-        m.PV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11))
-        m.PV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11))
-        m.PV2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11))
-        m.PV2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11))
+        m.PV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
+        m.PV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
+        m.PV2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
+        m.PV2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
 
         m.Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
 
-        m.Feedin = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11))
+        m.Feedin = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
 
         # Battery
         m.BatSoC = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.Capacity))
@@ -527,13 +501,13 @@ class OperationOptimization:
             if Household.ElectricVehicle.BatterySize == 0:
                 return m.Grid[t] == m.Grid2Load[t]
             else:
-                return m.Grid[t] == m.Grid2Load[t] + m.Grid2EV[t] * m.CarStatus[t]
+                return m.Grid[t] == m.Grid2Load[t] + m.Grid2EV[t] * m.CarAtHomeStatus[t]
 
         m.calc_UseOfGrid = pyo.Constraint(m.t, rule=calc_UseOfGrid)
 
         # (3)
         def calc_UseOfPV(m, t):
-            return m.PV2Load[t] + m.PV2Bat[t] + m.PV2Grid[t] + m.PV2EV[t] * m.CarStatus[t] == m.PhotovoltaicProfile[t]
+            return m.PV2Load[t] + m.PV2Bat[t] + m.PV2Grid[t] + m.PV2EV[t] * m.CarAtHomeStatus[t] == m.PhotovoltaicProfile[t]
 
         m.calc_UseOfPV = pyo.Constraint(m.t, rule=calc_UseOfPV)
 
@@ -550,9 +524,9 @@ class OperationOptimization:
             if Household.ElectricVehicle.BatterySize == 0:
                 return m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] == m.Load[t]
             elif Household.Battery.Capacity == 0:
-                return m.Grid2Load[t] + m.PV2Load[t] + m.EV2Load[t] * m.V2B[t] * m.CarStatus[t] == m.Load[t]
+                return m.Grid2Load[t] + m.PV2Load[t] + m.EV2Load[t] * m.CarAtHomeStatus[t] * V2B == m.Load[t]
             else:
-                return m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] + m.EV2Load[t] * m.V2B[t] * m.CarStatus[t] == \
+                return m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] + m.EV2Load[t] * m.CarAtHomeStatus[t] * V2B == \
                        m.Load[t]
 
         m.calc_SupplyOfLoads = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
@@ -561,7 +535,7 @@ class OperationOptimization:
         def calc_SumOfLoads(m, t):
             return m.Load[t] == m.LoadProfile[t] \
                    + ((m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1_000) \
-                   + (m.Q_RoomCooling[t] / 3 / 1_000) \
+                   + (m.Q_RoomCooling[t] / Household.SpaceCooling.SpaceCoolingEfficiency / 1_000) \
                    + (m.HWPart1[t] / m.COP_dynamic[t]) \
                    + (m.HWPart2[t] / m.COP_HotWater[t]) \
                    + (m.DishWasher1[t] + m.DishWasher2[t] + m.DishWasher3[t]) * DishWasherPower \
@@ -579,7 +553,7 @@ class OperationOptimization:
             elif m.t[t] == HoursOfSimulation:
                 return m.BatDischarge[t] == 0
             else:
-                return m.BatDischarge[t] == m.Bat2Load[t] + m.Bat2EV[t] * m.CarStatus[t]
+                return m.BatDischarge[t] == m.Bat2Load[t] + m.Bat2EV[t] * m.CarAtHomeStatus[t]
 
         m.calc_BatDischarge = pyo.Constraint(m.t, rule=calc_BatDischarge)
 
@@ -590,7 +564,7 @@ class OperationOptimization:
             elif Household.ElectricVehicle.BatterySize == 0:
                 return m.BatCharge[t] == m.PV2Bat[t]
             else:
-                return m.BatCharge[t] == m.PV2Bat[t] + m.EV2Bat[t] * m.V2B[t]
+                return m.BatCharge[t] == m.PV2Bat[t] + m.EV2Bat[t] * V2B
 
         m.calc_BatCharge = pyo.Constraint(m.t, rule=calc_BatCharge)
 
@@ -610,13 +584,13 @@ class OperationOptimization:
         def calc_EVCharge(m, t):
             if Household.ElectricVehicle.BatterySize == 0:
                 return m.EVCharge[t] == 0
-            elif m.CarStatus[t] == 0:
+            elif m.CarAtHomeStatus[t] == 0:
                 return m.EVCharge[t] == 0
             elif Household.Battery.Capacity == 0:
-                return m.EVCharge[t] * m.CarStatus[t] == m.Grid2EV[t] * m.CarStatus[t] + m.PV2EV[t] * m.CarStatus[t]
+                return m.EVCharge[t] * m.CarAtHomeStatus[t] == m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.PV2EV[t] * m.CarAtHomeStatus[t]
             else:
-                return m.EVCharge[t] * m.CarStatus[t] == m.Grid2EV[t] * m.CarStatus[t] + m.PV2EV[t] * m.CarStatus[t] + \
-                       m.Bat2EV[t] * m.CarStatus[t]
+                return m.EVCharge[t] * m.CarAtHomeStatus[t] == m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.PV2EV[t] * m.CarAtHomeStatus[t] + \
+                       m.Bat2EV[t] * m.CarAtHomeStatus[t]
 
         m.calc_EVCharge = pyo.Constraint(m.t, rule=calc_EVCharge)
 
@@ -626,15 +600,15 @@ class OperationOptimization:
                 return m.EVDischarge[t] == 0
             elif Household.ElectricVehicle.BatterySize == 0:
                 return m.EVDischarge[t] == 0
-            elif m.CarStatus[t] == 0 and m.V2B[t] == 1:
+            elif m.CarAtHomeStatus[t] == 0 and V2B == 1:
                 return m.EVDischarge[t] == 0
             elif m.t[t] == HoursOfSimulation:
                 return m.EVDischarge[t] == 0
             elif Household.Battery.Capacity == 0:
-                return m.EVDischarge[t] == m.EV2Load[t] * m.V2B[t] * m.CarStatus[t]
+                return m.EVDischarge[t] == m.EV2Load[t] * m.CarAtHomeStatus[t] * V2B
             else:
-                return m.EVDischarge[t] == m.EV2Load[t] * m.V2B[t] * m.CarStatus[t] + m.EV2Bat[t] * m.V2B[t] * \
-                       m.CarStatus[t]
+                return m.EVDischarge[t] == m.EV2Load[t] * m.CarAtHomeStatus[t] * V2B \
+                       + m.EV2Bat[t] * m.CarAtHomeStatus[t] * V2B
 
         m.calc_EVDischarge = pyo.Constraint(m.t, rule=calc_EVDischarge)
 
@@ -646,10 +620,10 @@ class OperationOptimization:
                 return m.EVSoC[t] == 0
             else:
                 return m.EVSoC[t] == m.EVSoC[t - 1] + (
-                        m.EVCharge[t] * m.CarStatus[t] * Household.ElectricVehicle.BatteryChargeEfficiency) \
-                       - (m.EVDischarge[t] * m.CarStatus[t] * (
+                        m.EVCharge[t] * m.CarAtHomeStatus[t] * Household.ElectricVehicle.BatteryChargeEfficiency) \
+                       - (m.EVDischarge[t] * m.CarAtHomeStatus[t] * (
                         1 + (1 - Household.ElectricVehicle.BatteryDischargeEfficiency))) \
-                       - (EV_HourlyDemand * (1 - m.CarStatus[t]))
+                       - (EV_HourlyDemand * (1 - m.CarAtHomeStatus[t]))
 
         m.calc_EVSoC = pyo.Constraint(m.t, rule=calc_EVSoC)
 
@@ -677,7 +651,7 @@ class OperationOptimization:
         def calc_DishWasherStartTime(m, t):
             if m.t[t] == 1:
                 return m.DishWasherStart[t] == 0
-            elif m.DishWasherTheoreticalHours[t] == 1 and m.HourOfDay[t] == 7 and DishWasherSmartStatus == 0:
+            elif m.DishWasherTheoreticalHours[t] == 1 and m.HourOfDay[t] == DishWasherStartTime and DishWasherSmartStatus == 0:
                 return m.DishWasher1[t] == 1
             elif m.DishWasherTheoreticalHours[t] == 1 and m.HourOfDay[t] == 24:
                 return m.DishWasherStart[t] == m.DishWasherStart[t - 1] - 1 * DishWasherSmartStatus
@@ -710,7 +684,7 @@ class OperationOptimization:
         def calc_WashingMachineStartTime(m, t):
             if m.t[t] == 1:
                 return m.WashingMachineStart[t] == 0
-            elif m.WashingMachineTheoreticalHours[t] == 1 and m.HourOfDay[t] == 20 and WashingMachineSmartStatus == 0:
+            elif m.WashingMachineTheoreticalHours[t] == 1 and m.HourOfDay[t] == WashingMachineStartTime and WashingMachineSmartStatus == 0:
                 return m.WashingMachine1[t] == 1
             elif m.WashingMachineTheoreticalHours[t] == 1 and m.HourOfDay[t] == 24:
                 return m.WashingMachineStart[t] == m.WashingMachineStart[t - 1] - 1 * WashingMachineSmartStatus
@@ -734,7 +708,9 @@ class OperationOptimization:
                 return m.Dryer2[t] == 0
             if DryerAdoption == 0:
                 return m.Dryer2[t] == 0
-            return m.WashingMachine1[t] == m.Dryer2[t + 4]
+            elif DryerDuration == 2:
+                return m.WashingMachine1[t] == m.Dryer2[t + 4]
+            return m.Dryer2[t + 4] == 0
 
         m.calc_Dryer2 = pyo.Constraint(m.t, rule=calc_Dryer2)
 
@@ -805,22 +781,20 @@ class OperationOptimization:
         instance.display("./log.txt")
         print(results)
         # return relevant data
-        return instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater
+        return instance, M_WaterTank, CWater
 
     def run(self):
         for household_id in range(55295, 55296):
             for environment_id in range(1, 2):
-                instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater = self.run_Optimization(
-                    household_id,
-                    environment_id)
-                return instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater
+                instance, M_WaterTank, CWater = self.run_Optimization(household_id, environment_id)
+                return instance, M_WaterTank, CWater
 
 
 ############################################################################################
 # (5) Visualization
 
 # create plots to visualize results price
-def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, colors):
+def show_results(instance, M_WaterTank, CWater, colors):
     ############################################################################################
     # (5.1) Start time and stop time
     starttime = 6000
@@ -898,8 +872,8 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
         np.array(np.array(list(instance.EV2Load.extract_values().values())[starttime: endtime]), dtype=np.float), nan=0)
     EV2Bat = np.nan_to_num(
         np.array(np.array(list(instance.EV2Bat.extract_values().values())[starttime: endtime]), dtype=np.float), nan=0)
-    CarStatus = np.nan_to_num(
-        np.array(np.array(list(instance.CarStatus.extract_values().values())[starttime: endtime]), dtype=np.float),
+    CarAtHomeStatus = np.nan_to_num(
+        np.array(np.array(list(instance.CarAtHomeStatus.extract_values().values())[starttime: endtime]), dtype=np.float),
         nan=0)
 
     # PV
@@ -942,7 +916,7 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
 
     #  (1) EV ####################################################################################################
     fig, ax1 = plt.subplots()
-    ax1.bar(x_achse, CarStatus, label='CarStatus', color='grey', alpha=0.3)
+    ax1.bar(x_achse, CarAtHomeStatus, label='CarAtHomeStatus', color='grey', alpha=0.3)
     ax1.bar(x_achse, EVCharge, label='EVCharge', color='green', alpha=0.3)
     ax1.bar(x_achse, EVDischarge, label='EVDischarge', color='red', alpha=0.3)
     ax1.set_ylabel("Power kW")
@@ -968,7 +942,7 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     ax1.set_ylabel("Power kW")
 
     ax2 = ax1.twinx()
-    ax2.bar(x_achse, CarStatus, linewidth=2.5, label='CarStatus', color='grey', alpha=0.3)
+    ax2.bar(x_achse, CarAtHomeStatus, linewidth=2.5, label='CarAtHomeStatus', color='grey', alpha=0.3)
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines + lines2, labels + labels2, loc='upper right')
@@ -994,7 +968,7 @@ def show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWa
     ax1.set_ylabel("Power in kW")
 
     ax2 = ax1.twinx()
-    ax2.bar(x_achse, CarStatus, linewidth=2.5, label='CarStatus', color='grey', alpha=0.1)
+    ax2.bar(x_achse, CarAtHomeStatus, linewidth=2.5, label='CarAtHomeStatus', color='grey', alpha=0.1)
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines + lines2, labels + labels2, loc='upper right')
@@ -1341,5 +1315,5 @@ if __name__ == "__main__":
               'SumOfLoads': black,
               "StateOfCharge": black}
     A = OperationOptimization(DB().create_Connection(CONS().RootDB))
-    instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater = A.run()
-    show_results(instance, HoursOfSimulation, ListOfDynamicCOP, M_WaterTank, CWater, colors)
+    instance, M_WaterTank, CWater = A.run()
+    show_results(instance, M_WaterTank, CWater, colors)
