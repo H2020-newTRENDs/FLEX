@@ -9,8 +9,8 @@ from B_Classes.B2_Building import Building, HeatingCooling_noDR
 if __name__ == "__main__":
 
     CONN = DB().create_Connection(CONS().RootDB)
-    Ope_TableGenerator(CONN).run()
-    # OperationOptimization(CONN).run()
+    # Ope_TableGenerator(CONN).run()
+    OperationOptimization(CONN).run()
 
 
 
@@ -40,11 +40,11 @@ if __name__ == "__main__":
     # Run calculation on heat and cooling loads for all households without optimization:
     import time
 
-    start = time.process_time()
-    B = HeatingCooling_noDR(DB().read_DataFrame(REG().ID_BuildingOption, CONN))
-    Temperature_outside = DB().read_DataFrame(REG().Sce_Weather_Temperature, CONN)
-    Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR = B.ref_HeatingCooling(Temperature_outside)
-    print(time.process_time() - start)
+    # start = time.process_time()
+    # B = HeatingCooling_noDR(DB().read_DataFrame(REG().ID_BuildingOption, CONN))
+    # Temperature_outside = DB().read_DataFrame(REG().Sce_Weather_Temperature, CONN)
+    # Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR = B.ref_HeatingCooling(Temperature_outside)
+    # print(time.process_time() - start)
 
 
 
