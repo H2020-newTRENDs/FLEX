@@ -202,7 +202,7 @@ class OperationOptimization:
         # objective
 
         def minimize_cost(m):
-            rule = sum(m.Q_TankHeating[t] / m.COP_dynamic[t] * m.ElectricityPrice[t] for t in m.t)
+            rule = sum(m.Q_TankHeating[t] / m.SpaceHeatingHourlyCOP[t] * m.ElectricityPrice[t] for t in m.t)
             return rule
 
         m.OBJ = pyo.Objective(rule=minimize_cost)

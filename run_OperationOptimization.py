@@ -9,8 +9,8 @@ from B_Classes.B2_Building import Building, HeatingCooling_noDR
 if __name__ == "__main__":
 
     CONN = DB().create_Connection(CONS().RootDB)
-    # Ope_TableGenerator(CONN).run()
-    OperationOptimization(CONN).run()
+    Ope_TableGenerator(CONN).run()
+    # OperationOptimization(CONN).run()
 
 
 
