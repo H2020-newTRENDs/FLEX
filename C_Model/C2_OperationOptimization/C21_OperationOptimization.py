@@ -178,10 +178,12 @@ class OperationOptimization:
         # (3.3) Calculation of the installed PV-Power with the PVProfile and installed Power
 
         # (3.3.1) LoadProfile, BaseLoadProfile is 2376 kWh, SmartAppElectricityProfile is 1658 kWh
-        # LoadProfile = self.LoadProfile.BaseElectricityProfile.to_numpy()
-        LoadProfile = self.LoadProfile.SmartAppElectricityProfile.to_numpy()
+        LoadProfile = self.LoadProfile.loc[self.LoadProfile['ID_BaseElectricityProfileType'] \
+                    == ID_BaseElectricityProfileType].loc[:,'BaseElectricityProfile'].to_numpy()
 
-        PhotovoltaicBaseProfile = self.PhotovoltaicProfile.PhotovoltaicProfile.to_numpy()
+        PhotovoltaicBaseProfile = self.PhotovoltaicProfile.loc[self.PhotovoltaicProfile['ID_PhotovoltaicProfileType'] \
+                    == ID_PhotovoltaicProfileType].loc[:, 'PhotovoltaicProfile'].to_numpy()
+
         PhotovoltaicProfile = PhotovoltaicBaseProfile * Household.PV.PVPower
 
         ############################################################################################
@@ -262,11 +264,10 @@ class OperationOptimization:
         # (3.5) Pricing of electricity
 
         ElectricityPrice = self.ElectricityPrice.loc[self.ElectricityPrice['ID_ElectricityPriceType'] \
-                                                     == ID_ElectricityPriceType].loc[:,
-                           'HourlyElectricityPrice'].to_numpy()
+                             == ID_ElectricityPriceType].loc[:, 'HourlyElectricityPrice'].to_numpy()
 
         FeedinTariff = self.FeedinTariff.loc[self.FeedinTariff['ID_FeedinTariffType'] \
-                                             == ID_FeedinTariffType].loc[:, 'HourlyFeedinTariff'].to_numpy()
+                             == ID_FeedinTariffType].loc[:, 'HourlyFeedinTariff'].to_numpy()
 
         ############################################################################################
         # (3.6) Selection of COP for SpaceHeating and HotWater
