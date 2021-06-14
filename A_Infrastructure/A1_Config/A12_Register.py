@@ -52,7 +52,7 @@ class REG:
         # 2.1 Exogenous tables: ID and parameter
         self.Sce_ID_TimeStructure = self.Scenario + self.ID + "TimeStructure" # base year: 2010
         #self.Sce_ID_LifestyleType = self.Scenario + self.ID + "LifestyleType"
-        self.Sce_ID_TargetTemperature = self.Scenario + self.ID + "TargetTemperature"
+        self.Sce_ID_TargetTemperatureType = self.Scenario + self.ID + "TargetTemperatureType"
 
         self.Sce_ID_BaseElectricityProfileType = self.Scenario + self.ID + "BaseElectricityProfileType"
         self.Sce_ID_ElectricityPriceType = self.Scenario + self.ID + "ElectricityPriceType"
@@ -62,26 +62,36 @@ class REG:
 
         self.Sce_Weather_Radiation = self.Scenario + "Weather_Radiation" # from helioclim dataset for year 2010
         self.Sce_Weather_Temperature = self.Scenario + "Weather_Temperature" # from MERRA2 dataset for year 2010
-        self.Sce_Technology_HeatPumpCOP = self.Scenario + "Technology_HeatPumpCOP"
-        self.Sce_Demand_BaseElectricityProfile = self.Scenario + "Demand_BaseElectricityProfile"
+
         self.Sce_Demand_DishWasher = self.Scenario + "Demand_DishWasher"
         self.Sce_Demand_Dryer = self.Scenario + "Demand_Dryer"
         self.Sce_Demand_WashingMachine = self.Scenario + "Demand_WashingMachine"
         self.Sce_Demand_ElectricVehicleBehavior = self.Scenario + "Demand_ElectricVehicleBehavior"
+        self.Sce_Demand_BaseElectricityProfile = self.Scenario + "Demand_BaseElectricityProfile"
+
         self.Sce_Price_HourlyElectricityPrice = self.Scenario + "Price_HourlyElectricityPrice"
         self.Sce_Price_HourlyFeedinTariff = self.Scenario + "Price_HourlyFeedinTariff"
-        self.Sce_Demand_HotWaterProfile = self.Scenario + 'Demand_HotWaterProfile'
-        self.Sce_PhotovoltaicProfile = self.Scenario + 'PhotovoltaicProfile' # based on 1kWp; hourly profile
-        self.Sce_Weather_Radiation_SkyDirections = self.Scenario + 'Weather_Radiation_SkyDirections' # Philipp
+
+        self.Sce_HeatPump_COPCurve = self.Scenario + "HeatPump_COPCurve"
+
 
         #self.Sce_Weather_Temperature_test = self.Scenario + 'Weather_Temperature_test'
 
 
         # Generated scenario tables
         self.Gen_Sce_ID_Environment = self.GeneratedData + self.Scenario + self.ID + "Environment"
+
         self.Gen_Sce_DishWasherHours = self.GeneratedData + self.Scenario + "DishWasherHours"
         self.Gen_Sce_WashingMachineHours = self.GeneratedData + self.Scenario + "WashingMachineHours"
         self.Gen_Sce_CarAtHomeHours = self.GeneratedData + self.Scenario + 'CarAtHomeHours'
+
+        self.Gen_Sce_Technology_HeatPumpCOP = self.GeneratedData +self.Scenario + "Technology_HeatPumpCOP"
+        self.Gen_Sce_HotWaterProfile = self.GeneratedData +self.Scenario + 'HotWaterProfile'
+        self.Gen_Sce_PhotovoltaicProfile = self.GeneratedData +self.Scenario + 'PhotovoltaicProfile'  # based on 1kWp
+        self.Gen_Sce_Weather_Radiation_SkyDirections = self.GeneratedData +self.Scenario + 'Weather_Radiation_SkyDirections'  # Philipp
+        self.Gen_Sce_HeatPump_HourlyCOP = self.GeneratedData +self.Scenario + "HeatPump_HourlyCOP"
+
+
 
         # Gen_Sce_SolarRadiationDirections...
 

@@ -536,10 +536,10 @@ class OperationOptimization:
         # (6)
         def calc_SumOfLoads(m, t):
             return m.Load[t] == m.LoadProfile[t] \
-                   + ((m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1_000) \
+                   + ((m.Q_TankHeating[t] / m.SpaceHeatingHourlyCOP[t]) / 1_000) \
                    + ((m.Q_RoomCooling[t] / Household.SpaceCooling.SpaceCoolingEfficiency/ 1_000)) \
-                   + (m.HWPart1[t] / m.COP_dynamic[t]) \
-                   + (m.HWPart2[t] / m.COP_HotWater[t]) \
+                   + (m.HWPart1[t] / m.SpaceHeatingHourlyCOP[t]) \
+                   + (m.HWPart2[t] / m.HotWaterHourlyCOP[t]) \
                    + (m.DishWasher1[t] + m.DishWasher2[t] + m.DishWasher3[t]) * DishWasherPower \
                    + (m.WashingMachine1[t] + m.WashingMachine2[t] + m.WashingMachine3[t]) * WashingMachinePower \
                    + (m.Dryer1[t] + m.Dryer2[t]) * DryerPower

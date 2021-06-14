@@ -16,14 +16,17 @@ from A_Infrastructure.A1_Config.A11_Constants import CONS
 
 class OperationOptimization:
     """
-    Intro
+    # toDo:
+    (1) Write scenario, change DB and collect parameters of scenario
+    (1a) in TableGenerator:
+        HotWaterProfile
+        COP calculator
+        Radiation: Sky Directions
+    (2) Output of optimization: 1. Results 2. Combination of technologies
+    (3) Select specific combinations: minimize numbers in all
+    (4) Not adoption of cooling: Error by calc: ":0"
+    (5) Consider driving demand right: no EV = no demand = saving, but wrong
 
-    Optimize the prosumaging behavior of all representative "household - environment" combinations.
-    Read all big fundamental tables at the beginning and keep them in the memory.
-    (1) Appliances parameter table
-    (2) Energy price
-    Go over all the aspects and summarize the flexibilities to be optimized.
-    Formulate the final optimization problem.
     """
 
     def __init__(self, conn):
@@ -37,26 +40,26 @@ class OperationOptimization:
         self.TimeStructure = DB().read_DataFrame(REG().Sce_ID_TimeStructure, self.Conn)
         self.Weather = DB().read_DataFrame(REG().Sce_Weather_Temperature, self.Conn)
         self.Radiation = DB().read_DataFrame(REG().Sce_Weather_Radiation, self.Conn)
-        self.Radiation_SkyDirections = DB().read_DataFrame(REG().Sce_Weather_Radiation_SkyDirections, self.Conn)
 
         self.ElectricityPrice = DB().read_DataFrame(REG().Sce_Price_HourlyElectricityPrice, self.Conn)
-        self.FiT = DB().read_DataFrame(REG().Sce_Price_HourlyFeedinTariff, self.Conn)
-        self.HeatPumpCOP = DB().read_DataFrame(REG().Sce_Technology_HeatPumpCOP, self.Conn)
         self.FeedinTariff = DB().read_DataFrame(REG().Sce_Price_HourlyFeedinTariff, self.Conn)
 
         self.LoadProfile = DB().read_DataFrame(REG().Sce_Demand_BaseElectricityProfile, self.Conn)
-        self.PhotovoltaicProfile = DB().read_DataFrame(REG().Sce_PhotovoltaicProfile, self.Conn)
-        self.HotWaterProfile = DB().read_DataFrame(REG().Sce_Demand_HotWaterProfile, self.Conn)
-        self.CarAtHomeStatus = DB().read_DataFrame(REG().Gen_Sce_CarAtHomeHours, self.Conn)
         self.Demand_EV = DB().read_DataFrame(REG().Sce_Demand_ElectricVehicleBehavior, self.Conn)
 
         self.DishWasherHours = DB().read_DataFrame(REG().Gen_Sce_DishWasherHours, self.Conn)
         self.Sce_Demand_DishWasher = DB().read_DataFrame(REG().Sce_Demand_DishWasher, self.Conn)
-
         self.WashingMachineHours = DB().read_DataFrame(REG().Gen_Sce_WashingMachineHours, self.Conn)
         self.Sce_Demand_WashingMachine = DB().read_DataFrame(REG().Sce_Demand_WashingMachine, self.Conn)
-
         self.Sce_Demand_Dryer = DB().read_DataFrame(REG().Sce_Demand_Dryer, self.Conn)
+
+        self.CarAtHomeStatus = DB().read_DataFrame(REG().Gen_Sce_CarAtHomeHours, self.Conn)
+        self.PhotovoltaicProfile = DB().read_DataFrame(REG().Gen_Sce_PhotovoltaicProfile, self.Conn)
+        self.HotWaterProfile = DB().read_DataFrame(REG().Gen_Sce_HotWaterProfile, self.Conn)
+        self.Radiation_SkyDirections = DB().read_DataFrame(REG().Gen_Sce_Weather_Radiation_SkyDirections, self.Conn)
+        self.HeatPump_HourlyCOP = DB().read_DataFrame(REG().Gen_Sce_HeatPump_HourlyCOP, self.Conn)
+
+        self.TargetTemperature = DB().read_DataFrame(REG().Sce_ID_TargetTemperatureType, self.Conn)
 
         # you can import all the necessary tables into the memory here.
         # Then, it can be faster when we run the optimization problem for many "household - environment" combinations.
@@ -76,16 +79,23 @@ class OperationOptimization:
         # (2) Select HH and scenario
 
         Household = self.gen_Household(household_id)
-        print('TankSize: ')
-        print(Household.SpaceHeating.TankSize)
         ID_Household = Household.ID
         print('Household ID: ')
         print(ID_Household)
 
         Environment = self.gen_Environment(environment_id)
         ID_Environment = Environment.ID
+        print('Environment ID: ')
+        print(ID_Environment)
+
+        # Read Scenario data
+
         ID_ElectricityPriceType = Environment.ID_ElectricityPriceType
-        ID_FiT = Environment.ID_FeedinTariffType
+        ID_FeedinTariffType = Environment.ID_FeedinTariffType
+        ID_TargetTemperatureType = Environment.ID_TargetTemperatureType
+        ID_HotWaterProfileType = Environment.ID_HotWaterProfileType
+        ID_PhotovoltaicProfileType = Environment.ID_PhotovoltaicProfileType
+        ID_BaseElectricityProfileType = Environment.ID_BaseElectricityProfileType
 
         # fucntion to convert a list into a dict (needed for pyomo data input)
         def create_dict(liste):
@@ -142,18 +152,6 @@ class OperationOptimization:
         DryerDuration = int(self.Sce_Demand_Dryer.DryerDuration)
         DryerAdoption = Household.ApplianceGroup.DryerAdoption
 
-        # toDo:
-        # () Done: Last day of year? With or 8759 or 8760 ...
-        # () Done: changing Demand Profiles with different duration hours: Between 1-3 Hours is in code
-        # () Done: if valid: change UseDays to UseHours in databank
-        # () Done: Smart ON / OFF: use fixed use time, all functions included?
-        # () Done: Adoption to 1 and 0
-        # () Done: Extend to WaschingMachine
-        # () Done: How to use Dryer? Profile? - after last hour of WashingMachine
-        # () DOne: Extend to Dryer
-        # () Done: Minimize LoadProfile: 2376 - 718 = 1658 kWh: 2 profiles now in the DB
-        # (-) create Gen_Sce_Appliances... + extent Environment with DemandProfiles of SmartApp
-
         ############################################################################################
         # (3.2) EV
 
@@ -184,19 +182,9 @@ class OperationOptimization:
         LoadProfile = self.LoadProfile.SmartAppElectricityProfile.to_numpy()
 
         PhotovoltaicBaseProfile = self.PhotovoltaicProfile.PhotovoltaicProfile.to_numpy()
-        PhotovoltaicProfileHH = PhotovoltaicBaseProfile * Household.PV.PVPower
-        PhotovoltaicProfile = PhotovoltaicProfileHH
-
-        # (3.3.2) Load Profile
-
-        SumOfPV = round(sum(PhotovoltaicProfileHH), 2)
-        SumOfLoad = round(sum(self.LoadProfile.BaseElectricityProfile), 2)
+        PhotovoltaicProfile = PhotovoltaicBaseProfile * Household.PV.PVPower
 
         ############################################################################################
-
-        # Cooling
-        print('cooling')
-        print(Household.SpaceCooling.SpaceCoolingEfficiency)
 
         # (3.4) Defintion of parameters for Heating and Cooling
 
@@ -211,10 +199,6 @@ class OperationOptimization:
         T_TankSourounding = 20  # °C
         # starting temperature of thermal mass 20°C
         CWater = 4200 / 3600
-
-        # Set into DB for scenario
-        HeatingTargetTemperature = 20
-        CoolingTargetTemperature = 24
 
         # Parameters of SpaceHeatingTank
         # Mass of water in tank
@@ -277,95 +261,47 @@ class OperationOptimization:
         ############################################################################################
         # (3.5) Pricing of electricity
 
-        # (3.5.1) ElectricityPriceType == 1: constant, == 2: flexible
+        ElectricityPrice = self.ElectricityPrice.loc[self.ElectricityPrice['ID_ElectricityPriceType'] \
+                                                     == ID_ElectricityPriceType].loc[:,
+                           'HourlyElectricityPrice'].to_numpy()
 
-        if ID_ElectricityPriceType == 1:
-            ElectricityPrice = self.ElectricityPrice.loc[self.ElectricityPrice['ID_ElectricityPriceType'] == 1].loc[:,
-                               'HourlyElectricityPrice'].to_numpy()
-            ElectricityPrice = list(ElectricityPrice)
-            ElectricityPrice = ElectricityPrice * HoursOfSimulation
-
-        elif ID_ElectricityPriceType == 2:
-            ElectricityPrice = self.ElectricityPrice.loc[self.ElectricityPrice['ID_ElectricityPriceType'] == 2].loc[:,
-                               'HourlyElectricityPrice'].to_numpy()
-
-        # (3.5.2) FiTType == 1: constant, ==2: flexible
-
-        # until now only 1 FiT Type in DB
-        if ID_FiT == 1:
-            FiT = self.FiT.loc[self.FiT['ID_FeedinTariffType'] == 1].loc[:,
-                  'HourlyFeedinTariff'].to_numpy()
-            FiT = list(FiT)
-            FiT = FiT * HoursOfSimulation
-        else:
-            FiT = self.FiT.loc[self.FiT['ID_FeedinTariffType'] == 1].loc[:,
-                  'HourlyFeedinTariff'].to_numpy()
-            FiT = list(FiT)
-            FiT = FiT * HoursOfSimulation
+        FeedinTariff = self.FeedinTariff.loc[self.FeedinTariff['ID_FeedinTariffType'] \
+                                             == ID_FeedinTariffType].loc[:, 'HourlyFeedinTariff'].to_numpy()
 
         ############################################################################################
         # (3.6) Selection of COP for SpaceHeating and HotWater
 
-        # (3.6.1) COP for SpaceHeating: HP Air or HP Water
+        print('HP Air or Water')
+        print(Household.SpaceHeating.ID_SpaceHeatingBoilerType)
 
-        if Household.SpaceHeating.ID_SpaceHeatingBoilerType == 1:
-            Tout = self.Weather.Temperature
-            COP = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 1].loc[:,
-                  'COP_ThermalStorage'].to_numpy()
-            COPtemp = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 1].loc[:,
-                      'TemperatureEnvironment'].to_numpy()
-            ListOfDynamicCOP = []
-            j = 0
+        SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] \
+                    == Household.SpaceHeating.ID_SpaceHeatingBoilerType].loc[:, 'SpaceHeatingHourlyCOP'].to_numpy()
 
-            for i in range(0, len(list(Tout))):
-                for j in range(0, len(list(COPtemp))):
-                    if COPtemp[j] < Tout[i]:
-                        continue
-                    else:
-                        ListOfDynamicCOP.append(COP[j])
-                    break
-
-        elif Household.SpaceHeating.ID_SpaceHeatingBoilerType == 2:
-            COP = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 2].loc[:,
-                  'COP_ThermalStorage'].to_numpy()
-            COP = list(COP)
-            COP = COP * HoursOfSimulation
-            ListOfDynamicCOP = COP
-
-        # (3.6.2) COP for HotWater: Until 35°C HotWater is heated by SpaceHeating, rest with COP HotWater
-        # Type of HP is given by SpaceHeating
-
-        if Household.SpaceHeating.ID_SpaceHeatingBoilerType == 1:
-            Tout = self.Weather.Temperature
-            COP = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 1].loc[:,
-                  'COP_HotWater'].to_numpy()
-            COPtemp = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 1].loc[:,
-                      'TemperatureEnvironment'].to_numpy()
-            COP_HotWater = []
-            j = 0
-
-            for i in range(0, len(list(Tout))):
-                for j in range(0, len(list(COPtemp))):
-                    if COPtemp[j] < Tout[i]:
-                        continue
-                    else:
-                        COP_HotWater.append(COP[j])
-                    break
-        elif Household.SpaceHeating.ID_SpaceHeatingBoilerType == 2:
-            COP = self.HeatPumpCOP.loc[self.HeatPumpCOP['ID_SpaceHeatingBoilerType'] == 2].loc[:,
-                  'COP_HotWater'].to_numpy()
-            COP = list(COP)
-            COP = COP * HoursOfSimulation
-            COP_HotWater = COP
+        HotWaterHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] \
+                    == Household.SpaceHeating.ID_SpaceHeatingBoilerType].loc[:, 'HotWaterHourlyCOP'].to_numpy()
 
         ############################################################################################
         # (3.7) HotWater Part1 and HotWater Part 2 from the DB
 
         # Hot Water Demand with Part 1 (COP SpaceHeating) and Part 2 (COP HotWater, lower)
-        HotWaterProfile1 = self.HotWaterProfile.loc[self.HotWaterProfile['ID_HotWaterProfileType'] == 1].loc[:,
-                           'HotWaterPart1'].to_numpy()
-        HotWaterProfile2 = self.HotWaterProfile.loc[self.HotWaterProfile['ID_HotWaterProfileType'] == 1].loc[:,
-                           'HotWaterPart2'].to_numpy()
+        HotWaterProfile1 = self.HotWaterProfile.loc[self.HotWaterProfile['ID_HotWaterProfileType'] \
+                                                    == ID_HotWaterProfileType].loc[:, 'HotWaterPart1'].to_numpy()
+        HotWaterProfile2 = self.HotWaterProfile.loc[self.HotWaterProfile['ID_HotWaterProfileType'] \
+                                                    == ID_HotWaterProfileType].loc[:, 'HotWaterPart2'].to_numpy()
+
+        # (3.8) Target Temperature from DB
+
+        # Set into DB for scenario
+
+        HeatingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_TargetTemperatureType'] \
+                                                                  == ID_TargetTemperatureType].loc[:,
+                                       'YoungHeatingTargetTemperature_use'].to_numpy())
+        print(HeatingTargetTemperature)
+
+        CoolingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_TargetTemperatureType'] \
+                                                                  == ID_TargetTemperatureType].loc[:,
+                                       'YoungCoolingTargetTemperature_use'].to_numpy())
+        print(CoolingTargetTemperature)
 
         ############################################################################################
         # (4) Pyomo Model for optimisation
@@ -378,14 +314,14 @@ class OperationOptimization:
         # price
         m.ElectricityPrice = pyo.Param(m.t, initialize=create_dict(ElectricityPrice))
         # Feed in Tariff of Photovoltaic
-        m.FiT = pyo.Param(m.t, initialize=create_dict(FiT))
+        m.FiT = pyo.Param(m.t, initialize=create_dict(FeedinTariff))
 
         # solar gains:
         m.Q_Solar = pyo.Param(m.t, initialize=create_dict(Q_sol))
         # outside temperature
         m.T_outside = pyo.Param(m.t, initialize=create_dict(self.Weather.Temperature.to_numpy()))
         # COP of heatpump
-        m.COP_dynamic = pyo.Param(m.t, initialize=create_dict(ListOfDynamicCOP))
+        m.SpaceHeatingHourlyCOP = pyo.Param(m.t, initialize=create_dict(SpaceHeatingHourlyCOP))
         # electricity load profile
         m.LoadProfile = pyo.Param(m.t, initialize=create_dict(LoadProfile))
         # PV profile
@@ -393,7 +329,7 @@ class OperationOptimization:
         # HotWater
         m.HWPart1 = pyo.Param(m.t, initialize=create_dict(HotWaterProfile1))
         m.HWPart2 = pyo.Param(m.t, initialize=create_dict(HotWaterProfile2))
-        m.COP_HotWater = pyo.Param(m.t, initialize=create_dict(COP_HotWater))
+        m.HotWaterHourlyCOP = pyo.Param(m.t, initialize=create_dict(HotWaterHourlyCOP))
 
         # CarAtHomeStatus
         m.CarAtHomeStatus = pyo.Param(m.t, initialize=CarAtHomeStatus)
@@ -536,10 +472,10 @@ class OperationOptimization:
         # (6)
         def calc_SumOfLoads(m, t):
             return m.Load[t] == m.LoadProfile[t] \
-                   + ((m.Q_TankHeating[t] / m.COP_dynamic[t]) / 1_000) \
-                   + ((m.Q_RoomCooling[t] / Household.SpaceCooling.SpaceCoolingEfficiency/ 1_000)) \
-                   + (m.HWPart1[t] / m.COP_dynamic[t]) \
-                   + (m.HWPart2[t] / m.COP_HotWater[t]) \
+                   + ((m.Q_TankHeating[t] / m.SpaceHeatingHourlyCOP[t]) / 1_000) \
+                   + ((m.Q_RoomCooling[t] / Household.SpaceCooling.SpaceCoolingEfficiency / 1_000)) \
+                   + (m.HWPart1[t] / m.SpaceHeatingHourlyCOP[t]) \
+                   + (m.HWPart2[t] / m.HotWaterHourlyCOP[t]) \
                    + (m.DishWasher1[t] + m.DishWasher2[t] + m.DishWasher3[t]) * DishWasherPower \
                    + (m.WashingMachine1[t] + m.WashingMachine2[t] + m.WashingMachine3[t]) * WashingMachinePower \
                    + (m.Dryer1[t] + m.Dryer2[t]) * DryerPower
@@ -784,13 +720,15 @@ class OperationOptimization:
         # opt = pyo.SolverFactory("glpk")
         opt = pyo.SolverFactory("gurobi")
         results = opt.solve(instance, tee=True)
-        instance.display("./log.txt")
-        print(results)
+        # instance.display("./log.txt")
+        # print(results)
         # return relevant data
+        Cost = instance.OBJ()
+        print('CostYearly: ' + str(Cost))
         return instance, M_WaterTank, CWater
 
     def run(self):
-        for household_id in range(23039, 23040):
+        for household_id in range(41, 42):
             for environment_id in range(1, 2):
                 instance, M_WaterTank, CWater = self.run_Optimization(household_id, environment_id)
                 return instance, M_WaterTank, CWater
@@ -850,17 +788,17 @@ def show_results(instance, M_WaterTank, CWater, colors):
     # Loads
     Load = np.array(list(instance.Load.extract_values().values())[starttime: endtime])
     HotWater1 = np.array(list(instance.HWPart1.extract_values().values())[starttime: endtime]) / \
-                np.array(list(instance.COP_dynamic.extract_values().values())[starttime: endtime])
+                np.array(list(instance.SpaceHeatingHourlyCOP.extract_values().values())[starttime: endtime])
     ElectricityDemandHeatPump = np.array(
         list(instance.Q_TankHeating.extract_values().values())[starttime: endtime]) / 1000 / \
-                                np.array(list(instance.COP_dynamic.extract_values().values())[starttime: endtime])
+                                np.array(list(instance.SpaceHeatingHourlyCOP.extract_values().values())[starttime: endtime])
 
     # handover of parameter missing
     ElectricityCooling = np.array(
         list(instance.Q_RoomCooling.extract_values().values())[starttime: endtime]) / 1000 / 3
 
     HotWater2 = np.array(list(instance.HWPart2.extract_values().values())[starttime: endtime]) / \
-                np.array(list(instance.COP_HotWater.extract_values().values())[starttime: endtime])
+                np.array(list(instance.HotWaterHourlyCOP.extract_values().values())[starttime: endtime])
     HotWater = HotWater1 + HotWater2
 
     # EV
