@@ -30,7 +30,7 @@ class OperationOptimization:
     (5) Consider driving demand right: no EV = no demand = saving, but wrong
     (6) if case for EV adoption
     (7) TargetTemp in Code, but no Age (old, young considered)
-    (8) Read all bounds from DB 
+    (8) Read all bounds from DB
     """
 
     def __init__(self, conn):
@@ -737,8 +737,8 @@ class OperationOptimization:
 def show_results(instance, M_WaterTank, CWater, colors):
     ############################################################################################
     # (5.1) Start time and stop time
-    starttime = 7608
-    endtime = 7680
+    starttime = 2300
+    endtime = 2372
 
     ############################################################################################
     # (5.2) Handover of generated profiles
