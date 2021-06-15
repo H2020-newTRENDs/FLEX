@@ -17,16 +17,20 @@ from A_Infrastructure.A1_Config.A11_Constants import CONS
 class OperationOptimization:
     """
     # toDo:
-    (1) Write scenario, change DB and collect parameters of scenario
+    (1) Extent scenario, change DB and collect parameters of scenario
+        Smart App Demand
+        Car Demand
+        StartParameters of tank and storage
     (1a) in TableGenerator:
         HotWaterProfile
-        COP calculator
         Radiation: Sky Directions
     (2) Output of optimization: 1. Results 2. Combination of technologies
     (3) Select specific combinations: minimize numbers in all
-    (4) Not adoption of cooling: Error by calc: ":0"
+    (4) Not adoption of cooling: Error by calc: " / 0"
     (5) Consider driving demand right: no EV = no demand = saving, but wrong
-
+    (6) if case for EV adoption
+    (7) TargetTemp in Code, but no Age (old, young considered)
+    (8) Read all bounds from DB 
     """
 
     def __init__(self, conn):
@@ -89,7 +93,6 @@ class OperationOptimization:
         print(ID_Environment)
 
         # Read Scenario data
-
         ID_ElectricityPriceType = Environment.ID_ElectricityPriceType
         ID_FeedinTariffType = Environment.ID_FeedinTariffType
         ID_TargetTemperatureType = Environment.ID_TargetTemperatureType
@@ -97,7 +100,7 @@ class OperationOptimization:
         ID_PhotovoltaicProfileType = Environment.ID_PhotovoltaicProfileType
         ID_BaseElectricityProfileType = Environment.ID_BaseElectricityProfileType
 
-        # fucntion to convert a list into a dict (needed for pyomo data input)
+        # function to convert a list into a dict (needed for pyomo data input)
         def create_dict(liste):
             dictionary = {}
             for index, value in enumerate(liste, start=1):
@@ -134,8 +137,7 @@ class OperationOptimization:
         # This is 1, only if there is no Dishwasher in the household, then 0
         WashingMachineAdoption = Household.ApplianceGroup.WashingMachineAdoption
 
-        WashingMachineTheoreticalHours = (
-                                             self.WashingMachineHours.WashingMachineHours.to_numpy()) * WashingMachineAdoption
+        WashingMachineTheoreticalHours = (self.WashingMachineHours.WashingMachineHours.to_numpy()) * WashingMachineAdoption
         WashingMachineDuration = int(self.Sce_Demand_WashingMachine.WashingMachineDuration)
         WashingMachineStartTime = int(self.Sce_Demand_WashingMachine.WashingMachineStartTime)
 
@@ -272,9 +274,6 @@ class OperationOptimization:
         ############################################################################################
         # (3.6) Selection of COP for SpaceHeating and HotWater
 
-        print('HP Air or Water')
-        print(Household.SpaceHeating.ID_SpaceHeatingBoilerType)
-
         SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] \
                     == Household.SpaceHeating.ID_SpaceHeatingBoilerType].loc[:, 'SpaceHeatingHourlyCOP'].to_numpy()
 
@@ -292,17 +291,13 @@ class OperationOptimization:
 
         # (3.8) Target Temperature from DB
 
-        # Set into DB for scenario
-
         HeatingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_TargetTemperatureType'] \
                                                                   == ID_TargetTemperatureType].loc[:,
                                        'YoungHeatingTargetTemperature_use'].to_numpy())
-        print(HeatingTargetTemperature)
 
         CoolingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_TargetTemperatureType'] \
                                                                   == ID_TargetTemperatureType].loc[:,
                                        'YoungCoolingTargetTemperature_use'].to_numpy())
-        print(CoolingTargetTemperature)
 
         ############################################################################################
         # (4) Pyomo Model for optimisation
@@ -742,8 +737,8 @@ class OperationOptimization:
 def show_results(instance, M_WaterTank, CWater, colors):
     ############################################################################################
     # (5.1) Start time and stop time
-    starttime = 1680
-    endtime = 1752
+    starttime = 7608
+    endtime = 7680
 
     ############################################################################################
     # (5.2) Handover of generated profiles
@@ -877,6 +872,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
 
     plt.title('(1) EV charge and discharge')
     plt.tight_layout()
+    fig.set_size_inches(16, 9)
     fig.savefig('(1) charge and discharge', dpi=200)
     plt.show()
 
@@ -896,6 +892,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
 
     plt.title('(2) EV and PV')
     plt.tight_layout()
+    fig.set_size_inches(16, 9)
     fig.savefig('(2) EV an PV', dpi=200)
     plt.show()
 
@@ -922,6 +919,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
 
     plt.title('(3) Parts of Charge and Discharge of EV')
     plt.tight_layout()
+    fig.set_size_inches(16, 9)
     fig.savefig('(3) Parts of Charge and Discharge of EV', dpi=200)
     plt.show()
 
@@ -942,6 +940,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
 
     plt.title('(4) Grid and Price')
     plt.tight_layout()
+    fig.set_size_inches(16, 9)
     fig.savefig('(4) Grid and Price', dpi=200)
     plt.show()
 
@@ -962,6 +961,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
 
     plt.title('(5) Stationary Battery')
     plt.tight_layout()
+    fig.set_size_inches(16, 9)
     fig.savefig('(5) Stationary Battery', dpi=200)
     plt.show()
 
@@ -1000,6 +1000,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
 
     plt.title('(6) Use of PV Power and Loads')
     plt.tight_layout()
+    fig.set_size_inches(16, 9)
     fig.savefig('(6) Use of PV Power and Loads', dpi=200)
     plt.show()
 
@@ -1027,6 +1028,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
     ax1.grid(True, which='both')
     plt.title('(7) Supply and demand of loads, no EV')
     plt.tight_layout()
+    fig.set_size_inches(16, 9)
     fig.savefig('(7) Supply and demand of loads', dpi=200)
     plt.show()
 
@@ -1060,7 +1062,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
     ax2.legend(lines + lines2, labels + labels2, loc='upper right')
 
     ax1.grid(True, which='both')
-    plt.title('Operation of loads with a variable tariff')
+    plt.title('(8) Operation of loads with a variable tariff')
     plt.tight_layout()
     fig.set_size_inches(16, 9)
     fig.savefig('(8) Supply and demand of loads and EV', dpi=300)
@@ -1090,8 +1092,43 @@ def show_results(instance, M_WaterTank, CWater, colors):
 
     plt.title('(9) Smart Technologies')
     plt.tight_layout()
+    fig.set_size_inches(16, 9)
     fig.savefig('(9) Smart Technologies', dpi=200)
     plt.show()
+
+    # # Plot (10) Room and building
+    # fig, (ax1, ax3) = plt.subplots(2, 1)
+    # ax2 = ax1.twinx()
+    # ax4 = ax3.twinx()
+    # ax1.plot(x_achse, Q_TankHeating, label="Q_TankHeating", color=colors["Q_TankHeating"], linewidth=0.5, alpha=0.6)
+    # ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color=colors["Q_RoomHeating"], linewidth=0.5, alpha=0.6)
+    # ax1.plot(x_achse, Q_RoomCooling, label="Q_RoomCooling", color=colors["Q_RoomCooling"], linewidth=0.5, alpha=0.6)
+    # ax1.plot(x_achse, Q_Solar, label="Q_Solar", color=colors["Q_Solar"], linewidth=0.5, alpha=0.9)
+    # ax2.plot(x_achse, ElectricityPrice, color=colors["ElectricityPrice"], label="Price", linewidth=0.50, linestyle='dotted',
+    #          alpha=0.6)
+    #
+    # ax1.set_ylabel("Energy kW")
+    # ax2.set_ylabel("Price per kWh in Ct/€")
+    #
+    # lines, labels = ax1.get_legend_handles_labels()
+    # lines2, labels2 = ax2.get_legend_handles_labels()
+    # ax1.legend(lines + lines2, labels + labels2, loc=0)
+    #
+    # ax3.plot(x_achse, T_room, label="TempRoom", color=colors["T_room"], linewidth=0.15, alpha=0.8)
+    # ax4.plot(x_achse, T_tank, label="TempTank", color=colors["T_tank"], linewidth=0.15, alpha=0.8)
+    #
+    # ax3.set_ylabel("Room temperature in °C", color='black')
+    # ax4.set_ylabel("Tank Temperature in °C", color='black')
+    #
+    # lines, labels = ax3.get_legend_handles_labels()
+    # lines2, labels2 = ax4.get_legend_handles_labels()
+    # ax3.legend(lines + lines2, labels + labels2, loc=0)
+    #
+    # plt.grid()
+    # ax1.set_title('HeatPump, ThermalStorage and Building')
+    # plt.tight_layout()
+    # fig.savefig('Room and building', dpi=300)
+    # plt.show()
 
     ############################################################################################
     # (5.4) Output of checksums
@@ -1190,17 +1227,17 @@ def show_results(instance, M_WaterTank, CWater, colors):
 
     # old plots
 
-    x_achse = np.arange(starttime, endtime)
-
+    # x_achse = np.arange(starttime, endtime)
+    #
     # # Plot (1) Room and building
     # fig, (ax1, ax3) = plt.subplots(2, 1)
     # ax2 = ax1.twinx()
     # ax4 = ax3.twinx()
-    # ax1.plot(x_achse, Q_TankHeating, label="Q_TankHeating", color=colors["Q_TankHeating"], linewidth=0.25, alpha=0.6)
-    # ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color=colors["Q_RoomHeating"], linewidth=0.25, alpha=0.6)
-    # ax1.plot(x_achse, Q_RoomCooling, label="Q_RoomCooling", color=colors["Q_RoomCooling"], linewidth=0.25, alpha=0.6)
-    # ax1.plot(x_achse, Q_Solar, label="Q_Solar", color=colors["Q_Solar"], linewidth=0.5, alpha=0.6)
-    # ax2.plot(x_achse, ElectricityPrice, color=colors["ElectricityPrice"], label="Price", linewidth=0.50, linestyle=':',
+    # ax1.plot(x_achse, Q_TankHeating, label="Q_TankHeating", color=colors["Q_TankHeating"], linewidth=0.5, alpha=0.6)
+    # ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color=colors["Q_RoomHeating"], linewidth=0.5, alpha=0.6)
+    # ax1.plot(x_achse, Q_RoomCooling, label="Q_RoomCooling", color=colors["Q_RoomCooling"], linewidth=0.5, alpha=0.6)
+    # ax1.plot(x_achse, Q_Solar, label="Q_Solar", color=colors["Q_Solar"], linewidth=0.5, alpha=0.9)
+    # ax2.plot(x_achse, ElectricityPrice, color=colors["ElectricityPrice"], label="Price", linewidth=0.50, linestyle='dotted',
     #          alpha=0.6)
     #
     # ax1.set_ylabel("Energy kW")
@@ -1221,9 +1258,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
     # ax3.legend(lines + lines2, labels + labels2, loc=0)
     #
     # plt.grid()
-    # ax1.set_title(
-    #     '(1) + (2) Yearly heat generation: ' + str(round(YearlyHeatGeneration / 1000, 2)) + ' kWh ' + 'APF: ' + \
-    #     str(JAZ))
+    # ax1.set_title('HeatPump, ThermalStorage and Building')
     # plt.tight_layout()
     # fig.savefig('Room and building', dpi=300)
     # plt.show()
