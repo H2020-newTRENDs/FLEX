@@ -700,7 +700,7 @@ class OperationOptimization:
 
         def room_temperature_rc(m, t):
             if t == 1:
-                T_air = 20
+                T_air = HeatingTargetTemperature
                 return m.T_room[t] == T_air
             else:
                 # Equ. C.3
