@@ -292,16 +292,18 @@ class OperationOptimization:
 
         # (3.8) Target Temperature from DB
 
-        # Set into DB for scenario
+        print(Household.ID_AgeGroup)
 
-        HeatingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_TargetTemperatureType'] \
-                                                                  == ID_TargetTemperatureType].loc[:,
-                                       'YoungHeatingTargetTemperature_use'].to_numpy())
+        HeatingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_AgeGroup'] \
+                                                                  == Household.ID_AgeGroup].loc[:,
+                                       'HeatingTargetTemperature'].to_numpy())
+
         print(HeatingTargetTemperature)
 
-        CoolingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_TargetTemperatureType'] \
-                                                                  == ID_TargetTemperatureType].loc[:,
-                                       'YoungCoolingTargetTemperature_use'].to_numpy())
+        CoolingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_AgeGroup'] \
+                                                                  == Household.ID_AgeGroup].loc[:,
+                                       'CoolingTargetTemperature'].to_numpy())
+
         print(CoolingTargetTemperature)
 
         ############################################################################################
@@ -724,15 +726,16 @@ class OperationOptimization:
         # instance.display("./log.txt")
         # print(results)
         # return relevant data
-        Cost = instance.OBJ()
+        Cost = round(instance.OBJ(), 2)
         print('CostYearly: ' + str(Cost))
-        return instance, M_WaterTank, CWater
+        return Cost
 
     def run(self):
         TargetTable_list = []
-        for household_id in range(0, 63):
+        for household_id in range(0, 2):
             for environment_id in range(1, 2):
                 cost = self.run_Optimization(household_id, environment_id)
+                print(cost)
                 TargetTable_list.append([household_id, environment_id, cost])
 
         TargetTable_columns = ['ID_Household', 'ID_Environment', "TotalCost"]
