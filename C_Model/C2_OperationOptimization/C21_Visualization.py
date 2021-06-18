@@ -7,6 +7,7 @@ from pyomo.util.infeasible import log_infeasible_constraints
 
 import matplotlib.dates as mdates
 import datetime
+import sys as sys
 
 from A_Infrastructure.A1_Config.A12_Register import REG
 from A_Infrastructure.A2_ToolKits.A21_DB import DB
@@ -84,18 +85,16 @@ class OperationOptimization:
 
         Household = self.gen_Household(household_id)
         ID_Household = Household.ID
-        print('Household ID: ')
-        print(ID_Household)
+        print('Household ID: ' + str(ID_Household))
 
         Environment = self.gen_Environment(environment_id)
         ID_Environment = Environment.ID
-        print('Environment ID: ')
-        print(ID_Environment)
+        print('Environment ID: ' + str(ID_Environment))
 
         # Read Scenario data
         ID_ElectricityPriceType = Environment.ID_ElectricityPriceType
         ID_FeedinTariffType = Environment.ID_FeedinTariffType
-        ID_TargetTemperatureType = Environment.ID_TargetTemperatureType
+        ID_TargetTemperatureType = int(Environment.ID_TargetTemperatureType)
         ID_HotWaterProfileType = Environment.ID_HotWaterProfileType
         ID_PhotovoltaicProfileType = Environment.ID_PhotovoltaicProfileType
         ID_BaseElectricityProfileType = Environment.ID_BaseElectricityProfileType
@@ -137,7 +136,8 @@ class OperationOptimization:
         # This is 1, only if there is no Dishwasher in the household, then 0
         WashingMachineAdoption = Household.ApplianceGroup.WashingMachineAdoption
 
-        WashingMachineTheoreticalHours = (self.WashingMachineHours.WashingMachineHours.to_numpy()) * WashingMachineAdoption
+        WashingMachineTheoreticalHours = (
+                                             self.WashingMachineHours.WashingMachineHours.to_numpy()) * WashingMachineAdoption
         WashingMachineDuration = int(self.Sce_Demand_WashingMachine.WashingMachineDuration)
         WashingMachineStartTime = int(self.Sce_Demand_WashingMachine.WashingMachineStartTime)
 
@@ -181,10 +181,11 @@ class OperationOptimization:
 
         # (3.3.1) LoadProfile, BaseLoadProfile is 2376 kWh, SmartAppElectricityProfile is 1658 kWh
         LoadProfile = self.LoadProfile.loc[self.LoadProfile['ID_BaseElectricityProfileType'] \
-                    == ID_BaseElectricityProfileType].loc[:,'BaseElectricityProfile'].to_numpy()
+                                           == ID_BaseElectricityProfileType].loc[:, 'BaseElectricityProfile'].to_numpy()
 
         PhotovoltaicBaseProfile = self.PhotovoltaicProfile.loc[self.PhotovoltaicProfile['ID_PhotovoltaicProfileType'] \
-                    == ID_PhotovoltaicProfileType].loc[:, 'PhotovoltaicProfile'].to_numpy()
+                                                               == ID_PhotovoltaicProfileType].loc[:,
+                                  'PhotovoltaicProfile'].to_numpy()
 
         PhotovoltaicProfile = PhotovoltaicBaseProfile * Household.PV.PVPower
 
@@ -266,19 +267,22 @@ class OperationOptimization:
         # (3.5) Pricing of electricity
 
         ElectricityPrice = self.ElectricityPrice.loc[self.ElectricityPrice['ID_ElectricityPriceType'] \
-                             == ID_ElectricityPriceType].loc[:, 'HourlyElectricityPrice'].to_numpy()
+                                                     == ID_ElectricityPriceType].loc[:,
+                           'HourlyElectricityPrice'].to_numpy()
 
         FeedinTariff = self.FeedinTariff.loc[self.FeedinTariff['ID_FeedinTariffType'] \
-                             == ID_FeedinTariffType].loc[:, 'HourlyFeedinTariff'].to_numpy()
+                                             == ID_FeedinTariffType].loc[:, 'HourlyFeedinTariff'].to_numpy()
 
         ############################################################################################
         # (3.6) Selection of COP for SpaceHeating and HotWater
 
         SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] \
-                    == Household.SpaceHeating.ID_SpaceHeatingBoilerType].loc[:, 'SpaceHeatingHourlyCOP'].to_numpy()
+                                                            == Household.SpaceHeating.ID_SpaceHeatingBoilerType].loc[:,
+                                'SpaceHeatingHourlyCOP'].to_numpy()
 
         HotWaterHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] \
-                    == Household.SpaceHeating.ID_SpaceHeatingBoilerType].loc[:, 'HotWaterHourlyCOP'].to_numpy()
+                                                        == Household.SpaceHeating.ID_SpaceHeatingBoilerType].loc[:,
+                            'HotWaterHourlyCOP'].to_numpy()
 
         ############################################################################################
         # (3.7) HotWater Part1 and HotWater Part 2 from the DB
@@ -289,21 +293,36 @@ class OperationOptimization:
         HotWaterProfile2 = self.HotWaterProfile.loc[self.HotWaterProfile['ID_HotWaterProfileType'] \
                                                     == ID_HotWaterProfileType].loc[:, 'HotWaterPart2'].to_numpy()
 
-        # (3.8) Target Temperature from DB
+        # (3.8) Set target temperature from DB
 
-        print(Household.ID_AgeGroup)
+        print('ID_AgeGroup: ' + str(Household.ID_AgeGroup))
 
-        HeatingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_AgeGroup'] \
-                                                                  == Household.ID_AgeGroup].loc[:,
-                                       'HeatingTargetTemperature'].to_numpy())
+        if Household.ID_AgeGroup == 1:
+            HeatingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_TargetTemperatureType'] \
+                                                                      == ID_TargetTemperatureType].loc[:,
+                                           'HeatingTargetTemperatureYoung'].to_numpy())
 
-        print(HeatingTargetTemperature)
+        elif Household.ID_AgeGroup == 2:
+            HeatingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_TargetTemperatureType'] \
+                                                                      == ID_TargetTemperatureType].loc[:,
+                                           'HeatingTargetTemperatureOld'].to_numpy())
 
-        CoolingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_AgeGroup'] \
-                                                                  == Household.ID_AgeGroup].loc[:,
-                                       'CoolingTargetTemperature'].to_numpy())
+        if Household.ID_AgeGroup == 1:
+            CoolingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_TargetTemperatureType'] \
+                                                                      == ID_TargetTemperatureType].loc[:,
+                                           'CoolingTargetTemperatureYoung'].to_numpy())
 
-        print(CoolingTargetTemperature)
+        elif Household.ID_AgeGroup == 2:
+            CoolingTargetTemperature = int(self.TargetTemperature.loc[self.TargetTemperature['ID_TargetTemperatureType'] \
+                                                                      == ID_TargetTemperatureType].loc[:,
+                                           'CoolingTargetTemperatureOld'].to_numpy())
+
+        print('HeatingTargetTemperature: ' + str(HeatingTargetTemperature))
+        print('CoolingTargetTemperature: ' + str(CoolingTargetTemperature))
+
+        if CoolingTargetTemperature < HeatingTargetTemperature:
+            print('ERROR: CoolingTargetTemperature !>= HeatingTargetemperature! Change value in databank: Sce_ID_TargetTemperature')
+            sys.exit()
 
         ############################################################################################
         # (4) Pyomo Model for optimisation
@@ -347,10 +366,10 @@ class OperationOptimization:
         # (4.2) Variables of model
 
         # Variables SpaceHeating
-        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 11_000))  # max Power of Boiler; DB?
+        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.HeatPumpMaximalThermalPower))
         m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * M_WaterTank * (273.15 + T_TankMin),
                                                                      CWater * M_WaterTank * (273.15 + T_TankMax)))
-        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 17_000))
+        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.MaximalPowerFloorHeating))
 
         # energy used for cooling
         m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals,
@@ -793,7 +812,8 @@ def show_results(instance, M_WaterTank, CWater, colors):
                 np.array(list(instance.SpaceHeatingHourlyCOP.extract_values().values())[starttime: endtime])
     ElectricityDemandHeatPump = np.array(
         list(instance.Q_TankHeating.extract_values().values())[starttime: endtime]) / 1000 / \
-                                np.array(list(instance.SpaceHeatingHourlyCOP.extract_values().values())[starttime: endtime])
+                                np.array(
+                                    list(instance.SpaceHeatingHourlyCOP.extract_values().values())[starttime: endtime])
 
     # handover of parameter missing
     ElectricityCooling = np.array(
@@ -1110,7 +1130,8 @@ def show_results(instance, M_WaterTank, CWater, colors):
     ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color=colors["Q_RoomHeating"], linewidth=1, alpha=0.6)
     ax1.bar(x_achse, Q_RoomCooling, label="Q_RoomCooling", color=colors["Q_RoomCooling"], linewidth=1, alpha=0.1)
     ax1.plot(x_achse, Q_Solar, label="Q_Solar", color=colors["Q_Solar"], linewidth=1.5, alpha=0.9)
-    ax2.plot(x_achse, ElectricityPrice, color=colors["ElectricityPrice"], label="Price", linewidth=0.75, linestyle='dotted',
+    ax2.plot(x_achse, ElectricityPrice, color=colors["ElectricityPrice"], label="Price", linewidth=0.75,
+             linestyle='dotted',
              alpha=0.6)
 
     ax1.set_ylabel("Energy kW")
@@ -1118,7 +1139,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
 
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines + lines2, labels + labels2, loc='upper right', facecolor = 'white')
+    ax1.legend(lines + lines2, labels + labels2, loc='upper right', facecolor='white')
 
     ax3.plot(x_achse, T_room, label="TempRoom", color=colors["T_room"], linewidth=1)
     ax4.plot(x_achse, T_tank, label="TempTank", color=colors["T_tank"], linewidth=0.5)
@@ -1126,11 +1147,11 @@ def show_results(instance, M_WaterTank, CWater, colors):
     ax3.set_ylabel("Room temperature in °C", color='black')
     ax4.set_ylabel("Tank Temperature in °C", color='black')
 
-    #ax3.set_zorder(1)
-    #ax4.set_zorder(1)
+    # ax3.set_zorder(1)
+    # ax4.set_zorder(1)
     lines, labels = ax3.get_legend_handles_labels()
     lines2, labels2 = ax4.get_legend_handles_labels()
-    ax3.legend(lines + lines2, labels + labels2, facecolor = 'white', loc='upper right')
+    ax3.legend(lines + lines2, labels + labels2, facecolor='white', loc='upper right')
 
     plt.grid()
     ax1.set_title('Tank and boiler')
