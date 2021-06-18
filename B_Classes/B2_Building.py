@@ -41,6 +41,13 @@ class Building:
         self.Am_factor = para_series['Am_factor']
         self.country_ID = para_series['country_ID']
 
+        self.MaximalGridPower = para_series['MaximalGridPower']
+        self.BuildingMassTemperatureStartValue = para_series['BuildingMassTemperatureStartValue']
+        self.MaximalBuildingMassTemperature = para_series['MaximalBuildingMassTemperature']
+
+
+
+
         def calc_IndoorTemperature(self, Energy_TankToRoom_t, OutdoorTemperature_t):
             """
             :param Energy_TankToRoom_t: float

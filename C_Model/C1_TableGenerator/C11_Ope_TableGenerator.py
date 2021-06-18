@@ -103,9 +103,15 @@ class Ope_TableGenerator:
 
     def gen_OBJ_ID_Building(self):
         BuildingOption = DB().read_DataFrame(REG().ID_BuildingOption, self.Conn)
-        self.gen_OBJ_ID_Table_1To1(REG().Gen_OBJ_ID_Building,
-                                   BuildingOption)
+        BuildingMassTemperature = DB().read_DataFrame(REG().ID_BuildingMassTemperature, self.Conn)
+        GridInfrastructure = DB().read_DataFrame(REG().ID_GridInfrastructure, self.Conn)
+        self.gen_OBJ_ID_Table_3To1(REG().Gen_OBJ_ID_Building,
+                                   BuildingOption,
+                                   BuildingMassTemperature,
+                                   GridInfrastructure)
         return None
+
+
 
     def gen_OBJ_ID_ApplianceGroup(self):
         DishWasher = DB().read_DataFrame(REG().ID_DishWasherType, self.Conn)
