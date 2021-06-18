@@ -196,12 +196,12 @@ class OperationOptimization:
         # (3.4.1) Tank
 
         # fixed starting values:
-        T_TankStart = 40  # °C
+        T_TankStart = Household.SpaceHeating.TankStartTemperature
         # min,max tank temperature for boundary of energy
-        T_TankMax = 45  # °C
-        T_TankMin = 28  # °C
+        T_TankMax = Household.SpaceHeating.TankMaximalTemperature
+        T_TankMin = Household.SpaceHeating.TankMinimalTemperature
         # sourounding temp of tank
-        T_TankSourounding = 20  # °C
+        T_TankSourounding = Household.SpaceHeating.TankSurroundingTemperature
         # starting temperature of thermal mass 20°C
         CWater = 4200 / 3600
 
@@ -376,22 +376,22 @@ class OperationOptimization:
                                   bounds=(0, Household.SpaceCooling.SpaceCoolingPower))  # 6kW thermal, 2 kW electrical
         m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals,
                            bounds=(HeatingTargetTemperature, CoolingTargetTemperature))  # Change to TargetTemp
-        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 60))
+        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalBuildingMassTemperature))
 
         # Grid, limit set by 21 kW
-        m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))  # 380 * 32 * 1,72
-        m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
-        m.Grid2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
+        m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))  # 380 * 32 * 1,72
+        m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
+        m.Grid2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
 
         # PV
-        m.PV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
-        m.PV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
-        m.PV2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
-        m.PV2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
+        m.PV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
+        m.PV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
+        m.PV2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
+        m.PV2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
 
-        m.Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
+        m.Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
 
-        m.Feedin = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, 21))
+        m.Feedin = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
 
         # Battery
         m.BatSoC = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.Capacity))
@@ -696,7 +696,7 @@ class OperationOptimization:
         # 5R 1C model:
         def thermal_mass_temperature_rc(m, t):
             if t == 1:
-                return m.Tm_t[t] == 15
+                return m.Tm_t[t] == Household.Building.BuildingMassTemperatureStartValue
 
             else:
                 # Equ. C.2
