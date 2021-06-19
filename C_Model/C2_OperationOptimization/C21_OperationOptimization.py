@@ -321,6 +321,9 @@ class OperationOptimization:
                                                                       == ID_TargetTemperatureType].loc[:,
                                            'CoolingTargetTemperatureOld'].to_numpy())
 
+        if Household.SpaceCooling.SpaceCoolingPower == 0:
+            CoolingTargetTemperature = 60              # delete limit for cooling, if no Cooling is available
+
         print('HeatingTargetTemperature: ' + str(HeatingTargetTemperature))
         print('CoolingTargetTemperature: ' + str(CoolingTargetTemperature))
 
@@ -754,7 +757,7 @@ class OperationOptimization:
 
     def run(self):
         TargetTable_list = []
-        for household_id in range(0, 5):
+        for household_id in range(0, 4):
             for environment_id in range(1, 2):
                 cost = self.run_Optimization(household_id, environment_id)
                 print(cost)

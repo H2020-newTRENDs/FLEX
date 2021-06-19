@@ -321,6 +321,9 @@ class OperationOptimization:
                                                                       == ID_TargetTemperatureType].loc[:,
                                            'CoolingTargetTemperatureOld'].to_numpy())
 
+        if Household.SpaceCooling.SpaceCoolingPower == 0:
+            CoolingTargetTemperature = 60              # delete limit for cooling, if no Cooling is available
+
         print('HeatingTargetTemperature: ' + str(HeatingTargetTemperature))
         print('CoolingTargetTemperature: ' + str(CoolingTargetTemperature))
 
