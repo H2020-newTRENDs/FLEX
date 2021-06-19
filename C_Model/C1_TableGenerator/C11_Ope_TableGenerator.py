@@ -260,6 +260,7 @@ class Ope_TableGenerator:
         PhotovoltaicProfileType = DB().read_DataFrame(REG().Sce_ID_PhotovoltaicProfileType, self.Conn)
         TargetTemperatureType = DB().read_DataFrame(REG().Sce_ID_TargetTemperatureType, self.Conn)
         BaseElectricityProfileType = DB().read_DataFrame(REG().Sce_ID_BaseElectricityProfileType, self.Conn)
+        EnergyCostType = DB().read_DataFrame(REG().Sce_ID_EnergyCostType, self.Conn)
 
 
         TargetTable_list = []
@@ -267,7 +268,7 @@ class Ope_TableGenerator:
         TargetTable_columns = ["ID"]
 
         TargetTable_columns += ["ID_ElectricityPriceType","ID_TargetTemperatureType", "ID_FeedinTariffType", \
-                                "ID_HotWaterProfileType", "ID_PhotovoltaicProfileType", "ID_BaseElectricityProfileType"]
+                                "ID_HotWaterProfileType", "ID_PhotovoltaicProfileType", "ID_BaseElectricityProfileType", "ID_EnergyCostType"]
 
         ID = 1
 
@@ -277,14 +278,18 @@ class Ope_TableGenerator:
                     for row4 in range(0, len(HotWaterProfileType)):
                         for row5 in range(0, len(PhotovoltaicProfileType)):
                             for row6 in range(0, len(BaseElectricityProfileType)):
-                                TargetTable_list.append([ID] +
+                                for row7 in range(0, len(EnergyCostType)):
+
+                                    TargetTable_list.append([ID] +
                                                         [ElectricityPriceType.iloc[row1]["ID_ElectricityPriceType"]] +
                                                         [TargetTemperatureType.iloc[row2]["ID_TargetTemperatureType"]] +
                                                         [FeedinTariffType.iloc[row3]["ID_FeedinTariffType"]] +
                                                         [HotWaterProfileType.iloc[row4]["ID_HotWaterProfileType"]] +
                                                         [PhotovoltaicProfileType.iloc[row5]["ID_PhotovoltaicProfile"]] +
-                                                        [BaseElectricityProfileType.iloc[row6]["ID_BaseElectricityProfileType"]]
-                                                        )
+                                                        [BaseElectricityProfileType.iloc[row6]["ID_BaseElectricityProfileType"]]+
+                                                        [EnergyCostType.iloc[row6]["ID_EnergyCostType"]]
+
+                                                            )
                                 ID += 1
 
         DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_ID_Environment, TargetTable_columns, self.Conn)
