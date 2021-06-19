@@ -12,4 +12,5 @@ class ElectricVehicle:
         self.BatteryDischargeEfficiency = para_series["BatteryDischargeEfficiency"]
         self.BatteryMaxDischargePower = para_series["BatteryMaxDischargePower"]
         self.V2B = para_series["V2B"]
+        self.ConsumptionPer100km = para_series['ConsumptionPer100km']
 

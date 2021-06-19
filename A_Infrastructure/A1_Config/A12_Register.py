@@ -63,6 +63,7 @@ class REG:
         self.Sce_ID_FeedinTariffType = self.Scenario + self.ID + "FeedinTariffType"
         self.Sce_ID_HotWaterProfileType = self.Scenario + self.ID + 'HotWaterProfileType'
         self.Sce_ID_PhotovoltaicProfileType = self.Scenario + self.ID + 'PhotovoltaicProfileType'
+        self.Sce_ID_EnergyCostType = self.Scenario+ self.ID + 'EnergyCostType'
 
         self.Sce_Weather_Radiation = self.Scenario + "Weather_Radiation" # from helioclim dataset for year 2010
         self.Sce_Weather_Temperature = self.Scenario + "Weather_Temperature" # from MERRA2 dataset for year 2010
@@ -75,6 +76,7 @@ class REG:
 
         self.Sce_Price_HourlyElectricityPrice = self.Scenario + "Price_HourlyElectricityPrice"
         self.Sce_Price_HourlyFeedinTariff = self.Scenario + "Price_HourlyFeedinTariff"
+        self.Sce_Price_EnergyCost = self.Scenario + "Price_EnergyCost"
 
         self.Sce_HeatPump_COPCurve = self.Scenario + "HeatPump_COPCurve"
 

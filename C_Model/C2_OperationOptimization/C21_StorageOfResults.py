@@ -18,20 +18,12 @@ from A_Infrastructure.A1_Config.A11_Constants import CONS
 class OperationOptimization:
     """
     # toDo:
-    (1) Extent scenario, change DB and collect parameters of scenario
-        Smart App Demand
-        Car Demand
-        StartParameters of tank and storage
-    (1a) in TableGenerator:
-        HotWaterProfile
-        Radiation: Sky Directions
+
     (2) Output of optimization: 1. Results 2. Combination of technologies
     (3) Select specific combinations: minimize numbers in all
     (4) Not adoption of cooling: Error by calc: " / 0"
     (5) Consider driving demand right: no EV = no demand = saving, but wrong
     (6) if case for EV adoption
-    (7) TargetTemp in Code, but no Age (old, young considered)
-    (8) Read all bounds from DB
     """
 
     def __init__(self, conn):
@@ -65,6 +57,7 @@ class OperationOptimization:
         self.HeatPump_HourlyCOP = DB().read_DataFrame(REG().Gen_Sce_HeatPump_HourlyCOP, self.Conn)
 
         self.TargetTemperature = DB().read_DataFrame(REG().Sce_ID_TargetTemperatureType, self.Conn)
+        self.EnergyCost = DB().read_DataFrame(REG().Sce_Price_EnergyCost, self.Conn)
 
         # you can import all the necessary tables into the memory here.
         # Then, it can be faster when we run the optimization problem for many "household - environment" combinations.
@@ -98,6 +91,7 @@ class OperationOptimization:
         ID_HotWaterProfileType = Environment.ID_HotWaterProfileType
         ID_PhotovoltaicProfileType = Environment.ID_PhotovoltaicProfileType
         ID_BaseElectricityProfileType = Environment.ID_BaseElectricityProfileType
+        ID_EnergyCostType = int(Environment.ID_EnergyCostType)
 
         # function to convert a list into a dict (needed for pyomo data input)
         def create_dict(liste):
@@ -157,24 +151,34 @@ class OperationOptimization:
         ############################################################################################
         # (3.2) EV
 
+        # (2.3) Calculation of the hourly EV demand for the discharge of the EV, if not at home
+        KilometerPerWorkday = int(self.Demand_EV.KilometerPerWorkday)
+        ConsumptionPer100km = Household.ElectricVehicle.ConsumptionPer100km
+        EV_DailyDemand = KilometerPerWorkday * ConsumptionPer100km /100
+        EV_LeaveHour = int(self.Demand_EV.EVLeaveHomeClock)
+        EV_ArriveHour = int(self.Demand_EV.EVArriveHomeClock)
+        EV_AwayHours = EV_ArriveHour - EV_LeaveHour
+        EV_HourlyDemand = EV_DailyDemand / EV_AwayHours
+
+        print(EV_DailyDemand)
+
         # (3.2.1) Check if the EV adopted, by checking the capacity of the EV
 
-        # Case: BatteryCapacity = 0: EV not adopted
+        # Case: BatteryCapacity = 0: EV not adopted - Petrol Car is used
         if Household.ElectricVehicle.BatterySize == 0:
             CarAtHomeStatus = create_dict([0] * HoursOfSimulation)
             V2B = 0  # Vif EV is not adopted, V2B have to be 0
+
+            PetrolCarYearlyDemand = KilometerPerWorkday * ConsumptionPer100km * 5*52 / 100  # 5 WorkdaysPerWeek
+            PetrolCostPerLiter = float(self.EnergyCost.loc[self.EnergyCost['ID_EnergyCostType'] == ID_EnergyCostType].loc[: ,'PetrolCost'])
+
+            PetrolCostPerYear = PetrolCarYearlyDemand * PetrolCostPerLiter
 
         # Case: BatteryCapacity > 0: EV is adopted
         else:
             CarAtHomeStatus = create_dict(self.CarAtHomeStatus.CarAtHomeHours.to_numpy())
             V2B = Household.ElectricVehicle.V2B
-
-        # (2.3) Calculation of the hourly EV demand for the discharge of the EV, if not at home
-        EV_DailyDemand = int(self.Demand_EV.EVDailyElectricityConsumption)
-        EV_LeaveHour = int(self.Demand_EV.EVLeaveHomeClock)
-        EV_ArriveHour = int(self.Demand_EV.EVArriveHomeClock)
-        EV_AwayHours = EV_ArriveHour - EV_LeaveHour
-        EV_HourlyDemand = EV_DailyDemand / EV_AwayHours
+            PetrolCostPerYear = 0
 
         ############################################################################################
         # (3.3) Calculation of the installed PV-Power with the PVProfile and installed Power
@@ -430,7 +434,7 @@ class OperationOptimization:
         # (4.3) Objective of model
 
         def minimize_cost(m):
-            rule = sum(m.Grid[t] * m.ElectricityPrice[t] - m.Feedin[t] * m.FiT[t] for t in m.t)
+            rule = sum(m.Grid[t] * m.ElectricityPrice[t] - m.Feedin[t] * m.FiT[t] for t in m.t) + PetrolCostPerYear
             return rule
 
         m.OBJ = pyo.Objective(rule=minimize_cost)
