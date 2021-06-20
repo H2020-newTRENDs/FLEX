@@ -19,11 +19,9 @@ class OperationOptimization:
     """
     # toDo:
 
-    (2) Output of optimization: 1. Results 2. Combination of technologies
-    (3) Select specific combinations: minimize numbers in all
-    (4) Not adoption of cooling: Error by calc: " / 0"
-    (5) Consider driving demand right: no EV = no demand = saving, but wrong
-    (6) if case for EV adoption
+    (1) Output of optimization: 1. Results 2. Combination of technologies
+    (2) Select specific combinations: minimize numbers in all
+
     """
 
     def __init__(self, conn):

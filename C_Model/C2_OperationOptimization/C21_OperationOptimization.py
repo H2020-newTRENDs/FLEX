@@ -19,11 +19,9 @@ class OperationOptimization:
     """
     # toDo:
 
-    (2) Output of optimization: 1. Results 2. Combination of technologies
-    (3) Select specific combinations: minimize numbers in all
-    (4) Not adoption of cooling: Error by calc: " / 0"
-    (5) Consider driving demand right: no EV = no demand = saving, but wrong
-    (6) if case for EV adoption
+    (1) Output of optimization: 1. Results 2. Combination of technologies
+    (2) Select specific combinations: minimize numbers in all
+
     """
 
     def __init__(self, conn):
@@ -83,9 +81,6 @@ class OperationOptimization:
         Environment = self.gen_Environment(environment_id)
         ID_Environment = Environment.ID
         print('Environment ID: ' + str(ID_Environment))
-
-        print(Household.Battery.Capacity)
-        print(Household.ElectricVehicle.BatterySize)
 
         # Read Scenario data
         ID_ElectricityPriceType = Environment.ID_ElectricityPriceType
@@ -760,7 +755,7 @@ class OperationOptimization:
 
     def run(self):
         TargetTable_list = []
-        for household_id in range(0, 8):
+        for household_id in range(0, 6):
             for environment_id in range(1, 2):
                 cost = self.run_Optimization(household_id, environment_id)
                 print(cost)
@@ -769,3 +764,4 @@ class OperationOptimization:
         TargetTable_columns = ['ID_Household', 'ID_Environment', "TotalCost"]
         DB().write_DataFrame(TargetTable_list, REG().Res_MinimizedOperationCost, TargetTable_columns, self.Conn)
         pass
+
