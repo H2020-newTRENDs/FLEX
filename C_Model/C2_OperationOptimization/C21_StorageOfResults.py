@@ -84,6 +84,9 @@ class OperationOptimization:
         ID_Environment = Environment.ID
         print('Environment ID: ' + str(ID_Environment))
 
+        print(Household.Battery.Capacity)
+        print(Household.ElectricVehicle.BatterySize)
+
         # Read Scenario data
         ID_ElectricityPriceType = Environment.ID_ElectricityPriceType
         ID_FeedinTariffType = Environment.ID_FeedinTariffType
@@ -485,7 +488,7 @@ class OperationOptimization:
 
         # (5)
         def calc_SupplyOfLoads(m, t):
-            if Household.ElectricVehicle.BatterySize == 0 and Household.ElectricVehicle.BatterySize == 0:
+            if Household.ElectricVehicle.BatterySize == 0 and Household.Battery.Capacity == 0:
                 return m.Grid2Load[t] + m.PV2Load[t] == m.Load[t]
             if Household.ElectricVehicle.BatterySize == 0:
                 return m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] == m.Load[t]
