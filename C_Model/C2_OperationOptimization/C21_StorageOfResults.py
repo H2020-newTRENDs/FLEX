@@ -152,7 +152,7 @@ class OperationOptimization:
         # (2.3) Calculation of the hourly EV demand for the discharge of the EV, if not at home
         KilometerPerWorkday = int(self.Demand_EV.KilometerPerWorkday)
         ConsumptionPer100km = Household.ElectricVehicle.ConsumptionPer100km
-        EV_DailyDemand = KilometerPerWorkday * ConsumptionPer100km /100
+        EV_DailyDemand = KilometerPerWorkday * ConsumptionPer100km / 100
         EV_LeaveHour = int(self.Demand_EV.EVLeaveHomeClock)
         EV_ArriveHour = int(self.Demand_EV.EVArriveHomeClock)
         EV_AwayHours = EV_ArriveHour - EV_LeaveHour
@@ -167,8 +167,9 @@ class OperationOptimization:
             CarAtHomeStatus = create_dict([0] * HoursOfSimulation)
             V2B = 0  # Vif EV is not adopted, V2B have to be 0
 
-            PetrolCarYearlyDemand = KilometerPerWorkday * ConsumptionPer100km * 5*52 / 100  # 5 WorkdaysPerWeek
-            PetrolCostPerLiter = float(self.EnergyCost.loc[self.EnergyCost['ID_EnergyCostType'] == ID_EnergyCostType].loc[: ,'PetrolCost'])
+            PetrolCarYearlyDemand = KilometerPerWorkday * ConsumptionPer100km * 5 * 52 / 100  # 5 WorkdaysPerWeek
+            PetrolCostPerLiter = float(
+                self.EnergyCost.loc[self.EnergyCost['ID_EnergyCostType'] == ID_EnergyCostType].loc[:, 'PetrolCost'])
 
             PetrolCostPerYear = PetrolCarYearlyDemand * PetrolCostPerLiter
 
@@ -320,13 +321,14 @@ class OperationOptimization:
                                            'CoolingTargetTemperatureOld'].to_numpy())
 
         if Household.SpaceCooling.SpaceCoolingPower == 0:
-            CoolingTargetTemperature = 60              # delete limit for cooling, if no Cooling is available
+            CoolingTargetTemperature = 60  # delete limit for cooling, if no Cooling is available
 
         print('HeatingTargetTemperature: ' + str(HeatingTargetTemperature))
         print('CoolingTargetTemperature: ' + str(CoolingTargetTemperature))
 
         if CoolingTargetTemperature < HeatingTargetTemperature:
-            print('ERROR: CoolingTargetTemperature !>= HeatingTargetemperature! Change value in databank: Sce_ID_TargetTemperature')
+            print(
+                'ERROR: CoolingTargetTemperature !>= HeatingTargetemperature! Change value in databank: Sce_ID_TargetTemperature')
             sys.exit()
 
         ############################################################################################
@@ -371,20 +373,24 @@ class OperationOptimization:
         # (4.2) Variables of model
 
         # Variables SpaceHeating
-        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.HeatPumpMaximalThermalPower))
+        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                                  bounds=(0, Household.SpaceHeating.HeatPumpMaximalThermalPower))
         m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * M_WaterTank * (273.15 + T_TankMin),
                                                                      CWater * M_WaterTank * (273.15 + T_TankMax)))
-        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.MaximalPowerFloorHeating))
+        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                                  bounds=(0, Household.SpaceHeating.MaximalPowerFloorHeating))
 
         # energy used for cooling
         m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals,
                                   bounds=(0, Household.SpaceCooling.SpaceCoolingPower))  # 6kW thermal, 2 kW electrical
         m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals,
                            bounds=(HeatingTargetTemperature, CoolingTargetTemperature))  # Change to TargetTemp
-        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalBuildingMassTemperature))
+        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                         bounds=(0, Household.Building.MaximalBuildingMassTemperature))
 
         # Grid, limit set by 21 kW
-        m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))  # 380 * 32 * 1,72
+        m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                         bounds=(0, Household.Building.MaximalGridPower))  # 380 * 32 * 1,72
         m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
         m.Grid2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
 
@@ -751,17 +757,64 @@ class OperationOptimization:
         # return relevant data
         Cost = round(instance.OBJ(), 2)
         print('CostYearly: ' + str(Cost))
-        return Cost
+
+        HouseholdTechnologies = [ID_Household,
+                                 ID_Environment,
+                                 Cost,
+
+                                 Household.Name_AgeGroup,
+
+                                 Household.Building.name,
+                                 Household.Building.Af,
+                                 Household.Building.hwb_norm1,
+
+                                 Household.PV.PVPower,
+                                 Household.Battery.Capacity,
+
+                                 Household.SpaceHeating.Name_SpaceHeatingBoilerType,
+                                 Household.SpaceHeating.TankSize,
+
+                                 Household.SpaceCooling.SpaceCoolingPower,
+                                 Household.SpaceCooling.AdoptionStatus,
+
+                                 Household.ElectricVehicle.Name_ElectricVehicleType,
+                                 Household.ElectricVehicle.BatterySize,
+                                 Household.ElectricVehicle.ConsumptionPer100km,
+                                 Household.ElectricVehicle.V2B,
+
+                                 Household.ApplianceGroup.DishWasherPower,
+                                 Household.ApplianceGroup.DishWasherShifting,
+                                 Household.ApplianceGroup.DishWasherAdoption,
+
+                                 Household.ApplianceGroup.WashingMachinePower,
+                                 Household.ApplianceGroup.WashingMachineShifting,
+                                 Household.ApplianceGroup.WashingMachineAdoption,
+
+                                 Household.ApplianceGroup.DryerPower,
+                                 Household.ApplianceGroup.DryerAdoption]
+        return Cost, HouseholdTechnologies
 
     def run(self):
-        TargetTable_list = []
-        for household_id in range(0, 6):
+        TargetTable_MinimizedCost = []
+        TargetTable_SystemOperation = []
+        for household_id in range(0, 2):
             for environment_id in range(1, 2):
-                cost = self.run_Optimization(household_id, environment_id)
-                print(cost)
-                TargetTable_list.append([household_id, environment_id, cost])
+                cost, HouseholdTechnologies = self.run_Optimization(household_id, environment_id)
+                TargetTable_MinimizedCost.append([household_id + 1, environment_id, cost])
 
-        TargetTable_columns = ['ID_Household', 'ID_Environment', "TotalCost"]
-        DB().write_DataFrame(TargetTable_list, REG().Res_MinimizedOperationCost, TargetTable_columns, self.Conn)
-        pass
+                TargetTable_SystemOperation.append(HouseholdTechnologies)
 
+        TargetTable_columnsMinimizedCost = ['ID_Household', 'ID_Environment', "TotalCost"]
+        DB().write_DataFrame(TargetTable_MinimizedCost, REG().Res_MinimizedOperationCost,
+                             TargetTable_columnsMinimizedCost, self.Conn)
+
+        TargetTable_columnsSystemOperation = ['ID_Household', 'ID_Environment', 'YearlyCost',
+                                              'AgeGroup', 'Building_Name', 'Building_Af', 'Building_hwbNorm', 'PVPower',
+                                              'SBS_Capacity', 'SpaceHeatingBoilerType', 'TankSize', 'SpaceCoolingPower',
+                                              'SpaceCooling_AdoptionStatus', 'EV_Type', 'EV_BatteryCapacity',
+                                              'EV_ConsumptionPer100km', 'EV_V2BStatus', 'DishWasherPower',
+                                              'DishWasherShifting',
+                                              'DishWasherAdoption', 'WashingMachinePower', 'WashingMachineShifting',
+                                              'WashingMachineAdoption', 'DryerPower', 'DryerAdoption']
+        DB().write_DataFrame(TargetTable_SystemOperation, REG().Res_SystemOperation,
+                             TargetTable_columnsSystemOperation, self.Conn)

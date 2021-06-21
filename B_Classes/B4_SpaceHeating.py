@@ -7,6 +7,7 @@ class SpaceHeating:
     def __init__(self, para_series):
 
         self.ID_SpaceHeatingBoilerType = para_series["ID_SpaceHeatingBoilerType"]
+        self.Name_SpaceHeatingBoilerType = para_series['Name_SpaceHeatingBoilerType']
         self.ID_EnergyCarrier = para_series["ID_EnergyCarrier"]
         self.HeatPumpMaximalThermalPower = para_series["HeatPumpMaximalThermalPower"]
 

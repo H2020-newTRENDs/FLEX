@@ -6,6 +6,7 @@ class ElectricVehicle:
 
     def __init__(self, para_series):
         self.ID_ElectricVehicleType = para_series["ID_ElectricVehicleType"]
+        self.Name_ElectricVehicleType = para_series['Name_ElectricVehicleType']
         self.BatterySize = para_series["BatterySize"]
         self.BatteryChargeEfficiency = para_series["BatteryChargeEfficiency"]
         self.BatteryMaxChargePower = para_series["BatteryMaxChargePower"]
