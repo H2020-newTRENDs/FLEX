@@ -39,6 +39,7 @@ class Building:
         self.Hve = para_series['Hve']
         self.CM_factor = para_series['CM_factor']
         self.Am_factor = para_series['Am_factor']
+        self.hwb_norm1 = para_series['hwb_norm1']
         self.country_ID = para_series['country_ID']
 
         self.MaximalGridPower = para_series['MaximalGridPower']
