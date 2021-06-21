@@ -104,7 +104,7 @@ class REG:
         # Result tables
         self.Res_MinimizedOperationCost = self.Result + "MinimizedOperationCost" #3: col: IDHH, col IDEnvi, col: cost
         self.Res_SystemOperation = self.Result + "SystemOperation" #4: col: IDHH, col IDEnvi, , col: IDHour, col: technologies
-
+        self.Res_YearlyValues = self.Result + "YearlyValues" # yearly sum of technology demands
 
         # ------------------------------
         # Part II: Investment simulation

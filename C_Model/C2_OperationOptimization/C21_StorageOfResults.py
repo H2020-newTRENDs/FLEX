@@ -752,12 +752,184 @@ class OperationOptimization:
         # opt = pyo.SolverFactory("glpk")
         opt = pyo.SolverFactory("gurobi")
         results = opt.solve(instance, tee=True)
-        # instance.display("./log.txt")
+        instance.display("./log.txt")
         # print(results)
         # return relevant data
         Cost = round(instance.OBJ(), 2)
         print('CostYearly: ' + str(Cost))
 
+        # Generates YearlyValues
+        Yearly_Q_TankHeating = round(sum(np.nan_to_num(np.array(np.array
+            (list(
+            instance.Q_TankHeating.extract_values().values())),
+            dtype=np.float), nan=0) / 1000), 2)
+
+        Yearly_E_TankHeating = round(sum(np.array(list(instance.Q_TankHeating.extract_values().values())) / \
+                                         np.array(
+                                             list(instance.SpaceHeatingHourlyCOP.extract_values().values())) / 1000), 2)
+        APF = round(Yearly_Q_TankHeating / Yearly_E_TankHeating, 2)
+
+        Yearly_Q_RoomHeating = round(sum(np.nan_to_num(np.array(np.array(list(
+            instance.Q_RoomHeating.extract_values().values())), dtype=np.float), nan=0) / 1000), 2)
+        Yearly_Q_RoomCooling = round(sum(np.nan_to_num(np.array(np.array
+            (list(
+            instance.Q_RoomCooling.extract_values().values())),
+            dtype=np.float), nan=0) / 1000), 2)
+        Yearly_E_RoomCooling = round(Yearly_Q_RoomCooling / Household.SpaceCooling.SpaceCoolingEfficiency, 2)
+
+        Yearly_Q_SolarGains = round(sum(np.nan_to_num(np.array(np.array
+                                                               (list(instance.Q_Solar.extract_values().values())),
+                                                               dtype=np.float), nan=0) / 1000), 2)
+        Yearly_E_Grid = round(sum(np.nan_to_num(np.array(np.array
+                                                         (list(instance.Grid.extract_values().values())),
+                                                         dtype=np.float), nan=0)), 2)
+        Yearly_E_BaseLoad = round(sum(np.nan_to_num(np.array(np.array
+                                                             (list(instance.LoadProfile.extract_values().values())),
+                                                             dtype=np.float), nan=0)), 2)
+        Yearly_E_PV = round(sum(np.nan_to_num(np.array(np.array
+                                                       (list(instance.PhotovoltaicProfile.extract_values().values())),
+                                                       dtype=np.float), nan=0)), 2)
+        Yearly_Q_HW1 = round(sum(np.nan_to_num(np.array(np.array
+                                                        (list(instance.HWPart1.extract_values().values())),
+                                                        dtype=np.float), nan=0)), 2)
+        Yearly_Q_HW2 = round(sum(np.nan_to_num(np.array(np.array
+                                                        (list(instance.HWPart2.extract_values().values())),
+                                                        dtype=np.float), nan=0)), 2)
+        Yearly_Q_HW = Yearly_Q_HW1 + Yearly_Q_HW2
+        Yearly_E_HW1 = round(sum(np.array(list(instance.HWPart1.extract_values().values())) / \
+                                 np.array(list(instance.SpaceHeatingHourlyCOP.extract_values().values()))), 2)
+        Yearly_E_HW2 = round(sum(np.array(list(instance.HWPart2.extract_values().values())) / \
+                                 np.array(list(instance.HotWaterHourlyCOP.extract_values().values()))), 2)
+        Yearly_E_HW = Yearly_E_HW1 + Yearly_E_HW2
+
+        Yearly_E_Grid2Load = round(sum(np.nan_to_num(np.array(np.array
+                                                              (list(instance.Grid2Load.extract_values().values())),
+                                                              dtype=np.float), nan=0)), 2)
+        Yearly_E_Grid2EV = round(sum(np.nan_to_num(np.array(np.array
+                                                            (list(instance.Grid2EV.extract_values().values())),
+                                                            dtype=np.float), nan=0)), 2)
+        Yearly_E_PV2Load = round(sum(np.nan_to_num(np.array(np.array
+                                                            (list(instance.PV2Load.extract_values().values())),
+                                                            dtype=np.float), nan=0)), 2)
+        Yearly_E_PV2Bat = round(sum(np.nan_to_num(np.array(np.array
+                                                           (list(instance.PV2Bat.extract_values().values())),
+                                                           dtype=np.float), nan=0)), 2)
+        Yearly_E_PV2Grid = round(sum(np.nan_to_num(np.array(np.array
+                                                            (list(instance.PV2Grid.extract_values().values())),
+                                                            dtype=np.float), nan=0)), 2)
+        Yearly_E_PV2EV = round(sum(np.nan_to_num(np.array(np.array
+                                                          (list(instance.PV2EV.extract_values().values())),
+                                                          dtype=np.float), nan=0)), 2)
+        Yearly_E_Load = round(sum(np.nan_to_num(np.array(np.array
+                                                         (list(instance.Load.extract_values().values())),
+                                                         dtype=np.float), nan=0)), 2)
+        Yearly_E_Feedin = round(sum(np.nan_to_num(np.array(np.array
+                                                           (list(instance.Feedin.extract_values().values())),
+                                                           dtype=np.float), nan=0)), 2)
+        Yearly_E_BatCharge = round(sum(np.nan_to_num(np.array(np.array
+                                                              (list(instance.BatCharge.extract_values().values())),
+                                                              dtype=np.float), nan=0)), 2)
+        Yearly_E_BatDischarge = round(sum(np.nan_to_num(np.array(np.array
+            (list(
+            instance.BatDischarge.extract_values().values())),
+            dtype=np.float), nan=0)), 2)
+        Yearly_E_Bat2Load = round(sum(np.nan_to_num(np.array(np.array
+                                                             (list(instance.Bat2Load.extract_values().values())),
+                                                             dtype=np.float), nan=0)), 2)
+        Yearly_E_Bat2EV = round(sum(np.nan_to_num(np.array(np.array
+                                                           (list(instance.Bat2EV.extract_values().values())),
+                                                           dtype=np.float), nan=0)), 2)
+
+        Yearly_E_EVCharge = round(sum(np.nan_to_num(np.array(np.array
+                                                             (list(instance.EVCharge.extract_values().values())),
+                                                             dtype=np.float), nan=0)), 2)
+        Yearly_E_EVDischarge = round(sum(np.nan_to_num(np.array(np.array
+                                                                (list(instance.EVDischarge.extract_values().values())),
+                                                                dtype=np.float), nan=0)), 2)
+        Yearly_E_EV2Load = round(sum(np.nan_to_num(np.array(np.array
+                                                            (list(instance.EV2Load.extract_values().values())),
+                                                            dtype=np.float), nan=0)), 2)
+        Yearly_E_EV2Bat = round(sum(np.nan_to_num(np.array(np.array
+                                                           (list(instance.EV2Bat.extract_values().values())),
+                                                           dtype=np.float), nan=0)), 2)
+
+        Yearly_E_DishWasher1 = round(sum(np.nan_to_num(np.array(np.array
+                                                                (list(instance.DishWasher1.extract_values().values())),
+                                                                dtype=np.float), nan=0)), 2)
+        Yearly_E_DishWasher2 = round(sum(np.nan_to_num(np.array(np.array
+                                                                (list(instance.DishWasher2.extract_values().values())),
+                                                                dtype=np.float), nan=0)), 2)
+        Yearly_E_DishWasher3 = round(sum(np.nan_to_num(np.array(np.array
+                                                                (list(instance.DishWasher3.extract_values().values())),
+                                                                dtype=np.float), nan=0)), 2)
+        Yearly_E_DishWasher = Yearly_E_DishWasher1 + Yearly_E_DishWasher2 + Yearly_E_DishWasher3
+        Yearly_E_WashingMachine1 = round(sum(np.nan_to_num(np.array(np.array
+            (list(
+            instance.WashingMachine1.extract_values().values())),
+            dtype=np.float), nan=0)), 2)
+        Yearly_E_WashingMachine2_ = round(sum(np.nan_to_num(np.array(np.array
+            (list(
+            instance.WashingMachine2.extract_values().values())),
+            dtype=np.float), nan=0)), 2)
+        Yearly_E_WashingMachine3 = round(sum(np.nan_to_num(np.array(np.array
+            (list(
+            instance.WashingMachine3.extract_values().values())),
+            dtype=np.float), nan=0)), 2)
+        Yearly_E_WashingMachine = Yearly_E_WashingMachine1 + Yearly_E_WashingMachine2_ + Yearly_E_WashingMachine3
+        Yearly_E_Dryer1 = round(sum(np.nan_to_num(np.array(np.array
+                                                           (list(instance.Dryer1.extract_values().values())),
+                                                           dtype=np.float), nan=0)), 2)
+        Yearly_E_Dryer2 = round(sum(np.nan_to_num(np.array(np.array
+                                                           (list(instance.Dryer2.extract_values().values())),
+                                                           dtype=np.float), nan=0)), 2)
+        Yearly_E_Dryer = Yearly_E_Dryer1 + Yearly_E_Dryer2
+
+        Yearly_E_SmartAppliances = Yearly_E_Dryer + Yearly_E_WashingMachine + Yearly_E_DishWasher
+
+        Yearly_E_UseOfPV = Yearly_E_PV - Yearly_E_Feedin
+        Yearly_E_ElectricityDemand = Yearly_E_Load + (Yearly_E_EVCharge - Yearly_E_EVDischarge)
+
+        SelfConsumption = round(Yearly_E_UseOfPV / Yearly_E_PV, 2)
+        SelfSufficiency = round(Yearly_E_UseOfPV / (Yearly_E_ElectricityDemand), 2)
+
+        YearlyDemandValues = [ID_Household,
+                              ID_Environment,
+                              Cost,
+                              SelfConsumption,
+                              SelfSufficiency,
+                              APF,
+                              Yearly_E_ElectricityDemand,
+                              Yearly_Q_TankHeating,
+                              Yearly_E_TankHeating,
+                              Yearly_Q_RoomHeating,
+                              Yearly_Q_SolarGains,
+                              Yearly_Q_RoomCooling,
+                              Yearly_E_RoomCooling,
+                              Yearly_Q_HW,
+                              Yearly_E_HW,
+                              Yearly_E_Grid,
+                              Yearly_E_Grid2Load,
+                              Yearly_E_Grid2EV,
+                              Yearly_E_BaseLoad,
+                              Yearly_E_PV,
+                              Yearly_E_PV2Load,
+                              Yearly_E_PV2Bat,
+                              Yearly_E_PV2EV,
+                              Yearly_E_PV2Grid,
+                              Yearly_E_EVCharge,
+                              Yearly_E_EVDischarge,
+                              Yearly_E_EV2Bat,
+                              Yearly_E_EV2Load,
+                              Yearly_E_BatCharge,
+                              Yearly_E_BatDischarge,
+                              Yearly_E_Bat2Load,
+                              Yearly_E_Bat2EV,
+                              Yearly_E_DishWasher,
+                              Yearly_E_WashingMachine,
+                              Yearly_E_Dryer,
+                              Yearly_E_SmartAppliances]
+
+        # Generates SystemOperation
         HouseholdTechnologies = [ID_Household,
                                  ID_Environment,
                                  Cost,
@@ -792,22 +964,27 @@ class OperationOptimization:
 
                                  Household.ApplianceGroup.DryerPower,
                                  Household.ApplianceGroup.DryerAdoption]
-        return Cost, HouseholdTechnologies
+
+        return Cost, HouseholdTechnologies, YearlyDemandValues
 
     def run(self):
         TargetTable_MinimizedCost = []
         TargetTable_SystemOperation = []
-        for household_id in range(0, 2):
+        TargetTable_YearlyValues = []
+        for household_id in range(0, 6):
             for environment_id in range(1, 2):
-                cost, HouseholdTechnologies = self.run_Optimization(household_id, environment_id)
-                TargetTable_MinimizedCost.append([household_id + 1, environment_id, cost])
+                cost, HouseholdTechnologies, YearlyDemandValues = self.run_Optimization(household_id, environment_id)
 
+                TargetTable_MinimizedCost.append([household_id + 1, environment_id + 1, cost])
                 TargetTable_SystemOperation.append(HouseholdTechnologies)
+                TargetTable_YearlyValues.append(YearlyDemandValues)
 
+        # MinimizedCost
         TargetTable_columnsMinimizedCost = ['ID_Household', 'ID_Environment', "TotalCost"]
         DB().write_DataFrame(TargetTable_MinimizedCost, REG().Res_MinimizedOperationCost,
                              TargetTable_columnsMinimizedCost, self.Conn)
 
+        # SystemOperation
         TargetTable_columnsSystemOperation = ['ID_Household', 'ID_Environment', 'YearlyCost',
                                               'AgeGroup', 'Building_Name', 'Building_Af', 'Building_hwbNorm', 'PVPower',
                                               'SBS_Capacity', 'SpaceHeatingBoilerType', 'TankSize', 'SpaceCoolingPower',
@@ -818,3 +995,19 @@ class OperationOptimization:
                                               'WashingMachineAdoption', 'DryerPower', 'DryerAdoption']
         DB().write_DataFrame(TargetTable_SystemOperation, REG().Res_SystemOperation,
                              TargetTable_columnsSystemOperation, self.Conn)
+
+        # YearlyValues
+        TargetTable_columnsYearlyValues = ['ID_Household', 'ID_Environment', 'YearlyCost', 'SelfConsumptionRate',
+                                           'SelfSufficiencyRate', 'APF', 'Yearly_E_ElectricityDemand',
+                                           'Yearly_Q_TankHeating', 'Yearly_E_TankHeating',
+                                           'Yearly_Q_RoomHeating', 'Yearly_Q_SolarGains', 'Yearly_Q_RoomCooling',
+                                           'Yearly_E_RoomCooling', 'Yearly_Q_HW', 'Yearly_E_HW', 'Yearly_E_Grid',
+                                           'Yearly_E_Grid2Load', 'Yearly_E_Grid2EV', 'Yearly_E_BaseLoad',
+                                           'Yearly_E_PV', 'Yearly_E_PV2Load', 'Yearly_E_PV2Bat', 'Yearly_E_PV2EV',
+                                           'Yearly_E_PV2Grid', 'Yearly_E_EVCharge', 'Yearly_E_EVDischarge',
+                                           'Yearly_E_EV2Bat', 'Yearly_E_EV2Load', 'Yearly_E_BatCharge',
+                                           'Yearly_E_BatDischarge', 'Yearly_E_Bat2Load', 'Yearly_E_Bat2EV',
+                                           'Yearly_E_DishWasher', 'Yearly_E_WashingMachine', 'Yearly_E_Dryer',
+                                           'Yearly_E_SmartAppliances']
+        DB().write_DataFrame(TargetTable_YearlyValues, REG().Res_YearlyValues,
+                             TargetTable_columnsYearlyValues, self.Conn)
