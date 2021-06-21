@@ -19,8 +19,9 @@ class OperationOptimization:
     """
     # toDo:
 
-    (1) Output of optimization: 1. Results 2. Combination of technologies
-    (2) Select specific combinations: minimize numbers in all
+    (1) Storage all 8760 values of simulation in db
+    (2) Add gas and oil for SpaceHeating
+    (3) Validation!!!
 
     """
 
@@ -393,6 +394,7 @@ class OperationOptimization:
                          bounds=(0, Household.Building.MaximalGridPower))  # 380 * 32 * 1,72
         m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
         m.Grid2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
+        m.Grid2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
 
         # PV
         m.PV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
@@ -468,9 +470,10 @@ class OperationOptimization:
         # (2)
         def calc_UseOfGrid(m, t):
             if Household.ElectricVehicle.BatterySize == 0:
-                return m.Grid[t] == m.Grid2Load[t]
+                return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t] * Household.Battery.Grid2Battery
             else:
-                return m.Grid[t] == m.Grid2Load[t] + m.Grid2EV[t] * m.CarAtHomeStatus[t]
+                return m.Grid[t] == m.Grid2Load[t] + m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.Grid2Bat[
+                    t] * Household.Battery.Grid2Battery
 
         m.calc_UseOfGrid = pyo.Constraint(m.t, rule=calc_UseOfGrid)
 
@@ -532,9 +535,10 @@ class OperationOptimization:
             if Household.Battery.Capacity == 0:
                 return m.BatCharge[t] == 0
             elif Household.ElectricVehicle.BatterySize == 0:
-                return m.BatCharge[t] == m.PV2Bat[t]
+                return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] * Household.Battery.Grid2Battery
             else:
-                return m.BatCharge[t] == m.PV2Bat[t] + m.EV2Bat[t] * V2B
+                return m.BatCharge[t] == m.PV2Bat[t] + m.EV2Bat[t] * V2B + m.Grid2Bat[
+                    t] * Household.Battery.Grid2Battery
 
         m.calc_BatCharge = pyo.Constraint(m.t, rule=calc_BatCharge)
 
@@ -755,14 +759,14 @@ class OperationOptimization:
         instance.display("./log.txt")
         # print(results)
         # return relevant data
+
         Cost = round(instance.OBJ(), 2)
         print('CostYearly: ' + str(Cost))
 
         # Generates YearlyValues
         Yearly_Q_TankHeating = round(sum(np.nan_to_num(np.array(np.array
             (list(
-            instance.Q_TankHeating.extract_values().values())),
-            dtype=np.float), nan=0) / 1000), 2)
+            instance.Q_TankHeating.extract_values().values())), dtype=np.float), nan=0) / 1000), 2)
 
         Yearly_E_TankHeating = round(sum(np.array(list(instance.Q_TankHeating.extract_values().values())) / \
                                          np.array(
@@ -773,10 +777,8 @@ class OperationOptimization:
             instance.Q_RoomHeating.extract_values().values())), dtype=np.float), nan=0) / 1000), 2)
         Yearly_Q_RoomCooling = round(sum(np.nan_to_num(np.array(np.array
             (list(
-            instance.Q_RoomCooling.extract_values().values())),
-            dtype=np.float), nan=0) / 1000), 2)
+            instance.Q_RoomCooling.extract_values().values())), dtype=np.float), nan=0) / 1000), 2)
         Yearly_E_RoomCooling = round(Yearly_Q_RoomCooling / Household.SpaceCooling.SpaceCoolingEfficiency, 2)
-
         Yearly_Q_SolarGains = round(sum(np.nan_to_num(np.array(np.array
                                                                (list(instance.Q_Solar.extract_values().values())),
                                                                dtype=np.float), nan=0) / 1000), 2)
@@ -801,13 +803,15 @@ class OperationOptimization:
         Yearly_E_HW2 = round(sum(np.array(list(instance.HWPart2.extract_values().values())) / \
                                  np.array(list(instance.HotWaterHourlyCOP.extract_values().values()))), 2)
         Yearly_E_HW = Yearly_E_HW1 + Yearly_E_HW2
-
         Yearly_E_Grid2Load = round(sum(np.nan_to_num(np.array(np.array
                                                               (list(instance.Grid2Load.extract_values().values())),
                                                               dtype=np.float), nan=0)), 2)
         Yearly_E_Grid2EV = round(sum(np.nan_to_num(np.array(np.array
                                                             (list(instance.Grid2EV.extract_values().values())),
                                                             dtype=np.float), nan=0)), 2)
+        Yearly_E_Grid2Bat = round(sum(np.nan_to_num(np.array(np.array
+                                                             (list(instance.Grid2Bat.extract_values().values())),
+                                                             dtype=np.float), nan=0)), 2)
         Yearly_E_PV2Load = round(sum(np.nan_to_num(np.array(np.array
                                                             (list(instance.PV2Load.extract_values().values())),
                                                             dtype=np.float), nan=0)), 2)
@@ -831,14 +835,17 @@ class OperationOptimization:
                                                               dtype=np.float), nan=0)), 2)
         Yearly_E_BatDischarge = round(sum(np.nan_to_num(np.array(np.array
             (list(
-            instance.BatDischarge.extract_values().values())),
-            dtype=np.float), nan=0)), 2)
+            instance.BatDischarge.extract_values().values())),dtype=np.float), nan=0)), 2)
         Yearly_E_Bat2Load = round(sum(np.nan_to_num(np.array(np.array
                                                              (list(instance.Bat2Load.extract_values().values())),
                                                              dtype=np.float), nan=0)), 2)
         Yearly_E_Bat2EV = round(sum(np.nan_to_num(np.array(np.array
                                                            (list(instance.Bat2EV.extract_values().values())),
                                                            dtype=np.float), nan=0)), 2)
+
+        Yearly_E_EVDriving = (8760 - round(sum(np.nan_to_num(np.array(np.array
+                                                           (list(instance.CarAtHomeStatus.extract_values().values())),
+                                                           dtype=np.float), nan=0)), 2))*EV_HourlyDemand
 
         Yearly_E_EVCharge = round(sum(np.nan_to_num(np.array(np.array
                                                              (list(instance.EVCharge.extract_values().values())),
@@ -865,16 +872,13 @@ class OperationOptimization:
         Yearly_E_DishWasher = Yearly_E_DishWasher1 + Yearly_E_DishWasher2 + Yearly_E_DishWasher3
         Yearly_E_WashingMachine1 = round(sum(np.nan_to_num(np.array(np.array
             (list(
-            instance.WashingMachine1.extract_values().values())),
-            dtype=np.float), nan=0)), 2)
+            instance.WashingMachine1.extract_values().values())),dtype=np.float), nan=0)), 2)
         Yearly_E_WashingMachine2_ = round(sum(np.nan_to_num(np.array(np.array
             (list(
-            instance.WashingMachine2.extract_values().values())),
-            dtype=np.float), nan=0)), 2)
+            instance.WashingMachine2.extract_values().values())),dtype=np.float), nan=0)), 2)
         Yearly_E_WashingMachine3 = round(sum(np.nan_to_num(np.array(np.array
             (list(
-            instance.WashingMachine3.extract_values().values())),
-            dtype=np.float), nan=0)), 2)
+            instance.WashingMachine3.extract_values().values())),dtype=np.float), nan=0)), 2)
         Yearly_E_WashingMachine = Yearly_E_WashingMachine1 + Yearly_E_WashingMachine2_ + Yearly_E_WashingMachine3
         Yearly_E_Dryer1 = round(sum(np.nan_to_num(np.array(np.array
                                                            (list(instance.Dryer1.extract_values().values())),
@@ -910,6 +914,7 @@ class OperationOptimization:
                               Yearly_E_Grid,
                               Yearly_E_Grid2Load,
                               Yearly_E_Grid2EV,
+                              Yearly_E_Grid2Bat,
                               Yearly_E_BaseLoad,
                               Yearly_E_PV,
                               Yearly_E_PV2Load,
@@ -917,6 +922,7 @@ class OperationOptimization:
                               Yearly_E_PV2EV,
                               Yearly_E_PV2Grid,
                               Yearly_E_EVCharge,
+                              Yearly_E_EVDriving,
                               Yearly_E_EVDischarge,
                               Yearly_E_EV2Bat,
                               Yearly_E_EV2Load,
@@ -942,6 +948,7 @@ class OperationOptimization:
 
                                  Household.PV.PVPower,
                                  Household.Battery.Capacity,
+                                 Household.Battery.Grid2Battery,
 
                                  Household.SpaceHeating.Name_SpaceHeatingBoilerType,
                                  Household.SpaceHeating.TankSize,
@@ -971,7 +978,7 @@ class OperationOptimization:
         TargetTable_MinimizedCost = []
         TargetTable_SystemOperation = []
         TargetTable_YearlyValues = []
-        for household_id in range(0, 6):
+        for household_id in range(0, 1):
             for environment_id in range(1, 2):
                 cost, HouseholdTechnologies, YearlyDemandValues = self.run_Optimization(household_id, environment_id)
 
@@ -987,10 +994,10 @@ class OperationOptimization:
         # SystemOperation
         TargetTable_columnsSystemOperation = ['ID_Household', 'ID_Environment', 'YearlyCost',
                                               'AgeGroup', 'Building_Name', 'Building_Af', 'Building_hwbNorm', 'PVPower',
-                                              'SBS_Capacity', 'SpaceHeatingBoilerType', 'TankSize', 'SpaceCoolingPower',
-                                              'SpaceCooling_AdoptionStatus', 'EV_Type', 'EV_BatteryCapacity',
-                                              'EV_ConsumptionPer100km', 'EV_V2BStatus', 'DishWasherPower',
-                                              'DishWasherShifting',
+                                              'SBS_Capacity', 'Grid2Battery', 'SpaceHeatingBoilerType', 'TankSize',
+                                              'SpaceCoolingPower', 'SpaceCooling_AdoptionStatus', 'EV_Type',
+                                              'EV_BatteryCapacity','EV_ConsumptionPer100km', 'EV_V2BStatus',
+                                              'DishWasherPower','DishWasherShifting',
                                               'DishWasherAdoption', 'WashingMachinePower', 'WashingMachineShifting',
                                               'WashingMachineAdoption', 'DryerPower', 'DryerAdoption']
         DB().write_DataFrame(TargetTable_SystemOperation, REG().Res_SystemOperation,
@@ -1002,9 +1009,10 @@ class OperationOptimization:
                                            'Yearly_Q_TankHeating', 'Yearly_E_TankHeating',
                                            'Yearly_Q_RoomHeating', 'Yearly_Q_SolarGains', 'Yearly_Q_RoomCooling',
                                            'Yearly_E_RoomCooling', 'Yearly_Q_HW', 'Yearly_E_HW', 'Yearly_E_Grid',
-                                           'Yearly_E_Grid2Load', 'Yearly_E_Grid2EV', 'Yearly_E_BaseLoad',
-                                           'Yearly_E_PV', 'Yearly_E_PV2Load', 'Yearly_E_PV2Bat', 'Yearly_E_PV2EV',
-                                           'Yearly_E_PV2Grid', 'Yearly_E_EVCharge', 'Yearly_E_EVDischarge',
+                                           'Yearly_E_Grid2Load', 'Yearly_E_Grid2EV', 'Yearly_E_Grid2Bat',
+                                           'Yearly_E_BaseLoad', 'Yearly_E_PV', 'Yearly_E_PV2Load', 'Yearly_E_PV2Bat',
+                                           'Yearly_E_PV2EV','Yearly_E_PV2Grid', 'Yearly_E_EVCharge',
+                                           'Yearly_E_EVDriving', 'Yearly_E_EVDischarge',
                                            'Yearly_E_EV2Bat', 'Yearly_E_EV2Load', 'Yearly_E_BatCharge',
                                            'Yearly_E_BatDischarge', 'Yearly_E_Bat2Load', 'Yearly_E_Bat2EV',
                                            'Yearly_E_DishWasher', 'Yearly_E_WashingMachine', 'Yearly_E_Dryer',

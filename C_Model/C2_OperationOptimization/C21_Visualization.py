@@ -19,8 +19,9 @@ class OperationOptimization:
     """
     # toDo:
 
-    (1) Output of optimization: 1. Results 2. Combination of technologies
-    (2) Select specific combinations: minimize numbers in all
+    (1) Storage all 8760 values of simulation in db
+    (2) Add gas and oil for SpaceHeating
+    (3) Validation!!!
 
     """
 
@@ -81,6 +82,8 @@ class OperationOptimization:
         Environment = self.gen_Environment(environment_id)
         ID_Environment = Environment.ID
         print('Environment ID: ' + str(ID_Environment))
+
+        print(Household.Battery.Grid2Battery)
 
         # Read Scenario data
         ID_ElectricityPriceType = Environment.ID_ElectricityPriceType
@@ -152,7 +155,7 @@ class OperationOptimization:
         # (2.3) Calculation of the hourly EV demand for the discharge of the EV, if not at home
         KilometerPerWorkday = int(self.Demand_EV.KilometerPerWorkday)
         ConsumptionPer100km = Household.ElectricVehicle.ConsumptionPer100km
-        EV_DailyDemand = KilometerPerWorkday * ConsumptionPer100km /100
+        EV_DailyDemand = KilometerPerWorkday * ConsumptionPer100km / 100
         EV_LeaveHour = int(self.Demand_EV.EVLeaveHomeClock)
         EV_ArriveHour = int(self.Demand_EV.EVArriveHomeClock)
         EV_AwayHours = EV_ArriveHour - EV_LeaveHour
@@ -167,8 +170,9 @@ class OperationOptimization:
             CarAtHomeStatus = create_dict([0] * HoursOfSimulation)
             V2B = 0  # Vif EV is not adopted, V2B have to be 0
 
-            PetrolCarYearlyDemand = KilometerPerWorkday * ConsumptionPer100km * 5*52 / 100  # 5 WorkdaysPerWeek
-            PetrolCostPerLiter = float(self.EnergyCost.loc[self.EnergyCost['ID_EnergyCostType'] == ID_EnergyCostType].loc[: ,'PetrolCost'])
+            PetrolCarYearlyDemand = KilometerPerWorkday * ConsumptionPer100km * 5 * 52 / 100  # 5 WorkdaysPerWeek
+            PetrolCostPerLiter = float(
+                self.EnergyCost.loc[self.EnergyCost['ID_EnergyCostType'] == ID_EnergyCostType].loc[:, 'PetrolCost'])
 
             PetrolCostPerYear = PetrolCarYearlyDemand * PetrolCostPerLiter
 
@@ -320,13 +324,14 @@ class OperationOptimization:
                                            'CoolingTargetTemperatureOld'].to_numpy())
 
         if Household.SpaceCooling.SpaceCoolingPower == 0:
-            CoolingTargetTemperature = 60              # delete limit for cooling, if no Cooling is available
+            CoolingTargetTemperature = 60  # delete limit for cooling, if no Cooling is available
 
         print('HeatingTargetTemperature: ' + str(HeatingTargetTemperature))
         print('CoolingTargetTemperature: ' + str(CoolingTargetTemperature))
 
         if CoolingTargetTemperature < HeatingTargetTemperature:
-            print('ERROR: CoolingTargetTemperature !>= HeatingTargetemperature! Change value in databank: Sce_ID_TargetTemperature')
+            print(
+                'ERROR: CoolingTargetTemperature !>= HeatingTargetemperature! Change value in databank: Sce_ID_TargetTemperature')
             sys.exit()
 
         ############################################################################################
@@ -371,22 +376,27 @@ class OperationOptimization:
         # (4.2) Variables of model
 
         # Variables SpaceHeating
-        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.HeatPumpMaximalThermalPower))
+        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                                  bounds=(0, Household.SpaceHeating.HeatPumpMaximalThermalPower))
         m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * M_WaterTank * (273.15 + T_TankMin),
                                                                      CWater * M_WaterTank * (273.15 + T_TankMax)))
-        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.MaximalPowerFloorHeating))
+        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                                  bounds=(0, Household.SpaceHeating.MaximalPowerFloorHeating))
 
         # energy used for cooling
         m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals,
                                   bounds=(0, Household.SpaceCooling.SpaceCoolingPower))  # 6kW thermal, 2 kW electrical
         m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals,
                            bounds=(HeatingTargetTemperature, CoolingTargetTemperature))  # Change to TargetTemp
-        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalBuildingMassTemperature))
+        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                         bounds=(0, Household.Building.MaximalBuildingMassTemperature))
 
         # Grid, limit set by 21 kW
-        m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))  # 380 * 32 * 1,72
+        m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                         bounds=(0, Household.Building.MaximalGridPower))  # 380 * 32 * 1,72
         m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
         m.Grid2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
+        m.Grid2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
 
         # PV
         m.PV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
@@ -462,11 +472,12 @@ class OperationOptimization:
         # (2)
         def calc_UseOfGrid(m, t):
             if Household.ElectricVehicle.BatterySize == 0:
-                return m.Grid[t] == m.Grid2Load[t]
+                return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t]* Household.Battery.Grid2Battery
             else:
-                return m.Grid[t] == m.Grid2Load[t] + m.Grid2EV[t] * m.CarAtHomeStatus[t]
+                return m.Grid[t] == m.Grid2Load[t] + m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.Grid2Bat[t]* Household.Battery.Grid2Battery
 
         m.calc_UseOfGrid = pyo.Constraint(m.t, rule=calc_UseOfGrid)
+
 
         # (3)
         def calc_UseOfPV(m, t):
@@ -526,9 +537,9 @@ class OperationOptimization:
             if Household.Battery.Capacity == 0:
                 return m.BatCharge[t] == 0
             elif Household.ElectricVehicle.BatterySize == 0:
-                return m.BatCharge[t] == m.PV2Bat[t]
+                return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t]* Household.Battery.Grid2Battery
             else:
-                return m.BatCharge[t] == m.PV2Bat[t] + m.EV2Bat[t] * V2B
+                return m.BatCharge[t] == m.PV2Bat[t] + m.EV2Bat[t] * V2B + m.Grid2Bat[t]* Household.Battery.Grid2Battery
 
         m.calc_BatCharge = pyo.Constraint(m.t, rule=calc_BatCharge)
 
@@ -746,7 +757,7 @@ class OperationOptimization:
         # opt = pyo.SolverFactory("glpk")
         opt = pyo.SolverFactory("gurobi")
         results = opt.solve(instance, tee=True)
-        # instance.display("./log.txt")
+        instance.display("./log.txt")
         # print(results)
         # return relevant data
         Cost = instance.OBJ()
@@ -792,6 +803,9 @@ def show_results(instance, M_WaterTank, CWater, colors):
     Grid2EV = np.nan_to_num(
         np.array(np.array(list(instance.Grid2EV.extract_values().values())[starttime: endtime]), dtype=np.float), nan=0)
     Grid2Load = np.array(list(instance.Grid2Load.extract_values().values())[starttime: endtime])
+    Grid2Bat = np.nan_to_num(
+        np.array(np.array(list(instance.Grid2Bat.extract_values().values())[starttime: endtime]), dtype=np.float), nan=0)
+
 
     # battery
     BatSoC = np.nan_to_num(
@@ -881,11 +895,11 @@ def show_results(instance, M_WaterTank, CWater, colors):
 
     total_cost = instance.OBJ()
 
-    ###########################################################################################
-    # (5.3) Plots
-    x_achse = np.arange(starttime, endtime)
-    # Plots
-
+    # ###########################################################################################
+    # # (5.3) Plots
+    # x_achse = np.arange(starttime, endtime)
+    # # Plots
+    #
     # #  (1) EV ####################################################################################################
     # fig, ax1 = plt.subplots()
     # ax1.bar(x_achse, CarAtHomeStatus, label='CarAtHomeStatus', color='grey', alpha=0.3)
@@ -1126,7 +1140,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
     # fig.set_size_inches(16, 9)
     # fig.savefig('(9) Smart Technologies', dpi=200)
     # plt.show()
-    #
+
     # # Plot (10) Room and building
     # fig, (ax1, ax3) = plt.subplots(2, 1)
     # ax2 = ax1.twinx()
@@ -1220,6 +1234,15 @@ def show_results(instance, M_WaterTank, CWater, colors):
     print('Yearly hot water 1+2 electricity demand (y) : ' + str(YearlyHW) + ' kWh')
 
     ### EV and battery
+    YearlyStoredEnergyGrid2Bat = np.sum(Grid2Bat)
+    print('Yearly charged power in battery by Grid : ' + str(YearlyStoredEnergyGrid2Bat) + ' kWh')
+
+    YearlyStoredEnergyPV2Bat = np.sum(PV2Bat)
+    print('Yearly charged power in battery PV: ' + str(YearlyStoredEnergyPV2Bat) + ' kWh')
+
+    YearlyStoredEnergyEV2Bat = np.sum(EV2Bat)
+    print('Yearly charged power in battery by EV: ' + str(YearlyStoredEnergyEV2Bat) + ' kWh')
+
     YearlyStoredEnergy = np.sum(BatCharge)
     print('Yearly charged power in battery : ' + str(YearlyStoredEnergy) + ' kWh')
 
@@ -1236,7 +1259,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
     print('Yearly discharge of EV : ' + str(YearlyDishargeOfEV) + ' kWh')
 
     # handover of parameter missing
-    YearlyEVDemand = 10 * 5* 52
+    YearlyEVDemand = 10 * 5 * 52
     print('Yearly driving demand of EV : ' + str(YearlyEVDemand) + ' kWh')
 
     YearlyLossesOfEV = YearlyChargeOfEV - YearlyDishargeOfEV - YearlyEVDemand
