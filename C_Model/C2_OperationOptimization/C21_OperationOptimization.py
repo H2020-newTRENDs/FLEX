@@ -724,7 +724,7 @@ class OperationOptimization:
         return instance, M_WaterTank, CWater
 
     def run(self):
-        for household_id in range(41, 42):
+        for household_id in range(1, 2):
             for environment_id in range(1, 2):
                 instance, M_WaterTank, CWater = self.run_Optimization(household_id, environment_id)
                 return instance, M_WaterTank, CWater
