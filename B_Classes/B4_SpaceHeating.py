@@ -11,6 +11,7 @@ class SpaceHeating:
         self.ID_EnergyCarrier = para_series["ID_EnergyCarrier"]
         self.HeatPumpMaximalThermalPower = para_series["HeatPumpMaximalThermalPower"]
         self.SpaceHeatingBoilerEfficiency = para_series['SpaceHeatingBoilerEfficiency']
+        self.HeatingElementPower = para_series['HeatingElementPower']
 
         self.ID_SpaceHeatingTankType = para_series["ID_SpaceHeatingTankType"]
         self.TankSize = para_series["TankSize"]

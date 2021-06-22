@@ -20,9 +20,9 @@ class OperationOptimization:
     # toDo:
 
     (1) Storage all 8760 values of simulation in db
-    (2) Heating Element?
-    (3) Validation!!!
-
+    (2) Validation of Buildings
+    (3) Organize Plots of model
+    (4) Gas and Oil
     """
 
     def __init__(self, conn):
@@ -82,8 +82,6 @@ class OperationOptimization:
         Environment = self.gen_Environment(environment_id)
         ID_Environment = Environment.ID
         print('Environment ID: ' + str(ID_Environment))
-
-        print(Household.Battery.Grid2Battery)
 
         # Read Scenario data
         ID_ElectricityPriceType = Environment.ID_ElectricityPriceType
@@ -164,6 +162,7 @@ class OperationOptimization:
             CarAtHomeStatus = create_dict([0] * HoursOfSimulation)
             V2B = 0  # Vif EV is not adopted, V2B have to be 0
 
+            # This value is hard coded for now, have to be chanced with DrivingProfiles
             PetrolCarYearlyDemand = KilometerPerWorkday * ConsumptionPer100km * 5 * 52 / 100  # 5 WorkdaysPerWeek
             PetrolCostPerLiter = float(
                 self.EnergyCost.loc[self.EnergyCost['ID_EnergyCostType'] == ID_EnergyCostType].loc[:, 'PetrolCost'])
@@ -202,7 +201,7 @@ class OperationOptimization:
         T_TankMin = Household.SpaceHeating.TankMinimalTemperature
         # sourounding temp of tank
         T_TankSourounding = Household.SpaceHeating.TankSurroundingTemperature
-        # starting temperature of thermal mass 20°C
+        # C_Water
         CWater = 4200 / 3600
 
         # Parameters of SpaceHeatingTank
@@ -372,6 +371,8 @@ class OperationOptimization:
         # Variables SpaceHeating
         m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals,
                                   bounds=(0, Household.SpaceHeating.HeatPumpMaximalThermalPower))
+        m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                                  bounds=(0, Household.SpaceHeating.HeatingElementPower))
         m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * M_WaterTank * (273.15 + T_TankMin),
                                                                      CWater * M_WaterTank * (273.15 + T_TankMax)))
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals,
@@ -421,17 +422,14 @@ class OperationOptimization:
         m.EVSoC = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.ElectricVehicle.BatterySize))
 
         # Smart Technologies
-
         m.DishWasher1 = pyo.Var(m.t, within=pyo.Binary)
         m.DishWasher2 = pyo.Var(m.t, within=pyo.Binary)
         m.DishWasher3 = pyo.Var(m.t, within=pyo.Binary)
         m.DishWasherStart = pyo.Var(m.t, within=pyo.Binary)
-
         m.WashingMachine1 = pyo.Var(m.t, within=pyo.Binary)
         m.WashingMachine2 = pyo.Var(m.t, within=pyo.Binary)
         m.WashingMachine3 = pyo.Var(m.t, within=pyo.Binary)
         m.WashingMachineStart = pyo.Var(m.t, within=pyo.Binary)
-
         m.Dryer1 = pyo.Var(m.t, within=pyo.Binary)
         m.Dryer2 = pyo.Var(m.t, within=pyo.Binary)
 
@@ -486,7 +484,7 @@ class OperationOptimization:
 
         m.calc_SumOfFeedin = pyo.Constraint(m.t, rule=calc_SumOfFeedin)
 
-        # (5)
+        # (5) EV is extra in EVSoC
         def calc_SupplyOfLoads(m, t):
             if Household.ElectricVehicle.BatterySize == 0 and Household.Battery.Capacity == 0:
                 return m.Grid2Load[t] + m.PV2Load[t] == m.Load[t]
@@ -504,6 +502,7 @@ class OperationOptimization:
         def calc_SumOfLoads(m, t):
             return m.Load[t] == m.LoadProfile[t] \
                    + ((m.Q_TankHeating[t] / m.SpaceHeatingHourlyCOP[t]) / 1_000) \
+                   + (m.Q_HeatingElement[t] / 1000) \
                    + ((m.Q_RoomCooling[t] / Household.SpaceCooling.SpaceCoolingEfficiency / 1_000)) \
                    + (m.HWPart1[t] / m.SpaceHeatingHourlyCOP[t]) \
                    + (m.HWPart2[t] / m.HotWaterHourlyCOP[t]) \
@@ -696,6 +695,7 @@ class OperationOptimization:
                 return m.E_tank[t] == CWater * M_WaterTank * (273.15 + T_TankStart)
             else:
                 return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t] + m.Q_TankHeating[t] \
+                        + m.Q_HeatingElement[t] \
                        - U_ValueTank * A_SurfaceTank * ((m.E_tank[t] / (M_WaterTank * CWater)) - T_TankSourounding)
 
         m.tank_energy_rule = pyo.Constraint(m.t, rule=tank_energy)
@@ -772,8 +772,8 @@ class OperationOptimization:
 def show_results(instance, M_WaterTank, CWater, colors):
     ############################################################################################
     # (5.1) Start time and stop time
-    starttime = 1
-    endtime = 8760
+    starttime = 595
+    endtime = 650
 
     ############################################################################################
     # (5.2) Handover of generated profiles
@@ -783,6 +783,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
 
     # tank and building
     Q_TankHeating = np.array(list(instance.Q_TankHeating.extract_values().values())[starttime: endtime]) / 1000
+    Q_HeatingElement = np.array(list(instance.Q_HeatingElement.extract_values().values())[starttime: endtime]) / 1000
     Q_Solar = np.array(list(instance.Q_Solar.extract_values().values())[starttime: endtime]) / 1_000  # from W to kW
     Q_RoomHeating = np.array(
         list(instance.Q_RoomHeating.extract_values().values())[starttime: endtime]) / 1000  # from W to kW
@@ -891,7 +892,7 @@ def show_results(instance, M_WaterTank, CWater, colors):
 
     # ###########################################################################################
     # # (5.3) Plots
-    # x_achse = np.arange(starttime, endtime)
+    x_achse = np.arange(starttime, endtime)
     # # Plots
     #
     # #  (1) EV ####################################################################################################
@@ -1135,42 +1136,44 @@ def show_results(instance, M_WaterTank, CWater, colors):
     # fig.savefig('(9) Smart Technologies', dpi=200)
     # plt.show()
 
-    # # Plot (10) Room and building
-    # fig, (ax1, ax3) = plt.subplots(2, 1)
-    # ax2 = ax1.twinx()
-    # ax4 = ax3.twinx()
-    # ax1.plot(x_achse, Q_TankHeating, label="Q_Heat pump", color=colors["Q_TankHeating"], linewidth=1, alpha=0.6)
-    # ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color=colors["Q_RoomHeating"], linewidth=1, alpha=0.6)
-    # ax1.bar(x_achse, Q_RoomCooling, label="Q_RoomCooling", color=colors["Q_RoomCooling"], linewidth=1, alpha=0.1)
-    # ax1.plot(x_achse, Q_Solar, label="Q_Solar", color=colors["Q_Solar"], linewidth=1.5, alpha=0.9)
-    # ax2.plot(x_achse, ElectricityPrice, color=colors["ElectricityPrice"], label="Price", linewidth=0.75,
-    #          linestyle='dotted',
-    #          alpha=0.6)
-    #
-    # ax1.set_ylabel("Energy kW")
-    # ax2.set_ylabel("Price per kWh in Ct/€")
-    #
-    # lines, labels = ax1.get_legend_handles_labels()
-    # lines2, labels2 = ax2.get_legend_handles_labels()
-    # ax1.legend(lines + lines2, labels + labels2, loc='upper right', facecolor='white')
-    #
-    # ax3.plot(x_achse, T_room, label="TempRoom", color=colors["T_room"], linewidth=1)
-    # ax4.plot(x_achse, T_tank, label="TempTank", color=colors["T_tank"], linewidth=0.5)
-    #
-    # ax3.set_ylabel("Room temperature in °C", color='black')
-    # ax4.set_ylabel("Tank Temperature in °C", color='black')
-    #
-    # # ax3.set_zorder(1)
-    # # ax4.set_zorder(1)
-    # lines, labels = ax3.get_legend_handles_labels()
-    # lines2, labels2 = ax4.get_legend_handles_labels()
-    # ax3.legend(lines + lines2, labels + labels2, facecolor='white', loc='upper right')
-    #
-    # plt.grid()
-    # ax1.set_title('Tank and boiler')
-    # plt.tight_layout()
-    # fig.savefig('(10) Room and building', dpi=300)
-    # plt.show()
+    # Plot (10) Room and building
+    fig, (ax1, ax3) = plt.subplots(2, 1)
+    ax2 = ax1.twinx()
+    ax4 = ax3.twinx()
+    ax1.plot(x_achse, Q_TankHeating, label="Q_Heat pump", color=colors["Q_TankHeating"], linewidth=1, alpha=0.6)
+    ax1.plot(x_achse, Q_HeatingElement, label="Q_HeatingElement", color='blue', linewidth=1, alpha=0.6)
+
+    ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color=colors["Q_RoomHeating"], linewidth=1, alpha=0.6)
+    ax1.bar(x_achse, Q_RoomCooling, label="Q_RoomCooling", color=colors["Q_RoomCooling"], linewidth=1, alpha=0.1)
+    ax1.plot(x_achse, Q_Solar, label="Q_Solar", color=colors["Q_Solar"], linewidth=1.5, alpha=0.9)
+    ax2.plot(x_achse, ElectricityPrice, color=colors["ElectricityPrice"], label="Price", linewidth=0.75,
+             linestyle='dotted',
+             alpha=0.6)
+
+    ax1.set_ylabel("Energy kW")
+    ax2.set_ylabel("Price per kWh in Ct/€")
+
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper right', facecolor='white')
+
+    ax3.plot(x_achse, T_room, label="TempRoom", color=colors["T_room"], linewidth=1)
+    ax4.plot(x_achse, T_tank, label="TempTank", color=colors["T_tank"], linewidth=0.5)
+
+    ax3.set_ylabel("Room temperature in °C", color='black')
+    ax4.set_ylabel("Tank Temperature in °C", color='black')
+
+    # ax3.set_zorder(1)
+    # ax4.set_zorder(1)
+    lines, labels = ax3.get_legend_handles_labels()
+    lines2, labels2 = ax4.get_legend_handles_labels()
+    ax3.legend(lines + lines2, labels + labels2, facecolor='white', loc='upper right')
+
+    plt.grid()
+    ax1.set_title('Tank and boiler')
+    plt.tight_layout()
+    fig.savefig('(10) Room and building', dpi=300)
+    plt.show()
 
     ###########################################################################################
     # (5.4) Output of checksums
@@ -1180,8 +1183,11 @@ def show_results(instance, M_WaterTank, CWater, colors):
     total_cost = instance.OBJ()
     print('Yearly cost of all technologies: ' + str(total_cost) + '  €')
 
-    YearlyHeatGeneration = np.sum(Q_TankHeating)
-    print('Yearly Output of Heat pump (y): ' + str(YearlyHeatGeneration) + ' kWh')
+    YearlyHeatGenerationHP = np.sum(Q_TankHeating)
+    print('Yearly Output of Heat pump (y): ' + str(YearlyHeatGenerationHP) + ' kWh')
+
+    YearlyHeatGenerationHE = np.sum(Q_HeatingElement)
+    print('Yearly Output of Heating Element (y): ' + str(YearlyHeatGenerationHE) + ' kWh')
 
     JAZ = round(np.sum(Q_TankHeating) / np.sum(ElectricityDemandHeatPump), 2)
     print('Annual performance factor of heatpump: ' + str(JAZ))
