@@ -20,7 +20,7 @@ class OperationOptimization:
     # toDo:
 
     (1) Storage all 8760 values of simulation in db
-    (2) Add gas and oil for SpaceHeating
+    (2) Heating Element?
     (3) Validation!!!
 
     """
@@ -106,12 +106,6 @@ class OperationOptimization:
 
         ############################################################################################
         # (3) Define reading of data from DB
-
-        # (3.1) Smart Technologies
-        # DishWasher = 200 * 1,1 kWh = 216
-        # WashingMachine = 150 * 0,85 kWh = 127,5 kWh
-        # Dryer = 150 * 0,85 kWh = 375 kWh
-        # yearly sum = 718,5 kWh -> The yearly BaseProfile is reduced with this part
 
         # (3.1.1) DishWasher
 
