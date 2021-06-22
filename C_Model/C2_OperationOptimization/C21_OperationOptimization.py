@@ -20,7 +20,7 @@ class OperationOptimization:
     # toDo:
 
     (1) Storage all 8760 values of simulation in db
-    (2) Add gas and oil for SpaceHeating
+    (2) Heating Element?
     (3) Validation!!!
 
     """
@@ -57,9 +57,6 @@ class OperationOptimization:
 
         self.TargetTemperature = DB().read_DataFrame(REG().Sce_ID_TargetTemperatureType, self.Conn)
         self.EnergyCost = DB().read_DataFrame(REG().Sce_Price_EnergyCost, self.Conn)
-
-        # you can import all the necessary tables into the memory here.
-        # Then, it can be faster when we run the optimization problem for many "household - environment" combinations.
 
     def gen_Household(self, row_id):
         ParaSeries = self.ID_Household.iloc[row_id]
@@ -104,12 +101,6 @@ class OperationOptimization:
 
         ############################################################################################
         # (3) Define reading of data from DB
-
-        # (3.1) Smart Technologies
-        # DishWasher = 200 * 1,1 kWh = 216
-        # WashingMachine = 150 * 0,85 kWh = 127,5 kWh
-        # Dryer = 150 * 0,85 kWh = 375 kWh
-        # yearly sum = 718,5 kWh -> The yearly BaseProfile is reduced with this part
 
         # (3.1.1) DishWasher
 
@@ -166,7 +157,7 @@ class OperationOptimization:
         # Case: BatteryCapacity = 0: EV not adopted - Petrol Car is used
         if Household.ElectricVehicle.BatterySize == 0:
             CarAtHomeStatus = create_dict([0] * HoursOfSimulation)
-            V2B = 0  # Vif EV is not adopted, V2B have to be 0
+            V2B = 0  # if EV is not adopted, V2B have to be 0
 
             PetrolCarYearlyDemand = KilometerPerWorkday * ConsumptionPer100km * 5 * 52 / 100  # 5 WorkdaysPerWeek
             PetrolCostPerLiter = float(
@@ -978,7 +969,7 @@ class OperationOptimization:
         TargetTable_MinimizedCost = []
         TargetTable_SystemOperation = []
         TargetTable_YearlyValues = []
-        for household_id in range(0, 1):
+        for household_id in range(0, 10):
             for environment_id in range(1, 2):
                 cost, HouseholdTechnologies, YearlyDemandValues = self.run_Optimization(household_id, environment_id)
 
