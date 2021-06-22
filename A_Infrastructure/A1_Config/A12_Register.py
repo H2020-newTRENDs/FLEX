@@ -37,6 +37,10 @@ class REG:
         self.ID_BatteryType = self.ID + "BatteryType"
         self.ID_ElectricVehicleType = self.ID + "ElectricVehicleType"
 
+        self.ID_GridInfrastructure = self.ID + "GridInfrastructure"
+        self.ID_BuildingMassTemperature = self.ID + "BuildingMassTemperature"
+
+
         # 1.2 Generated tables: objects
         self.Gen_OBJ_ID_Household = self.GeneratedData + self.Object + self.ID + "Household"
         self.Gen_OBJ_ID_Building = self.GeneratedData + self.Object + self.ID + "Building"
@@ -59,6 +63,7 @@ class REG:
         self.Sce_ID_FeedinTariffType = self.Scenario + self.ID + "FeedinTariffType"
         self.Sce_ID_HotWaterProfileType = self.Scenario + self.ID + 'HotWaterProfileType'
         self.Sce_ID_PhotovoltaicProfileType = self.Scenario + self.ID + 'PhotovoltaicProfileType'
+        self.Sce_ID_EnergyCostType = self.Scenario+ self.ID + 'EnergyCostType'
 
         self.Sce_Weather_Radiation = self.Scenario + "Weather_Radiation" # from helioclim dataset for year 2010
         self.Sce_Weather_Temperature = self.Scenario + "Weather_Temperature" # from MERRA2 dataset for year 2010
@@ -71,6 +76,7 @@ class REG:
 
         self.Sce_Price_HourlyElectricityPrice = self.Scenario + "Price_HourlyElectricityPrice"
         self.Sce_Price_HourlyFeedinTariff = self.Scenario + "Price_HourlyFeedinTariff"
+        self.Sce_Price_EnergyCost = self.Scenario + "Price_EnergyCost"
 
         self.Sce_HeatPump_COPCurve = self.Scenario + "HeatPump_COPCurve"
 
@@ -98,7 +104,8 @@ class REG:
         # Result tables
         self.Res_MinimizedOperationCost = self.Result + "MinimizedOperationCost" #3: col: IDHH, col IDEnvi, col: cost
         self.Res_SystemOperation = self.Result + "SystemOperation" #4: col: IDHH, col IDEnvi, , col: IDHour, col: technologies
-
+        self.Res_YearlyValues = self.Result + "YearlyValues" # yearly sum of technology demands
+        self.Res_HourlyValues = self.Result + 'HourlyValues' # HourlyValue of each variable, technology
 
         # ------------------------------
         # Part II: Investment simulation
