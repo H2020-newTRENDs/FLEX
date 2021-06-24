@@ -122,8 +122,7 @@ class OperationOptimization:
         # This is 1, only if there is no Dishwasher in the household, then 0
         WashingMachineAdoption = Household.ApplianceGroup.WashingMachineAdoption
 
-        WashingMachineTheoreticalHours = (
-                                             self.WashingMachineHours.WashingMachineHours.to_numpy()) * WashingMachineAdoption
+        WashingMachineTheoreticalHours = (self.WashingMachineHours.WashingMachineHours.to_numpy()) * WashingMachineAdoption
         WashingMachineDuration = int(self.Sce_Demand_WashingMachine.WashingMachineDuration)
         WashingMachineStartTime = int(self.Sce_Demand_WashingMachine.WashingMachineStartTime)
 
