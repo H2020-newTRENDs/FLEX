@@ -267,7 +267,7 @@ class Ope_TableGenerator:
 
         TargetTable_columns = ["ID"]
 
-        TargetTable_columns += ["ID_ElectricityPriceType","ID_TargetTemperatureType", "ID_FeedinTariffType", \
+        TargetTable_columns += ["ID_ElectricityPriceType","ID_TargetTemperatureType", "ID_FeedinTariffType",
                                 "ID_HotWaterProfileType", "ID_PhotovoltaicProfileType", "ID_BaseElectricityProfileType", "ID_EnergyCostType"]
 
         ID = 1
@@ -288,7 +288,6 @@ class Ope_TableGenerator:
                                                         [PhotovoltaicProfileType.iloc[row5]["ID_PhotovoltaicProfile"]] +
                                                         [BaseElectricityProfileType.iloc[row6]["ID_BaseElectricityProfileType"]]+
                                                         [EnergyCostType.iloc[row6]["ID_EnergyCostType"]]
-
                                                             )
                                 ID += 1
 
@@ -416,8 +415,8 @@ class Ope_TableGenerator:
         Temperature = list(Temperature) + list(Temperature)
 
 
-        TargetTable_columns = ["ID_SpaceHeatingBoilerType", "ID_Hour", "Temperature", \
-                                "SpaceHeatingHourlyCOP", "HotWaterHourlyCOP"]
+        TargetTable_columns = ["ID_SpaceHeatingBoilerType", "ID_Hour", "Temperature",
+                               "SpaceHeatingHourlyCOP", "HotWaterHourlyCOP"]
 
         TargetTable_list = []
         for i in range(0, len(ID_Hour)):
