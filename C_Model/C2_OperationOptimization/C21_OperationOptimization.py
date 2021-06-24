@@ -79,13 +79,7 @@ class OperationOptimization:
 
         Household = self.gen_Household(household_id)
         Environment = self.gen_Environment(environment_id)
-
-
-        ID_PhotovoltaicProfileType = Environment["ID_PhotovoltaicProfileType"]
-        ID_BaseElectricityProfileType = Environment["ID_BaseElectricityProfileType"]
-        ID_EnergyCostType = Environment["ID_EnergyCostType"]
         HoursOfSimulation = 8760
-        HourOfDay = self.TimeStructure["ID_DayHour"].to_numpy()
 
 
         ############################################################################################
@@ -93,7 +87,7 @@ class OperationOptimization:
 
         # (3.1.1) DishWasher
         DishWasherAdoption = Household.ApplianceGroup.DishWasherAdoption
-        DishWasherTheoreticalHours = (self.DishWasherHours["DishWasherHours"].to_numpy()) * DishWasherAdoption
+        DishWasherTheoreticalHours = self.DishWasherHours["DishWasherHours"] * DishWasherAdoption
         DishWasherPower = Household.ApplianceGroup.DishWasherPower
         DishWasherSmartStatus = Household.ApplianceGroup.DishWasherShifting
         DishWasherDuration = int(self.Sce_Demand_DishWasher["DishWasherDuration"])
@@ -104,7 +98,7 @@ class OperationOptimization:
         # This is 1, only if there is no Dishwasher in the household, then 0
         WashingMachineAdoption = Household.ApplianceGroup.WashingMachineAdoption
 
-        WashingMachineTheoreticalHours = (self.WashingMachineHours["WashingMachineHours"].to_numpy()) * WashingMachineAdoption
+        WashingMachineTheoreticalHours = self.WashingMachineHours["WashingMachineHours"] * WashingMachineAdoption
         WashingMachineDuration = int(self.Sce_Demand_WashingMachine["WashingMachineDuration"])
         WashingMachineStartTime = int(self.Sce_Demand_WashingMachine["WashingMachineStartTime"])
 
@@ -113,7 +107,7 @@ class OperationOptimization:
 
         # (3.1.3) Dryer
 
-        # Dryer is depending on Dishwasher and runs after the last hour of WashingMachine
+        # Dryer is depending on WashingMachine and runs after the last hour of WashingMachine
         # If there is no WashingMachine adopted, there is also no Dryer
 
         # This is 1, only if there is no Dishwasher in the household, then 0
@@ -143,9 +137,7 @@ class OperationOptimization:
 
             # This value is hard coded for now, have to be chanced with DrivingProfiles
             PetrolCarYearlyDemand = KilometerPerWorkday * ConsumptionPer100km * 5 * 52 / 100  # 5 WorkdaysPerWeek
-            PetrolCostPerLiter = float(
-                self.EnergyCost.loc[self.EnergyCost['ID_EnergyCostType'] == ID_EnergyCostType].loc[:, 'PetrolCost'])
-
+            PetrolCostPerLiter = float(self.EnergyCost.loc[self.EnergyCost['ID_EnergyCostType'] == Environment["ID_EnergyCostType"]].loc[:, 'PetrolCost'])
             PetrolCostPerYear = PetrolCarYearlyDemand * PetrolCostPerLiter
 
         # Case: BatteryCapacity > 0: EV is adopted
@@ -158,12 +150,10 @@ class OperationOptimization:
         # (3.3) Calculation of the installed PV-Power with the PVProfile and installed Power
 
         # (3.3.1) LoadProfile, BaseLoadProfile is 2376 kWh, SmartAppElectricityProfile is 1658 kWh
-        LoadProfile = self.LoadProfile.loc[self.LoadProfile['ID_BaseElectricityProfileType'] \
-                                           == ID_BaseElectricityProfileType].loc[:, 'BaseElectricityProfile'].to_numpy()
-
-        PhotovoltaicBaseProfile = self.PhotovoltaicProfile.loc[self.PhotovoltaicProfile['ID_PhotovoltaicProfileType'] \
-                                                               == ID_PhotovoltaicProfileType].loc[:,'PhotovoltaicProfile'].to_numpy()
-
+        LoadProfile = self.LoadProfile.loc[(self.LoadProfile['ID_BaseElectricityProfileType'] == Environment["ID_BaseElectricityProfileType"]) &
+                                           (self.LoadProfile['ID_HouseholdType'] == Household.ID_HouseholdType)]['BaseElectricityProfile']
+        PhotovoltaicBaseProfile = self.PhotovoltaicProfile.loc[(self.PhotovoltaicProfile['ID_PhotovoltaicProfileType'] == Environment["ID_PhotovoltaicProfileType"]) &
+                                                               (self.PhotovoltaicProfile['ID_Country'] == Household.ID_Country)]['PhotovoltaicProfile']
         PhotovoltaicProfile = PhotovoltaicBaseProfile * Household.PV.PVPower
 
         ############################################################################################
@@ -243,24 +233,24 @@ class OperationOptimization:
         ############################################################################################
         # (3.5) Pricing of electricity
 
-        ElectricityPrice = self.ElectricityPrice.loc[self.ElectricityPrice['ID_ElectricityPriceType'] == Environment["ID_ElectricityPriceType"]]['HourlyElectricityPrice'].to_numpy()
-        FeedinTariff = self.FeedinTariff.loc[self.FeedinTariff['ID_FeedinTariffType'] == Environment["ID_FeedinTariffType"]]['HourlyFeedinTariff'].to_numpy()
+        ElectricityPrice = self.ElectricityPrice.loc[(self.ElectricityPrice['ID_ElectricityPriceType'] == Environment["ID_ElectricityPriceType"]) &
+                                                     (self.ElectricityPrice['ID_Country'] == Household.ID_Country)]['HourlyElectricityPrice']
+        FeedinTariff = self.FeedinTariff.loc[(self.FeedinTariff['ID_FeedinTariffType'] == Environment["ID_FeedinTariffType"]) &
+                                             (self.ElectricityPrice['ID_Country'] == Household.ID_Country)]['HourlyFeedinTariff']
 
         ############################################################################################
         # (3.6) Selection of COP for SpaceHeating and HotWater
 
-        SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] \
-                                                            == Household.SpaceHeating.ID_SpaceHeatingBoilerType].loc[:,
-                                'SpaceHeatingHourlyCOP'].to_numpy()
-
-        HotWaterHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] \
-                                                        == Household.SpaceHeating.ID_SpaceHeatingBoilerType].loc[:,'HotWaterHourlyCOP'].to_numpy()
+        SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] == Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP']
+        HotWaterHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] == Household.SpaceHeating.ID_SpaceHeatingBoilerType]['HotWaterHourlyCOP']
 
         ############################################################################################
         # (3.7) HotWater Part1 and HotWater Part 2 from the DB
 
         # Hot Water Demand with Part 1 (COP SpaceHeating) and Part 2 (COP HotWater, lower)
-        HotWaterProfileSelect = self.HotWaterProfile.loc[self.HotWaterProfile['ID_HotWaterProfileType'] == Environment["ID_HotWaterProfileType"]]
+        HotWaterProfileSelect = self.HotWaterProfile.loc[(self.HotWaterProfile['ID_HotWaterProfileType'] == Environment["ID_HotWaterProfileType"]) &
+                                                         (self.HotWaterProfile['ID_Country'] == Household.ID_Country) &
+                                                         (self.HotWaterProfile['ID_HouseholdType'] == Household.ID_HouseholdType)]
         HotWaterProfile1 = HotWaterProfileSelect['HotWaterPart1']
         HotWaterProfile2 = HotWaterProfileSelect['HotWaterPart2']
 
@@ -281,7 +271,7 @@ class OperationOptimization:
             sys.exit()
 
         ############################################################################################
-        # (4) Pyomo Model for optimisation
+        # (4) Pyomo Model for optimization
 
         m = pyo.AbstractModel()
 
@@ -313,7 +303,7 @@ class OperationOptimization:
 
         # Smart Technologies
         m.DishWasherTheoreticalHours = pyo.Param(m.t, within=pyo.Binary, initialize=self.creat_Dict(DishWasherTheoreticalHours))
-        m.HourOfDay = pyo.Param(m.t, initialize=self.creat_Dict(HourOfDay))
+        m.DayHour = pyo.Param(m.t, initialize=self.creat_Dict(self.TimeStructure["ID_DayHour"]))
         m.WashingMachineTheoreticalHours = pyo.Param(m.t, within=pyo.Binary, initialize=self.creat_Dict(WashingMachineTheoreticalHours))
 
         ############################################################################################
@@ -559,9 +549,9 @@ class OperationOptimization:
         def calc_DishWasherStartTime(m, t):
             if m.t[t] == 1:
                 return m.DishWasherStart[t] == 0
-            elif m.DishWasherTheoreticalHours[t] == 1 and m.HourOfDay[t] == DishWasherStartTime and DishWasherSmartStatus == 0:
+            elif m.DishWasherTheoreticalHours[t] == 1 and m.DayHour[t] == DishWasherStartTime and DishWasherSmartStatus == 0:
                 return m.DishWasher1[t] == 1
-            elif m.DishWasherTheoreticalHours[t] == 1 and m.HourOfDay[t] == 24:
+            elif m.DishWasherTheoreticalHours[t] == 1 and m.DayHour[t] == 24:
                 return m.DishWasherStart[t] == m.DishWasherStart[t - 1] - 1 * DishWasherSmartStatus
             return m.DishWasherStart[t] == m.DishWasherStart[t - 1] \
                    + m.DishWasher1[t] * m.DishWasherTheoreticalHours[t] * DishWasherSmartStatus
@@ -592,10 +582,10 @@ class OperationOptimization:
         def calc_WashingMachineStartTime(m, t):
             if m.t[t] == 1:
                 return m.WashingMachineStart[t] == 0
-            elif m.WashingMachineTheoreticalHours[t] == 1 and m.HourOfDay[
+            elif m.WashingMachineTheoreticalHours[t] == 1 and m.DayHour[
                 t] == WashingMachineStartTime and WashingMachineSmartStatus == 0:
                 return m.WashingMachine1[t] == 1
-            elif m.WashingMachineTheoreticalHours[t] == 1 and m.HourOfDay[t] == 24:
+            elif m.WashingMachineTheoreticalHours[t] == 1 and m.DayHour[t] == 24:
                 return m.WashingMachineStart[t] == m.WashingMachineStart[t - 1] - 1 * WashingMachineSmartStatus
             return m.WashingMachineStart[t] == m.WashingMachineStart[t - 1] \
                    + m.WashingMachine1[t] * m.WashingMachineTheoreticalHours[t] * WashingMachineSmartStatus
