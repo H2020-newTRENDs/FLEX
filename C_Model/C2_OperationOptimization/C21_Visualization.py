@@ -16,6 +16,7 @@ from A_Infrastructure.A1_Config.A11_Constants import CONS
 
 
 class OperationOptimization:
+
     """
     # toDo:
 
