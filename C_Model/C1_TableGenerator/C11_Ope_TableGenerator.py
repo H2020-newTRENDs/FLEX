@@ -63,7 +63,6 @@ class Ope_TableGenerator:
 
         return None
 
-    # to be developed
     def gen_Sce_ApplianceUseHours(self, OnDays):
         # use the cycles of technology and generates a yearly table with 365 days with 1 and 0
 
@@ -111,8 +110,6 @@ class Ope_TableGenerator:
                                    GridInfrastructure)
         return None
 
-
-
     def gen_OBJ_ID_ApplianceGroup(self):
         DishWasher = DB().read_DataFrame(REG().ID_DishWasherType, self.Conn)
         Dryer = DB().read_DataFrame(REG().ID_DryerType, self.Conn)
@@ -146,20 +143,17 @@ class Ope_TableGenerator:
 
     def gen_OBJ_ID_PV(self):
         PV = DB().read_DataFrame(REG().ID_PVType, self.Conn)
-        self.gen_OBJ_ID_Table_1To1(REG().Gen_OBJ_ID_PV,
-                                   PV)
+        self.gen_OBJ_ID_Table_1To1(REG().Gen_OBJ_ID_PV, PV)
         return None
 
     def gen_OBJ_ID_Battery(self):
         Battery = DB().read_DataFrame(REG().ID_BatteryType, self.Conn)
-        self.gen_OBJ_ID_Table_1To1(REG().Gen_OBJ_ID_Battery,
-                                   Battery)
+        self.gen_OBJ_ID_Table_1To1(REG().Gen_OBJ_ID_Battery, Battery)
         return None
 
     def gen_OBJ_ID_ElectricVehicle(self):
         ElectricVehicle = DB().read_DataFrame(REG().ID_ElectricVehicleType, self.Conn)
-        self.gen_OBJ_ID_Table_1To1(REG().Gen_OBJ_ID_ElectricVehicle,
-                                   ElectricVehicle)
+        self.gen_OBJ_ID_Table_1To1(REG().Gen_OBJ_ID_ElectricVehicle, ElectricVehicle)
         return None
 
     def gen_OBJ_ID_Household(self):
@@ -234,7 +228,6 @@ class Ope_TableGenerator:
         DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_DishWasherHours, TargetTable_columns, self.Conn)
         pass
 
-
     def gen_Sce_Demand_WashingMachineHours(self):
 
         self.Demand_WashingMachine = DB().read_DataFrame(REG().Sce_Demand_WashingMachine, self.Conn)
@@ -267,7 +260,7 @@ class Ope_TableGenerator:
 
         TargetTable_columns = ["ID"]
 
-        TargetTable_columns += ["ID_ElectricityPriceType","ID_TargetTemperatureType", "ID_FeedinTariffType", \
+        TargetTable_columns += ["ID_ElectricityPriceType","ID_TargetTemperatureType", "ID_FeedinTariffType",
                                 "ID_HotWaterProfileType", "ID_PhotovoltaicProfileType", "ID_BaseElectricityProfileType", "ID_EnergyCostType"]
 
         ID = 1
@@ -288,7 +281,6 @@ class Ope_TableGenerator:
                                                         [PhotovoltaicProfileType.iloc[row5]["ID_PhotovoltaicProfile"]] +
                                                         [BaseElectricityProfileType.iloc[row6]["ID_BaseElectricityProfileType"]]+
                                                         [EnergyCostType.iloc[row6]["ID_EnergyCostType"]]
-
                                                             )
                                 ID += 1
 
@@ -360,7 +352,7 @@ class Ope_TableGenerator:
 
     def gen_Sce_HeatPump_HourlyCOP(self):
         self.Sce_HeatPump_COPCurve = DB().read_DataFrame(REG().Sce_HeatPump_COPCurve, self.Conn)
-        HeatPump_COPCurve = self.Sce_HeatPump_COPCurve
+        HeatPump_COPCurve = DB().read_DataFrame(REG().Sce_HeatPump_COPCurve, self.Conn)
         Temperature2COPCurve = self.Sce_HeatPump_COPCurve.TemperatureEnvironment
 
         SpaceHeating_Air_COPCurve = HeatPump_COPCurve.loc[HeatPump_COPCurve['ID_SpaceHeatingBoilerType'] ==1].loc[:,'COP_SpaceHeating'].to_numpy()
@@ -416,8 +408,80 @@ class Ope_TableGenerator:
         Temperature = list(Temperature) + list(Temperature)
 
 
-        TargetTable_columns = ["ID_SpaceHeatingBoilerType", "ID_Hour", "Temperature", \
-                                "SpaceHeatingHourlyCOP", "HotWaterHourlyCOP"]
+        TargetTable_columns = ["ID_SpaceHeatingBoilerType", "ID_Hour", "Temperature",
+                               "SpaceHeatingHourlyCOP", "HotWaterHourlyCOP"]
+
+        TargetTable_list = []
+        for i in range(0, len(ID_Hour)):
+            TargetTable_list.append([ID_SpaceHeatingBoilerType[i], ID_Hour[i], Temperature[i], SpaceHeatingHourlyCOP[i], HotWaterHourlyCOP[i]])
+
+        DB().write_DataFrame(TargetTable_list, REG().Gen_Sce_HeatPump_HourlyCOP, TargetTable_columns, self.Conn)
+        pass
+
+    # this function is to be revised to add ID_Country
+    def gen_Sce_HeatPump_HourlyCOP_test(self):
+
+        Country = DB().read_DataFrame(REG().ID_Country, self.Conn)
+
+        self.Sce_HeatPump_COPCurve = DB().read_DataFrame(REG().Sce_HeatPump_COPCurve, self.Conn)
+        HeatPump_COPCurve = DB().read_DataFrame(REG().Sce_HeatPump_COPCurve, self.Conn)
+        Temperature2COPCurve = self.Sce_HeatPump_COPCurve.TemperatureEnvironment
+
+        SpaceHeating_Air_COPCurve = HeatPump_COPCurve.loc[HeatPump_COPCurve['ID_SpaceHeatingBoilerType'] ==1].loc[:,'COP_SpaceHeating'].to_numpy()
+        SpaceHeating_Water_COPCurve = HeatPump_COPCurve.loc[HeatPump_COPCurve['ID_SpaceHeatingBoilerType'] ==2].loc[:,'COP_SpaceHeating'].to_numpy()
+        HotWater_Air_COPCurve = HeatPump_COPCurve.loc[HeatPump_COPCurve['ID_SpaceHeatingBoilerType'] ==1].loc[:,'COP_HotWater'].to_numpy()
+        HotWater_Water_COPCurve = HeatPump_COPCurve.loc[HeatPump_COPCurve['ID_SpaceHeatingBoilerType'] ==2].loc[:,'COP_HotWater'].to_numpy()
+
+        self.Sce_Weather_Temperature = DB().read_DataFrame(REG().Sce_Weather_Temperature, self.Conn)
+        Temperature = self.Sce_Weather_Temperature.Temperature
+
+        # Hourly list of COP Air for Space Heating
+        SpaceHeatingAirHourlyCOP = []
+        j = 0
+
+        for i in range(0, len(list(Temperature))):
+            for j in range(0, len(list(SpaceHeating_Air_COPCurve))):
+                if Temperature2COPCurve[j] < Temperature[i]:
+                    continue
+                else:
+                    SpaceHeatingAirHourlyCOP.append(SpaceHeating_Air_COPCurve[j])
+                break
+
+        # Hourly list of COP Air for HotWater
+        HotWaterAirHourlyCOP = []
+        j = 0
+
+        for i in range(0, len(list(Temperature))):
+            for j in range(0, len(list(HotWater_Air_COPCurve))):
+                if Temperature2COPCurve[j] < Temperature[i]:
+                    continue
+                else:
+                    HotWaterAirHourlyCOP.append(HotWater_Air_COPCurve[j])
+                break
+
+        # Hourly list of COP Water for Space Heating
+        SpaceHeatingWaterHourlyCOP = list(SpaceHeating_Water_COPCurve) * len(Temperature)
+
+        # Hourly list of COP Water for HotWater
+        HotWaterWaterHourlyCOP = list(HotWater_Water_COPCurve) * len(Temperature)
+
+        self.TimeStructure = DB().read_DataFrame(REG().Sce_ID_TimeStructure, self.Conn)
+        TimeStructure = self.TimeStructure
+        ID_Hour = list(TimeStructure.ID_Hour)
+
+        ID_SpaceHeatingBoilerTypeAir = list([1]) *len(Temperature)
+        ID_SpaceHeatingBoilerTypeWater = list([2]) * len(Temperature)
+
+        # combine list of both types for DB
+        ID_SpaceHeatingBoilerType = ID_SpaceHeatingBoilerTypeAir + ID_SpaceHeatingBoilerTypeWater
+        ID_Hour = ID_Hour + ID_Hour
+        SpaceHeatingHourlyCOP = SpaceHeatingAirHourlyCOP + SpaceHeatingWaterHourlyCOP
+        HotWaterHourlyCOP = HotWaterAirHourlyCOP + HotWaterWaterHourlyCOP
+        Temperature = list(Temperature) + list(Temperature)
+
+
+        TargetTable_columns = ["ID_SpaceHeatingBoilerType", "ID_Hour", "Temperature",
+                               "SpaceHeatingHourlyCOP", "HotWaterHourlyCOP"]
 
         TargetTable_list = []
         for i in range(0, len(ID_Hour)):
