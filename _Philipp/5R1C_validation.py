@@ -1,15 +1,12 @@
 import numpy as np
 from pathlib import Path
-import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
 import pyomo.environ as pyo
 from _Philipp.Radiation import calculate_angels_of_sun
-from B_Classes.B2_Building import Building, HeatingCooling_noDR
-from A_Infrastructure.A2_ToolKits.A21_DB import DB
-from A_Infrastructure.A1_Config.A12_Register import REG
-from A_Infrastructure.A1_Config.A11_Constants import CONS
+from B_Classes.B2_Building import HeatingCooling_noDR
+
 
 def showResults_noDR(Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR, plot_EPlus=False):
     if plot_EPlus==True:
