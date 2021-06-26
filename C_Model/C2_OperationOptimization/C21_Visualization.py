@@ -1,18 +1,14 @@
 import pyomo.environ as pyo
 import numpy as np
-from pyomo.opt import SolverStatus, TerminationCondition
 import matplotlib.pyplot as plt
 import pandas as pd
-from pyomo.util.infeasible import log_infeasible_constraints
 
-import matplotlib.dates as mdates
-import datetime
 import sys as sys
 
-from A_Infrastructure.A1_Config.A12_Register import REG
-from A_Infrastructure.A2_ToolKits.A21_DB import DB
+from A_Infrastructure.A2_Register import REG
+from A_Infrastructure.A3_DB import DB
 from B_Classes.B1_Household import Household
-from A_Infrastructure.A1_Config.A11_Constants import CONS
+from A_Infrastructure.A1_Constants import CONS
 
 
 class OperationOptimization:
