@@ -2,6 +2,7 @@ import pyomo.environ as pyo
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import matplotlib.ticker as ticker
 
 import sys as sys
 
@@ -766,13 +767,8 @@ class OperationOptimization:
 # (5) Visualization
 
 # create plots to visualize results price
-def show_results(instance, M_WaterTank, CWater, colors):
-    ############################################################################################
-    # (5.1) Start time and stop time
-    starttime = 595
-    endtime = 650
+def show_results(instance, M_WaterTank, CWater, colors, starttime, endtime, Jahreszeit):
 
-    ############################################################################################
     # (5.2) Handover of generated profiles
 
     ElectricityPrice = np.array(list(instance.ElectricityPrice.extract_values().values())[starttime: endtime])
@@ -893,245 +889,246 @@ def show_results(instance, M_WaterTank, CWater, colors):
     # # Plots
     #
     # #  (1) EV ####################################################################################################
-    # fig, ax1 = plt.subplots()
-    # ax1.bar(x_achse, CarAtHomeStatus, label='CarAtHomeStatus', color='grey', alpha=0.3)
-    # ax1.bar(x_achse, EVCharge, label='EVCharge', color='green', alpha=0.3)
-    # ax1.bar(x_achse, EVDischarge, label='EVDischarge', color='red', alpha=0.3)
-    # ax1.set_ylabel("Power kW")
-    # ax2 = ax1.twinx()
-    #
-    # ax2.plot(x_achse, EVSoC, linewidth=2, label='EVSoC', color='blue', alpha=0.2)
-    #
-    # lines, labels = ax1.get_legend_handles_labels()
-    # lines2, labels2 = ax2.get_legend_handles_labels()
-    # ax1.legend(lines + lines2, labels + labels2, loc='upper right')
-    # ax2.set_ylabel("SoC in kWh")
-    #
-    # plt.title('(1) EV charge and discharge')
-    # plt.tight_layout()
-    # fig.set_size_inches(16, 9)
-    # fig.savefig('(1) charge and discharge', dpi=200)
-    # plt.show()
+    fig, ax1 = plt.subplots()
+    ax1.bar(x_achse, CarAtHomeStatus, label='CarAtHomeStatus', color='grey', alpha=0.3)
+    ax1.bar(x_achse, EVCharge, label='EVCharge', color='green', alpha=0.3)
+    ax1.bar(x_achse, EVDischarge, label='EVDischarge', color='red', alpha=0.3)
+    ax1.plot(x_achse, PhotovoltaicProfile, label="PV", color="yellow", alpha=0.8)
+    ax1.set_ylabel("Power kW")
+    ax2 = ax1.twinx()
+
+    ax2.plot(x_achse, EVSoC, linewidth=2, label='EVSoC', color='blue', alpha=0.2)
+
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper right')
+    ax2.set_ylabel("SoC in kWh")
+
+    plt.title('(1) EV charge and discharge ' + Jahreszeit)
+    plt.tight_layout()
+    fig.set_size_inches(16, 9)
+    fig.savefig('(1) charge and discharge ' + Jahreszeit, dpi=200)
+    plt.show()
     #
     # #  (2) EV and PV #############################################################################################
-    # fig, ax1 = plt.subplots()
-    #
-    # ax1.plot(x_achse, PhotovoltaicProfile, linewidth=1.5, label='PhotovoltaicProfile',
-    #          color=colors["PhotovoltaicProfile"])
-    # ax1.set_ylabel("Power kW")
-    #
-    # ax2 = ax1.twinx()
-    # ax2.bar(x_achse, CarAtHomeStatus, linewidth=2.5, label='CarAtHomeStatus', color='grey', alpha=0.3)
-    # lines, labels = ax1.get_legend_handles_labels()
-    # lines2, labels2 = ax2.get_legend_handles_labels()
-    # ax1.legend(lines + lines2, labels + labels2, loc='upper right')
-    # ax2.set_ylabel("Car at home = 1, away = 0")
-    #
-    # plt.title('(2) EV and PV')
-    # plt.tight_layout()
-    # fig.set_size_inches(16, 9)
-    # fig.savefig('(2) EV an PV', dpi=200)
-    # plt.show()
+    fig, ax1 = plt.subplots()
+
+    ax1.plot(x_achse, PhotovoltaicProfile, linewidth=1.5, label='PhotovoltaicProfile',
+             color=colors["PhotovoltaicProfile"])
+    ax1.set_ylabel("Power kW")
+
+    ax2 = ax1.twinx()
+    ax2.bar(x_achse, CarAtHomeStatus, linewidth=2.5, label='CarAtHomeStatus', color='grey', alpha=0.3)
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper right')
+    ax2.set_ylabel("Car at home = 1, away = 0")
+
+    plt.title('(2) EV and PV ' + Jahreszeit)
+    plt.tight_layout()
+    fig.set_size_inches(16, 9)
+    fig.savefig('(2) EV an PV ' + Jahreszeit, dpi=200)
+    plt.show()
     #
     # #  (3) Discharge of EV #####################################################################################
-    # fig, ax1 = plt.subplots()
-    #
-    # ax1.plot(x_achse, EVDischarge, linewidth=0.5, label='EVDischarge', color='red')
-    # ax1.bar(x_achse, EV2Load, label='EV2Load', color='orange', alpha=0.5)
-    # ax1.bar(x_achse, EV2Bat, bottom=EV2Load, label='EV2Bat', color='green', alpha=0.5)
-    #
-    # ax1.plot(x_achse, EVCharge, linewidth=0.5, label='EVCharge', color='green')
-    # ax1.bar(x_achse, PV2EV, label='PV2EV', color='blue', alpha=0.5)
-    # ax1.bar(x_achse, Bat2EV, bottom=PV2EV, label='Bat2EV', color='pink', alpha=0.5)
-    # ax1.bar(x_achse, Grid2EV, bottom=PV2EV + Bat2EV, label='Grid2EV', color='grey', alpha=0.5)
-    #
-    # ax1.set_ylabel("Power in kW")
-    #
-    # ax2 = ax1.twinx()
-    # ax2.bar(x_achse, CarAtHomeStatus, linewidth=2.5, label='CarAtHomeStatus', color='grey', alpha=0.1)
-    # lines, labels = ax1.get_legend_handles_labels()
-    # lines2, labels2 = ax2.get_legend_handles_labels()
-    # ax1.legend(lines + lines2, labels + labels2, loc='upper right')
-    # ax2.set_ylabel("Car at home = 1, away = 0")
-    #
-    # plt.title('(3) Parts of Charge and Discharge of EV')
-    # plt.tight_layout()
-    # fig.set_size_inches(16, 9)
-    # fig.savefig('(3) Parts of Charge and Discharge of EV', dpi=200)
-    # plt.show()
+    fig, ax1 = plt.subplots()
+
+    ax1.plot(x_achse, EVDischarge, linewidth=0.5, label='EVDischarge', color='red')
+    ax1.bar(x_achse, EV2Load, label='EV2Load', color='orange', alpha=0.5)
+    ax1.bar(x_achse, EV2Bat, bottom=EV2Load, label='EV2Bat', color='green', alpha=0.5)
+
+    ax1.plot(x_achse, EVCharge, linewidth=0.5, label='EVCharge', color='green')
+    ax1.bar(x_achse, PV2EV, label='PV2EV', color='blue', alpha=0.5)
+    ax1.bar(x_achse, Bat2EV, bottom=PV2EV, label='Bat2EV', color='pink', alpha=0.5)
+    ax1.bar(x_achse, Grid2EV, bottom=PV2EV + Bat2EV, label='Grid2EV', color='grey', alpha=0.5)
+
+    ax1.set_ylabel("Power in kW")
+
+    ax2 = ax1.twinx()
+    ax2.bar(x_achse, CarAtHomeStatus, linewidth=2.5, label='CarAtHomeStatus', color='grey', alpha=0.1)
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper right')
+    ax2.set_ylabel("Car at home = 1, away = 0")
+
+    plt.title('(3) Parts of Charge and Discharge of EV ' + Jahreszeit)
+    plt.tight_layout()
+    fig.set_size_inches(16, 9)
+    fig.savefig('(3) Parts of Charge and Discharge of EV ' + Jahreszeit, dpi=200)
+    plt.show()
     #
     # #  (4) Grid and Price ########################################################################################
-    # fig, ax1 = plt.subplots()
-    #
-    # ax1.bar(x_achse, Grid, label='Grid', color='red', alpha=0.3)
-    # ax1.plot(x_achse, PhotovoltaicProfile, linewidth=1, label='PV', color='orange', alpha=0.6)
-    #
-    # ax1.set_ylabel("Power kW")
-    #
-    # ax2 = ax1.twinx()
-    # ax2.plot(x_achse, ElectricityPrice, linewidth=0.5, label='ElectricityPrice', color='black', linestyle='dotted')
-    # lines, labels = ax1.get_legend_handles_labels()
-    # lines2, labels2 = ax2.get_legend_handles_labels()
-    # ax1.legend(lines + lines2, labels + labels2, loc='upper right')
-    # ax2.set_ylabel("Price in Ct/€")
-    #
-    # plt.title('(4) Grid and Price')
-    # plt.tight_layout()
-    # fig.set_size_inches(16, 9)
-    # fig.savefig('(4) Grid and Price', dpi=200)
-    # plt.show()
+    fig, ax1 = plt.subplots()
+
+    ax1.bar(x_achse, Grid, label='Grid', color='red', alpha=0.3)
+    ax1.plot(x_achse, PhotovoltaicProfile, linewidth=1, label='PV', color='orange', alpha=0.6)
+
+    ax1.set_ylabel("Power kW")
+
+    ax2 = ax1.twinx()
+    ax2.plot(x_achse, ElectricityPrice, linewidth=0.5, label='ElectricityPrice', color='black', linestyle='dotted')
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper right')
+    ax2.set_ylabel("Price in Ct/€")
+
+    plt.title('(4) Grid and Price ' + Jahreszeit)
+    plt.tight_layout()
+    fig.set_size_inches(16, 9)
+    fig.savefig('(4) Grid and Price ' + Jahreszeit, dpi=200)
+    plt.show()
     #
     # #  (5) Stationary Battery #######################################################################################
-    # fig, ax1 = plt.subplots()
-    # ax1.plot(x_achse, BatCharge, label='BatCharge', color='green', alpha=0.6)
-    # ax1.bar(x_achse, BatDischarge, label='BatDischarge', color='red', alpha=0.6)
-    # ax1.bar(x_achse, PhotovoltaicProfile, label='PV', color='orange', alpha=0.2)
-    #
-    # ax1.set_ylabel("Power in kW")
-    #
-    # ax2 = ax1.twinx()
-    # ax2.plot(x_achse, BatSoC, linewidth=1, label='BatSoC', color='black', linestyle='dotted')
-    # lines, labels = ax1.get_legend_handles_labels()
-    # lines2, labels2 = ax2.get_legend_handles_labels()
-    # ax1.legend(lines + lines2, labels + labels2, loc='upper right')
-    # ax2.set_ylabel("SoC in kWh")
-    #
-    # plt.title('(5) Stationary Battery')
-    # plt.tight_layout()
-    # fig.set_size_inches(16, 9)
-    # fig.savefig('(5) Stationary Battery', dpi=200)
-    # plt.show()
+    fig, ax1 = plt.subplots()
+    ax1.bar(x_achse, BatCharge, label='BatCharge', color='green', alpha=0.6)
+    ax1.bar(x_achse, BatDischarge, label='BatDischarge', color='red', alpha=0.6)
+    ax1.bar(x_achse, PhotovoltaicProfile, label='PV', color='orange', alpha=0.2)
+
+    ax1.set_ylabel("Power in kW")
+
+    ax2 = ax1.twinx()
+    ax2.plot(x_achse, BatSoC, linewidth=1, label='BatSoC', color='black', linestyle='dotted')
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper right')
+    ax2.set_ylabel("SoC in kWh")
+
+    plt.title('(5) Stationary Battery ' + Jahreszeit)
+    plt.tight_layout()
+    fig.set_size_inches(16, 9)
+    fig.savefig('(5) Stationary Battery ' + Jahreszeit, dpi=200)
+    plt.show()
     #
     # #  (6) Use of PV Power and Loads#############################################################################
-    # fig, ax1 = plt.subplots()
-    # ax1.plot(x_achse, PhotovoltaicProfile, linewidth=0.75, label='PV', color='orange')
-    # ax1.plot(x_achse, Load, linewidth=1, label='Load', color='black', alpha=0.8)
+    fig, ax1 = plt.subplots()
+    ax1.plot(x_achse, PhotovoltaicProfile, linewidth=0.75, label='PV', color='orange')
+    ax1.plot(x_achse, Load, linewidth=1, label='Load', color='black', alpha=0.8)
+
+    ax1.bar(x_achse, PV2Load, label='PV2Load', color='green', alpha=0.5)
+    ax1.bar(x_achse, PV2EV, bottom=PV2Load, label='PV2EV', color='grey', alpha=0.5)
+    ax1.bar(x_achse, PV2Bat, bottom=PV2Load + PV2EV, label='PV2Bat', color='blue', alpha=0.5)
+    ax1.bar(x_achse, PV2Grid, bottom=PV2Load + PV2EV + PV2Bat, label='PV2Grid', color='red', alpha=0.5)
+
+    ax1.bar(x_achse, Bat2Load, bottom=PV2Load, label='Bat2Load', color='orange', alpha=0.5)
+    ax1.bar(x_achse, Grid2Load, bottom=PV2Load + Bat2Load, label='Grid2Load', color='pink', alpha=0.5)
+    ax1.bar(x_achse, EV2Load, bottom=PV2Load + Bat2Load + Grid2Load, label='EV2Load', color='brown', alpha=0.5)
+
+    # timearray = pd.date_range("01-01-2010 00:00:00", "01-01-2011 00:00:00", freq="H", closed="left",
+    #                           tz=datetime.timezone.utc)
     #
-    # ax1.bar(x_achse, PV2Load, label='PV2Load', color='green', alpha=0.5)
-    # ax1.bar(x_achse, PV2EV, bottom=PV2Load, label='PV2EV', color='grey', alpha=0.5)
-    # ax1.bar(x_achse, PV2Bat, bottom=PV2Load + PV2EV, label='PV2Bat', color='blue', alpha=0.5)
-    # ax1.bar(x_achse, PV2Grid, bottom=PV2Load + PV2EV + PV2Bat, label='PV2Grid', color='red', alpha=0.5)
+    # y = np.arange(100)
+    # plt.plot(timearray[1000:1100], y)
+    # ax1 = plt.gca()
+    # ax1.xaxis.set(
+    #     major_locator=mdates.DayLocator(),
+    #     major_formatter=mdates.DateFormatter("\n\n%b-%d"),
+    #     minor_locator=mdates.HourLocator((0, 12)),
+    #     minor_formatter=mdates.DateFormatter("%H"),)
     #
-    # ax1.bar(x_achse, Bat2Load, bottom=PV2Load, label='Bat2Load', color='orange', alpha=0.5)
-    # ax1.bar(x_achse, Grid2Load, bottom=PV2Load + Bat2Load, label='Grid2Load', color='pink', alpha=0.5)
-    # ax1.bar(x_achse, EV2Load, bottom=PV2Load + Bat2Load + Grid2Load, label='EV2Load', color='brown', alpha=0.5)
-    #
-    # # timearray = pd.date_range("01-01-2010 00:00:00", "01-01-2011 00:00:00", freq="H", closed="left",
-    # #                           tz=datetime.timezone.utc)
-    # #
-    # # y = np.arange(100)
-    # # plt.plot(timearray[1000:1100], y)
-    # # ax1 = plt.gca()
-    # # ax1.xaxis.set(
-    # #     major_locator=mdates.DayLocator(),
-    # #     major_formatter=mdates.DateFormatter("\n\n%b-%d"),
-    # #     minor_locator=mdates.HourLocator((0, 12)),
-    # #     minor_formatter=mdates.DateFormatter("%H"),)
-    # #
-    # # plt.tight_layout()
-    # # plt.show()
-    #
-    # ax1.set_ylabel("Power in kW")
-    # lines, labels = ax1.get_legend_handles_labels()
-    # ax1.legend(lines, labels, loc='upper right')
-    #
-    # plt.title('(6) Use of PV Power and Loads')
     # plt.tight_layout()
-    # fig.set_size_inches(16, 9)
-    # fig.savefig('(6) Use of PV Power and Loads', dpi=200)
     # plt.show()
+
+    ax1.set_ylabel("Power in kW")
+    lines, labels = ax1.get_legend_handles_labels()
+    ax1.legend(lines, labels, loc='upper right')
+
+    plt.title('(6) Use of PV Power and Loads ' + Jahreszeit)
+    plt.tight_layout()
+    fig.set_size_inches(16, 9)
+    fig.savefig('(6) Use of PV Power and Loads ' + Jahreszeit, dpi=200)
+    plt.show()
     #
     # #  (7) Supply and demand of loads #############################################################################
-    # fig, ax1 = plt.subplots()
-    # ax1.plot(x_achse, Load, linewidth=0.5, label='Load', color='black', alpha=0.5)
-    #
-    # ax1.bar(x_achse, LoadProfile, label='LoadProfile', color='grey', alpha=0.5)
-    # ax1.bar(x_achse, HotWater, bottom=LoadProfile, label='HotWater', color='blue', alpha=0.5)
-    # ax1.bar(x_achse, ElectricityDemandHeatPump, bottom=LoadProfile + HotWater, label='HP', color='red', alpha=0.5)
-    # ax1.bar(x_achse, ElectricityCooling, bottom=LoadProfile + HotWater + ElectricityDemandHeatPump, label='Cooling',
-    #         color='turquoise', alpha=0.5)
-    # ax1.bar(x_achse, SmartAppliances, bottom=LoadProfile + HotWater + ElectricityDemandHeatPump + ElectricityCooling,
-    #         label='SmartAppliances', color='green', alpha=0.5)
-    #
-    # ax1.bar(x_achse, -PV2Load, label='PV2Load', color='green', alpha=0.5)
-    # ax1.bar(x_achse, -Bat2Load, bottom=-PV2Load, label='Bat2Load', color='orange', alpha=0.5)
-    # ax1.bar(x_achse, -Grid2Load, bottom=-PV2Load + -Bat2Load, label='Grid2Load', color='black', alpha=0.5)
-    # ax1.bar(x_achse, -EV2Load, bottom=-PV2Load + -Bat2Load + -Grid2Load, label='EV2Load', color='brown', alpha=0.5)
-    #
-    # ax1.set_ylabel("Power in kW")
-    # lines, labels = ax1.get_legend_handles_labels()
-    # ax1.legend(lines, labels, loc='upper right')
-    #
-    # ax1.grid(True, which='both')
-    # plt.title('(7) Supply and demand of loads, no EV')
-    # plt.tight_layout()
-    # fig.set_size_inches(16, 9)
-    # fig.savefig('(7) Supply and demand of loads', dpi=200)
-    # plt.show()
+    fig, ax1 = plt.subplots()
+    ax1.plot(x_achse, Load, linewidth=0.5, label='Load', color='black', alpha=0.5)
+
+    ax1.bar(x_achse, LoadProfile, label='LoadProfile', color='grey', alpha=0.5)
+    ax1.bar(x_achse, HotWater, bottom=LoadProfile, label='HotWater', color='blue', alpha=0.5)
+    ax1.bar(x_achse, ElectricityDemandHeatPump, bottom=LoadProfile + HotWater, label='HP', color='red', alpha=0.5)
+    ax1.bar(x_achse, ElectricityCooling, bottom=LoadProfile + HotWater + ElectricityDemandHeatPump, label='Cooling',
+            color='turquoise', alpha=0.5)
+    ax1.bar(x_achse, SmartAppliances, bottom=LoadProfile + HotWater + ElectricityDemandHeatPump + ElectricityCooling,
+            label='SmartAppliances', color='orange', alpha=0.5)
+
+    ax1.bar(x_achse, -PV2Load, label='PV2Load', color='green', alpha=0.5)
+    ax1.bar(x_achse, -Bat2Load, bottom=-PV2Load, label='Bat2Load', color='orange', alpha=0.5)
+    ax1.bar(x_achse, -Grid2Load, bottom=-PV2Load + -Bat2Load, label='Grid2Load', color='black', alpha=0.5)
+    ax1.bar(x_achse, -EV2Load, bottom=-PV2Load + -Bat2Load + -Grid2Load, label='EV2Load', color='brown', alpha=0.5)
+
+    ax1.set_ylabel("Power in kW")
+    lines, labels = ax1.get_legend_handles_labels()
+    ax1.legend(lines, labels, loc='upper right')
+
+    ax1.grid(True, which='both')
+    plt.title('(7) Supply and demand of loads, no EV ' + Jahreszeit)
+    plt.tight_layout()
+    fig.set_size_inches(16, 9)
+    fig.savefig('(7) Supply and demand of loads ' + Jahreszeit, dpi=200)
+    plt.show()
     #
     # #  (8) Supply and demand of loads and EV ########################################################################
-    # fig, ax1 = plt.subplots()
-    # plt.xlabel('Hour of year')
-    #
-    # ax1.bar(x_achse, Load, label='Load', color='red', alpha=0.5)
-    # ax1.bar(x_achse, EVCharge, bottom=Load, label='EVCharge', color='green', alpha=0.5)
-    #
-    # ax1.bar(x_achse, -Grid2Load, label='Grid', color='grey', alpha=0.5)
-    # ax1.bar(x_achse, -Grid2EV, bottom=+ -Grid2Load, color='grey', alpha=0.5)
-    #
-    # ax1.bar(x_achse, -PV2Load, bottom=+-Grid2Load + -Grid2EV, label='PV', color='orange', alpha=0.5)
-    # ax1.bar(x_achse, -PV2EV, bottom=+-Grid2Load + -Grid2EV + -PV2Load, color='orange', alpha=0.5)
-    #
-    # ax1.bar(x_achse, -Bat2Load, bottom=+-Grid2Load + -Grid2EV + -PV2Load, label='BatDischarge', color='blue', alpha=0.5)
-    # ax1.bar(x_achse, -Bat2EV, bottom=+-Grid2Load + -Grid2EV + -PV2Load + -Bat2Load, color='blue', alpha=0.5)
-    #
-    # ax1.bar(x_achse, -EV2Load, bottom=+-Grid2Load + -Grid2EV + -PV2Load + -Bat2Load + -Bat2EV, label='EVDischarge',
-    #         color='brown', alpha=0.5)
-    # ax1.bar(x_achse, -EV2Bat, bottom=+-Grid2Load + -Grid2EV + -PV2Load + -Bat2Load + -EV2Load, color='brown', alpha=0.5)
-    #
-    # ax2 = ax1.twinx()
-    # ax2.plot(x_achse, ElectricityPrice, linewidth=1, label='Price', color='black', linestyle='dotted')
-    # ax1.set_ylabel("Power in kW")
-    # ax2.set_ylabel("Price in €")
-    #
-    # lines, labels = ax1.get_legend_handles_labels()
-    # lines2, labels2 = ax2.get_legend_handles_labels()
-    # ax2.legend(lines + lines2, labels + labels2, loc='upper right')
-    #
-    # ax1.grid(True, which='both')
-    # plt.title('(8) Operation of loads with a variable tariff')
-    # plt.tight_layout()
-    # fig.set_size_inches(16, 9)
-    # fig.savefig('(8) Supply and demand of loads and EV', dpi=300)
-    # plt.show()
+    fig, ax1 = plt.subplots()
+    plt.xlabel('Hour of year')
+
+    ax1.bar(x_achse, Load, label='Load', color='red', alpha=0.5)
+    ax1.bar(x_achse, EVCharge, bottom=Load, label='EVCharge', color='green', alpha=0.5)
+
+    ax1.bar(x_achse, -Grid2Load, label='Grid', color='grey', alpha=0.5)
+    ax1.bar(x_achse, -Grid2EV, bottom=+ -Grid2Load, color='grey', alpha=0.5)
+
+    ax1.bar(x_achse, -PV2Load, bottom=+-Grid2Load + -Grid2EV, label='PV', color='orange', alpha=0.5)
+    ax1.bar(x_achse, -PV2EV, bottom=+-Grid2Load + -Grid2EV + -PV2Load, color='orange', alpha=0.5)
+
+    ax1.bar(x_achse, -Bat2Load, bottom=+-Grid2Load + -Grid2EV + -PV2Load, label='BatDischarge', color='blue', alpha=0.5)
+    ax1.bar(x_achse, -Bat2EV, bottom=+-Grid2Load + -Grid2EV + -PV2Load + -Bat2Load, color='blue', alpha=0.5)
+
+    ax1.bar(x_achse, -EV2Load, bottom=+-Grid2Load + -Grid2EV + -PV2Load + -Bat2Load + -Bat2EV, label='EVDischarge',
+            color='brown', alpha=0.5)
+    ax1.bar(x_achse, -EV2Bat, bottom=+-Grid2Load + -Grid2EV + -PV2Load + -Bat2Load + -EV2Load, color='brown', alpha=0.5)
+
+    ax2 = ax1.twinx()
+    ax2.plot(x_achse, ElectricityPrice, linewidth=1, label='Price', color='black', linestyle='dotted')
+    ax1.set_ylabel("Power in kW")
+    ax2.set_ylabel("Price in €")
+
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines + lines2, labels + labels2, loc='upper right')
+
+    ax1.grid(True, which='both')
+    plt.title('(8) Operation of loads with a variable tariff ' + Jahreszeit)
+    plt.tight_layout()
+    fig.set_size_inches(16, 9)
+    fig.savefig('(8) Supply and demand of loads and EV ' + Jahreszeit, dpi=300)
+    plt.show()
     #
     # # (9) Smart Appliances with PV and Price
     #
-    # fig, ax1 = plt.subplots()
-    # ax1.plot(x_achse, Load, label='Load', linewidth=0.5, color='grey')
+    fig, ax1 = plt.subplots()
+    ax1.plot(x_achse, Load, label='Load', linewidth=0.5, color='grey')
     # ax1.plot(x_achse, PhotovoltaicProfile, label='PhotovoltaicProfile', linewidth=0.7, color='orange')
-    #
-    # ax1.bar(x_achse, DishWasher, label='DishWasher', color='blue', alpha=0.3)
-    # ax1.bar(x_achse, WashingMachine, bottom=DishWasher, label='WashingMachine', color='orange', alpha=0.3)
-    # ax1.bar(x_achse, Dryer, label='Dryer', bottom=DishWasher + WashingMachine, color='green', alpha=0.3)
-    # ax1.set_ylabel("Power kW")
-    # ax2 = ax1.twinx()
-    #
-    # ax2.bar(x_achse, DishWasherTheoreticalHours, linewidth=2, label='DishWasherHours', color='blue', alpha=0.05)
-    # ax2.bar(x_achse, WashingMachineTheoreticalHours, bottom=DishWasherTheoreticalHours, label='WashingMachineHours',
-    #         color='orange', alpha=0.1)
+
+    ax1.bar(x_achse, DishWasher, label='DishWasher', color='blue', alpha=0.3)
+    ax1.bar(x_achse, WashingMachine, bottom=DishWasher, label='WashingMachine', color='orange', alpha=0.3)
+    ax1.bar(x_achse, Dryer, label='Dryer', bottom=DishWasher + WashingMachine, color='green', alpha=0.3)
+    ax1.set_ylabel("Power kW")
+    ax2 = ax1.twinx()
+
+    ax2.bar(x_achse, DishWasherTheoreticalHours, linewidth=2, label='DishWasherHours', color='blue', alpha=0.05)
+    ax2.bar(x_achse, WashingMachineTheoreticalHours, bottom=DishWasherTheoreticalHours, label='WashingMachineHours',
+            color='orange', alpha=0.1)
     # ax2.plot(x_achse, ElectricityPrice, label='ElectricityPrice', linewidth=0.5, color='red')
-    #
-    # lines, labels = ax1.get_legend_handles_labels()
-    # lines2, labels2 = ax2.get_legend_handles_labels()
-    # ax1.legend(lines + lines2, labels + labels2, loc='upper right')
-    # ax2.set_ylabel("Time window of smart technologies 1 or 0")
-    #
-    # plt.title('(9) Smart Technologies')
-    # plt.tight_layout()
-    # fig.set_size_inches(16, 9)
-    # fig.savefig('(9) Smart Technologies', dpi=200)
-    # plt.show()
+
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper right')
+    ax2.set_ylabel("Time window of smart technologies 1 or 0")
+
+    plt.title('(9) Smart Technologies ' + Jahreszeit)
+    plt.tight_layout()
+    fig.set_size_inches(16, 9)
+    fig.savefig('(9) Smart Technologies ' + Jahreszeit, dpi=200)
+    plt.show()
 
     # Plot (10) Room and building
     fig, (ax1, ax3) = plt.subplots(2, 1)
@@ -1167,10 +1164,41 @@ def show_results(instance, M_WaterTank, CWater, colors):
     ax3.legend(lines + lines2, labels + labels2, facecolor='white', loc='upper right')
 
     plt.grid()
-    ax1.set_title('Tank and boiler')
+    ax1.set_title('Tank and boiler ' + Jahreszeit)
     plt.tight_layout()
-    fig.savefig('(10) Room and building', dpi=300)
+    fig.savefig('(10) Room and building ' + Jahreszeit, dpi=300)
     plt.show()
+
+    ## (11) Tank SOC
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twinx()
+    ax1.set_xlabel('Hour of year')
+
+    ax1.bar(x_achse, Q_TankHeating, label="Q_Heat pump", color="green", alpha=0.6)
+    ax1.bar(x_achse, Q_HeatingElement, label="Q_HeatingElement", bottom=Q_TankHeating, color='orange', linewidth=1, alpha=0.6)
+
+    ax1.plot(x_achse, Q_RoomHeating, label="Q_RoomHeating", color='red', linewidth=1, alpha=0.6)
+    ax2.plot(x_achse, (T_tank*CWater*M_WaterTank-CWater*M_WaterTank*28)/1_000,
+             label="SOC WaterTank", color="black", linewidth=1)
+    ax2.plot(x_achse, HotWater, label="DHW", color="blue")
+#Household.SpaceHeating.TankMinimalTemperature
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper right', facecolor='white')
+    ax2.set_ylim(0)
+    l = ax1.get_ylim()
+    l2 = ax2.get_ylim()
+    f = lambda x: l2[0] + (x - l[0]) / (l[1] - l[0]) * (l2[1] - l2[0])
+    ticks = f(ax1.get_yticks())
+    ax2.yaxis.set_major_locator(ticker.FixedLocator(ticks))
+    plt.grid()
+    ax1.set_ylabel("Heating power in kW")
+    ax2.set_ylabel("SOC in kWh")
+    ax1.set_title('SOC Water Tank (' +str(M_WaterTank)+'l'+') ' + Jahreszeit)
+    plt.tight_layout()
+    fig.savefig('(11) SOC Water Tank ' + Jahreszeit, dpi=300)
+    plt.show()
+
 
     ###########################################################################################
     # (5.4) Output of checksums
@@ -1320,4 +1348,19 @@ if __name__ == "__main__":
               "StateOfCharge": black}
     A = OperationOptimization(DB().create_Connection(CONS().RootDB))
     instance, M_WaterTank, CWater = A.run()
-    show_results(instance, M_WaterTank, CWater, colors)
+
+    # (5.1) Start time and stop time
+    # jahr
+    # starttime = 1
+    # endtime = 8760
+
+    # winter
+    # starttime = 25*24
+    # endtime = 28*24
+
+    # sommer
+    starttime = 188*24
+    endtime = 191*24
+
+    Jahreszeit = "summer"
+    show_results(instance, M_WaterTank, CWater, colors, starttime, endtime, Jahreszeit=Jahreszeit)
