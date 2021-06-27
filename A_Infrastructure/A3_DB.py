@@ -1,32 +1,17 @@
 
 import sqlite3
 import pandas as pd
-from A_Infrastructure.A1_Config.A11_Constants import CONS
-from A_Infrastructure.A1_Config.A12_Register import REG
+from A_Infrastructure.A1_Constants import CONS
+
 
 class DB:
-
-    """
-    As shown below, all the functions (except create_Connection) demands a connection to the target database.
-    This is because, in the later stage, we may have multiple databases, for example, one as ROOT database,
-    the others as SCENARIO databases.
-    """
 
     def create_Connection(self, database_name):
         conn = sqlite3.connect(CONS().DatabasePath + database_name + ".sqlite")
         return conn
 
     def read_DataFrame(self, table_name, conn, **kwargs):
-        """
-        Use this function instead of read_ExoTableValue when:
-        you want to read the whole table or multiple rows from it.
 
-        If the table is huge, it takes long time to load it to memory.
-        So, it is good to use **kwargs, for example, you add ID_Country=5 when using this function.
-        Besides, you should also read enough rows one time and do not too many times.
-        Because it is much faster to process the selection in DataFrame in memory.
-        So, there is a trade-off in "how many parameters to put in **kwargs".
-        """
         if len(kwargs) > 0:
             condition_temp = " where "
             for key, value in kwargs.items():
@@ -42,10 +27,19 @@ class DB:
         Series = DataFrame.iloc[row_id]
         return Series
 
-    def write_DataFrame(self, table, table_name, column_names, conn):
+    def write_DataFrame(self, table, table_name, column_names, conn, **kwargs):
         table_DataFrame = pd.DataFrame(table, columns=column_names)
-        table_DataFrame.to_sql(table_name, conn, index=False, if_exists='replace', chunksize=1000)
+        if "dtype" in kwargs:
+            table_DataFrame.to_sql(table_name, conn, index=False,
+                                   if_exists='replace', chunksize=1000, dtype=kwargs["dtype"])
+        else:
+            table_DataFrame.to_sql(table_name, conn, index=False, if_exists='replace', chunksize=1000)
         return None
+
+    def revise_DataType(self, table_name, data_type, conn):
+        table_DataFrame = self.read_DataFrame(table_name, conn)
+        table_DataFrame.to_sql(table_name, conn, index=False, if_exists='replace', chunksize=1000,
+                               dtype=data_type)
 
     def copy_DataFrame(self, table_name_from, conn_from, table_name_to, conn_to):
         table = self.read_DataFrame(table_name_from, conn_from)
