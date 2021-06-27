@@ -1,7 +1,3 @@
-
-from A_Infrastructure.A1_Config.A12_Register import REG
-from A_Infrastructure.A2_ToolKits.A21_DB import DB
-
 class ElectricVehicle:
 
     def __init__(self, para_series):

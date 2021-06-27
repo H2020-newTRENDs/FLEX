@@ -1,6 +1,6 @@
 
-from A_Infrastructure.A1_Config.A12_Register import REG
-from A_Infrastructure.A2_ToolKits.A21_DB import DB
+from A_Infrastructure.A2_Register import REG
+from A_Infrastructure.A3_DB import DB
 from B_Classes.B2_Building import Building
 from B_Classes.B3_ApplianceGroup import ApplianceGroup
 from B_Classes.B4_SpaceHeating import SpaceHeating

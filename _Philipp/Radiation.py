@@ -1,13 +1,10 @@
 import numpy as np
 import datetime
 
-import pysolar.radiation
 import pysolar.solar as pysol
-from pysolar import radiation
-import pandas as pd
-from A_Infrastructure.A2_ToolKits.A21_DB import DB
-from A_Infrastructure.A1_Config.A12_Register import REG
-from A_Infrastructure.A1_Config.A11_Constants import CONS
+from A_Infrastructure.A3_DB import DB
+from A_Infrastructure.A2_Register import REG
+from A_Infrastructure.A1_Constants import CONS
 
 def calculate_angels_of_sun(latitude, longitude, timearray, E_dir_horizontal):
     #  Der Azimutwinkel stellt den Horizontalwinkel der Sonne dar und beschreibt ihre Position in horizontaler Richtung

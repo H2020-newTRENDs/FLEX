@@ -1,7 +1,5 @@
-from A_Infrastructure.A1_Config.A11_Constants import CONS
-from A_Infrastructure.A1_Config.A12_Register import REG
-from A_Infrastructure.A2_ToolKits.A21_DB import DB
-import numpy as np
+from A_Infrastructure.A2_Register import REG
+from A_Infrastructure.A3_DB import DB
 
 
 class Ope_TableGenerator:
