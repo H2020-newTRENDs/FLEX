@@ -244,7 +244,7 @@ def get_constant_Q_Tm_t(Buildings, T_outside, T_min_indoor, T_max_indoor):
 
 
 def calculate_LoadShiftPotential(Buildings, hours_of_preheating, hours_of_shifting, T_outside,
-                                    T_min_indoor, T_max_indoor, T_offset_indoor=2):
+                                    T_min_indoor, T_max_indoor, HouseNr, T_offset_indoor=2):
     # calculate the thermal mass temperature when there is thermal equilibrium:
     Q_Heating_noDR_constant, Q_Cooling_noDR_constant, T_Room_noDR_constant, T_thermalMass_noDR_constant = \
         get_constant_Q_Tm_t(Buildings, T_outside, T_min_indoor, T_max_indoor)
@@ -290,9 +290,9 @@ def calculate_LoadShiftPotential(Buildings, hours_of_preheating, hours_of_shifti
 
     # plot results for one building:
     x_achse = np.arange(hours_of_preheating+hours_of_shifting)
-    Q_Heating_plot = np.append(Q_PreHeating_noDR[:, 0], Q_ReducedHeating_noDR[:, 0])
-    T_thermalMass_plot = np.append(T_PrethermalMass_noDR[:, 0], T_ReducedthermalMass_noDR[:, 0])
-    T_Room_plot = np.append(T_PreRoom_noDR[:, 0], T_ReducedRoom_noDR[:, 0])
+    Q_Heating_plot = np.append(Q_PreHeating_noDR[:, HouseNr-1], Q_ReducedHeating_noDR[:, HouseNr-1])
+    T_thermalMass_plot = np.append(T_PrethermalMass_noDR[:, HouseNr-1], T_ReducedthermalMass_noDR[:, HouseNr-1])
+    T_Room_plot = np.append(T_PreRoom_noDR[:, HouseNr-1], T_ReducedRoom_noDR[:, HouseNr-1])
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
     ax1.bar(x_achse, Q_Heating_plot, label="heating power", color="red")
@@ -310,15 +310,16 @@ def calculate_LoadShiftPotential(Buildings, hours_of_preheating, hours_of_shifti
     ax3.vlines(x=0, ymin=T_Room_noDR_constant[0], ymax=T_Room_plot[0], color="green")
     ax3.axvline(x=hours_of_preheating-1, color="black", linestyle="--", linewidth=0.5)
 
-    ax1.legend()
+    ax1.legend(loc="lower left")
     ax2.legend()
     ax3.legend()
     ax1.set_ylabel("heating power in W")
     ax2.set_ylabel("temperature in °C")
     ax3.set_ylabel("temperature in °C")
     ax3.set_xlabel("hours")
-    ax1.set_title("Load shift at " + str(T_outside) + " °C")
+    ax1.set_title("Load shift at " + str(T_outside) + " °C, House Nr " + str(HouseNr))
     plt.tight_layout()
+    fig.savefig("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Myfigs\\Paper_figs\\Subplot_energy_shifted_" + str(HouseNr) + ".png")
     plt.show()
 
 
@@ -494,12 +495,13 @@ if __name__=="__main__":
 
     hours_of_preheating = 3
     hours_of_shifting = 3
-    T_outside = -5
+    T_outside = 12
     T_min_indoor = 20
     T_max_indoor = 26
     T_offset_indoor = 2
+    HouseNr = 3  # startet bei 1! nicht bei 0
     calculate_LoadShiftPotential(Buildings, hours_of_preheating, hours_of_shifting, T_outside,
-                                 T_min_indoor, T_max_indoor, T_offset_indoor=T_offset_indoor)
+                                 T_min_indoor, T_max_indoor, HouseNr, T_offset_indoor=T_offset_indoor)
 
 
 
