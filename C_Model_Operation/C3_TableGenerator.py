@@ -2,7 +2,7 @@ from C_Model_Operation.C1_REG import REG_Table
 from A_Infrastructure.A2_DB import DB
 
 
-class Ope_TableGenerator:
+class TableGenerator:
 
     def __init__(self, conn):
         self.Conn = conn

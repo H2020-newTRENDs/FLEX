@@ -57,7 +57,7 @@ class DataCollector:
                                            self.VAR.BatteryStateOfCharge: "REAL",
 
                                            self.VAR.E_EVCharge: "REAL",
-                                           self.VAR.E_EV2Discharge: "REAL",
+                                           self.VAR.E_EVDischarge: "REAL",
                                            self.VAR.E_EV2Load: "REAL",
                                            self.VAR.E_EV2Battery: "REAL",
                                            self.VAR.EVStateOfCharge: "REAL",
@@ -77,17 +77,17 @@ class DataCollector:
         ElectricityPrice = self.extract_Result2Array(PyomoModelInstance.ElectricityPrice.extract_values())
         FeedinTariff = self.extract_Result2Array(PyomoModelInstance.FiT.extract_values())
         E_BaseLoad_array = self.extract_Result2Array(PyomoModelInstance.BaseLoadProfile.extract_values())
-        E_DishWasher1_array = self.extract_Result2Array(PyomoModelInstance.DishWasher1.extract_values())
-        E_DishWasher2_array = self.extract_Result2Array(PyomoModelInstance.DishWasher2.extract_values())
-        E_DishWasher3_array = self.extract_Result2Array(PyomoModelInstance.DishWasher3.extract_values())
-        E_DishWasher_array = E_DishWasher1_array + E_DishWasher2_array + E_DishWasher3_array
-        E_WashingMachine1_array = self.extract_Result2Array(PyomoModelInstance.WashingMachine1.extract_values())
-        E_WashingMachine2_array = self.extract_Result2Array(PyomoModelInstance.WashingMachine2.extract_values())
-        E_WashingMachine3_array = self.extract_Result2Array(PyomoModelInstance.WashingMachine3.extract_values())
-        E_WashingMachine_array = E_WashingMachine1_array + E_WashingMachine2_array + E_WashingMachine3_array
-        E_Dryer1_array = self.extract_Result2Array(PyomoModelInstance.Dryer1.extract_values())
-        E_Dryer2_array = self.extract_Result2Array(PyomoModelInstance.Dryer2.extract_values())
-        E_Dryer_array = E_Dryer1_array + E_Dryer2_array
+        Hour_DishWasher1_array = self.extract_Result2Array(PyomoModelInstance.DishWasher1.extract_values())
+        Hour_DishWasher2_array = self.extract_Result2Array(PyomoModelInstance.DishWasher2.extract_values())
+        Hour_DishWasher3_array = self.extract_Result2Array(PyomoModelInstance.DishWasher3.extract_values())
+        E_DishWasher_array = (Hour_DishWasher1_array + Hour_DishWasher2_array + Hour_DishWasher3_array) * Household.ApplianceGroup.DishWasherPower
+        Hour_WashingMachine1_array = self.extract_Result2Array(PyomoModelInstance.WashingMachine1.extract_values())
+        Hour_WashingMachine2_array = self.extract_Result2Array(PyomoModelInstance.WashingMachine2.extract_values())
+        Hour_WashingMachine3_array = self.extract_Result2Array(PyomoModelInstance.WashingMachine3.extract_values())
+        E_WashingMachine_array = (Hour_WashingMachine1_array + Hour_WashingMachine2_array + Hour_WashingMachine3_array) * Household.ApplianceGroup.WashingMachinePower
+        Hour_Dryer1_array = self.extract_Result2Array(PyomoModelInstance.Dryer1.extract_values())
+        Hour_Dryer2_array = self.extract_Result2Array(PyomoModelInstance.Dryer2.extract_values())
+        E_Dryer_array = (Hour_Dryer1_array + Hour_Dryer2_array) * Household.ApplianceGroup.DryerPower
         E_SmartAppliances_array = E_DishWasher_array + E_WashingMachine_array + E_Dryer_array
 
         Q_TankHeatingHeatPump_array = self.extract_Result2Array(PyomoModelInstance.Q_TankHeating.extract_values())/1000 #kWh
