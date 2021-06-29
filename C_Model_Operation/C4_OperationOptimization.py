@@ -640,7 +640,7 @@ class OperationOptimization:
         def minimize_cost(m):
             rule = sum(m.Grid[t] * m.ElectricityPrice[t] - m.Feedin[t] * m.FiT[t] for t in m.t) + PetrolCostPerYear
             return rule
-        m.OBJ = pyo.Objective(rule=minimize_cost)
+        m.Objective = pyo.Objective(rule=minimize_cost)
 
         # ---------
         # 8. Solver
@@ -649,7 +649,7 @@ class OperationOptimization:
         PyomoModelInstance = m.create_instance(report_timing=False)
         Opt = pyo.SolverFactory("gurobi")
         results = Opt.solve(PyomoModelInstance, tee=False)
-        print('Total Operation Cost: ' + str(round(PyomoModelInstance.OBJ(), 2)))
+        print('Total Operation Cost: ' + str(round(PyomoModelInstance.Objective(), 2)))
 
         return Household, Environment, PyomoModelInstance
 

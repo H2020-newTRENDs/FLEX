@@ -162,7 +162,7 @@ class REG_Var:
         self.BatteryStateOfCharge = "BatteryStateOfCharge"
 
         self.E_EVCharge = self.EndEnergy + "EVCharge"
-        self.E_EV2Discharge = self.EndEnergy + "EV2Discharge"
+        self.E_EVDischarge = self.EndEnergy + "EV2Discharge"
         self.E_EV2Load = self.EndEnergy + "EV2Load"
         self.E_EV2Battery = self.EndEnergy + "EV2Battery"
         self.EVStateOfCharge = "EVStateOfCharge"
