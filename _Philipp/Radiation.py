@@ -3,8 +3,8 @@ import datetime
 
 import pysolar.solar as pysol
 from A_Infrastructure.A3_DB import DB
-from A_Infrastructure.A2_Register import REG
-from A_Infrastructure.A1_Constants import CONS
+from A_Infrastructure.A2_REG import REG_Table
+from A_Infrastructure.A1_CONS import CONS
 
 def calculate_angels_of_sun(latitude, longitude, timearray, E_dir_horizontal):
     #  Der Azimutwinkel stellt den Horizontalwinkel der Sonne dar und beschreibt ihre Position in horizontaler Richtung
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     timearray = pd.date_range("01-01-2010 00:00:00", "01-01-2011 00:00:00", freq="H", closed="left",
                               tz=datetime.timezone.utc)
 
-    data = DB().read_DataFrame(REG().Sce_Weather_Radiation, conn=DB().create_Connection(CONS().RootDB), ID_Country=5)
+    data = DB().read_DataFrame(REG_Table().Sce_Weather_Radiation, conn=DB().create_Connection(CONS().RootDB), ID_Country=5)
     E_dir = data.loc[:, "Radiation"].to_numpy()
 
     azimuth_sun, altitude_sun, E_nord, E_sued, E_ost, E_west, E_dir = calculate_angels_of_sun(latitude, longitude, timearray, E_dir)
