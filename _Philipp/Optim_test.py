@@ -4,8 +4,8 @@ from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 from Core_rc_model import rc_heating_cooling
-from A_Infrastructure.A3_DB import DB
-from A_Infrastructure.A2_REG import REG_Table
+from A_Infrastructure.A2_DB import DB
+from C_Model_Operation.C1_REG import REG_Table
 from A_Infrastructure.A1_CONS import CONS
 
 def create_building_dataframe():

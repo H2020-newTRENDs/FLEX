@@ -3,18 +3,22 @@ __author__ = 'Songmin'
 
 import numpy as np
 from A_Infrastructure.A1_CONS import CONS
-from A_Infrastructure.A2_REG import REG_Table
-from A_Infrastructure.A2_REG import REG_Var
-from A_Infrastructure.A3_DB import DB
+from C_Model_Operation.C1_REG import REG_Table
+from C_Model_Operation.C1_REG import REG_Var
+from A_Infrastructure.A2_DB import DB
 
 class DataCollector:
 
     def __init__(self, conn):
         self.Conn = conn
+        self.TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
+        self.OptimizationHourHorizon = len(self.TimeStructure)
         self.VAR = REG_Var()
         self.SystemOperationHour_Column = {self.VAR.ID_Household: "INTEGER",
                                            self.VAR.ID_Environment: "INTEGER",
                                            self.VAR.ID_Hour: "INTEGER",
+                                           self.VAR.ElectricityPrice: "REAL",
+                                           self.VAR.FeedinTariff: "REAL",
 
                                            self.VAR.E_BaseElectricityLoad: "REAL",
                                            self.VAR.E_DishWasher: "REAL",
@@ -26,7 +30,7 @@ class DataCollector:
                                            self.VAR.HeatPumpPerformanceFactor: "REAL",
                                            self.VAR.E_HeatPump: "REAL",
                                            self.VAR.E_AmbientHeat: "REAL",
-                                           self.VAR.E_HeatingElement: "REAL",
+                                           self.VAR.Q_HeatingElement: "REAL",
                                            self.VAR.E_RoomHeating: "REAL",
 
                                            self.VAR.Q_RoomCooling: "REAL",
@@ -69,7 +73,9 @@ class DataCollector:
         return result_array
 
     def collect_OptimizationResult(self, Household, Environment, PyomoModelInstance):
-        # extract variable values
+
+        ElectricityPrice = self.extract_Result2Array(PyomoModelInstance.ElectricityPrice.extract_values())
+        FeedinTariff = self.extract_Result2Array(PyomoModelInstance.FiT.extract_values())
         E_BaseLoad_array = self.extract_Result2Array(PyomoModelInstance.BaseLoadProfile.extract_values())
         E_DishWasher1_array = self.extract_Result2Array(PyomoModelInstance.DishWasher1.extract_values())
         E_DishWasher2_array = self.extract_Result2Array(PyomoModelInstance.DishWasher2.extract_values())
@@ -126,10 +132,13 @@ class DataCollector:
 
         E_Load_array = self.extract_Result2Array(PyomoModelInstance.Load.extract_values())
 
-        for t in range(0, CONS().OptimizationHourHorizon):
+        for t in range(0, self.OptimizationHourHorizon):
             self.SystemOperationHour_ValueList.append([Household.ID,
                                                        Environment["ID"],
-                                                       t+1,
+                                                       t + 1,
+                                                       ElectricityPrice[t],
+                                                       FeedinTariff[t],
+
                                                        E_BaseLoad_array[t],
                                                        E_DishWasher_array[t],
                                                        E_WashingMachine_array[t],

@@ -12,10 +12,10 @@ class REG_Table:
         self.GeneratedData = "Gen_"
         self.Result = "Res_"
 
-        # ------------------------------
-        # Part I: Operation optimization
-        # ------------------------------
+        # ---------
         # 1 Objects
+        # ---------
+
         # 1.1 Exogenous tables: ID and parameter
         self.ID_Country = self.ID + "Country"
         self.ID_DayType = self.ID + "DayType"
@@ -52,10 +52,13 @@ class REG_Table:
         self.Gen_OBJ_ID_Battery = self.GeneratedData + self.Object + self.ID + "Battery"
         self.Gen_OBJ_ID_ElectricVehicle = self.GeneratedData + self.Object + self.ID + "ElectricVehicle"
 
-        # 2 Scenarios
+        # ---------
+        # 2 Objects
+        # ---------
+
         # 2.1 Exogenous tables: ID and parameter
         self.Sce_ID_TimeStructure = self.Scenario + self.ID + "TimeStructure" # base year: 2010
-        #self.Sce_ID_LifestyleType = self.Scenario + self.ID + "LifestyleType"
+        # self.Sce_ID_LifestyleType = self.Scenario + self.ID + "LifestyleType"
         self.Sce_ID_TargetTemperatureType = self.Scenario + self.ID + "TargetTemperatureType"
 
         self.Sce_ID_BaseElectricityProfileType = self.Scenario + self.ID + "BaseElectricityProfileType"
@@ -97,13 +100,12 @@ class REG_Table:
 
         # Gen_Sce_SolarRadiationDirections...
 
-        # Result tables
-        self.Res_SystemOperationYear = self.Result + "SystemOperationYear" #3: col: IDHH, col IDEnvi, col: cost
-        self.Res_SystemOperationHour = self.Result + "SystemOperationHour" #4: col: IDHH, col IDEnvi, , col: IDHour, col: technologies
+        # ---------
+        # 3 Results
+        # ---------
 
-        # ------------------------------
-        # Part II: Investment simulation
-        # ------------------------------
+        self.Res_SystemOperationHour = self.Result + "SystemOperationHour" #4: col: IDHH, col IDEnvi, , col: IDHour, col: technologies
+        self.Res_SystemOperationYear = self.Result + "SystemOperationYear"  # 3: col: IDHH, col IDEnvi, col: cost
 
 
 
@@ -120,6 +122,8 @@ class REG_Var:
         self.ID_Household = self.ID + "Household"
         self.ID_Environment = self.ID + "Environment"
         self.ID_Hour = self.ID + "Hour"
+        self.ElectricityPrice = "ElectricityPrice"
+        self.FeedinTariff = "FeedinTariff"
 
         self.E_BaseElectricityLoad = self.EndEnergy + "BaseElectricityLoad"
         self.E_DishWasher = self.EndEnergy + "DishWasher"
@@ -131,7 +135,7 @@ class REG_Var:
         self.HeatPumpPerformanceFactor = "HeatPumpPerformanceFactor"
         self.E_HeatPump = self.EndEnergy + "HeatPump"
         self.E_AmbientHeat = self.EndEnergy + "AmbientHeat"
-        self.E_HeatingElement = self.EndEnergy + "HeatingElement"
+        self.Q_HeatingElement = self.UsefulEnergy + "HeatingElement"
         self.E_RoomHeating = self.EndEnergy + "RoomHeating"
 
         self.Q_RoomCooling = self.UsefulEnergy + "RoomCooling"
@@ -167,23 +171,4 @@ class REG_Var:
 
 
 
-class REG_Color:
-
-    def __init__(self):
-        self.red = "#F47070"
-        self.blue = "#8EA9DB"
-        self.green = '#088A29'
-        self.yellow = '#FFBF00'
-        self.grey = '#C9C9C9'
-        self.pink = '#FA9EFA'
-        self.dark_green = '#375623'
-        self.dark_blue = '#0404B4'
-        self.purple = '#AC0CB0'
-        self.turquoise = '#3BE0ED'
-        self.dark_red = '#c70d0d'
-        self.dark_grey = '#2c2e2e'
-        self.light_brown = '#db8b55'
-        self.black = "#000000"
-        self.red_pink = "#f75d82"
-        self.brown = '#A52A2A'
 
