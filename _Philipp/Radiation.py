@@ -2,8 +2,8 @@ import numpy as np
 import datetime
 
 import pysolar.solar as pysol
-from A_Infrastructure.A3_DB import DB
-from A_Infrastructure.A2_REG import REG_Table
+from A_Infrastructure.A2_DB import DB
+from C_Model_Operation.C1_REG import REG_Table
 from A_Infrastructure.A1_CONS import CONS
 
 def calculate_angels_of_sun(latitude, longitude, timearray, E_dir_horizontal):

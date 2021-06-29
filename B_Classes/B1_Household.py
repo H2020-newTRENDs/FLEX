@@ -1,6 +1,6 @@
 
-from A_Infrastructure.A2_REG import REG_Table
-from A_Infrastructure.A3_DB import DB
+from C_Model_Operation.C1_REG import REG_Table
+from A_Infrastructure.A2_DB import DB
 from B_Classes.B2_Building import Building
 from B_Classes.B3_ApplianceGroup import ApplianceGroup
 from B_Classes.B4_SpaceHeating import SpaceHeating

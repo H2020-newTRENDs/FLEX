@@ -1,5 +1,5 @@
-from A_Infrastructure.A2_REG import REG_Table
-from A_Infrastructure.A3_DB import DB
+from C_Model_Operation.C1_REG import REG_Table
+from A_Infrastructure.A2_DB import DB
 
 
 class Ope_TableGenerator:

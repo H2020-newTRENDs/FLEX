@@ -5,8 +5,8 @@ import pandas as pd
 
 import sys as sys
 
-from A_Infrastructure.A2_REG import REG_Table
-from A_Infrastructure.A3_DB import DB
+from C_Model_Operation.C1_REG import REG_Table
+from A_Infrastructure.A2_DB import DB
 from B_Classes.B1_Household import Household
 from A_Infrastructure.A1_CONS import CONS
 
