@@ -15,49 +15,53 @@ class Visualization:
 
         self.Conn = conn
         self.VAR = REG_Var()
-        self.VarColors = {self.VAR.E_BaseElectricityLoad: CONS().light_brown,
-                          self.VAR.E_DishWasher: CONS().green,
-                          self.VAR.E_WashingMachine: CONS().green,
-                          self.VAR.E_Dryer: CONS().green,
-                          self.VAR.E_SmartAppliance: CONS().green,
+        self.COLOR = CONS()
+        self.VarColors = {self.VAR.ElectricityPrice: self.COLOR.red_pink,
+                          self.VAR.FeedinTariff: self.COLOR.green,
 
-                          self.VAR.Q_HeatPump: CONS().green,
-                          self.VAR.HeatPumpPerformanceFactor: CONS().green,
-                          self.VAR.E_HeatPump: CONS().red,
-                          self.VAR.E_AmbientHeat: CONS().green,
-                          self.VAR.Q_HeatingElement: CONS().red,
-                          self.VAR.E_RoomHeating: CONS().green,
+                          self.VAR.E_BaseElectricityLoad: self.COLOR.light_brown,
+                          self.VAR.E_DishWasher: self.COLOR.green,
+                          self.VAR.E_WashingMachine: self.COLOR.green,
+                          self.VAR.E_Dryer: self.COLOR.green,
+                          self.VAR.E_SmartAppliance: self.COLOR.green,
 
-                          self.VAR.Q_RoomCooling: CONS().green,
-                          self.VAR.E_RoomCooling: CONS().blue,
+                          self.VAR.Q_HeatPump: self.COLOR.green,
+                          self.VAR.HeatPumpPerformanceFactor: self.COLOR.green,
+                          self.VAR.E_HeatPump: self.COLOR.red,
+                          self.VAR.E_AmbientHeat: self.COLOR.green,
+                          self.VAR.Q_HeatingElement: self.COLOR.red,
+                          self.VAR.E_RoomHeating: self.COLOR.green,
 
-                          self.VAR.Q_HotWater: CONS().green,
-                          self.VAR.E_HotWater: CONS().purple,
+                          self.VAR.Q_RoomCooling: self.COLOR.green,
+                          self.VAR.E_RoomCooling: self.COLOR.blue,
 
-                          self.VAR.E_Grid: CONS().black,
-                          self.VAR.E_Grid2Load: CONS().black,
-                          self.VAR.E_Grid2Battery: CONS().green,
-                          self.VAR.E_Grid2EV: CONS().green,
+                          self.VAR.Q_HotWater: self.COLOR.green,
+                          self.VAR.E_HotWater: self.COLOR.purple,
 
-                          self.VAR.E_PV: CONS().green,
-                          self.VAR.E_PV2Load: CONS().yellow,
-                          self.VAR.E_PV2Battery: CONS().green,
-                          self.VAR.E_PV2EV: CONS().green,
-                          self.VAR.E_PV2Grid: CONS().green,
+                          self.VAR.E_Grid: self.COLOR.black,
+                          self.VAR.E_Grid2Load: self.COLOR.black,
+                          self.VAR.E_Grid2Battery: self.COLOR.red,
+                          self.VAR.E_Grid2EV: self.COLOR.red,
 
-                          self.VAR.E_BatteryCharge: CONS().green,
-                          self.VAR.E_BatteryDischarge: CONS().green,
-                          self.VAR.E_Battery2Load: CONS().dark_red,
-                          self.VAR.E_Battery2EV: CONS().green,
-                          self.VAR.BatteryStateOfCharge: CONS().green,
+                          self.VAR.E_PV: self.COLOR.green,
+                          self.VAR.E_PV2Load: self.COLOR.brown,
+                          self.VAR.E_PV2Battery: self.COLOR.blue,
+                          self.VAR.E_PV2EV: self.COLOR.dark_grey,
+                          self.VAR.E_PV2Grid: self.COLOR.yellow,
 
-                          self.VAR.E_EVCharge: CONS().green,
-                          self.VAR.E_EVDischarge: CONS().green,
-                          self.VAR.E_EV2Load: CONS().turquoise,
-                          self.VAR.E_EV2Battery: CONS().green,
-                          self.VAR.EVStateOfCharge: CONS().green,
+                          self.VAR.E_BatteryCharge: self.COLOR.green,
+                          self.VAR.E_BatteryDischarge: self.COLOR.green,
+                          self.VAR.E_Battery2Load: self.COLOR.dark_red,
+                          self.VAR.E_Battery2EV: self.COLOR.green,
+                          self.VAR.BatteryStateOfCharge: self.COLOR.turquoise,
 
-                          self.VAR.TotalElectricityDemand: CONS().green,
+                          self.VAR.E_EVCharge: self.COLOR.green,
+                          self.VAR.E_EVDischarge: self.COLOR.green,
+                          self.VAR.E_EV2Load: self.COLOR.dark_red,
+                          self.VAR.E_EV2Battery: self.COLOR.green,
+                          self.VAR.EVStateOfCharge: self.COLOR.turquoise,
+
+                          self.VAR.TotalElectricityDemand: self.COLOR.green,
                           }
         self.PlotHorizon = {}
         self.TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
@@ -151,8 +155,8 @@ class Visualization:
                   label=ev_2_load["label"],
                   color=ev_2_load["color"])
 
-        ax_1.set_xlabel("Hour of the Year", fontsize=25, labelpad=10)
-        ax_1.set_ylabel("Electricity load (kW)", fontsize=25, labelpad=10)
+        ax_1.set_xlabel("Hour of the Year", fontsize=20, labelpad=10)
+        ax_1.set_ylabel("Electricity load (kW)", fontsize=20, labelpad=10)
         if "y_lim" in kwargs:
             ax_1.set_ylim(kwargs["y_lim"])
         figure.legend(fontsize=15, bbox_to_anchor=(1.01, 0, 0.2, 1), bbox_transform=ax_1.transAxes,
@@ -167,7 +171,169 @@ class Visualization:
         figure.savefig(CONS().FiguresPath + fig_name + ".png", dpi=200, format='PNG')
         plt.close(figure)
 
-    def visualization_SystemLoad(self, id_household, id_environment, **kargs):
+    def plot_PV(self, id_household, id_environment, horizon,
+                pv_2_load,
+                pv_2_battery,
+                pv_2_ev,
+                pv_2_grid,
+                electricity_price,
+                feedin_tariff,
+                **kwargs):
+
+        figure = plt.figure(figsize=(20, 8), dpi=200, frameon=False)
+        ax_1 = figure.add_axes([0.1, 0.1, 0.8, 0.75])
+        x_values = range(horizon[0], horizon[1] + 1)
+        alpha_value = 0.8
+        linewidth_value = 2
+
+        ax_1.bar(x_values,
+                 pv_2_load["values"],
+                 label=pv_2_load["label"],
+                 alpha=alpha_value,
+                 color=pv_2_load["color"])
+
+        ax_1.bar(x_values,
+                 pv_2_battery["values"],
+                 label=pv_2_battery["label"],
+                 bottom=pv_2_load["values"],
+                 alpha=alpha_value,
+                 color=pv_2_battery["color"])
+
+        ax_1.bar(x_values,
+                 pv_2_ev["values"],
+                 label=pv_2_ev["label"],
+                 bottom=pv_2_load["values"] + pv_2_battery["values"],
+                 alpha=alpha_value,
+                 color=pv_2_ev["color"])
+
+        ax_1.bar(x_values,
+                 pv_2_grid["values"],
+                 label=pv_2_grid["label"],
+                 bottom=pv_2_load["values"] + pv_2_battery["values"] + pv_2_ev["values"],
+                 alpha=alpha_value,
+                 color=pv_2_grid["color"])
+
+        ax_2 = ax_1.twinx()
+
+        ax_2.plot(x_values,
+                  electricity_price["values"],
+                  linewidth=linewidth_value,
+                  linestyle='-',
+                  label=electricity_price["label"],
+                  color=electricity_price["color"])
+
+        ax_2.plot(x_values,
+                  feedin_tariff["values"],
+                  linewidth=linewidth_value,
+                  linestyle='-',
+                  label=feedin_tariff["label"],
+                  color=feedin_tariff["color"])
+
+        ax_1.set_xlabel("Hour of the Year", fontsize=20, labelpad=10)
+        ax_1.set_ylabel("PV Generation and Consumption (kW)", fontsize=20, labelpad=10)
+        ax_2.set_ylabel("Electricity Price and Feed-in Tariff (€)", fontsize=20, labelpad=10)
+        if "y_lim" in kwargs:
+            ax_1.set_ylim(kwargs["y_lim"])
+        figure.legend(fontsize=15, bbox_to_anchor=(0, 1.04, 1, 0.1), bbox_transform=ax_1.transAxes,
+                      loc=1, ncol=3, borderaxespad=0, mode='expand', frameon=True)
+
+        for tick in ax_1.xaxis.get_major_ticks():
+            tick.label1.set_fontsize(20)
+        for tick in ax_1.yaxis.get_major_ticks():
+            tick.label1.set_fontsize(20)
+        for tick in ax_2.yaxis.get_major_ticks():
+            tick.label2.set_fontsize(20)
+
+        fig_name = "PV_H" + str(id_household) + "_E" + str(id_environment) + "_H" + str(horizon[0]) + "_" + str(horizon[1])
+        figure.savefig(CONS().FiguresPath + fig_name + ".png", dpi=200, format='PNG')
+        plt.close(figure)
+
+    def plot_Battery_EV(self, id_household, id_environment, horizon,
+                        grid_2_battery_ev,
+                        pv_2_battery_ev,
+                        battery_ev_each_other,
+                        battery_ev_2_load,
+                        battery_ev_soc,
+                        electricity_price,
+                        feedin_tariff,
+                        **kwargs):
+
+        figure = plt.figure(figsize=(20, 8), dpi=200, frameon=False)
+        ax_1 = figure.add_axes([0.1, 0.1, 0.8, 0.75])
+        x_values = range(horizon[0], horizon[1] + 1)
+        alpha_value = 0.8
+        linewidth_value = 2
+
+        ax_1.bar(x_values,
+                 grid_2_battery_ev["values"],
+                 label=grid_2_battery_ev["label"],
+                 alpha=alpha_value,
+                 color=grid_2_battery_ev["color"])
+
+        ax_1.bar(x_values,
+                 pv_2_battery_ev["values"],
+                 label=pv_2_battery_ev["label"],
+                 bottom=grid_2_battery_ev["values"],
+                 alpha=alpha_value,
+                 color=pv_2_battery_ev["color"])
+
+        ax_1.bar(x_values,
+                 battery_ev_each_other["values"],
+                 label=battery_ev_each_other["label"],
+                 bottom=grid_2_battery_ev["values"] + pv_2_battery_ev["values"],
+                 alpha=alpha_value,
+                 color=battery_ev_each_other["color"])
+
+        ax_1.bar(x_values,
+                 battery_ev_2_load["values"],
+                 label=battery_ev_2_load["label"],
+                 alpha=alpha_value,
+                 color=battery_ev_2_load["color"])
+
+        # ax_1.plot(x_values,
+        #           battery_ev_soc["values"],
+        #           linewidth=linewidth_value,
+        #           linestyle='-',
+        #           label=battery_ev_soc["label"],
+        #           color=battery_ev_soc["color"])
+
+        ax_2 = ax_1.twinx()
+
+        ax_2.plot(x_values,
+                  electricity_price["values"],
+                  linewidth=linewidth_value,
+                  linestyle='-',
+                  label=electricity_price["label"],
+                  color=electricity_price["color"])
+
+        ax_2.plot(x_values,
+                  feedin_tariff["values"],
+                  linewidth=linewidth_value,
+                  linestyle='-',
+                  label=feedin_tariff["label"],
+                  color=feedin_tariff["color"])
+
+        ax_1.set_xlabel("Hour of the Year", fontsize=20, labelpad=10)
+        ax_1.set_ylabel(kwargs["tech"] + " Charge and Discharge (kW)", fontsize=20, labelpad=10)
+        ax_2.set_ylabel("Electricity Price and Feed-in Tariff (€)", fontsize=20, labelpad=10)
+        if "y_lim" in kwargs:
+            ax_1.set_ylim(kwargs["y_lim"])
+        figure.legend(fontsize=15, bbox_to_anchor=(0, 1.04, 1, 0.1), bbox_transform=ax_1.transAxes,
+                      loc=1, ncol=3, borderaxespad=0, mode='expand', frameon=True)
+
+        for tick in ax_1.xaxis.get_major_ticks():
+            tick.label1.set_fontsize(20)
+        for tick in ax_1.yaxis.get_major_ticks():
+            tick.label1.set_fontsize(20)
+        for tick in ax_2.yaxis.get_major_ticks():
+            tick.label2.set_fontsize(20)
+
+        fig_name = kwargs["tech"] + "_H" + str(id_household) + "_E" + str(id_environment) + \
+                   "_H" + str(horizon[0]) + "_" + str(horizon[1])
+        figure.savefig(CONS().FiguresPath + fig_name + ".png", dpi=200, format='PNG')
+        plt.close(figure)
+
+    def visualization_SystemOperation(self, id_household, id_environment, **kargs):
 
         if "horizon" in kargs:
             HourStart = kargs["horizon"][0]
@@ -181,14 +347,15 @@ class Visualization:
                                                        (self.SystemOperationHour[self.VAR.ID_Hour] >= HourStart) &
                                                        (self.SystemOperationHour[self.VAR.ID_Hour] <= HourEnd)]
 
-        ElectricityPrice = SystemOperation[self.VAR.ElectricityPrice]
-        FeedinTariff = SystemOperation[self.VAR.FeedinTariff]
-
         # ----------------
         # Data preparation
         # ----------------
 
-        # 1. Electricity balance
+        # 1. Environment
+        ElectricityPrice = SystemOperation[self.VAR.ElectricityPrice]
+        FeedinTariff = SystemOperation[self.VAR.FeedinTariff]
+
+        # 2. Electricity balance
         # Grid
         Grid = SystemOperation[self.VAR.E_Grid]
         Grid2Load = SystemOperation[self.VAR.E_Grid2Load]
@@ -224,12 +391,24 @@ class Visualization:
         EV2Battery = SystemOperation[self.VAR.E_EV2Battery]
         EVStateOfCharge = SystemOperation[self.VAR.EVStateOfCharge]
 
+        # 3. Space heating and cooling
 
-        # 2. Space heating and cooling
 
-        # ----
-        # Plot
-        # ----
+
+        # #####
+        # Plots
+        # #####
+
+        ElectricityPrice_element = {"values": ElectricityPrice,
+                                    "label": "ElectricityPrice",
+                                    "color": self.VarColors[self.VAR.ElectricityPrice]}
+        FeedinTariff_element = {"values": FeedinTariff,
+                                "label": "FeedinTariff",
+                                "color": self.VarColors[self.VAR.FeedinTariff]}
+
+        # ------------------
+        # Plot 1: SystemLoad
+        # ------------------
 
         # Load
         Horizon = [HourStart, HourEnd]
@@ -277,12 +456,92 @@ class Visualization:
                              Battery2Load_element,
                              EV2Load_element)
 
-    def plot_SpaceHeatingAndCooling(self):
-        pass
+        # ----------
+        # Plot 2: PV
+        # ----------
+        PV2Load_element = {"values": PV2Load,
+                           "label": "PV2Load",
+                           "color": self.VarColors[self.VAR.E_PV2Load]}
+        PV2Battery_element = {"values": PV2Battery,
+                              "label": "PV2Battery",
+                              "color": self.VarColors[self.VAR.E_PV2Battery]}
+        PV2EV_element = {"values": PV2EV,
+                         "label": "PV2EV",
+                         "color": self.VarColors[self.VAR.E_PV2EV]}
+        PV2Grid_element = {"values": PV2Grid,
+                           "label": "PV2Grid",
+                           "color": self.VarColors[self.VAR.E_PV2Grid]}
+
+        self.plot_PV(id_household, id_environment, Horizon,
+                     PV2Load_element,
+                     PV2Battery_element,
+                     PV2EV_element,
+                     PV2Grid_element,
+                     ElectricityPrice_element,
+                     FeedinTariff_element)
+
+        # ---------------
+        # Plot 3: Battery
+        # ---------------
+        Grid2Battery_element = {"values": Grid2Battery,
+                                "label": "Grid2Battery",
+                                "color": self.VarColors[self.VAR.E_Grid2Battery]}
+        PV2Battery_element = {"values": PV2Battery,
+                              "label": "PV2Battery",
+                              "color": self.VarColors[self.VAR.E_PV2Battery]}
+        EV2Battery_element = {"values": EV2Battery,
+                              "label": "EV2Battery",
+                              "color": self.VarColors[self.VAR.E_EV2Battery]}
+        Battery2Load_element = {"values": Battery2Load * (-1),
+                                "label": "Battery2Load",
+                                "color": self.VarColors[self.VAR.E_Battery2Load]}
+        BatteryStateOfCharge_element = {"values": BatteryStateOfCharge,
+                                        "label": "BatterySoC",
+                                        "color": self.VarColors[self.VAR.BatteryStateOfCharge]}
+
+        self.plot_Battery_EV(id_household, id_environment, Horizon,
+                             Grid2Battery_element,
+                             PV2Battery_element,
+                             EV2Battery_element,
+                             Battery2Load_element,
+                             BatteryStateOfCharge_element,
+                             ElectricityPrice_element,
+                             FeedinTariff_element,
+                             tech="Battery")
+
+        # ----------
+        # Plot 4: EV
+        # ----------
+        Grid2EV_element = {"values": Grid2EV,
+                           "label": "Grid2EV",
+                           "color": self.VarColors[self.VAR.E_Grid2EV]}
+        PV2EV_element = {"values": PV2EV,
+                         "label": "PV2EV",
+                         "color": self.VarColors[self.VAR.E_PV2EV]}
+        Battery2EV_element = {"values": Battery2EV,
+                              "label": "Battery2EV",
+                              "color": self.VarColors[self.VAR.E_Battery2EV]}
+        EV2Load_element = {"values": EV2Load * (-1),
+                           "label": "EV2Load",
+                           "color": self.VarColors[self.VAR.E_EV2Load]}
+        EVStateOfCharge_element = {"values": EVStateOfCharge,
+                                   "label": "EVSoC",
+                                   "color": self.VarColors[self.VAR.EVStateOfCharge]}
+
+        self.plot_Battery_EV(id_household, id_environment, Horizon,
+                             Grid2EV_element,
+                             PV2EV_element,
+                             Battery2EV_element,
+                             EV2Load_element,
+                             EVStateOfCharge_element,
+                             ElectricityPrice_element,
+                             FeedinTariff_element,
+                             tech="EV")
 
     def run(self):
-        self.visualization_SystemLoad(1, 1, horizon=[5500, 5600])
-        self.visualization_SystemLoad(1, 1, horizon=[100, 200])
+        self.visualization_SystemOperation(1, 2, horizon=[100, 200])
+        self.visualization_SystemOperation(1, 2, horizon=[5500, 5600])
+
 
 
 

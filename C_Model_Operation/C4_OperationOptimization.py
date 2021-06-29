@@ -454,12 +454,10 @@ class OperationOptimization:
             elif m.CarAtHomeStatus[t] == 0:
                 return m.EVCharge[t] == 0
             elif Household.Battery.Capacity == 0:
-                return m.EVCharge[t] * m.CarAtHomeStatus[t] == m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.PV2EV[t] * \
-                       m.CarAtHomeStatus[t]
+                return m.EVCharge[t] * m.CarAtHomeStatus[t] == m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.PV2EV[t] * m.CarAtHomeStatus[t]
             else:
-                return m.EVCharge[t] * m.CarAtHomeStatus[t] == m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.PV2EV[t] * \
-                       m.CarAtHomeStatus[t] + \
-                       m.Bat2EV[t] * m.CarAtHomeStatus[t]
+                return m.EVCharge[t] * m.CarAtHomeStatus[t] == m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.PV2EV[t] * m.CarAtHomeStatus[t] + \
+                                                               m.Bat2EV[t] * m.CarAtHomeStatus[t]
 
         m.calc_EVCharge = pyo.Constraint(m.t, rule=calc_EVCharge)
 
@@ -656,7 +654,7 @@ class OperationOptimization:
     def run(self):
         DC = DataCollector(self.Conn)
         for household_RowID in range(0, 1):
-            for environment_RowID in range(0, 1):
+            for environment_RowID in range(0, 2):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
         DC.save_OptimizationResult()
