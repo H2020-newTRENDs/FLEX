@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
+__author__ = 'Songmin'
 
-class REG:
+class REG_Table:
 
     def __init__(self):
 
@@ -36,10 +38,8 @@ class REG:
         self.ID_PVType = self.ID + "PVType"
         self.ID_BatteryType = self.ID + "BatteryType"
         self.ID_ElectricVehicleType = self.ID + "ElectricVehicleType"
-
         self.ID_GridInfrastructure = self.ID + "GridInfrastructure"
         self.ID_BuildingMassTemperature = self.ID + "BuildingMassTemperature"
-
 
         # 1.2 Generated tables: objects
         self.Gen_OBJ_ID_Household = self.GeneratedData + self.Object + self.ID + "Household"
@@ -80,9 +80,7 @@ class REG:
 
         self.Sce_HeatPump_COPCurve = self.Scenario + "HeatPump_COPCurve"
 
-
-        #self.Sce_Weather_Temperature_test = self.Scenario + 'Weather_Temperature_test'
-
+        # self.Sce_Weather_Temperature_test = self.Scenario + 'Weather_Temperature_test'
 
         # Generated scenario tables
         self.Gen_Sce_ID_Environment = self.GeneratedData + self.Scenario + self.ID + "Environment"
@@ -97,15 +95,11 @@ class REG:
         self.Gen_Sce_Weather_Radiation_SkyDirections = self.GeneratedData +self.Scenario + 'Weather_Radiation_SkyDirections'  # Philipp
         self.Gen_Sce_HeatPump_HourlyCOP = self.GeneratedData +self.Scenario + "HeatPump_HourlyCOP"
 
-
-
         # Gen_Sce_SolarRadiationDirections...
 
         # Result tables
-        self.Res_MinimizedOperationCost = self.Result + "MinimizedOperationCost" #3: col: IDHH, col IDEnvi, col: cost
-        self.Res_SystemOperation = self.Result + "SystemOperation" #4: col: IDHH, col IDEnvi, , col: IDHour, col: technologies
-        self.Res_YearlyValues = self.Result + "YearlyValues" # yearly sum of technology demands
-        self.Res_HourlyValues = self.Result + 'HourlyValues' # HourlyValue of each variable, technology
+        self.Res_SystemOperationYear = self.Result + "SystemOperationYear" #3: col: IDHH, col IDEnvi, col: cost
+        self.Res_SystemOperationHour = self.Result + "SystemOperationHour" #4: col: IDHH, col IDEnvi, , col: IDHour, col: technologies
 
         # ------------------------------
         # Part II: Investment simulation
@@ -113,8 +107,83 @@ class REG:
 
 
 
+class REG_Var:
+
+    def __init__(self):
+
+        # Prefix
+        self.ID = "ID_"
+        self.UsefulEnergy = "Q_"
+        self.EndEnergy = "E_"
+
+        # Variable
+        self.ID_Household = self.ID + "Household"
+        self.ID_Environment = self.ID + "Environment"
+        self.ID_Hour = self.ID + "Hour"
+
+        self.E_BaseElectricityLoad = self.EndEnergy + "BaseElectricityLoad"
+        self.E_DishWasher = self.EndEnergy + "DishWasher"
+        self.E_WashingMachine = self.EndEnergy + "WashingMachine"
+        self.E_Dryer = self.EndEnergy + "Dryer"
+        self.E_SmartAppliance = self.EndEnergy + "SmartAppliance"
+
+        self.Q_HeatPump = self.UsefulEnergy + "HeatPump"
+        self.HeatPumpPerformanceFactor = "HeatPumpPerformanceFactor"
+        self.E_HeatPump = self.EndEnergy + "HeatPump"
+        self.E_AmbientHeat = self.EndEnergy + "AmbientHeat"
+        self.E_HeatingElement = self.EndEnergy + "HeatingElement"
+        self.E_RoomHeating = self.EndEnergy + "RoomHeating"
+
+        self.Q_RoomCooling = self.UsefulEnergy + "RoomCooling"
+        self.E_RoomCooling = self.EndEnergy + "RoomCooling"
+
+        self.Q_HotWater = self.UsefulEnergy + "HotWater"
+        self.E_HotWater = self.EndEnergy + "HotWater"
+
+        self.E_Grid = self.EndEnergy + "Grid"
+        self.E_Grid2Load = self.EndEnergy + "Grid2Load"
+        self.E_Grid2Battery = self.EndEnergy + "Grid2Battery"
+        self.E_Grid2EV = self.EndEnergy + "Grid2EV"
+
+        self.E_PV = self.EndEnergy + "PV"
+        self.E_PV2Load = self.EndEnergy + "PV2Load"
+        self.E_PV2Battery = self.EndEnergy + "PV2Battery"
+        self.E_PV2EV = self.EndEnergy + "PV2EV"
+        self.E_PV2Grid = self.EndEnergy + "PV2Grid"
+
+        self.E_BatteryCharge = self.EndEnergy + "BatteryCharge"
+        self.E_BatteryDischarge = self.EndEnergy + "BatteryDischarge"
+        self.E_Battery2Load = self.EndEnergy + "Battery2Load"
+        self.E_Battery2EV = self.EndEnergy + "Battery2EV"
+        self.BatteryStateOfCharge = "BatteryStateOfCharge"
+
+        self.E_EVCharge = self.EndEnergy + "EVCharge"
+        self.E_EV2Discharge = self.EndEnergy + "EV2Discharge"
+        self.E_EV2Load = self.EndEnergy + "EV2Load"
+        self.E_EV2Battery = self.EndEnergy + "EV2Battery"
+        self.EVStateOfCharge = "EVStateOfCharge"
+
+        self.TotalElectricityDemand = "TotalElectricityDemand"
 
 
 
+class REG_Color:
 
+    def __init__(self):
+        self.red = "#F47070"
+        self.blue = "#8EA9DB"
+        self.green = '#088A29'
+        self.yellow = '#FFBF00'
+        self.grey = '#C9C9C9'
+        self.pink = '#FA9EFA'
+        self.dark_green = '#375623'
+        self.dark_blue = '#0404B4'
+        self.purple = '#AC0CB0'
+        self.turquoise = '#3BE0ED'
+        self.dark_red = '#c70d0d'
+        self.dark_grey = '#2c2e2e'
+        self.light_brown = '#db8b55'
+        self.black = "#000000"
+        self.red_pink = "#f75d82"
+        self.brown = '#A52A2A'
 

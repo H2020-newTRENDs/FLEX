@@ -20,7 +20,7 @@ class CONS:
         self.RootDB = "ProsumagerUpdated" + self.Name
         # self.RootDB = "ProsumagerUpdated"
 
-        # ----------------
-        # Model Parameters
-        # ----------------
+        # -----------------
+        # Global Parameters
+        # -----------------
         self.OptimizationHourHorizon = 8760

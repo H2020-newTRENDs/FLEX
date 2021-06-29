@@ -5,10 +5,10 @@ import pandas as pd
 
 import sys as sys
 
-from A_Infrastructure.A2_Register import REG
+from A_Infrastructure.A2_REG import REG_Table
 from A_Infrastructure.A3_DB import DB
 from B_Classes.B1_Household import Household
-from A_Infrastructure.A1_Constants import CONS
+from A_Infrastructure.A1_CONS import CONS
 
 
 class OperationOptimization:
@@ -27,33 +27,33 @@ class OperationOptimization:
         ############################################################################################
         # (1) Reading data from DB
         self.Conn = conn
-        self.ID_Household = DB().read_DataFrame(REG().Gen_OBJ_ID_Household, self.Conn)
-        self.ID_Environment = DB().read_DataFrame(REG().Gen_Sce_ID_Environment, self.Conn)
+        self.ID_Household = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Household, self.Conn)
+        self.ID_Environment = DB().read_DataFrame(REG_Table().Gen_Sce_ID_Environment, self.Conn)
 
-        self.TimeStructure = DB().read_DataFrame(REG().Sce_ID_TimeStructure, self.Conn)
-        self.Weather = DB().read_DataFrame(REG().Sce_Weather_Temperature, self.Conn)
-        self.Radiation = DB().read_DataFrame(REG().Sce_Weather_Radiation, self.Conn)
+        self.TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
+        self.Weather = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn)
+        self.Radiation = DB().read_DataFrame(REG_Table().Sce_Weather_Radiation, self.Conn)
 
-        self.ElectricityPrice = DB().read_DataFrame(REG().Sce_Price_HourlyElectricityPrice, self.Conn)
-        self.FeedinTariff = DB().read_DataFrame(REG().Sce_Price_HourlyFeedinTariff, self.Conn)
+        self.ElectricityPrice = DB().read_DataFrame(REG_Table().Sce_Price_HourlyElectricityPrice, self.Conn)
+        self.FeedinTariff = DB().read_DataFrame(REG_Table().Sce_Price_HourlyFeedinTariff, self.Conn)
 
-        self.LoadProfile = DB().read_DataFrame(REG().Sce_Demand_BaseElectricityProfile, self.Conn)
-        self.Demand_EV = DB().read_DataFrame(REG().Sce_Demand_ElectricVehicleBehavior, self.Conn)
+        self.LoadProfile = DB().read_DataFrame(REG_Table().Sce_Demand_BaseElectricityProfile, self.Conn)
+        self.Demand_EV = DB().read_DataFrame(REG_Table().Sce_Demand_ElectricVehicleBehavior, self.Conn)
 
-        self.DishWasherHours = DB().read_DataFrame(REG().Gen_Sce_DishWasherHours, self.Conn)
-        self.Sce_Demand_DishWasher = DB().read_DataFrame(REG().Sce_Demand_DishWasher, self.Conn)
-        self.WashingMachineHours = DB().read_DataFrame(REG().Gen_Sce_WashingMachineHours, self.Conn)
-        self.Sce_Demand_WashingMachine = DB().read_DataFrame(REG().Sce_Demand_WashingMachine, self.Conn)
-        self.Sce_Demand_Dryer = DB().read_DataFrame(REG().Sce_Demand_Dryer, self.Conn)
+        self.DishWasherHours = DB().read_DataFrame(REG_Table().Gen_Sce_DishWasherHours, self.Conn)
+        self.Sce_Demand_DishWasher = DB().read_DataFrame(REG_Table().Sce_Demand_DishWasher, self.Conn)
+        self.WashingMachineHours = DB().read_DataFrame(REG_Table().Gen_Sce_WashingMachineHours, self.Conn)
+        self.Sce_Demand_WashingMachine = DB().read_DataFrame(REG_Table().Sce_Demand_WashingMachine, self.Conn)
+        self.Sce_Demand_Dryer = DB().read_DataFrame(REG_Table().Sce_Demand_Dryer, self.Conn)
 
-        self.CarAtHomeStatus = DB().read_DataFrame(REG().Gen_Sce_CarAtHomeHours, self.Conn)
-        self.PhotovoltaicProfile = DB().read_DataFrame(REG().Gen_Sce_PhotovoltaicProfile, self.Conn)
-        self.HotWaterProfile = DB().read_DataFrame(REG().Gen_Sce_HotWaterProfile, self.Conn)
-        self.Radiation_SkyDirections = DB().read_DataFrame(REG().Gen_Sce_Weather_Radiation_SkyDirections, self.Conn)
-        self.HeatPump_HourlyCOP = DB().read_DataFrame(REG().Gen_Sce_HeatPump_HourlyCOP, self.Conn)
+        self.CarAtHomeStatus = DB().read_DataFrame(REG_Table().Gen_Sce_CarAtHomeHours, self.Conn)
+        self.PhotovoltaicProfile = DB().read_DataFrame(REG_Table().Gen_Sce_PhotovoltaicProfile, self.Conn)
+        self.HotWaterProfile = DB().read_DataFrame(REG_Table().Gen_Sce_HotWaterProfile, self.Conn)
+        self.Radiation_SkyDirections = DB().read_DataFrame(REG_Table().Gen_Sce_Weather_Radiation_SkyDirections, self.Conn)
+        self.HeatPump_HourlyCOP = DB().read_DataFrame(REG_Table().Gen_Sce_HeatPump_HourlyCOP, self.Conn)
 
-        self.TargetTemperature = DB().read_DataFrame(REG().Sce_ID_TargetTemperatureType, self.Conn)
-        self.EnergyCost = DB().read_DataFrame(REG().Sce_Price_EnergyCost, self.Conn)
+        self.TargetTemperature = DB().read_DataFrame(REG_Table().Sce_ID_TargetTemperatureType, self.Conn)
+        self.EnergyCost = DB().read_DataFrame(REG_Table().Sce_Price_EnergyCost, self.Conn)
 
         # you can import all the necessary tables into the memory here.
         # Then, it can be faster when we run the optimization problem for many "household - environment" combinations.
@@ -1172,119 +1172,13 @@ def show_results(instance, M_WaterTank, CWater, colors):
     fig.savefig('(10) Room and building', dpi=300)
     plt.show()
 
-    ###########################################################################################
-    # (5.4) Output of checksums
 
-    print('For this the starttime = 1 and stoptime = 8760!!! - otherwise partly wrong results')
-    # yearly values
-    total_cost = instance.OBJ()
-    print('Yearly cost of all technologies: ' + str(total_cost) + '  €')
-
-    YearlyHeatGenerationHP = np.sum(Q_TankHeating)
-    print('Yearly Output of Heat pump (y): ' + str(YearlyHeatGenerationHP) + ' kWh')
-
-    YearlyHeatGenerationHE = np.sum(Q_HeatingElement)
-    print('Yearly Output of Heating Element (y): ' + str(YearlyHeatGenerationHE) + ' kWh')
-
-    JAZ = round(np.sum(Q_TankHeating) / np.sum(ElectricityDemandHeatPump), 2)
-    print('Annual performance factor of heatpump: ' + str(JAZ))
-
-    YearlyHeatDemand = np.sum(Q_RoomHeating)
-    print('Yearly demand of Space Heating (y): ' + str(YearlyHeatDemand) + ' kWh')
-
-    YearlyCoolingDemand = np.sum(Q_RoomCooling)
-    print('Yearly demand of Space Cooling (y): ' + str(YearlyCoolingDemand) + ' kWh')
-
-    YearlySolarGain = np.sum(Q_Solar)
-    print('Yearly demand of Solar gains (y): ' + str(YearlySolarGain) + ' kWh')
-
-    ### Grid PV ###
-    YearlyGrid = np.sum(Grid)
-    print('Yearly cover from electricity grid: ' + str(YearlyGrid) + ' kWh')
-
-    YearlyPVGeneration = np.sum(PhotovoltaicProfile)
-    print('Yearly generation of Photvoltaic power: (y) ' + str(YearlyPVGeneration) + ' kWh')
-
-    YearlyFeedin = np.sum(Feedin)
-    print('Yearly photovoltaic feed in  : ' + str(YearlyFeedin) + ' kWh')
-
-    ### Loads ###
-    YearlyElectricityDemand = np.sum(Load)
-    print('Yearly demand of electricity (all) (y) : ' + str(YearlyElectricityDemand) + ' kWh')
-
-    YearlyElectricityDemandHeatPump = np.sum(ElectricityDemandHeatPump)
-    print('Yearly electricity demand of heatpump (y): ' + str(YearlyElectricityDemandHeatPump) + ' kWh')
-
-    YearlyElectricityCooling = np.sum(ElectricityCooling)
-    print('Yearly electricity demand cooling (y): ' + str(YearlyElectricityCooling) + ' kWh')
-
-    YearlyBaseLoad = np.sum(LoadProfile)
-    print('Yearly base electricity demand (y) : ' + str(YearlyBaseLoad) + ' kWh')
-
-    YearlyHW1 = np.sum(HotWater1)
-    print('Yearly hot water part 1 electricity demand (y) : ' + str(YearlyHW1) + ' kWh')
-
-    YearlyHW2 = np.sum(HotWater2)
-    print('Yearly hot water part 2 electricity demand (y) : ' + str(YearlyHW2) + ' kWh')
-
-    YearlyHW = np.sum(HotWater)
-    print('Yearly hot water 1+2 electricity demand (y) : ' + str(YearlyHW) + ' kWh')
-
-    ### EV and battery
-    YearlyStoredEnergyGrid2Bat = np.sum(Grid2Bat)
-    print('Yearly charged power in battery by Grid : ' + str(YearlyStoredEnergyGrid2Bat) + ' kWh')
-
-    YearlyStoredEnergyPV2Bat = np.sum(PV2Bat)
-    print('Yearly charged power in battery PV: ' + str(YearlyStoredEnergyPV2Bat) + ' kWh')
-
-    YearlyStoredEnergyEV2Bat = np.sum(EV2Bat)
-    print('Yearly charged power in battery by EV: ' + str(YearlyStoredEnergyEV2Bat) + ' kWh')
-
-    YearlyStoredEnergy = np.sum(BatCharge)
-    print('Yearly charged power in battery : ' + str(YearlyStoredEnergy) + ' kWh')
-
-    YearlyDischargedEnergy = np.sum(BatDischarge)
-    print('Yearly discharged power in battery : ' + str(YearlyDischargedEnergy) + ' kWh')
-
-    YearlyLossesOfBattery = YearlyStoredEnergy - YearlyDischargedEnergy
-    print('Yearly losses of Battery : ' + str(YearlyLossesOfBattery) + ' kWh')
-
-    YearlyChargeOfEV = np.sum(EVCharge)
-    print('Yearly charge of EV : ' + str(YearlyChargeOfEV) + ' kWh')
-
-    YearlyDishargeOfEV = np.sum(EVDischarge)
-    print('Yearly discharge of EV : ' + str(YearlyDishargeOfEV) + ' kWh')
-
-    # handover of parameter missing
-    YearlyEVDemand = 10 * 5 * 52
-    print('Yearly driving demand of EV : ' + str(YearlyEVDemand) + ' kWh')
-
-    YearlyLossesOfEV = YearlyChargeOfEV - YearlyDishargeOfEV - YearlyEVDemand
-    print('Yearly losses of EV charging + discharge: ' + str(YearlyLossesOfEV) + ' kWh')
-
-    YearlyDishWasher = np.sum(DishWasher)
-    print('Yearly energy of DishWasher : ' + str(YearlyDishWasher) + ' kWh')
-
-    YearlyWashingMachine = np.sum(WashingMachine)
-    print('Yearly energy of WashingMachine : ' + str(YearlyWashingMachine) + ' kWh')
-
-    YearlyDryer = np.sum(Dryer)
-    print('Yearly energy of dryer : ' + str(YearlyDryer) + ' kWh')
-
-    UseOfPV = YearlyPVGeneration - YearlyFeedin
-
-    SelfConsumption = round(UseOfPV / YearlyPVGeneration, 2)
-    SelfSufficiency = round(UseOfPV / (YearlyElectricityDemand + YearlyEVDemand), 2)
-
-    print('Self-consumption rate: ' + str(SelfConsumption))
-    print('Self-sufficiency rate: ' + str(SelfSufficiency))
 
 
 if __name__ == "__main__":
     # colorcode
     red = '#F47070'
     blue = '#8EA9DB'
-
     green = '#088A29'
     orange = '#F4B084'
     yellow = '#FFBF00'
