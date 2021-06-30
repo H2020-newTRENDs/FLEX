@@ -46,13 +46,6 @@ class Building:
 
 
 
-        def calc_IndoorTemperature(self, Energy_TankToRoom_t, OutdoorTemperature_t):
-            """
-            :param Energy_TankToRoom_t: float
-            :param OutdoorTemperature_t: float
-            :return: IndoorTemperature_tp1: float
-            """
-
 
 class HeatingCooling_noDR:
 

@@ -31,7 +31,7 @@ class DataCollector:
                                            self.VAR.E_HeatPump: "REAL",
                                            self.VAR.E_AmbientHeat: "REAL",
                                            self.VAR.Q_HeatingElement: "REAL",
-                                           self.VAR.E_RoomHeating: "REAL",
+                                           self.VAR.Q_RoomHeating: "REAL",
 
                                            self.VAR.Q_RoomCooling: "REAL",
                                            self.VAR.E_RoomCooling: "REAL",
@@ -62,10 +62,66 @@ class DataCollector:
                                            self.VAR.E_EV2Battery: "REAL",
                                            self.VAR.EVStateOfCharge: "REAL",
 
-                                           self.VAR.TotalElectricityDemand: "REAL",
+                                           self.VAR.E_Load: "REAL",
                                            }
         self.SystemOperationHour_ValueList = []
-        self.SystemOperationYear_Column = {} # also with the information of households?
+        self.SystemOperationYear_Column = {self.VAR.ID_Household: "INTEGER",
+                                           self.VAR.ID_Environment: "INTEGER",
+                                           self.VAR.OperationCost: "REAL",
+
+                                           self.VAR.Year_E_BaseElectricityLoad: "REAL",
+                                           self.VAR.Year_E_SmartAppliance: "REAL",
+                                           self.VAR.Year_Q_HeatPump: "REAL",
+                                           self.VAR.Year_E_HeatPump: "REAL",
+                                           self.VAR.Year_HeatPumpPerformanceFactor: "REAL",
+                                           self.VAR.Year_E_AmbientHeat: "REAL",
+                                           self.VAR.Year_Q_HeatingElement: "REAL",
+                                           self.VAR.Year_Q_RoomHeating: "REAL",
+
+                                           self.VAR.Year_Q_RoomCooling: "REAL",
+                                           self.VAR.Year_E_RoomCooling: "REAL",
+
+                                           self.VAR.Year_Q_HotWater: "REAL",
+                                           self.VAR.Year_E_HotWater: "REAL",
+
+                                           self.VAR.Year_E_Grid: "REAL",
+                                           self.VAR.Year_E_Grid2Load: "REAL",
+                                           self.VAR.Year_E_Grid2Battery: "REAL",
+                                           self.VAR.Year_E_Grid2EV: "REAL",
+
+                                           self.VAR.Year_E_PV: "REAL",
+                                           self.VAR.Year_E_PV2Load: "REAL",
+                                           self.VAR.Year_E_PV2Battery: "REAL",
+                                           self.VAR.Year_E_PV2EV: "REAL",
+                                           self.VAR.Year_E_PV2Grid: "REAL",
+
+                                           self.VAR.Year_E_BatteryCharge: "REAL",
+                                           self.VAR.Year_E_BatteryDischarge: "REAL",
+                                           self.VAR.Year_E_Battery2Load: "REAL",
+                                           self.VAR.Year_E_Battery2EV: "REAL",
+
+                                           self.VAR.Year_E_EVCharge: "REAL",
+                                           self.VAR.Year_E_EVDischarge: "REAL",
+                                           self.VAR.Year_E_EV2Load: "REAL",
+                                           self.VAR.Year_E_EV2Battery: "REAL",
+
+                                           self.VAR.Year_E_Load: "REAL",
+                                           self.VAR.Year_E_ElectricityDemand: "REAL",
+                                           self.VAR.Year_E_PVSelfUse: "REAL",
+                                           self.VAR.Year_PVSelfConsumptionRate: "REAL",
+                                           self.VAR.Year_PVSelfSufficiencyRate: "REAL",
+
+                                           self.VAR.Building_hwbnorm: "REAL",
+                                           self.VAR.Household_DishWasherShifting: "REAL",
+                                           self.VAR.Household_WashingMachineShifting: "REAL",
+                                           self.VAR.Household_DryerShifting: "REAL",
+                                           self.VAR.Household_TankSize: "REAL",
+                                           self.VAR.Household_CoolingAdoption: "REAL",
+                                           self.VAR.Household_PVPower: "REAL",
+                                           self.VAR.Household_BatteryCapacity: "REAL",
+                                           self.VAR.Household_EVBatterySize: "REAL",
+                                           self.VAR.Environment_ElectricityPriceType: "REAL"
+                                           }
         self.SystemOperationYear_ValueList = []
 
     def extract_Result2Array(self, result_DictValues):
@@ -184,122 +240,68 @@ class DataCollector:
                                                        E_Load_array[t]
                                                        ])
 
+        self.SystemOperationYear_ValueList.append([Household.ID,
+                                                   Environment["ID"],
+                                                   PyomoModelInstance.Objective(),
+
+                                                   E_BaseLoad_array.sum(),
+                                                   E_SmartAppliances_array.sum(),
+
+                                                   Q_TankHeatingHeatPump_array.sum(),
+                                                   E_TankHeatingHeatPump_array.sum(),
+                                                   Q_TankHeatingHeatPump_array.sum()/E_TankHeatingHeatPump_array.sum(),
+                                                   (Q_TankHeatingHeatPump_array - E_TankHeatingHeatPump_array).sum(),
+                                                   Q_TankHeatingHeatingElement_array.sum(),
+                                                   Q_RoomHeating_array.sum(),
+
+                                                   Q_RoomCooling_array.sum(),
+                                                   E_RoomCooling_array.sum(),
+
+                                                   Q_HotWater_array.sum(),
+                                                   E_HotWater_array.sum(),
+
+                                                   E_Grid_array.sum(),
+                                                   E_Grid2Load_array.sum(),
+                                                   E_Grid2Bat_array.sum(),
+                                                   E_Grid2EV_array.sum(),
+
+                                                   E_PV_array.sum(),
+                                                   E_PV2Load_array.sum(),
+                                                   E_PV2Bat_array.sum(),
+                                                   E_PV2EV_array.sum(),
+                                                   E_PV2Grid_array.sum(),
+
+                                                   E_BatCharge_array.sum(),
+                                                   E_BatDischarge_array.sum(),
+                                                   E_Bat2Load_array.sum(),
+                                                   E_Bat2EV_array.sum(),
+
+                                                   E_EVCharge_array.sum(),
+                                                   E_EVDischarge_array.sum(),
+                                                   E_EV2Load_array.sum(),
+                                                   E_EV2Bat_array.sum(),
+
+                                                   E_Load_array.sum(),
+                                                   (E_Load_array + E_EVCharge_array - E_EVDischarge_array).sum(),
+                                                   E_PV_array.sum() - E_PV2Grid_array.sum(),
+                                                   (E_PV_array.sum() - E_PV2Grid_array.sum())/E_PV_array.sum(),
+                                                   (E_PV_array.sum() - E_PV2Grid_array.sum())/(E_Load_array + E_EVCharge_array - E_EVDischarge_array).sum(),
+
+                                                   Household.Building.hwb_norm1,
+                                                   Household.ApplianceGroup.DishWasherShifting,
+                                                   Household.ApplianceGroup.WashingMachineShifting,
+                                                   Household.ApplianceGroup.DryerShifting,
+                                                   Household.SpaceHeating.TankSize,
+                                                   Household.SpaceCooling.AdoptionStatus,
+                                                   Household.PV.PVPower,
+                                                   Household.Battery.Capacity,
+                                                   Household.ElectricVehicle.BatterySize,
+                                                   Environment["ID_ElectricityPriceType"]])
+
     def save_OptimizationResult(self):
         DB().write_DataFrame(self.SystemOperationHour_ValueList, REG_Table().Res_SystemOperationHour,
                              self.SystemOperationHour_Column.keys(), self.Conn, dtype=self.SystemOperationHour_Column)
+        DB().write_DataFrame(self.SystemOperationYear_ValueList, REG_Table().Res_SystemOperationYear,
+                             self.SystemOperationYear_Column.keys(), self.Conn, dtype=self.SystemOperationYear_Column)
 
-
-
-
-        # Yearly_E_UseOfPV = Yearly_E_PV - Yearly_E_Feedin
-        # Yearly_E_ElectricityDemand = Yearly_E_Load + Yearly_E_EVDriving
-        #
-        # SelfConsumption = round(Yearly_E_UseOfPV / Yearly_E_PV, 2)
-        # SelfSufficiency = round(Yearly_E_UseOfPV / (Yearly_E_ElectricityDemand), 2)
-        #
-        # YearlyDemandValues = [Household.ID,
-        #                       Environment.ID,
-        #                       Cost,
-        #                       SelfConsumption,
-        #                       SelfSufficiency,
-        #                       APF,
-        #                       Yearly_E_ElectricityDemand,
-        #                       Yearly_Q_TankHeatingHP,
-        #                       Yearly_Q_TankHeatingHE,
-        #                       Yearly_E_TankHeatingHP,
-        #                       Yearly_Q_RoomHeating,
-        #                       Yearly_Q_SolarGains,
-        #                       Yearly_Q_RoomCooling,
-        #                       Yearly_E_RoomCooling,
-        #                       Yearly_Q_HW,
-        #                       Yearly_E_HW,
-        #                       Yearly_E_Grid,
-        #                       Yearly_E_Grid2Load,
-        #                       Yearly_E_Grid2EV,
-        #                       Yearly_E_Grid2Bat,
-        #                       Yearly_E_BaseLoad,
-        #                       Yearly_E_PV,
-        #                       Yearly_E_PV2Load,
-        #                       Yearly_E_PV2Bat,
-        #                       Yearly_E_PV2EV,
-        #                       Yearly_E_PV2Grid,
-        #                       Yearly_E_EVCharge,
-        #                       Yearly_E_EVDriving,
-        #                       Yearly_E_EVDischarge,
-        #                       Yearly_E_EV2Bat,
-        #                       Yearly_E_EV2Load,
-        #                       Yearly_E_BatCharge,
-        #                       Yearly_E_BatDischarge,
-        #                       Yearly_E_Bat2Load,
-        #                       Yearly_E_Bat2EV,
-        #                       Yearly_E_DishWasher,
-        #                       Yearly_E_WashingMachine,
-        #                       Yearly_E_Dryer,
-        #                       Yearly_E_SmartAppliances]
-
-
-
-
-
-
-
-        # # Generates SystemOperation
-        # HouseholdTechnologies = [Household.ID,
-        #                          Environment.ID,
-        #                          Cost,
-        #
-        #                          Household.Name_AgeGroup,
-        #
-        #                          Household.Building.name,
-        #                          Household.Building.Af,
-        #                          Household.Building.hwb_norm1,
-        #
-        #                          Household.PV.PVPower,
-        #                          Household.Battery.Capacity,
-        #                          Household.Battery.Grid2Battery,
-        #
-        #                          Household.SpaceHeating.Name_SpaceHeatingBoilerType,
-        #                          Household.SpaceHeating.TankSize,
-        #
-        #                          Household.SpaceCooling.SpaceCoolingPower,
-        #                          Household.SpaceCooling.AdoptionStatus,
-        #
-        #                          Household.ElectricVehicle.Name_ElectricVehicleType,
-        #                          Household.ElectricVehicle.BatterySize,
-        #                          Household.ElectricVehicle.ConsumptionPer100km,
-        #                          Household.ElectricVehicle.V2B,
-        #
-        #                          Household.ApplianceGroup.DishWasherPower,
-        #                          Household.ApplianceGroup.DishWasherShifting,
-        #                          Household.ApplianceGroup.DishWasherAdoption,
-        #
-        #                          Household.ApplianceGroup.WashingMachinePower,
-        #                          Household.ApplianceGroup.WashingMachineShifting,
-        #                          Household.ApplianceGroup.WashingMachineAdoption,
-        #
-        #                          Household.ApplianceGroup.DryerPower,
-        #                          Household.ApplianceGroup.DryerAdoption]
-
-
-
-
-
-
-        # # MinimizedCost
-        # TargetTable_columnsMinimizedCost = ['ID_Household', 'ID_Environment', "TotalCost"]
-        # DB().write_DataFrame(TargetTable_MinimizedCost, REG().Res_MinimizedOperationCost,
-        #                      TargetTable_columnsMinimizedCost, self.Conn)
-        #
-        # # SystemOperation
-        # TargetTable_columnsSystemOperation = ['ID_Household', 'ID_Environment', 'YearlyCost',
-        #                                       'AgeGroup', 'Building_Name', 'Building_Af', 'Building_hwbNorm', 'PVPower',
-        #                                       'SBS_Capacity', 'Grid2Battery', 'SpaceHeatingBoilerType', 'TankSize',
-        #                                       'SpaceCoolingPower', 'SpaceCooling_AdoptionStatus', 'EV_Type',
-        #                                       'EV_BatteryCapacity', 'EV_ConsumptionPer100km', 'EV_V2BStatus',
-        #                                       'DishWasherPower', 'DishWasherShifting',
-        #                                       'DishWasherAdoption', 'WashingMachinePower', 'WashingMachineShifting',
-        #                                       'WashingMachineAdoption', 'DryerPower', 'DryerAdoption']
-        # DB().write_DataFrame(TargetTable_SystemOperation, REG().Res_SystemOperation,
-        #                      TargetTable_columnsSystemOperation, self.Conn)
-        #
 
