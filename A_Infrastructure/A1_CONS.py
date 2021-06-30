@@ -39,3 +39,4 @@ class CONS:
         self.black = "#000000"
         self.red_pink = "#f75d82"
         self.brown = '#A52A2A'
+        self.orange = '#FFA500'
