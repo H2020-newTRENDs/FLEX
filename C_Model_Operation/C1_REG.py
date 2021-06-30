@@ -128,6 +128,7 @@ class REG_Var:
 
         self.ElectricityPrice = "ElectricityPrice"
         self.FeedinTariff = "FeedinTariff"
+        self.OutsideTemperature = "OutsideTemperature"
 
         # SystemOperationHour
         self.E_BaseElectricityLoad = self.EndEnergy + "BaseElectricityLoad"
@@ -142,6 +143,10 @@ class REG_Var:
         self.E_AmbientHeat = self.EndEnergy + "AmbientHeat"
         self.Q_HeatingElement = self.UsefulEnergy + "HeatingElement"
         self.Q_RoomHeating = self.UsefulEnergy + "RoomHeating"
+
+        self.RoomTemperature = "RoomTemperature"
+        self.BuildingMassTemperature = "BuildingMassTemperature"
+        self.Q_SolarGain = self.UsefulEnergy + "SolarGain"
 
         self.Q_RoomCooling = self.UsefulEnergy + "RoomCooling"
         self.E_RoomCooling = self.EndEnergy + "RoomCooling"

@@ -75,7 +75,7 @@ class OperationOptimization:
         # 1. BaseLoadProfile
         # ------------------
 
-        # BaseLoadProfile, BaseLoadProfile is 2376 kWh, SmartAppElectricityProfile is 1658 kWh
+        # BaseLoadProfile is 2376 kWh, SmartAppElectricityProfile is 1658 kWh
         BaseLoadProfile = self.BaseLoadProfile.loc[(self.BaseLoadProfile['ID_BaseElectricityProfileType'] == Environment["ID_BaseElectricityProfileType"]) &
                                                    (self.BaseLoadProfile['ID_HouseholdType'] == Household.ID_HouseholdType)]['BaseElectricityProfile']
 
@@ -368,7 +368,7 @@ class OperationOptimization:
             if Household.ElectricVehicle.BatterySize == 0:
                 return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t]* Household.Battery.Grid2Battery
             else:
-                return m.Grid[t] == m.Grid2Load[t] + m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.Grid2Bat[t]* Household.Battery.Grid2Battery
+                return m.Grid[t] == m.Grid2Load[t] + m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.Grid2Bat[t] * Household.Battery.Grid2Battery
 
         m.calc_UseOfGrid = pyo.Constraint(m.t, rule=calc_UseOfGrid)
 
@@ -530,8 +530,7 @@ class OperationOptimization:
         def calc_WashingMachineHours2(m, t):
             if t >= 8759:
                 return m.WashingMachine2[t] == 0
-            elif m.WashingMachineTheoreticalHours[t] == 1 and (
-                    WashingMachineDuration == 2 or WashingMachineDuration == 3):
+            elif m.WashingMachineTheoreticalHours[t] == 1 and (WashingMachineDuration == 2 or WashingMachineDuration == 3):
                 return m.WashingMachine1[t] == m.WashingMachine2[t + 1]
             return m.WashingMachine2[t] == 0
 
@@ -658,3 +657,7 @@ class OperationOptimization:
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
         DC.save_OptimizationResult()
+
+
+
+

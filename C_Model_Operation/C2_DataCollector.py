@@ -19,6 +19,7 @@ class DataCollector:
                                            self.VAR.ID_Hour: "INTEGER",
                                            self.VAR.ElectricityPrice: "REAL",
                                            self.VAR.FeedinTariff: "REAL",
+                                           self.VAR.OutsideTemperature: "REAL",
 
                                            self.VAR.E_BaseElectricityLoad: "REAL",
                                            self.VAR.E_DishWasher: "REAL",
@@ -32,6 +33,10 @@ class DataCollector:
                                            self.VAR.E_AmbientHeat: "REAL",
                                            self.VAR.Q_HeatingElement: "REAL",
                                            self.VAR.Q_RoomHeating: "REAL",
+
+                                           self.VAR.RoomTemperature: "REAL",
+                                           self.VAR.BuildingMassTemperature: "REAL",
+                                           self.VAR.Q_SolarGain: "REAL",
 
                                            self.VAR.Q_RoomCooling: "REAL",
                                            self.VAR.E_RoomCooling: "REAL",
@@ -130,8 +135,10 @@ class DataCollector:
 
     def collect_OptimizationResult(self, Household, Environment, PyomoModelInstance):
 
-        ElectricityPrice = self.extract_Result2Array(PyomoModelInstance.ElectricityPrice.extract_values())
-        FeedinTariff = self.extract_Result2Array(PyomoModelInstance.FiT.extract_values())
+        ElectricityPrice_array = self.extract_Result2Array(PyomoModelInstance.ElectricityPrice.extract_values())
+        FeedinTariff_array = self.extract_Result2Array(PyomoModelInstance.FiT.extract_values())
+        OutsideTemperature_array = self.extract_Result2Array(PyomoModelInstance.T_outside.extract_values())
+
         E_BaseLoad_array = self.extract_Result2Array(PyomoModelInstance.BaseLoadProfile.extract_values())
         Hour_DishWasher1_array = self.extract_Result2Array(PyomoModelInstance.DishWasher1.extract_values())
         Hour_DishWasher2_array = self.extract_Result2Array(PyomoModelInstance.DishWasher2.extract_values())
@@ -151,6 +158,10 @@ class DataCollector:
         E_TankHeatingHeatPump_array = Q_TankHeatingHeatPump_array / SpaceHeatingHourlyCOP_array
         Q_TankHeatingHeatingElement_array = self.extract_Result2Array(PyomoModelInstance.Q_HeatingElement.extract_values()) / 1000  # kWh
         Q_RoomHeating_array = self.extract_Result2Array(PyomoModelInstance.Q_RoomHeating.extract_values())/1000 #kWh
+
+        RoomTemperature_array = self.extract_Result2Array(PyomoModelInstance.T_room.extract_values())
+        BuildingMassTemperature_array = self.extract_Result2Array(PyomoModelInstance.Tm_t.extract_values())
+        SolarGain_array = self.extract_Result2Array(PyomoModelInstance.Q_Solar.extract_values())/1000
 
         Q_RoomCooling_array = self.extract_Result2Array(PyomoModelInstance.Q_RoomCooling.extract_values())/1000 #kWh
         E_RoomCooling_array = Q_RoomCooling_array / Household.SpaceCooling.SpaceCoolingEfficiency
@@ -192,8 +203,9 @@ class DataCollector:
             self.SystemOperationHour_ValueList.append([Household.ID,
                                                        Environment["ID"],
                                                        t + 1,
-                                                       ElectricityPrice[t],
-                                                       FeedinTariff[t],
+                                                       ElectricityPrice_array[t],
+                                                       FeedinTariff_array[t],
+                                                       OutsideTemperature_array[t],
 
                                                        E_BaseLoad_array[t],
                                                        E_DishWasher_array[t],
@@ -207,6 +219,10 @@ class DataCollector:
                                                        Q_TankHeatingHeatPump_array[t] - E_TankHeatingHeatPump_array[t],
                                                        Q_TankHeatingHeatingElement_array[t],
                                                        Q_RoomHeating_array[t],
+
+                                                       RoomTemperature_array[t],
+                                                       BuildingMassTemperature_array[t],
+                                                       SolarGain_array[t],
 
                                                        Q_RoomCooling_array[t],
                                                        E_RoomCooling_array[t],
