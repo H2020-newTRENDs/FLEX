@@ -621,7 +621,7 @@ class Visualization:
         if Horizon[0] < 100:
             y_lim_range = np.array((-15, 15))
         else:
-            y_lim_range = np.array((-3, 3))
+            y_lim_range = np.array((-4, 4))
         self.plot_SystemLoad(id_household, id_environment, Horizon,
                              BaseElectricityLoad_element,
                              SmartAppliance_element,
@@ -653,11 +653,11 @@ class Visualization:
                            "color": self.VarColors[self.VAR.E_PV2Grid]}
 
         if Horizon[0] < 100:
-            y1_lim_range = np.array((0, 1))
-            y2_lim_range = np.array((0, 0.5))
+            y1_lim_range = np.array((0, 0.8))
+            y2_lim_range = np.array((0, 0.4))
         else:
-            y1_lim_range = np.array((0, 6))
-            y2_lim_range = np.array((0, 0.5))
+            y1_lim_range = np.array((0, 8))
+            y2_lim_range = np.array((0, 0.4))
         self.plot_PV(id_household, id_environment, Horizon,
                      PV2Load_element,
                      PV2Battery_element,
@@ -725,7 +725,7 @@ class Visualization:
             y1_lim_range = np.array((-20, 20))
             y2_lim_range = np.array((0, 80))
         else:
-            y1_lim_range = np.array((-4, 4))
+            y1_lim_range = np.array((-8, 8))
             y2_lim_range = np.array((0, 80))
         self.plot_Battery_EV(id_household, id_environment, Horizon,
                              Grid2EV_element,
@@ -761,7 +761,7 @@ class Visualization:
             y1_lim_range = np.array((-20, 20))
             y2_lim_range = np.array((0.2, 0.4))
         else:
-            y1_lim_range = np.array((-10, 10))
+            y1_lim_range = np.array((-5, 15))
             y2_lim_range = np.array((0.2, 0.4))
         self.plot_RoomHeating(id_household, id_environment, Horizon,
                               Q_HeatPump_element,
@@ -776,7 +776,7 @@ class Visualization:
             y2_lim_range = np.array((-10, 0))
         else:
             y1_lim_range = np.array((10, 30))
-            y2_lim_range = np.array((5, 25))
+            y2_lim_range = np.array((10, 30))
         self.plot_HeatingTemperature(id_household, id_environment, Horizon,
                                      RoomTemperature_element,
                                      BuildingMassTemperature_element,
@@ -788,7 +788,7 @@ class Visualization:
         for household_id in range(1, 2):
             for environment_id in range(1, 3):
                 self.visualization_SystemOperation(household_id, environment_id, week=2)
-                self.visualization_SystemOperation(household_id, environment_id, week=35)
+                self.visualization_SystemOperation(household_id, environment_id, week=34)
 
 
 
