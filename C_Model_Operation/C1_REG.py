@@ -111,20 +111,25 @@ class REG_Table:
 
 class REG_Var:
 
+    # variable names are registered here. They are used in the DataCollector and Visualization.
+
     def __init__(self):
 
         # Prefix
         self.ID = "ID_"
         self.UsefulEnergy = "Q_"
         self.EndEnergy = "E_"
+        self.Year = "Year_"
 
-        # Variable
+        # ID
         self.ID_Household = self.ID + "Household"
         self.ID_Environment = self.ID + "Environment"
         self.ID_Hour = self.ID + "Hour"
+
         self.ElectricityPrice = "ElectricityPrice"
         self.FeedinTariff = "FeedinTariff"
 
+        # SystemOperationHour
         self.E_BaseElectricityLoad = self.EndEnergy + "BaseElectricityLoad"
         self.E_DishWasher = self.EndEnergy + "DishWasher"
         self.E_WashingMachine = self.EndEnergy + "WashingMachine"
@@ -136,7 +141,7 @@ class REG_Var:
         self.E_HeatPump = self.EndEnergy + "HeatPump"
         self.E_AmbientHeat = self.EndEnergy + "AmbientHeat"
         self.Q_HeatingElement = self.UsefulEnergy + "HeatingElement"
-        self.E_RoomHeating = self.EndEnergy + "RoomHeating"
+        self.Q_RoomHeating = self.UsefulEnergy + "RoomHeating"
 
         self.Q_RoomCooling = self.UsefulEnergy + "RoomCooling"
         self.E_RoomCooling = self.EndEnergy + "RoomCooling"
@@ -167,7 +172,64 @@ class REG_Var:
         self.E_EV2Battery = self.EndEnergy + "EV2Battery"
         self.EVStateOfCharge = "EVStateOfCharge"
 
-        self.TotalElectricityDemand = "TotalElectricityDemand"
+        self.E_Load = self.EndEnergy + "Load"
+
+        # SystemOperationYear
+        self.OperationCost = "OperationCost"
+
+        self.Year_E_BaseElectricityLoad = self.Year + self.E_BaseElectricityLoad
+        self.Year_E_SmartAppliance = self.Year + self.E_SmartAppliance
+        self.Year_Q_HeatPump = self.Year + self.Q_HeatPump
+        self.Year_E_HeatPump = self.Year + self.E_HeatPump
+        self.Year_HeatPumpPerformanceFactor = self.Year + "HeatPumpPerformanceFactor"
+        self.Year_E_AmbientHeat = self.Year + self.E_AmbientHeat
+        self.Year_Q_HeatingElement = self.Year + self.Q_HeatingElement
+        self.Year_Q_RoomHeating = self.Year + self.Q_RoomHeating
+
+        self.Year_Q_RoomCooling = self.Year + self.Q_RoomCooling
+        self.Year_E_RoomCooling = self.Year + self.E_RoomCooling
+
+        self.Year_Q_HotWater = self.Year + self.Q_HotWater
+        self.Year_E_HotWater = self.Year + self.E_HotWater
+
+        self.Year_E_Grid = self.Year + self.E_Grid
+        self.Year_E_Grid2Load = self.Year + self.E_Grid2Load
+        self.Year_E_Grid2Battery = self.Year + self.E_Grid2Battery
+        self.Year_E_Grid2EV = self.Year + self.E_Grid2EV
+
+        self.Year_E_PV = self.Year + self.E_PV
+        self.Year_E_PV2Load = self.Year + self.E_PV2Load
+        self.Year_E_PV2Battery = self.Year + self.E_PV2Battery
+        self.Year_E_PV2EV = self.Year + self.E_PV2EV
+        self.Year_E_PV2Grid = self.Year + self.E_PV2Grid
+
+        self.Year_E_BatteryCharge = self.Year + self.E_BatteryCharge
+        self.Year_E_BatteryDischarge = self.Year + self.E_BatteryDischarge
+        self.Year_E_Battery2Load = self.Year + self.E_Battery2Load
+        self.Year_E_Battery2EV = self.Year + self.E_Battery2EV
+
+        self.Year_E_EVCharge = self.Year + self.E_EVCharge
+        self.Year_E_EVDischarge = self.Year + self.E_EVDischarge
+        self.Year_E_EV2Load = self.Year + self.E_EV2Load
+        self.Year_E_EV2Battery = self.Year + self.E_EV2Battery
+
+        self.Year_E_Load = self.Year + self.E_Load
+        self.Year_E_ElectricityDemand = self.Year + self.EndEnergy + "TotalElectricityDemand"
+        self.Year_E_PVSelfUse = self.Year + self.EndEnergy + "PVSelfUse"
+        self.Year_PVSelfConsumptionRate = self.Year + "PVSelfConsumptionRate"
+        self.Year_PVSelfSufficiencyRate = self.Year + "PVSelfSufficiencyRate"
+
+        self.Building_hwbnorm = "Building_hwbnorm1"
+        self.Household_DishWasherShifting = "Household_DishWasherShifting"
+        self.Household_WashingMachineShifting = "Household_WashingMachineShifting"
+        self.Household_DryerShifting = "Household_DryerShifting"
+        self.Household_TankSize = "Household_TankSize"
+        self.Household_CoolingAdoption = "Household_CoolingAdoption"
+        self.Household_PVPower = "Household_PVPower"
+        self.Household_BatteryCapacity = "Household_BatteryCapacity"
+        self.Household_EVBatterySize = "Household_EVBatterySize"
+        self.Environment_ElectricityPriceType = "Environment_ElectricityPriceType"
+
 
 
 

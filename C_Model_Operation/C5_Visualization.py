@@ -30,7 +30,7 @@ class Visualization:
                           self.VAR.E_HeatPump: self.COLOR.red,
                           self.VAR.E_AmbientHeat: self.COLOR.green,
                           self.VAR.Q_HeatingElement: self.COLOR.red,
-                          self.VAR.E_RoomHeating: self.COLOR.green,
+                          self.VAR.Q_RoomHeating: self.COLOR.green,
 
                           self.VAR.Q_RoomCooling: self.COLOR.green,
                           self.VAR.E_RoomCooling: self.COLOR.blue,
@@ -300,22 +300,30 @@ class Visualization:
         ax_2 = ax_1.twinx()
 
         ax_2.plot(x_values,
-                  electricity_price["values"],
+                  battery_ev_soc["values"],
                   linewidth=linewidth_value,
                   linestyle='-',
-                  label=electricity_price["label"],
-                  color=electricity_price["color"])
+                  label=battery_ev_soc["label"],
+                  color=battery_ev_soc["color"])
 
-        ax_2.plot(x_values,
-                  feedin_tariff["values"],
-                  linewidth=linewidth_value,
-                  linestyle='-',
-                  label=feedin_tariff["label"],
-                  color=feedin_tariff["color"])
+        # ax_2.plot(x_values,
+        #           electricity_price["values"],
+        #           linewidth=linewidth_value,
+        #           linestyle='-',
+        #           label=electricity_price["label"],
+        #           color=electricity_price["color"])
+        #
+        # ax_2.plot(x_values,
+        #           feedin_tariff["values"],
+        #           linewidth=linewidth_value,
+        #           linestyle='-',
+        #           label=feedin_tariff["label"],
+        #           color=feedin_tariff["color"])
 
         ax_1.set_xlabel("Hour of the Year", fontsize=20, labelpad=10)
         ax_1.set_ylabel(kwargs["tech"] + " Charge and Discharge (kW)", fontsize=20, labelpad=10)
-        ax_2.set_ylabel("Electricity Price and Feed-in Tariff (€)", fontsize=20, labelpad=10)
+        # ax_2.set_ylabel("Electricity Price and Feed-in Tariff (€)", fontsize=20, labelpad=10)
+        ax_2.set_ylabel(kwargs["tech"] + " State of Charge (kWh)", fontsize=20, labelpad=10)
         if "y_lim" in kwargs:
             ax_1.set_ylim(kwargs["y_lim"])
         figure.legend(fontsize=15, bbox_to_anchor=(0, 1.04, 1, 0.1), bbox_transform=ax_1.transAxes,
@@ -539,6 +547,8 @@ class Visualization:
                              tech="EV")
 
     def run(self):
+        self.visualization_SystemOperation(1, 1, horizon=[100, 200])
+        self.visualization_SystemOperation(1, 1, horizon=[5500, 5600])
         self.visualization_SystemOperation(1, 2, horizon=[100, 200])
         self.visualization_SystemOperation(1, 2, horizon=[5500, 5600])
 
