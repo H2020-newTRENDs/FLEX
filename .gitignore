@@ -150,10 +150,10 @@ out
 gen
 
 # database
-#_Database/
+_Database/
 
 # figure
-#_Figures/
+_Figures/
 
 # documentation
 ## Core latex/pdflatex auxiliary files:
@@ -403,4 +403,4 @@ TSWLatexianTemp*
 # generated if using elsarticle.cls
 #*.spl
 *.npz
-/C_Model/C2_OperationOptimization/log.txt
+/C_Model_Operation/C2_OperationOptimization/log.txt

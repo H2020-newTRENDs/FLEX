@@ -4,9 +4,9 @@ from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 from Core_rc_model import rc_heating_cooling
-from A_Infrastructure.A3_DB import DB
-from A_Infrastructure.A2_Register import REG
-from A_Infrastructure.A1_Constants import CONS
+from A_Infrastructure.A2_DB import DB
+from C_Model_Operation.C1_REG import REG_Table
+from A_Infrastructure.A1_CONS import CONS
 
 def create_building_dataframe():
     #%%
@@ -222,17 +222,17 @@ def create_building_dataframe():
 
 
 def create_radiation_gains():
-    data = DB().read_DataFrame(REG().Sce_Weather_Radiation, conn=DB().create_Connection(CONS().RootDB), ID_Country=20)
+    data = DB().read_DataFrame(REG_Table().Sce_Weather_Radiation, conn=DB().create_Connection(CONS().RootDB), ID_Country=20)
     return data.loc[:, "Radiation"].to_numpy()
 # radiation = create_radiation_gains()
 
 def get_elec_profile():
-    data = DB().read_DataFrame(REG().Sce_Demand_BaseElectricityProfile, conn=DB().create_Connection(CONS().RootDB))
+    data = DB().read_DataFrame(REG_Table().Sce_Demand_BaseElectricityProfile, conn=DB().create_Connection(CONS().RootDB))
     return data.loc[:, "BaseElectricityProfile"].to_numpy()
 
 
 def get_out_temp():
-    data = DB().read_DataFrame(REG().Sce_Weather_Temperature, conn=DB().create_Connection(CONS().RootDB), ID_Country=20)
+    data = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, conn=DB().create_Connection(CONS().RootDB), ID_Country=20)
     temperature = data.loc[:, "Temperature"].to_numpy()
     return temperature
 

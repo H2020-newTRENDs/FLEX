@@ -6,24 +6,26 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 
 
 
-### 1 Milestones
+### 1 Final output
 
-- 01-06-2021: ready to run optimization
-- 01-07-2021: finalize the optimization (code and database) and summarize the results
+- code opensource
+- documentation on readthedoc
+- web-based frontend
 
 ### 2 Next steps
 
 #### 2.1 Songmin
 
-- list the results to analyze and allocate them to different research questions / papers
+- finalize the code
 
 #### 2.2 Thomas
 
-- add smart appliances
+- write the thesis
 
 #### 2.3 Philipp
 
 - validation data from colleague (Energy plus)
+- weather data
 
 ### 5 Questions to discuss
 
