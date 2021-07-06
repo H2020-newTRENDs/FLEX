@@ -27,6 +27,37 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 - validation data from colleague (Energy plus)
 - weather data
 
+### 3 Reference scenario
+
+#### Research Question - 1
+
+- Model setup
+
+#### Research Question - 2
+
+- S1: base load, smart appliance (constant starting hours), space heating (heat pump), space cooling, hot water, PV --- without optimization, constant electricity price
+- S2: S1 + Battery --- optimization, constant electricity price
+
+#### Research Question - 3
+
+- S2: S1 + Battery --- optimization, constant electricity price
+- S3: S1 + Battery --- optimization, variable electricity price
+
+#### Research Question - 4
+
+- S3: S1 + Battery --- optimization, variable electricity price
+- S4: S1 + Battery + EV --- optimization, variable electricity price
+
+
+
+**Chapter: Application of the Model: Research Question 3 and 4**
+
+
+
+
+
+
+
 ### 5 Questions to discuss
 
 #### 5.1 Space heating and hot water modeling
