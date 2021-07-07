@@ -7,7 +7,7 @@ import sys as sys
 
 from C_Model_Operation.C1_REG import REG_Table
 from A_Infrastructure.A2_DB import DB
-from C_Model_Operation.C2a_DataCollector import DataCollector
+from C_Model_Operation.C2_DataCollector import DataCollector
 from B_Classes.B1_Household import Household
 
 
@@ -46,6 +46,9 @@ class OperationOptimization:
         self.TargetTemperature = DB().read_DataFrame(REG_Table().Sce_ID_TargetTemperatureType, self.Conn)
         self.EnergyCost = DB().read_DataFrame(REG_Table().Sce_Price_EnergyCost, self.Conn)
 
+        self.Reference_HeatingCooling = DB().read_DataFrame(REG_Table().Res_Reference_HeatingCooling, self.Conn)
+
+
     def gen_Household(self, row_id):
         ParaSeries = self.ID_Household.iloc[row_id]
         HouseholdAgent = Household(ParaSeries, self.Conn)
@@ -75,9 +78,17 @@ class OperationOptimization:
         # 1. BaseLoadProfile
         # ------------------
 
+        print(Household.Building.ID)
+
         # BaseLoadProfile is 2376 kWh, SmartAppElectricityProfile is 1658 kWh
         BaseLoadProfile = self.BaseLoadProfile.loc[(self.BaseLoadProfile['ID_BaseElectricityProfileType'] == Environment["ID_BaseElectricityProfileType"]) &
                                                    (self.BaseLoadProfile['ID_HouseholdType'] == Household.ID_HouseholdType)]['BaseElectricityProfile']
+
+        Ref_Heating = self.Reference_HeatingCooling.loc[(self.Reference_HeatingCooling['ID_Building'] == Household.Building.ID)]['Ref_Heating']
+
+
+        Ref_Cooling = self.Reference_HeatingCooling.loc[(self.Reference_HeatingCooling['ID_Building'] ==Household.Building.ID)]['Ref_Cooling']
+
 
         # -------------------
         # 2. Smart appliances
@@ -266,6 +277,10 @@ class OperationOptimization:
         # -------------
         # 1. Parameters
         # -------------
+        # Reference
+
+        m.Q_TankHeating = pyo.Param(m.t, initialize=self.creat_Dict(Ref_Heating))
+        m.Q_RoomCooling = pyo.Param(m.t, initialize=self.creat_Dict(Ref_Cooling))
 
         # price
         m.ElectricityPrice = pyo.Param(m.t, initialize=self.creat_Dict(ElectricityPrice))
@@ -297,16 +312,12 @@ class OperationOptimization:
         # ----------------------------
 
         # Variables SpaceHeating
-        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.HeatPumpMaximalThermalPower))
-        m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.HeatingElementPower))
-        m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * M_WaterTank * (273.15 + T_TankMin),
-                                                                     CWater * M_WaterTank * (273.15 + T_TankMax)))
-        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.MaximalPowerFloorHeating))
+        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
-        # energy used for cooling
-        m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceCooling.SpaceCoolingPower))  # 6kW thermal, 2 kW electrical
-        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(HeatingTargetTemperature, CoolingTargetTemperature))  # Change to TargetTemp
-        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalBuildingMassTemperature))
+        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals)  # Change to TargetTemp
+        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # Grid, limit set by 21 kW
         m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))  # 380 * 32 * 1,72
@@ -400,14 +411,15 @@ class OperationOptimization:
         # (6)
         def calc_SumOfLoads(m, t):
             return m.Load[t] == m.BaseLoadProfile[t] \
-                                + ((m.Q_TankHeating[t] / m.SpaceHeatingHourlyCOP[t]) / 1_000) \
-                                + (m.Q_HeatingElement[t] / 1_000) \
-                                + ((m.Q_RoomCooling[t] / Household.SpaceCooling.SpaceCoolingEfficiency / 1_000)) \
-                                + (m.HWPart1[t] / m.SpaceHeatingHourlyCOP[t]) \
-                                + (m.HWPart2[t] / m.HotWaterHourlyCOP[t]) \
-                                + (m.DishWasher1[t] + m.DishWasher2[t] + m.DishWasher3[t]) * DishWasherPower \
-                                + (m.WashingMachine1[t] + m.WashingMachine2[t] + m.WashingMachine3[t]) * WashingMachinePower \
-                                + (m.Dryer1[t] + m.Dryer2[t]) * DryerPower
+                   + ((m.Q_TankHeating[t] / m.SpaceHeatingHourlyCOP[t]) / 1_000) \
+                   + ((m.Q_RoomCooling[t] / Household.SpaceCooling.SpaceCoolingEfficiency / 1_000)) \
+                   + (m.HWPart1[t] / m.SpaceHeatingHourlyCOP[t]) \
+                   + (m.HWPart2[t] / m.HotWaterHourlyCOP[t]) \
+                   + (m.DishWasher1[t] + m.DishWasher2[t] + m.DishWasher3[t]) * DishWasherPower \
+                   + (m.WashingMachine1[t] + m.WashingMachine2[t] + m.WashingMachine3[t]) * WashingMachinePower \
+                   + (m.Dryer1[t] + m.Dryer2[t]) * DryerPower
+
+        # add the profile for heating and cooling demand here
 
         m.calc_SumOfLoads = pyo.Constraint(m.t, rule=calc_SumOfLoads)
 
@@ -576,66 +588,13 @@ class OperationOptimization:
 
         m.calc_Dryer2 = pyo.Constraint(m.t, rule=calc_Dryer2)
 
-        # --------------------------------------
-        # 5. State transition: HeatPump and Tank
-        # --------------------------------------
-
-        def tank_energy(m, t):
-            if t == 1:
-                return m.E_tank[t] == CWater * M_WaterTank * (273.15 + T_TankStart)
-            else:
-                return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t] + m.Q_TankHeating[t] + m.Q_HeatingElement[t] \
-                                      - U_ValueTank * A_SurfaceTank * ((m.E_tank[t] / (M_WaterTank * CWater)) - T_TankSourounding)
-
-        m.tank_energy_rule = pyo.Constraint(m.t, rule=tank_energy)
-
-        # ----------------------------------------------------
-        # 6. State transition: Building temperature (RC-Model)
-        # ----------------------------------------------------
-
-        def thermal_mass_temperature_rc(m, t):
-            if t == 1:
-                return m.Tm_t[t] == Household.Building.BuildingMassTemperatureStartValue
-
-            else:
-                # Equ. C.2
-                PHI_m = Am / Atot * (0.5 * Qi + m.Q_Solar[t])
-                # Equ. C.3
-                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_Solar[t])
-                # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
-                T_sup = m.T_outside[t]
-                # Equ. C.5
-                PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / Hve) + T_sup)) / Htr_2
-                # Equ. C.4
-                return m.Tm_t[t] == (m.Tm_t[t - 1] * ((Cm / 3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / ((Cm / 3600) + 0.5 * (Htr_3 + Htr_em))
-
-        m.thermal_mass_temperature_rule = pyo.Constraint(m.t, rule=thermal_mass_temperature_rc)
-
-        def room_temperature_rc(m, t):
-            if t == 1:
-                T_air = HeatingTargetTemperature
-                return m.T_room[t] == T_air
-            else:
-                # Equ. C.3
-                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_Solar[t])
-                # Equ. C.9
-                T_m = (m.Tm_t[t] + m.Tm_t[t - 1]) / 2
-                T_sup = m.T_outside[t]
-                # Euq. C.10
-                T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (T_sup + (PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / Hve)) / (Htr_ms + Htr_w + Htr_1)
-                # Equ. C.11
-                T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / (Htr_is + Hve)
-                # T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_RoomHeating[t]) / (Htr_is + Hve)
-                return m.T_room[t] == T_air
-
-        m.room_temperature_rule = pyo.Constraint(m.t, rule=room_temperature_rc)
 
         # ------------
         # 7. Objective
         # ------------
 
         def minimize_cost(m):
-            rule = sum(m.Grid[t] * m.ElectricityPrice[t] - m.Feedin[t] * m.FiT[t] for t in m.t) + PetrolCostPerYear
+            rule = sum(m.Grid[t] * m.ElectricityPrice[t] - m.Feedin[t] * m.FiT[t] for t in m.t)
             return rule
         m.Objective = pyo.Objective(rule=minimize_cost)
 
@@ -653,7 +612,7 @@ class OperationOptimization:
     def run(self):
         DC = DataCollector(self.Conn)
         for household_RowID in range(0, 1):
-            for environment_RowID in range(0, 2):
+            for environment_RowID in range(0, 1):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
         DC.save_OptimizationResult()
