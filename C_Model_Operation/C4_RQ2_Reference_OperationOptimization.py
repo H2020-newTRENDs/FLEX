@@ -4,12 +4,14 @@ __author__ = 'Thomas, Philip, Songmin'
 import pyomo.environ as pyo
 import numpy as np
 import sys as sys
+import pandas as pd
 
 from C_Model_Operation.C1_REG import REG_Table
 from A_Infrastructure.A2_DB import DB
 from C_Model_Operation.C2_DataCollector import DataCollector
 from B_Classes.B1_Household import Household
 
+from B_Classes.B2_Building import HeatingCooling_noDR
 
 
 class OperationOptimization:
@@ -40,14 +42,14 @@ class OperationOptimization:
         self.CarAtHomeStatus = DB().read_DataFrame(REG_Table().Gen_Sce_CarAtHomeHours, self.Conn)
         self.PhotovoltaicProfile = DB().read_DataFrame(REG_Table().Gen_Sce_PhotovoltaicProfile, self.Conn)
         self.HotWaterProfile = DB().read_DataFrame(REG_Table().Gen_Sce_HotWaterProfile, self.Conn)
-        self.Radiation_SkyDirections = DB().read_DataFrame(REG_Table().Gen_Sce_Weather_Radiation_SkyDirections, self.Conn)
+        self.Radiation_SkyDirections = DB().read_DataFrame(REG_Table().Gen_Sce_Weather_Radiation_SkyDirections,
+                                                           self.Conn)
         self.HeatPump_HourlyCOP = DB().read_DataFrame(REG_Table().Gen_Sce_HeatPump_HourlyCOP, self.Conn)
 
         self.TargetTemperature = DB().read_DataFrame(REG_Table().Sce_ID_TargetTemperatureType, self.Conn)
         self.EnergyCost = DB().read_DataFrame(REG_Table().Sce_Price_EnergyCost, self.Conn)
 
         self.Reference_HeatingCooling = DB().read_DataFrame(REG_Table().Res_Reference_HeatingCooling, self.Conn)
-
 
     def gen_Household(self, row_id):
         ParaSeries = self.ID_Household.iloc[row_id]
@@ -66,7 +68,8 @@ class OperationOptimization:
 
     def run_Optimization(self, household_RowID, environment_RowID):
 
-        print('Optimization: ID_Household = ' + str(household_RowID + 1) + ", ID_Environment = " + str(environment_RowID + 1))
+        print('Optimization: ID_Household = ' + str(household_RowID + 1) + ", ID_Environment = " + str(
+            environment_RowID + 1))
         Household = self.gen_Household(household_RowID)
         Environment = self.gen_Environment(environment_RowID)
 
@@ -78,17 +81,19 @@ class OperationOptimization:
         # 1. BaseLoadProfile
         # ------------------
 
-        print(Household.Building.ID)
 
         # BaseLoadProfile is 2376 kWh, SmartAppElectricityProfile is 1658 kWh
-        BaseLoadProfile = self.BaseLoadProfile.loc[(self.BaseLoadProfile['ID_BaseElectricityProfileType'] == Environment["ID_BaseElectricityProfileType"]) &
-                                                   (self.BaseLoadProfile['ID_HouseholdType'] == Household.ID_HouseholdType)]['BaseElectricityProfile']
+        BaseLoadProfile = self.BaseLoadProfile.loc[
+            (self.BaseLoadProfile['ID_BaseElectricityProfileType'] == Environment["ID_BaseElectricityProfileType"]) &
+            (self.BaseLoadProfile['ID_HouseholdType'] == Household.ID_HouseholdType)]['BaseElectricityProfile']
 
-        Ref_Heating = self.Reference_HeatingCooling.loc[(self.Reference_HeatingCooling['ID_Building'] == Household.Building.ID)]['Ref_Heating']
+        Ref_Heating = \
+        self.Reference_HeatingCooling.loc[(self.Reference_HeatingCooling['ID_Building'] == Household.Building.ID)][
+            'Ref_Heating']
 
-
-        Ref_Cooling = self.Reference_HeatingCooling.loc[(self.Reference_HeatingCooling['ID_Building'] ==Household.Building.ID)]['Ref_Cooling']
-
+        Ref_Cooling = \
+        self.Reference_HeatingCooling.loc[(self.Reference_HeatingCooling['ID_Building'] == Household.Building.ID)][
+            'Ref_Cooling']
 
         # -------------------
         # 2. Smart appliances
@@ -140,12 +145,12 @@ class OperationOptimization:
         # (3.2) RC-Model
 
         # Building Area
-        Af = Household.Building.Af # konditionierte Nutzfläche (conditioned usable floor area)
+        Af = Household.Building.Af  # konditionierte Nutzfläche (conditioned usable floor area)
         Atot = 4.5 * Af  # 7.2.2.2: Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen (Area of all surfaces facing the building zone)
         # Transmission Coefficient
-        Hve = Household.Building.Hve # Air
-        Htr_w = Household.Building.Htr_w # Wall
-        Hop = Household.Building.Hop # opake Bauteile (opaque components)
+        Hve = Household.Building.Hve  # Air
+        Htr_w = Household.Building.Htr_w  # Wall
+        Hop = Household.Building.Hop  # opake Bauteile (opaque components)
         # Speicherkapazität (Storage capacity) [J/K]
         Cm = Household.Building.CM_factor * Af
         # wirksame Massenbezogene Fläche (Effective mass related area) [m^2]
@@ -153,16 +158,18 @@ class OperationOptimization:
         # internal gains
         Qi = Household.Building.spec_int_gains_cool_watt * Af
         # Coupling values
-        his = np.float_(3.45)  # 7.2.2.2 - Kopplung Temp Luft mit Temp Surface Knoten s (Coupling Temp Air with Temp Surface node s)
-        hms = np.float_(9.1)  # [W / m2K] from Equ.C.3 (from 12.2.2) - kopplung zwischen Masse und zentralen Knoten s (coupling between mass and central node s)
+        his = np.float_(
+            3.45)  # 7.2.2.2 - Kopplung Temp Luft mit Temp Surface Knoten s (Coupling Temp Air with Temp Surface node s)
+        hms = np.float_(
+            9.1)  # [W / m2K] from Equ.C.3 (from 12.2.2) - kopplung zwischen Masse und zentralen Knoten s (coupling between mass and central node s)
         Htr_ms = hms * Am  # from 12.2.2 Equ. (64)
         Htr_em = 1 / (1 / Hop - 1 / Htr_ms)  # from 12.2.2 Equ. (63)
         # thermischer Kopplungswerte (thermal coupling values) [W/K]
         Htr_is = his * Atot
-        PHI_ia = 0.5 * Qi # Equ. C.1
-        Htr_1 = 1 / (1 / Hve + 1 / Htr_is) # Equ. C.6
-        Htr_2 = Htr_1 + Htr_w # Equ. C.7
-        Htr_3 = 1 / (1 / Htr_2 + 1 / Htr_ms) # Equ.C.8
+        PHI_ia = 0.5 * Qi  # Equ. C.1
+        Htr_1 = 1 / (1 / Hve + 1 / Htr_is)  # Equ. C.6
+        Htr_2 = Htr_1 + Htr_w  # Equ. C.7
+        Htr_3 = 1 / (1 / Htr_2 + 1 / Htr_ms)  # Equ.C.8
 
         # (3.3) Solar gains
         # window areas in celestial directions
@@ -176,30 +183,71 @@ class OperationOptimization:
                                    self.Radiation_SkyDirections.RadiationWest, Awindows_rad_east_west)
         Q_sol = (Q_sol_north + Q_sol_south + Q_sol_east_west).squeeze()
 
+        ### Ref Heating Cooling #################################################
+
+
+        Ref_Building = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.Conn)
+
+        SelectedBuilding = Ref_Building.loc[Ref_Building['ID']== Household.Building.ID]
+
+
+        test = HeatingCooling_noDR(SelectedBuilding)
+
+        Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t = test.ref_HeatingCooling(self.Temperature["Temperature"].to_numpy(),
+                                                                                    Q_sol, initial_thermal_mass_temp=15,
+                                                                                    T_air_min=20, T_air_max=24)
+
+        Q_Heating_noDR = list(Q_Heating_noDR.flatten())
+        Q_Cooling_noDR = list(Q_Cooling_noDR.flatten())
+        T_Room_noDR = list(T_Room_noDR.flatten())
+        Tm_t = list(Tm_t.flatten())
+
+        a = np.array([Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t])
+
+        df = pd.DataFrame(data={'Q_Heating_noDR': Q_Heating_noDR, 'Q_Cooling_noDR': Q_Cooling_noDR, 'T_Room_noDR': T_Room_noDR, 'Tm_t': Tm_t})
+        df.to_csv('./Ref_Building' +str(Household.Building.ID) + '.csv', sep = ',', index=False)
+
+
+
+
+
+        # print(Q_Heating_noDR)
+        # print(Q_Cooling_noDR)
+        # print(T_Room_noDR)
+        # print(Tm_t)
+
+
+        ###########################
+
         # (3.4) Selection of heat pump COP
         SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==
-                                                            Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP']
+                                                            Household.SpaceHeating.ID_SpaceHeatingBoilerType][
+            'SpaceHeatingHourlyCOP']
 
         # ------------
         # 4. Hot water
         # ------------
 
         # Hot Water Demand with Part 1 (COP SpaceHeating) and Part 2 (COP HotWater, lower)
-        HotWaterProfileSelect = self.HotWaterProfile.loc[(self.HotWaterProfile['ID_HotWaterProfileType'] == Environment["ID_HotWaterProfileType"]) &
-                                                         (self.HotWaterProfile['ID_Country'] == Household.ID_Country) &
-                                                         (self.HotWaterProfile['ID_HouseholdType'] == Household.ID_HouseholdType)]
+        HotWaterProfileSelect = self.HotWaterProfile.loc[
+            (self.HotWaterProfile['ID_HotWaterProfileType'] == Environment["ID_HotWaterProfileType"]) &
+            (self.HotWaterProfile['ID_Country'] == Household.ID_Country) &
+            (self.HotWaterProfile['ID_HouseholdType'] == Household.ID_HouseholdType)]
         HotWaterProfile1 = HotWaterProfileSelect['HotWaterPart1']
         HotWaterProfile2 = HotWaterProfileSelect['HotWaterPart2']
 
         # Selection of COP
-        HotWaterHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] == Household.SpaceHeating.ID_SpaceHeatingBoilerType]['HotWaterHourlyCOP']
+        HotWaterHourlyCOP = self.HeatPump_HourlyCOP.loc[
+            self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] == Household.SpaceHeating.ID_SpaceHeatingBoilerType][
+            'HotWaterHourlyCOP']
 
         # ----------------------
         # 5. PV and battery
         # ----------------------
 
-        PhotovoltaicBaseProfile = self.PhotovoltaicProfile.loc[(self.PhotovoltaicProfile['ID_PhotovoltaicProfileType'] == Environment["ID_PhotovoltaicProfileType"]) &
-                                                               (self.PhotovoltaicProfile['ID_Country'] == Household.ID_Country)]['PhotovoltaicProfile']
+        PhotovoltaicBaseProfile = self.PhotovoltaicProfile.loc[
+            (self.PhotovoltaicProfile['ID_PhotovoltaicProfileType'] == Environment["ID_PhotovoltaicProfileType"]) &
+            (self.PhotovoltaicProfile['ID_Country'] == Household.ID_Country)]['PhotovoltaicProfile']
         PhotovoltaicProfile = PhotovoltaicBaseProfile * Household.PV.PVPower
 
         # -----
@@ -223,7 +271,9 @@ class OperationOptimization:
             EV_HourlyDemand = 0
             # This value is hard coded for now, have to be chanced with DrivingProfiles
             PetrolCarYearlyDemand = KilometerPerWorkday * ConsumptionPer100km * 5 * 52 / 100  # 5 WorkdaysPerWeek
-            PetrolCostPerLiter = float(self.EnergyCost.loc[self.EnergyCost['ID_EnergyCostType'] == Environment["ID_EnergyCostType"]].loc[:, 'PetrolCost'])
+            PetrolCostPerLiter = float(
+                self.EnergyCost.loc[self.EnergyCost['ID_EnergyCostType'] == Environment["ID_EnergyCostType"]].loc[:,
+                'PetrolCost'])
             PetrolCostPerYear = PetrolCarYearlyDemand * PetrolCostPerLiter
         # Case: BatteryCapacity > 0: EV is adopted
         else:
@@ -239,22 +289,26 @@ class OperationOptimization:
         # 1. Electricity price
         # --------------------
 
-        ElectricityPrice = self.ElectricityPrice.loc[(self.ElectricityPrice['ID_ElectricityPriceType'] == Environment["ID_ElectricityPriceType"]) &
-                                                     (self.ElectricityPrice['ID_Country'] == Household.ID_Country)]['HourlyElectricityPrice']
+        ElectricityPrice = self.ElectricityPrice.loc[
+            (self.ElectricityPrice['ID_ElectricityPriceType'] == Environment["ID_ElectricityPriceType"]) &
+            (self.ElectricityPrice['ID_Country'] == Household.ID_Country)]['HourlyElectricityPrice']
 
         # -----------------
         # 2. Feed-in tariff
         # -----------------
 
-        FeedinTariff = self.FeedinTariff.loc[(self.FeedinTariff['ID_FeedinTariffType'] == Environment["ID_FeedinTariffType"]) &
-                                             (self.ElectricityPrice['ID_Country'] == Household.ID_Country)]['HourlyFeedinTariff']
+        FeedinTariff = \
+        self.FeedinTariff.loc[(self.FeedinTariff['ID_FeedinTariffType'] == Environment["ID_FeedinTariffType"]) &
+                              (self.ElectricityPrice['ID_Country'] == Household.ID_Country)]['HourlyFeedinTariff']
 
         # ---------------------
         # 3. Target temperature
         # ---------------------
 
         ID_TargetTemperatureType = Environment["ID_TargetTemperatureType"]
-        TargetTemperatureSelect = self.TargetTemperature.loc[self.TargetTemperature['ID_TargetTemperatureType'] == ID_TargetTemperatureType].iloc[0]
+        TargetTemperatureSelect = \
+        self.TargetTemperature.loc[self.TargetTemperature['ID_TargetTemperatureType'] == ID_TargetTemperatureType].iloc[
+            0]
         if Household.ID_AgeGroup == 1:
             HeatingTargetTemperature = int(TargetTemperatureSelect['HeatingTargetTemperatureYoung'])
             CoolingTargetTemperature = int(TargetTemperatureSelect['CoolingTargetTemperatureYoung'])
@@ -264,7 +318,8 @@ class OperationOptimization:
         if Household.SpaceCooling.AdoptionStatus == 0:
             CoolingTargetTemperature = 60  # delete limit for cooling, if no Cooling is available
         if CoolingTargetTemperature < HeatingTargetTemperature:
-            print('ERROR: CoolingTargetTemperature !>= HeatingTargetemperature! Change value in databank: Sce_ID_TargetTemperature')
+            print(
+                'ERROR: CoolingTargetTemperature !>= HeatingTargetemperature! Change value in databank: Sce_ID_TargetTemperature')
             sys.exit()
 
         # ###############################################
@@ -304,18 +359,20 @@ class OperationOptimization:
         m.CarAtHomeStatus = pyo.Param(m.t, initialize=CarAtHomeStatus)
         # Smart Technologies
         m.DayHour = pyo.Param(m.t, initialize=self.creat_Dict(self.TimeStructure["ID_DayHour"]))
-        m.DishWasherTheoreticalHours = pyo.Param(m.t, within=pyo.Binary, initialize=self.creat_Dict(DishWasherTheoreticalHours))
-        m.WashingMachineTheoreticalHours = pyo.Param(m.t, within=pyo.Binary, initialize=self.creat_Dict(WashingMachineTheoreticalHours))
+        m.DishWasherTheoreticalHours = pyo.Param(m.t, within=pyo.Binary,
+                                                 initialize=self.creat_Dict(DishWasherTheoreticalHours))
+        m.WashingMachineTheoreticalHours = pyo.Param(m.t, within=pyo.Binary,
+                                                     initialize=self.creat_Dict(WashingMachineTheoreticalHours))
 
         # ----------------------------
         # 2. Variables and constraints
         # ----------------------------
 
         # Variables SpaceHeating
-        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.HeatPumpMaximalThermalPower))
-        m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.HeatingElementPower))
-
-
+        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                                  bounds=(0, Household.SpaceHeating.HeatPumpMaximalThermalPower))
+        m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                                     bounds=(0, Household.SpaceHeating.HeatingElementPower))
 
         m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
@@ -324,7 +381,8 @@ class OperationOptimization:
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # Grid, limit set by 21 kW
-        m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))  # 380 * 32 * 1,72
+        m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                         bounds=(0, Household.Building.MaximalGridPower))  # 380 * 32 * 1,72
         m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
         m.Grid2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
         m.Grid2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))
@@ -345,10 +403,14 @@ class OperationOptimization:
         m.Bat2EV = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxDischargePower))
 
         # EV
-        m.EVDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.ElectricVehicle.BatteryMaxDischargePower))
-        m.EVCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.ElectricVehicle.BatteryMaxChargePower))
-        m.EV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.ElectricVehicle.BatteryMaxDischargePower))
-        m.EV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.ElectricVehicle.BatteryMaxDischargePower))
+        m.EVDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                                bounds=(0, Household.ElectricVehicle.BatteryMaxDischargePower))
+        m.EVCharge = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                             bounds=(0, Household.ElectricVehicle.BatteryMaxChargePower))
+        m.EV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                            bounds=(0, Household.ElectricVehicle.BatteryMaxDischargePower))
+        m.EV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                           bounds=(0, Household.ElectricVehicle.BatteryMaxDischargePower))
         m.EVSoC = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.ElectricVehicle.BatterySize))
 
         # Smart Technologies
@@ -370,26 +432,31 @@ class OperationOptimization:
         # (1) Overall energy balance
         def calc_ElectricalEnergyBalance(m, t):
             if Household.ElectricVehicle.BatterySize == 0:
-                return m.Grid[t] + m.PhotovoltaicProfile[t] + m.BatDischarge[t] == m.Feedin[t] + m.Load[t] + m.BatCharge[t]
+                return m.Grid[t] + m.PhotovoltaicProfile[t] + m.BatDischarge[t] == m.Feedin[t] + m.Load[t] + \
+                       m.BatCharge[t]
             elif Household.Battery.Capacity == 0:
-                return m.Grid[t] + m.PhotovoltaicProfile[t] + m.EVDischarge[t] == m.Feedin[t] + m.Load[t] + m.EVCharge[t]
+                return m.Grid[t] + m.PhotovoltaicProfile[t] + m.EVDischarge[t] == m.Feedin[t] + m.Load[t] + m.EVCharge[
+                    t]
             else:
-                return m.Grid[t] + m.PhotovoltaicProfile[t] + m.BatDischarge[t] + m.EVDischarge[t] == m.Feedin[t] + m.Load[t] + m.BatCharge[t] + m.EVCharge[t]
+                return m.Grid[t] + m.PhotovoltaicProfile[t] + m.BatDischarge[t] + m.EVDischarge[t] == m.Feedin[t] + \
+                       m.Load[t] + m.BatCharge[t] + m.EVCharge[t]
 
         m.calc_ElectricalEnergyBalance = pyo.Constraint(m.t, rule=calc_ElectricalEnergyBalance)
 
         # (2)
         def calc_UseOfGrid(m, t):
             if Household.ElectricVehicle.BatterySize == 0:
-                return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t]* Household.Battery.Grid2Battery
+                return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t] * Household.Battery.Grid2Battery
             else:
-                return m.Grid[t] == m.Grid2Load[t] + m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.Grid2Bat[t] * Household.Battery.Grid2Battery
+                return m.Grid[t] == m.Grid2Load[t] + m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.Grid2Bat[
+                    t] * Household.Battery.Grid2Battery
 
         m.calc_UseOfGrid = pyo.Constraint(m.t, rule=calc_UseOfGrid)
 
         # (3)
         def calc_UseOfPV(m, t):
-            return m.PV2Load[t] + m.PV2Bat[t] + m.PV2Grid[t] + m.PV2EV[t] * m.CarAtHomeStatus[t] == m.PhotovoltaicProfile[t]
+            return m.PV2Load[t] + m.PV2Bat[t] + m.PV2Grid[t] + m.PV2EV[t] * m.CarAtHomeStatus[t] == \
+                   m.PhotovoltaicProfile[t]
 
         m.calc_UseOfPV = pyo.Constraint(m.t, rule=calc_UseOfPV)
 
@@ -408,7 +475,8 @@ class OperationOptimization:
             elif Household.Battery.Capacity == 0:
                 return m.Grid2Load[t] + m.PV2Load[t] + m.EV2Load[t] * m.CarAtHomeStatus[t] * V2B == m.Load[t]
             else:
-                return m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] + m.EV2Load[t] * m.CarAtHomeStatus[t] * V2B == m.Load[t]
+                return m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] + m.EV2Load[t] * m.CarAtHomeStatus[t] * V2B == \
+                       m.Load[t]
 
         m.calc_SupplyOfLoads = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
 
@@ -444,9 +512,10 @@ class OperationOptimization:
             if Household.Battery.Capacity == 0:
                 return m.BatCharge[t] == 0
             elif Household.ElectricVehicle.BatterySize == 0:
-                return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t]* Household.Battery.Grid2Battery
+                return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] * Household.Battery.Grid2Battery
             else:
-                return m.BatCharge[t] == m.PV2Bat[t] + m.EV2Bat[t] * V2B + m.Grid2Bat[t]* Household.Battery.Grid2Battery
+                return m.BatCharge[t] == m.PV2Bat[t] + m.EV2Bat[t] * V2B + m.Grid2Bat[
+                    t] * Household.Battery.Grid2Battery
 
         m.calc_BatCharge = pyo.Constraint(m.t, rule=calc_BatCharge)
 
@@ -469,10 +538,12 @@ class OperationOptimization:
             elif m.CarAtHomeStatus[t] == 0:
                 return m.EVCharge[t] == 0
             elif Household.Battery.Capacity == 0:
-                return m.EVCharge[t] * m.CarAtHomeStatus[t] == m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.PV2EV[t] * m.CarAtHomeStatus[t]
+                return m.EVCharge[t] * m.CarAtHomeStatus[t] == m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.PV2EV[t] * \
+                       m.CarAtHomeStatus[t]
             else:
-                return m.EVCharge[t] * m.CarAtHomeStatus[t] == m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.PV2EV[t] * m.CarAtHomeStatus[t] + \
-                                                               m.Bat2EV[t] * m.CarAtHomeStatus[t]
+                return m.EVCharge[t] * m.CarAtHomeStatus[t] == m.Grid2EV[t] * m.CarAtHomeStatus[t] + m.PV2EV[t] * \
+                       m.CarAtHomeStatus[t] + \
+                       m.Bat2EV[t] * m.CarAtHomeStatus[t]
 
         m.calc_EVCharge = pyo.Constraint(m.t, rule=calc_EVCharge)
 
@@ -489,7 +560,8 @@ class OperationOptimization:
             elif Household.Battery.Capacity == 0:
                 return m.EVDischarge[t] == m.EV2Load[t] * m.CarAtHomeStatus[t] * V2B
             else:
-                return m.EVDischarge[t] == m.EV2Load[t] * m.CarAtHomeStatus[t] * V2B + m.EV2Bat[t] * m.CarAtHomeStatus[t] * V2B
+                return m.EVDischarge[t] == m.EV2Load[t] * m.CarAtHomeStatus[t] * V2B + m.EV2Bat[t] * m.CarAtHomeStatus[
+                    t] * V2B
 
         m.calc_EVDischarge = pyo.Constraint(m.t, rule=calc_EVDischarge)
 
@@ -500,9 +572,11 @@ class OperationOptimization:
             elif Household.ElectricVehicle.BatterySize == 0:
                 return m.EVSoC[t] == 0
             else:
-                return m.EVSoC[t] == m.EVSoC[t - 1] + (m.EVCharge[t] * m.CarAtHomeStatus[t] * Household.ElectricVehicle.BatteryChargeEfficiency) \
-                                     - (m.EVDischarge[t] * m.CarAtHomeStatus[t] * (1 + (1 - Household.ElectricVehicle.BatteryDischargeEfficiency))) \
-                                     - (EV_HourlyDemand * (1 - m.CarAtHomeStatus[t]))
+                return m.EVSoC[t] == m.EVSoC[t - 1] + (
+                            m.EVCharge[t] * m.CarAtHomeStatus[t] * Household.ElectricVehicle.BatteryChargeEfficiency) \
+                       - (m.EVDischarge[t] * m.CarAtHomeStatus[t] * (
+                            1 + (1 - Household.ElectricVehicle.BatteryDischargeEfficiency))) \
+                       - (EV_HourlyDemand * (1 - m.CarAtHomeStatus[t]))
 
         m.calc_EVSoC = pyo.Constraint(m.t, rule=calc_EVSoC)
 
@@ -532,7 +606,8 @@ class OperationOptimization:
         def calc_DishWasherStartTime(m, t):
             if m.t[t] == 1:
                 return m.DishWasherStart[t] == 0
-            elif m.DishWasherTheoreticalHours[t] == 1 and m.DayHour[t] == DishWasherStartTime and DishWasherSmartStatus == 0:
+            elif m.DishWasherTheoreticalHours[t] == 1 and m.DayHour[
+                t] == DishWasherStartTime and DishWasherSmartStatus == 0:
                 return m.DishWasher1[t] == 1
             elif m.DishWasherTheoreticalHours[t] == 1 and m.DayHour[t] == 24:
                 return m.DishWasherStart[t] == m.DishWasherStart[t - 1] - 1 * DishWasherSmartStatus
@@ -545,7 +620,8 @@ class OperationOptimization:
         def calc_WashingMachineHours2(m, t):
             if t >= 8759:
                 return m.WashingMachine2[t] == 0
-            elif m.WashingMachineTheoreticalHours[t] == 1 and (WashingMachineDuration == 2 or WashingMachineDuration == 3):
+            elif m.WashingMachineTheoreticalHours[t] == 1 and (
+                    WashingMachineDuration == 2 or WashingMachineDuration == 3):
                 return m.WashingMachine1[t] == m.WashingMachine2[t + 1]
             return m.WashingMachine2[t] == 0
 
@@ -563,11 +639,13 @@ class OperationOptimization:
         def calc_WashingMachineStartTime(m, t):
             if m.t[t] == 1:
                 return m.WashingMachineStart[t] == 0
-            elif m.WashingMachineTheoreticalHours[t] == 1 and m.DayHour[t] == WashingMachineStartTime and WashingMachineSmartStatus == 0:
+            elif m.WashingMachineTheoreticalHours[t] == 1 and m.DayHour[
+                t] == WashingMachineStartTime and WashingMachineSmartStatus == 0:
                 return m.WashingMachine1[t] == 1
             elif m.WashingMachineTheoreticalHours[t] == 1 and m.DayHour[t] == 24:
                 return m.WashingMachineStart[t] == m.WashingMachineStart[t - 1] - 1 * WashingMachineSmartStatus
-            return m.WashingMachineStart[t] == m.WashingMachineStart[t - 1] + m.WashingMachine1[t] * m.WashingMachineTheoreticalHours[t] * WashingMachineSmartStatus
+            return m.WashingMachineStart[t] == m.WashingMachineStart[t - 1] + m.WashingMachine1[t] * \
+                   m.WashingMachineTheoreticalHours[t] * WashingMachineSmartStatus
 
         m.calc_WashingMachineStartTime = pyo.Constraint(m.t, rule=calc_WashingMachineStartTime)
 
@@ -597,7 +675,6 @@ class OperationOptimization:
 
         m.calc_Ref_Heating = pyo.Constraint(m.t, rule=calc_Ref_Heating)
 
-
         # ------------
         # 7. Objective
         # ------------
@@ -605,6 +682,7 @@ class OperationOptimization:
         def minimize_cost(m):
             rule = sum(m.Grid[t] * m.ElectricityPrice[t] - m.Feedin[t] * m.FiT[t] for t in m.t)
             return rule
+
         m.Objective = pyo.Objective(rule=minimize_cost)
 
         # ---------
@@ -625,7 +703,3 @@ class OperationOptimization:
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
         DC.save_OptimizationResult()
-
-
-
-
