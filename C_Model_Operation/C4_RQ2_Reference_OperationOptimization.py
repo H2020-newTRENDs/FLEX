@@ -279,7 +279,7 @@ class OperationOptimization:
         # -------------
         # Reference
 
-        m.Q_TankHeating = pyo.Param(m.t, initialize=self.creat_Dict(Ref_Heating))
+        m.Ref_Heating = pyo.Param(m.t, initialize=self.creat_Dict(Ref_Heating))
         m.Q_RoomCooling = pyo.Param(m.t, initialize=self.creat_Dict(Ref_Cooling))
 
         # price
@@ -312,12 +312,16 @@ class OperationOptimization:
         # ----------------------------
 
         # Variables SpaceHeating
-        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
-        m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.HeatPumpMaximalThermalPower))
+        m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.HeatingElementPower))
+
+
+
         m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals)  # Change to TargetTemp
         m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # Grid, limit set by 21 kW
         m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Building.MaximalGridPower))  # 380 * 32 * 1,72
@@ -412,14 +416,13 @@ class OperationOptimization:
         def calc_SumOfLoads(m, t):
             return m.Load[t] == m.BaseLoadProfile[t] \
                    + ((m.Q_TankHeating[t] / m.SpaceHeatingHourlyCOP[t]) / 1_000) \
+                   + (m.Q_HeatingElement[t] / 1_000) \
                    + ((m.Q_RoomCooling[t] / Household.SpaceCooling.SpaceCoolingEfficiency / 1_000)) \
                    + (m.HWPart1[t] / m.SpaceHeatingHourlyCOP[t]) \
                    + (m.HWPart2[t] / m.HotWaterHourlyCOP[t]) \
                    + (m.DishWasher1[t] + m.DishWasher2[t] + m.DishWasher3[t]) * DishWasherPower \
                    + (m.WashingMachine1[t] + m.WashingMachine2[t] + m.WashingMachine3[t]) * WashingMachinePower \
                    + (m.Dryer1[t] + m.Dryer2[t]) * DryerPower
-
-        # add the profile for heating and cooling demand here
 
         m.calc_SumOfLoads = pyo.Constraint(m.t, rule=calc_SumOfLoads)
 
@@ -587,6 +590,12 @@ class OperationOptimization:
             return m.Dryer2[t + 4] == 0
 
         m.calc_Dryer2 = pyo.Constraint(m.t, rule=calc_Dryer2)
+
+        # 5 and Heating
+        def calc_Ref_Heating(m, t):
+            return m.Q_TankHeating[t] + m.Q_HeatingElement[t] == m.Ref_Heating[t]
+
+        m.calc_Ref_Heating = pyo.Constraint(m.t, rule=calc_Ref_Heating)
 
 
         # ------------
