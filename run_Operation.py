@@ -13,9 +13,9 @@ from C_Model_Operation.C5_Visualization import Visualization
 if __name__ == "__main__":
 
     CONN = DB().create_Connection(CONS().RootDB)
-    # TableGenerator(CONN).run()
+    #TableGenerator(CONN).run()
     OperationOptimization(CONN).run()
-    # Visualization(CONN).run()
+    #Visualization(CONN).run()
 
 
 

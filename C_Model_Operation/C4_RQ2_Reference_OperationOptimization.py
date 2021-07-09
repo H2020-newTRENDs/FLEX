@@ -87,17 +87,6 @@ class OperationOptimization:
             (self.BaseLoadProfile['ID_BaseElectricityProfileType'] == Environment["ID_BaseElectricityProfileType"]) &
             (self.BaseLoadProfile['ID_HouseholdType'] == Household.ID_HouseholdType)]['BaseElectricityProfile']
 
-        # Read Ref data
-
-
-        Ref_Heating = \
-        self.Reference_HeatingCooling.loc[(self.Reference_HeatingCooling['ID_Building'] == Household.Building.ID)][
-            'Ref_Heating']
-
-        Ref_Cooling = \
-        self.Reference_HeatingCooling.loc[(self.Reference_HeatingCooling['ID_Building'] == Household.Building.ID)][
-            'Ref_Cooling']
-
         # -------------------
         # 2. Smart appliances
         # -------------------
@@ -186,33 +175,6 @@ class OperationOptimization:
                                    self.Radiation_SkyDirections.RadiationWest, Awindows_rad_east_west)
         Q_sol = (Q_sol_north + Q_sol_south + Q_sol_east_west).squeeze()
 
-
-        # ### Ref Heating Cooling #################################################
-        #
-        #
-        # Ref_Building = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.Conn)
-        #
-        # SelectedBuilding = Ref_Building.loc[Ref_Building['ID']== Household.Building.ID]
-        #
-        #
-        # test = HeatingCooling_noDR(SelectedBuilding)
-        #
-        # Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t = test.ref_HeatingCooling(self.Temperature["Temperature"].to_numpy(),
-        #                                                                             Q_sol, initial_thermal_mass_temp=15,
-        #                                                                             T_air_min=20, T_air_max=24)
-        #
-        # Q_Heating_noDR = list(Q_Heating_noDR.flatten())
-        # Q_Cooling_noDR = list(Q_Cooling_noDR.flatten())
-        # T_Room_noDR = list(T_Room_noDR.flatten())
-        # Tm_t = list(Tm_t.flatten())
-        #
-        # a = np.array([Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t])
-        #
-        # df = pd.DataFrame(data={'Q_Heating_noDR': Q_Heating_noDR, 'Q_Cooling_noDR': Q_Cooling_noDR, 'T_Room_noDR': T_Room_noDR, 'Tm_t': Tm_t})
-        # df.to_csv('./Ref_Building' +str(Household.Building.ID) + '.csv', sep = ',', index=False)
-        #
-        #
-        # ###########################
 
         # (3.4) Selection of heat pump COP
         SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==
@@ -316,6 +278,38 @@ class OperationOptimization:
                 'ERROR: CoolingTargetTemperature !>= HeatingTargetemperature! Change value in databank: Sce_ID_TargetTemperature')
             sys.exit()
 
+        # Reference Data
+
+        # #Write Reference data to DB (Input: Building, Weather, SolarGains)
+        #
+        # Ref_Buildings = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.Conn)
+        # SelectedBuilding = Ref_Buildings.loc[Ref_Buildings['ID'] == Household.Building.ID]
+        # ReferenceData = HeatingCooling_noDR(SelectedBuilding)
+        # Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t = ReferenceData.ref_HeatingCooling(self.Temperature["Temperature"].to_numpy(),
+        #                                                                             Q_sol, initial_thermal_mass_temp=15,
+        #                                                                             T_air_min=20, T_air_max=24)
+        # Q_Heating_noDR = list(Q_Heating_noDR.flatten())
+        # Q_Cooling_noDR = list(Q_Cooling_noDR.flatten())
+        # T_Room_noDR = list(T_Room_noDR.flatten())
+        # Tm_t = list(Tm_t.flatten())
+        #
+        # df = pd.DataFrame(data={'Q_Heating_noDR': Q_Heating_noDR, 'Q_Cooling_noDR': Q_Cooling_noDR, 'T_Room_noDR': T_Room_noDR, 'Tm_t': Tm_t})
+        # df.to_csv('./Ref_Building' +str(Household.Building.ID) + '.csv', sep = ',', index=False)
+
+        # Read Reference data from DB
+        Ref_Heating = \
+        self.Reference_HeatingCooling.loc[(self.Reference_HeatingCooling['ID_Building'] == Household.Building.ID)][
+            'Ref_Heating']
+        Ref_Cooling = \
+        self.Reference_HeatingCooling.loc[(self.Reference_HeatingCooling['ID_Building'] == Household.Building.ID)][
+            'Ref_Cooling']
+        Ref_T_Room = \
+        self.Reference_HeatingCooling.loc[(self.Reference_HeatingCooling['ID_Building'] == Household.Building.ID)][
+            'T_Room']
+        Ref_Tm_t = \
+        self.Reference_HeatingCooling.loc[(self.Reference_HeatingCooling['ID_Building'] == Household.Building.ID)][
+            'Tm_t']
+
         # ###############################################
         # Part III. Pyomo Optimization: cost minimization
         # ###############################################
@@ -330,6 +324,8 @@ class OperationOptimization:
 
         m.Ref_Heating = pyo.Param(m.t, initialize=self.creat_Dict(Ref_Heating))
         m.Q_RoomCooling = pyo.Param(m.t, initialize=self.creat_Dict(Ref_Cooling))
+        m.T_room = pyo.Param(m.t, initialize=self.creat_Dict(Ref_T_Room))
+        m.Tm_t = pyo.Param(m.t, initialize=self.creat_Dict(Ref_Tm_t))
 
         # price
         m.ElectricityPrice = pyo.Param(m.t, initialize=self.creat_Dict(ElectricityPrice))
@@ -370,8 +366,8 @@ class OperationOptimization:
 
         m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
-        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals)  # Change to TargetTemp
-        m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        #m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals)  # Change to TargetTemp
+        #m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # Grid, limit set by 21 kW
@@ -633,8 +629,7 @@ class OperationOptimization:
         def calc_WashingMachineStartTime(m, t):
             if m.t[t] == 1:
                 return m.WashingMachineStart[t] == 0
-            elif m.WashingMachineTheoreticalHours[t] == 1 and m.DayHour[
-                t] == WashingMachineStartTime and WashingMachineSmartStatus == 0:
+            elif m.WashingMachineTheoreticalHours[t] == 1 and m.DayHour[t] == WashingMachineStartTime and WashingMachineSmartStatus == 0:
                 return m.WashingMachine1[t] == 1
             elif m.WashingMachineTheoreticalHours[t] == 1 and m.DayHour[t] == 24:
                 return m.WashingMachineStart[t] == m.WashingMachineStart[t - 1] - 1 * WashingMachineSmartStatus
@@ -642,6 +637,7 @@ class OperationOptimization:
                    m.WashingMachineTheoreticalHours[t] * WashingMachineSmartStatus
 
         m.calc_WashingMachineStartTime = pyo.Constraint(m.t, rule=calc_WashingMachineStartTime)
+
 
         def calc_Dryer1(m, t):
             if t >= 8757:
@@ -693,7 +689,7 @@ class OperationOptimization:
     def run(self):
         DC = DataCollector(self.Conn)
         for household_RowID in range(0, 1):
-            for environment_RowID in range(0, 1):
+            for environment_RowID in range(0, 2):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
         DC.save_OptimizationResult()
