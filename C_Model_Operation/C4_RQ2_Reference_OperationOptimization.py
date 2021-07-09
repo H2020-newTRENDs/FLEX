@@ -87,6 +87,9 @@ class OperationOptimization:
             (self.BaseLoadProfile['ID_BaseElectricityProfileType'] == Environment["ID_BaseElectricityProfileType"]) &
             (self.BaseLoadProfile['ID_HouseholdType'] == Household.ID_HouseholdType)]['BaseElectricityProfile']
 
+        # Read Ref data
+
+
         Ref_Heating = \
         self.Reference_HeatingCooling.loc[(self.Reference_HeatingCooling['ID_Building'] == Household.Building.ID)][
             'Ref_Heating']
@@ -183,46 +186,37 @@ class OperationOptimization:
                                    self.Radiation_SkyDirections.RadiationWest, Awindows_rad_east_west)
         Q_sol = (Q_sol_north + Q_sol_south + Q_sol_east_west).squeeze()
 
-        ### Ref Heating Cooling #################################################
 
-
-        Ref_Building = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.Conn)
-
-        SelectedBuilding = Ref_Building.loc[Ref_Building['ID']== Household.Building.ID]
-
-
-        test = HeatingCooling_noDR(SelectedBuilding)
-
-        Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t = test.ref_HeatingCooling(self.Temperature["Temperature"].to_numpy(),
-                                                                                    Q_sol, initial_thermal_mass_temp=15,
-                                                                                    T_air_min=20, T_air_max=24)
-
-        Q_Heating_noDR = list(Q_Heating_noDR.flatten())
-        Q_Cooling_noDR = list(Q_Cooling_noDR.flatten())
-        T_Room_noDR = list(T_Room_noDR.flatten())
-        Tm_t = list(Tm_t.flatten())
-
-        a = np.array([Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t])
-
-        df = pd.DataFrame(data={'Q_Heating_noDR': Q_Heating_noDR, 'Q_Cooling_noDR': Q_Cooling_noDR, 'T_Room_noDR': T_Room_noDR, 'Tm_t': Tm_t})
-        df.to_csv('./Ref_Building' +str(Household.Building.ID) + '.csv', sep = ',', index=False)
-
-
-
-
-
-        # print(Q_Heating_noDR)
-        # print(Q_Cooling_noDR)
-        # print(T_Room_noDR)
-        # print(Tm_t)
-
-
-        ###########################
+        # ### Ref Heating Cooling #################################################
+        #
+        #
+        # Ref_Building = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.Conn)
+        #
+        # SelectedBuilding = Ref_Building.loc[Ref_Building['ID']== Household.Building.ID]
+        #
+        #
+        # test = HeatingCooling_noDR(SelectedBuilding)
+        #
+        # Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t = test.ref_HeatingCooling(self.Temperature["Temperature"].to_numpy(),
+        #                                                                             Q_sol, initial_thermal_mass_temp=15,
+        #                                                                             T_air_min=20, T_air_max=24)
+        #
+        # Q_Heating_noDR = list(Q_Heating_noDR.flatten())
+        # Q_Cooling_noDR = list(Q_Cooling_noDR.flatten())
+        # T_Room_noDR = list(T_Room_noDR.flatten())
+        # Tm_t = list(Tm_t.flatten())
+        #
+        # a = np.array([Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t])
+        #
+        # df = pd.DataFrame(data={'Q_Heating_noDR': Q_Heating_noDR, 'Q_Cooling_noDR': Q_Cooling_noDR, 'T_Room_noDR': T_Room_noDR, 'Tm_t': Tm_t})
+        # df.to_csv('./Ref_Building' +str(Household.Building.ID) + '.csv', sep = ',', index=False)
+        #
+        #
+        # ###########################
 
         # (3.4) Selection of heat pump COP
         SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==
-                                                            Household.SpaceHeating.ID_SpaceHeatingBoilerType][
-            'SpaceHeatingHourlyCOP']
+                                                            Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP']
 
         # ------------
         # 4. Hot water
