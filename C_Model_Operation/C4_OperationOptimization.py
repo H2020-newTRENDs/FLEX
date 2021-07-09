@@ -166,8 +166,7 @@ class OperationOptimization:
         Q_sol = (Q_sol_north + Q_sol_south + Q_sol_east_west).squeeze()
 
         # (3.4) Selection of heat pump COP
-        SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==
-                                                            Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP']
+        SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP']
 
         # ------------
         # 4. Hot water
@@ -410,6 +409,8 @@ class OperationOptimization:
                                 + (m.Dryer1[t] + m.Dryer2[t]) * DryerPower
 
         m.calc_SumOfLoads = pyo.Constraint(m.t, rule=calc_SumOfLoads)
+
+
 
         # (7)
         def calc_BatDischarge(m, t):
