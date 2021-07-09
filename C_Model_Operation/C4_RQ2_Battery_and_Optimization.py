@@ -585,7 +585,8 @@ class OperationOptimization:
                 return m.E_tank[t] == CWater * M_WaterTank * (273.15 + T_TankStart)
             else:
                 return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t] + m.Q_TankHeating[t] + m.Q_HeatingElement[t] \
-                                      - U_ValueTank * A_SurfaceTank * ((m.E_tank[t] / (M_WaterTank * CWater)) - T_TankSourounding)
+                       - U_ValueTank * A_SurfaceTank * (
+                                   (m.E_tank[t] / (M_WaterTank * CWater)) - (T_TankSourounding + 273.15))
 
         m.tank_energy_rule = pyo.Constraint(m.t, rule=tank_energy)
 
