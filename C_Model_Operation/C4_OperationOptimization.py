@@ -166,8 +166,7 @@ class OperationOptimization:
         Q_sol = (Q_sol_north + Q_sol_south + Q_sol_east_west).squeeze()
 
         # (3.4) Selection of heat pump COP
-        SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==
-                                                            Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP']
+        SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP']
 
         # ------------
         # 4. Hot water
@@ -411,6 +410,8 @@ class OperationOptimization:
 
         m.calc_SumOfLoads = pyo.Constraint(m.t, rule=calc_SumOfLoads)
 
+
+
         # (7)
         def calc_BatDischarge(m, t):
             if Household.Battery.Capacity == 0:
@@ -585,7 +586,7 @@ class OperationOptimization:
                 return m.E_tank[t] == CWater * M_WaterTank * (273.15 + T_TankStart)
             else:
                 return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t] + m.Q_TankHeating[t] + m.Q_HeatingElement[t] \
-                                      - U_ValueTank * A_SurfaceTank * ((m.E_tank[t] / (M_WaterTank * CWater)) - T_TankSourounding)
+                                      - U_ValueTank * A_SurfaceTank * ((m.E_tank[t] / (M_WaterTank * CWater)) - (T_TankSourounding+273.15))
 
         m.tank_energy_rule = pyo.Constraint(m.t, rule=tank_energy)
 
@@ -653,7 +654,7 @@ class OperationOptimization:
     def run(self):
         DC = DataCollector(self.Conn)
         for household_RowID in range(0, 1):
-            for environment_RowID in range(0, 2):
+            for environment_RowID in range(0, 1):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
         DC.save_OptimizationResult()

@@ -37,18 +37,18 @@ class Visualization:
                           self.VAR.E_RoomCooling: self.COLOR.blue,
 
                           self.VAR.Q_HotWater: self.COLOR.green,
-                          self.VAR.E_HotWater: self.COLOR.purple,
+                          self.VAR.E_HotWater: self.COLOR.dark_blue,
 
                           self.VAR.E_Grid: self.COLOR.black,
                           self.VAR.E_Grid2Load: self.COLOR.black,
-                          self.VAR.E_Grid2Battery: self.COLOR.red,
+                          self.VAR.E_Grid2Battery: self.COLOR.dark_red,
                           self.VAR.E_Grid2EV: self.COLOR.red,
 
                           self.VAR.E_PV: self.COLOR.green,
                           self.VAR.E_PV2Load: self.COLOR.orange,
                           self.VAR.E_PV2Battery: self.COLOR.blue,
                           self.VAR.E_PV2EV: self.COLOR.dark_grey,
-                          self.VAR.E_PV2Grid: self.COLOR.yellow,
+                          self.VAR.E_PV2Grid: self.COLOR.dark_green,
 
                           self.VAR.E_BatteryCharge: self.COLOR.green,
                           self.VAR.E_BatteryDischarge: self.COLOR.green,
@@ -106,39 +106,41 @@ class Visualization:
                  color=base_load["color"])
 
         ax_1.bar(x_values,
+                 hot_water["values"],
+                 label=hot_water["label"],
+                 bottom=base_load["values"],
+                 alpha=alpha_value,
+                 color=hot_water["color"])
+
+        ax_1.bar(x_values,
                  smart_appliance["values"],
                  label=smart_appliance["label"],
-                 bottom=base_load["values"],
+                 bottom=base_load["values"] + hot_water["values"],
                  alpha=alpha_value,
                  color=smart_appliance["color"])
 
         ax_1.bar(x_values,
                  heat_pump["values"],
                  label=heat_pump["label"],
-                 bottom=base_load["values"] + smart_appliance["values"],
+                 bottom=base_load["values"] + hot_water["values"] + smart_appliance["values"],
                  alpha=alpha_value,
                  color=heat_pump["color"])
 
         ax_1.bar(x_values,
                  heat_element["values"],
                  label=heat_element["label"],
-                 bottom=base_load["values"] + smart_appliance["values"] + heat_pump["values"],
+                 bottom=base_load["values"] + hot_water["values"] + smart_appliance["values"] + heat_pump["values"],
                  alpha=alpha_value,
                  color=heat_element["color"])
 
         ax_1.bar(x_values,
                  room_cooling["values"],
                  label=room_cooling["label"],
-                 bottom=base_load["values"] + smart_appliance["values"] + heat_pump["values"] + heat_element["values"],
+                 bottom=base_load["values"] +hot_water["values"] + smart_appliance["values"] + heat_pump["values"] + heat_element["values"],
                  alpha=alpha_value,
                  color=room_cooling["color"])
 
-        ax_1.bar(x_values,
-                 hot_water["values"],
-                 label=hot_water["label"],
-                 bottom=base_load["values"] + smart_appliance["values"] + heat_pump["values"] + heat_element["values"] + room_cooling["values"],
-                 alpha=alpha_value,
-                 color=hot_water["color"])
+
 
         # supply
 
@@ -776,7 +778,7 @@ class Visualization:
             y2_lim_range = np.array((-10, 0))
         else:
             y1_lim_range = np.array((10, 30))
-            y2_lim_range = np.array((10, 30))
+            y2_lim_range = np.array((-10, 30))
         self.plot_HeatingTemperature(id_household, id_environment, Horizon,
                                      RoomTemperature_element,
                                      BuildingMassTemperature_element,
@@ -787,7 +789,7 @@ class Visualization:
     def run(self):
         for household_id in range(1, 2):
             for environment_id in range(1, 3):
-                self.visualization_SystemOperation(household_id, environment_id, week=2)
+                self.visualization_SystemOperation(household_id, environment_id, week=4)
                 self.visualization_SystemOperation(household_id, environment_id, week=34)
 
 
