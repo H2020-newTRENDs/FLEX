@@ -107,6 +107,8 @@ class REG_Table:
         self.Res_SystemOperationHour = self.Result + "SystemOperationHour" #4: col: IDHH, col IDEnvi, , col: IDHour, col: technologies
         self.Res_SystemOperationYear = self.Result + "SystemOperationYear"  # 3: col: IDHH, col IDEnvi, col: cost
 
+        self.Res_Reference_HeatingCooling = self.Result + 'Reference_HeatingCooling'
+
 
 
 class REG_Var:

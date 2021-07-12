@@ -140,6 +140,13 @@ class HeatingCooling_noDR:
             PHI_st = (1 - Am / Atot - self.Htr_w / 9.1 / Atot) * \
                      (0.5 * Q_InternalGains + Q_solar[t, :])
 
+            # For RefBuilding Thomas
+            # # Equ. C.2
+            # PHI_m = Am / Atot * (0.5 * Q_InternalGains + Q_solar[t])
+            # # Equ. C.3
+            # PHI_st = (1 - Am / Atot - self.Htr_w / 9.1 / Atot) * \
+            #          (0.5 * Q_InternalGains + Q_solar[t])
+
             # (T_sup = T_outside weil die Zuluft nicht vorgewärmt oder vorgekühlt wird)
             T_sup[t] = T_outside[t]
 
