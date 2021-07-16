@@ -158,12 +158,14 @@ class OperationOptimization:
         Awindows_rad_east_west = Household.Building.average_effective_area_wind_west_east_red_cool
         Awindows_rad_south = Household.Building.average_effective_area_wind_south_red_cool
         Awindows_rad_north = Household.Building.average_effective_area_wind_north_red_cool
+
         # solar gains from different celestial directions
         Q_sol_north = np.outer(self.Radiation_SkyDirections.RadiationNorth, Awindows_rad_north)
+        Q_sol_east = np.outer(self.Radiation_SkyDirections.RadiationEast, Awindows_rad_east_west /2)
         Q_sol_south = np.outer(self.Radiation_SkyDirections.RadiationSouth, Awindows_rad_south)
-        Q_sol_east_west = np.outer(self.Radiation_SkyDirections.RadiationEast + \
-                                   self.Radiation_SkyDirections.RadiationWest, Awindows_rad_east_west)
-        Q_sol = (Q_sol_north + Q_sol_south + Q_sol_east_west).squeeze()
+        Q_sol_west = np.outer(self.Radiation_SkyDirections.RadiationWest, Awindows_rad_east_west /2)
+
+        Q_sol = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
 
         # (3.4) Selection of heat pump COP
         SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP']
@@ -653,8 +655,8 @@ class OperationOptimization:
 
     def run(self):
         DC = DataCollector(self.Conn)
-        for household_RowID in range(0, 1):
-            for environment_RowID in range(0, 1):
+        for household_RowID in range(0, 3):
+            for environment_RowID in range(0,1):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
         DC.save_OptimizationResult()
