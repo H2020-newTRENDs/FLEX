@@ -279,24 +279,24 @@ class OperationOptimization:
                 'ERROR: CoolingTargetTemperature !>= HeatingTargetemperature! Change value in databank: Sce_ID_TargetTemperature')
             sys.exit()
 
-        # Reference Data
-        #Write Reference data to DB (Input: Building, Weather, SolarGains)
-
-        Ref_Buildings = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.Conn)
-        SelectedBuilding = Ref_Buildings.loc[Ref_Buildings['ID'] == Household.Building.ID]
-        ReferenceData = HeatingCooling_noDR(SelectedBuilding)
-        Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t = ReferenceData.ref_HeatingCooling(self.Temperature["Temperature"].to_numpy(),
-                                                                                    Q_sol, initial_thermal_mass_temp=15,
-                                                                                    T_air_min=20, T_air_max=24)
-        Q_Heating_noDR = list(Q_Heating_noDR.flatten())
-        Q_Cooling_noDR = list(Q_Cooling_noDR.flatten())
-        T_Room_noDR = list(T_Room_noDR.flatten())
-        Tm_t = list(Tm_t.flatten())
-
-        df = pd.DataFrame(data={'Q_Heating_noDR': Q_Heating_noDR, 'Q_Cooling_noDR': Q_Cooling_noDR, 'T_Room_noDR': T_Room_noDR, 'Tm_t': Tm_t})
-        df.to_csv('./Ref_Building' +str(Household.Building.ID) + '.csv', sep = ',', index=False)
-
-        # end reference data
+        # # Reference Data
+        # #Write Reference data to DB (Input: Building, Weather, SolarGains)
+        #
+        # Ref_Buildings = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.Conn)
+        # SelectedBuilding = Ref_Buildings.loc[Ref_Buildings['ID'] == Household.Building.ID]
+        # ReferenceData = HeatingCooling_noDR(SelectedBuilding)
+        # Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t = ReferenceData.ref_HeatingCooling(self.Temperature["Temperature"].to_numpy(),
+        #                                                                             Q_sol, initial_thermal_mass_temp=15,
+        #                                                                             T_air_min=20, T_air_max=24)
+        # Q_Heating_noDR = list(Q_Heating_noDR.flatten())
+        # Q_Cooling_noDR = list(Q_Cooling_noDR.flatten())
+        # T_Room_noDR = list(T_Room_noDR.flatten())
+        # Tm_t = list(Tm_t.flatten())
+        #
+        # df = pd.DataFrame(data={'Q_Heating_noDR': Q_Heating_noDR, 'Q_Cooling_noDR': Q_Cooling_noDR, 'T_Room_noDR': T_Room_noDR, 'Tm_t': Tm_t})
+        # df.to_csv('./Ref_Building' +str(Household.Building.ID) + '.csv', sep = ',', index=False)
+        #
+        # # end reference data
 
         # Read Reference data from DB
         Ref_Heating = \
@@ -690,7 +690,7 @@ class OperationOptimization:
 
     def run(self):
         DC = DataCollector(self.Conn)
-        for household_RowID in range(0, 3):
+        for household_RowID in range(0, 6):
             for environment_RowID in range(0, 1):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)

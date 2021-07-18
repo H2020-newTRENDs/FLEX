@@ -143,31 +143,31 @@ class Visualization:
 
 
         # supply
-
-        ax_1.bar(x_values,
-                 - grid_2_load["values"],
-                 label=grid_2_load["label"],
-                 alpha=alpha_value,
-                 color=grid_2_load["color"])
-
         ax_1.bar(x_values,
                  - pv_2_load["values"],
                  label=pv_2_load["label"],
-                 bottom= - grid_2_load["values"],
+
                  alpha=alpha_value,
                  color=pv_2_load["color"])
 
         ax_1.bar(x_values,
+                 - grid_2_load["values"],
+                 label=grid_2_load["label"],
+                 bottom=- pv_2_load["values"],
+                 alpha=alpha_value,
+                 color=grid_2_load["color"])
+
+        ax_1.bar(x_values,
                  - battery_2_load["values"],
                  label=battery_2_load["label"],
-                 bottom= - grid_2_load["values"] - pv_2_load["values"],
+                 bottom= - pv_2_load["values"] - grid_2_load["values"] ,
                  alpha=alpha_value,
                  color=battery_2_load["color"])
 
         ax_1.bar(x_values,
                  - ev_2_load["values"],
                  label=ev_2_load["label"],
-                 bottom= - grid_2_load["values"] - pv_2_load["values"] - battery_2_load["values"],
+                 bottom=- pv_2_load["values"]  - grid_2_load["values"]  - battery_2_load["values"],
                  alpha=alpha_value,
                  color=ev_2_load["color"])
 
@@ -453,11 +453,11 @@ class Visualization:
                  alpha=alpha_value,
                  color=heat_element["color"])
 
-        ax_1.bar(x_values,
-                 - tank_output["values"],
-                 label=tank_output["label"],
-                 alpha=alpha_value,
-                 color=tank_output["color"])
+        # ax_1.bar(x_values,
+        #          - tank_output["values"],
+        #          label=tank_output["label"],
+        #          alpha=alpha_value,
+        #          color=tank_output["color"])
 
         ax_2 = ax_1.twinx()
 
@@ -478,7 +478,10 @@ class Visualization:
         else:
             ax_1.set_xlabel("Hour of the Year", fontsize=20, labelpad=10)
 
-        ax_1.set_ylabel("Energy output of boiler(+) and tank(-) (kW)", fontsize=20, labelpad=10)
+        #ax_1.set_ylabel("Energy output of boiler(+) and tank(-) (kW)", fontsize=20, labelpad=10)
+        ax_1.set_ylabel("Energy output of boiler (kW)", fontsize=20, labelpad=10)
+
+
         ax_2.set_ylabel("Electricity Price (€)", fontsize=20, labelpad=10)
         if "y_lim" in kwargs:
             ax_1.set_ylim(self.adjust_ylim(kwargs["y_lim"][0]))
@@ -623,7 +626,7 @@ class Visualization:
         if Horizon[0] < 100:
             y_lim_range = np.array((-15, 15))
         else:
-            y_lim_range = np.array((-4, 4))
+            y_lim_range = np.array((-7, 7))
         self.plot_SystemLoad(id_household, id_environment, Horizon,
                              BaseElectricityLoad_element,
                              SmartAppliance_element,
@@ -740,7 +743,7 @@ class Visualization:
                              y_lim=(y1_lim_range, y2_lim_range))
 
         # --------------------
-        # Plot 4: Room heating
+        # Plot 5: Room heating
         # --------------------
         Q_HeatPump_element = {"values": Q_HeatPump,
                               "label": "HeatPump",
@@ -763,7 +766,8 @@ class Visualization:
             y1_lim_range = np.array((-20, 20))
             y2_lim_range = np.array((0.2, 0.4))
         else:
-            y1_lim_range = np.array((-5, 15))
+            y1_lim_range = np.array((0, 12))
+            #y1_lim_range = np.array((-5, 15))
             y2_lim_range = np.array((0.2, 0.4))
         self.plot_RoomHeating(id_household, id_environment, Horizon,
                               Q_HeatPump_element,

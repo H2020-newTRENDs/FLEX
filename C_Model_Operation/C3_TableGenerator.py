@@ -491,7 +491,7 @@ class TableGenerator:
 
     def run(self):
         #
-        self.gen_OBJ_ID_Building()
+        # self.gen_OBJ_ID_Building()
         # self.gen_OBJ_ID_ApplianceGroup()
         # self.gen_OBJ_ID_SpaceHeating()
         # self.gen_OBJ_ID_SpaceCooling()
@@ -501,8 +501,8 @@ class TableGenerator:
         # self.gen_OBJ_ID_ElectricVehicle()
         # self.gen_OBJ_ID_Household()
 
-        #self.gen_Sce_Demand_DishWasherHours()
-        #self.gen_Sce_Demand_WashingMachineHours()
+        # self.gen_Sce_Demand_DishWasherHours()
+        # self.gen_Sce_Demand_WashingMachineHours()
 
         # self.gen_Sce_ID_Environment()
         # self.gen_Sce_CarAtHomeHours()
