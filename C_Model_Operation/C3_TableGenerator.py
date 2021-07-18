@@ -496,8 +496,8 @@ class TableGenerator:
         # self.gen_OBJ_ID_SpaceHeating()
         # self.gen_OBJ_ID_SpaceCooling()
         # self.gen_OBJ_ID_HotWater()
-        # self.gen_OBJ_ID_PV()
-        # self.gen_OBJ_ID_Battery()
+        #self.gen_OBJ_ID_PV()
+        #self.gen_OBJ_ID_Battery()
         # self.gen_OBJ_ID_ElectricVehicle()
         # self.gen_OBJ_ID_Household()
 
