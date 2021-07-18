@@ -793,7 +793,7 @@ class Visualization:
     def run(self):
         for household_id in range(1, 2):
             for environment_id in range(1, 3):
-                self.visualization_SystemOperation(household_id, environment_id, week=4)
+                self.visualization_SystemOperation(household_id, environment_id, week=8)
                 self.visualization_SystemOperation(household_id, environment_id, week=34)
 
 
