@@ -99,32 +99,103 @@ import numpy as np
 #             facecolor='w', edgecolor='w')
 # plt.show()
 
-# constant price and RTP
+# # constant price and RTP
+#
+# # Data for plotting
+# plt.figure(figsize=(20, 5))
+# x = ['Reference', 'V2B', 'Smart App', 'Heat/Cool', 'Battery', 'Grid2Bat', 'All']
+#
+# ConstantPrice = [2073,2031,1995,1880,1699,1699,1554]
+# Peak0 = [2061,2015,1976,1866,1682,1679,1530]
+# Peak5 = [2062,1982,1970,1854,1673,1659,1494]
+# Peak10= [2064,1927,1966,1838,1662,1630,1446]
+# Peak15 = [2065,1871,1961,1819,1650,1601,1398]
+#
+# fig, ax = plt.subplots()
+# ax.plot(x,ConstantPrice, marker='o', linestyle='--', label ='Constant', color = 'black', linewidth =0.001)
+# ax.plot(x, Peak0, marker='+', linestyle='--', label = '+/- 0% Peak', color = 'darkslateblue', linewidth =0.001)
+# ax.plot(x, Peak5, marker='+', linestyle='--', label = '+/- 5% Peak', color = 'royalblue', linewidth =0.001)
+# ax.plot(x, Peak10, marker='+', linestyle='--', label = '+/- 10% Peak', color = 'cornflowerblue', linewidth =0.001)
+# ax.plot(x, Peak15, marker='+', linestyle='--', label = '+/- 15% Peak', color = 'lightseagreen', linewidth =0.001)
+# plt.xticks(rotation=90)
+#
+# ax.set(ylabel='Yearly cost (€)')
+# ax.grid()
+#
+# plt.tight_layout();
+# plt.legend(loc='upper right')
+# plt.savefig('Constant_RTP_Pricing', dpi=600, format=None,
+#             transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
+#             facecolor='w', edgecolor='w')
+# plt.show()
 
-# Data for plotting
-plt.figure(figsize=(20, 5))
-x = ['Reference', 'Tank = 1500l', 'V2B =1', 'Smart App. = 1', 'Battery', 'Grid2Bat =1', 'All']
 
-ConstantPrice = [1909,1880,1872,1845,1603,1603,1554]
-Peak0 = [1893,1866,1852,1821,1585,1582,1529]
-Peak5 = [1884,1854,1816,1806,1570,1558,1494]
-Peak10= [1873,1838,1761,1789,1551,1525,1446]
-Peak15 = [1857,1819,1703,1767,1527,1489,1397]
 
-fig, ax = plt.subplots()
-ax.plot(x,ConstantPrice, marker='o', linestyle='--', label ='Constant', color = 'dimgray', linewidth =0.5)
-ax.plot(x, Peak0, marker='o', linestyle='--', label = '+/- 0% Peak', color = 'cadetblue', linewidth =0.5)
-ax.plot(x, Peak5, marker='o', linestyle='--', label = '+/- 5% Peak', color = 'royalblue', linewidth =0.5)
-ax.plot(x, Peak10, marker='o', linestyle='--', label = '+/- 10% Peak', color = 'steelblue', linewidth =0.5)
-ax.plot(x, Peak15, marker='o', linestyle='--', label = '+/- 15% Peak', color = 'midnightblue', linewidth =0.5)
-plt.xticks(rotation=90)
+############################
 
-ax.set(ylabel='Yearly cost (€)')
-ax.grid()
+
+### Savings of Optimization no EV
+orders = np.array([[657,413,336,82,0],
+                   [585,426,261,85,0],
+                   [526,422,210,89,0]])
+
+
+plt.figure(figsize=(8, 3))
+xlabels = ['All', 'Battery', 'Heat/Cool', 'Smart App', 'Reference']
+ylabels = ['AG1', 'AG2', 'AG3']
+
+sns.heatmap(orders, xticklabels=xlabels, yticklabels=ylabels, cmap='mako_r', \
+            annot=False, fmt='g', linewidth=0.75, linecolor='white',
+            cbar_kws={'label': 'Savings in € per year', 'orientation': 'horizontal'})
 
 plt.tight_layout();
-plt.legend(loc='upper right')
-plt.savefig('Constant_RTP_Pricing', dpi=600, format=None,
+
+plt.savefig('Saving potential no EV', dpi=600, format=None,
+            transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
+            facecolor='w', edgecolor='w')
+plt.show()
+
+
+### Savings of Optimization with EV
+
+orders = np.array([[622,355,298,70,40,0],
+                   [562,360,228,74,34,0],
+                   [518,374,254,78,41,0]])
+
+
+plt.figure(figsize=(8, 3))
+xlabels = ['All', 'Battery', 'Heat/Cool', 'Smart App', 'V2B', 'Reference']
+ylabels = ['AG1', 'AG2', 'AG3']
+
+sns.heatmap(orders, xticklabels=xlabels, yticklabels=ylabels, cmap='mako_r', \
+            annot=False, fmt='g', linewidth=0.75, linecolor='white',
+            cbar_kws={'label': 'Savings in € per year', 'orientation': 'horizontal'})
+
+plt.tight_layout();
+
+plt.savefig('Saving potential EV', dpi=600, format=None,
+            transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
+            facecolor='w', edgecolor='w')
+plt.show()
+
+### Savings of Optimization with EV and RTP
+
+orders = np.array([[841,632,475,409,328,258,99,0],
+                   [761,570,471,410,285,227,102,0],
+                   [667,511,464,415,245,194,104,0]])
+
+
+plt.figure(figsize=(8, 3))
+xlabels = ['All', '(All no RTP)', 'Grid2Bat' ,'Battery', 'Heat/Cool', 'V2B', 'Smart App', 'Reference']
+ylabels = ['AG1', 'AG2', 'AG3']
+
+sns.heatmap(orders, xticklabels=xlabels, yticklabels=ylabels, cmap='mako_r', \
+            annot=False, fmt='g', linewidth=0.75, linecolor='white',
+            cbar_kws={'label': 'Savings in € per year', 'orientation': 'horizontal'})
+
+plt.tight_layout();
+
+plt.savefig('Saving potential EV with RTP', dpi=600, format=None,
             transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
             facecolor='w', edgecolor='w')
 plt.show()
