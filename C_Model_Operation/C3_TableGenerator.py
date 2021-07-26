@@ -499,7 +499,7 @@ class TableGenerator:
         #self.gen_OBJ_ID_PV()
         #self.gen_OBJ_ID_Battery()
         #self.gen_OBJ_ID_ElectricVehicle()
-        #self.gen_OBJ_ID_Household()
+        self.gen_OBJ_ID_Household()
 
         # self.gen_Sce_Demand_DishWasherHours()
         # self.gen_Sce_Demand_WashingMachineHours()

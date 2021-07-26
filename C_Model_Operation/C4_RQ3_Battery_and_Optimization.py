@@ -655,7 +655,7 @@ class OperationOptimization:
 
     def run(self):
         DC = DataCollector(self.Conn)
-        for household_RowID in range(0, 3):
+        for household_RowID in range(1,2):
             for environment_RowID in range(1,2):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
