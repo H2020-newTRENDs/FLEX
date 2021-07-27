@@ -77,80 +77,105 @@ import numpy as np
 
 
 
-### DHW
-x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
-Winter_Workday = [40,16,3,7,23,89,192,251,242,185,152,142,139,139,126,112,99,146,175,208,172,172,132,102,]
-Winter_Saturday = [69,36,20,10,13,23,40,106,218,308,311,268,255,275,262,265,295,351,371,314,218,132,86,79]
-Winter_Sunday = [66,53,36,17,13,10,30,106,222,354,384,374,318,275,199,132,106,132,179,185,175,169,139,103]
+# ### DHW
+# x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+# Winter_Workday = [40,16,3,7,23,89,192,251,242,185,152,142,139,139,126,112,99,146,175,208,172,172,132,102,]
+# Winter_Saturday = [69,36,20,10,13,23,40,106,218,308,311,268,255,275,262,265,295,351,371,314,218,132,86,79]
+# Winter_Sunday = [66,53,36,17,13,10,30,106,222,354,384,374,318,275,199,132,106,132,179,185,175,169,139,103]
+#
+#
+#
+# Trans_Workday =[38,15,6,7,22,76,159,208,207,160,132,119,121,122,112,99,91,117,149,172,157,151,121,89]
+# Trans_Saturday = [58,27,16,6,9,22,49,109,195,255,250,217,204,220,205,204,222,270,301,273,207,139,93,76]
+# Trans_Sunday = [55,38,23,8,7,7,31,91,189,290,329,324,283,235,174,118,98,113,146,156,146,141,113,83]
+#
+#
+#
+# Summer_Workday = [36,13,8,8,22,63,127,166,172,136,113,96,103,106,99,86,83,89,122,136,142,129,109,76]
+# Summer_Saturday = [47,18,12,2,5,22,58,113,172,202,189,166,152,166,149,142,149,189,232,232,195,146,99,73]
+# Summer_Sunday = [43,23,10,0,2,5,31,76,156,225,275,275,248,195,149,103,89,93,113,126,116,113,86,63,]
+#
+#
+# fig, (ax1, ax2, ax3) = plt.subplots(3)
+# fig.set_size_inches(10,6)
+# locs, labels = plt.xticks()
+#
+#
+# ax1.plot(x, Winter_Workday, label= 'Workday', color = 'darkred', linewidth = 0.5)
+# ax1.plot(x, Winter_Saturday, label ='Saturday', color = 'darkgreen', linewidth = 0.5)
+# ax1.plot(x, Winter_Sunday, label = 'Sunday', color = 'darkblue', linewidth = 0.5)
+# ax1.legend(loc='upper right')
+# ax1.set_title('Winter', fontsize = 10)
+# ax1.set_xlabel('HoD (h)', fontsize = 8)
+# ax1.set_ylabel('Power (W)', fontsize = 8)
+#
+# yticks = np.arange(0,450, 200)
+# xticks = np.arange(0,24,4)
+# ax1.set_yticks(yticks)
+# ax1.set_xticks(xticks)
+#
+# ax1.grid()
+#
+#
+# ax2.plot(x, Trans_Workday, color = 'darkred', linewidth = 0.5)
+# ax2.plot(x, Trans_Saturday, color = 'darkgreen', linewidth = 0.5)
+# ax2.plot(x, Trans_Sunday, color = 'darkblue', linewidth = 0.5)
+# ax2.set_title('Transmission', fontsize = 10)
+# ax2.set_xlabel('HoD (h)', fontsize = 8)
+# ax2.set_ylabel('Power (W)', fontsize = 8)
+# ax2.grid()
+#
+# ax2.set_yticks(yticks)
+# ax2.set_xticks(xticks)
+#
+#
+#
+#
+# ax3.plot(x, Summer_Workday, color = 'darkred', linewidth = 0.5)
+# ax3.plot(x, Summer_Saturday, color = 'darkgreen', linewidth = 0.5)
+# ax3.plot(x, Summer_Sunday, color ='darkblue', linewidth = 0.5)
+# ax3.set_title('Summer', fontsize = 10)
+# ax3.set_xlabel('HoD (h)', fontsize = 8)
+# ax3.set_ylabel('Power (W)', fontsize = 8)
+# ax3.grid()
+#
+# ax3.set_yticks(yticks)
+# ax3.set_xticks(xticks)
+#
+#
+#
+#
+# #plt.tight_layout();
+# plt.subplots_adjust(hspace= 0.8)
+#
+#
+# plt.savefig('DHW', dpi=600, format=None,
+#             transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
+#             facecolor='w', edgecolor='w')
+#
+# plt.show()
 
 
 
-Trans_Workday =[38,15,6,7,22,76,159,208,207,160,132,119,121,122,112,99,91,117,149,172,157,151,121,89]
-Trans_Saturday = [58,27,16,6,9,22,49,109,195,255,250,217,204,220,205,204,222,270,301,273,207,139,93,76]
-Trans_Sunday = [55,38,23,8,7,7,31,91,189,290,329,324,283,235,174,118,98,113,146,156,146,141,113,83]
+# Smart Appliances
 
+plt.rcParams["figure.figsize"] = (10,3)
+Dishwasher = [1, 0, 1, 1, 0,1,1]
+Washingmachine = [1,0,1,0,1,0,1]
+bars = ('Monday', 'Thuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+y_pos = np.arange(len(bars))
 
+plt.bar(y_pos, Dishwasher, label = 'Dishwasher', color ='gainsboro', hatch ='/', alpha = 0.5)
+plt.bar(y_pos, Washingmachine, label = 'Washing machine + dryer ', color ='gainsboro', hatch ='\\', alpha = 0.5)
 
-Summer_Workday = [36,13,8,8,22,63,127,166,172,136,113,96,103,106,99,86,83,89,122,136,142,129,109,76]
-Summer_Saturday = [47,18,12,2,5,22,58,113,172,202,189,166,152,166,149,142,149,189,232,232,195,146,99,73]
-Summer_Sunday = [43,23,10,0,2,5,31,76,156,225,275,275,248,195,149,103,89,93,113,126,116,113,86,63,]
+plt.yticks([0,1], ['0', '1'])
+plt.xticks(y_pos, bars)
+plt.legend(loc='upper right')
 
-
-fig, (ax1, ax2, ax3) = plt.subplots(3)
-fig.set_size_inches(10,6)
-locs, labels = plt.xticks()
-
-
-ax1.plot(x, Winter_Workday, label= 'Workday', color = 'darkred', linewidth = 0.5)
-ax1.plot(x, Winter_Saturday, label ='Saturday', color = 'darkgreen', linewidth = 0.5)
-ax1.plot(x, Winter_Sunday, label = 'Sunday', color = 'darkblue', linewidth = 0.5)
-ax1.legend(loc='upper right')
-ax1.set_title('Winter', fontsize = 10)
-ax1.set_xlabel('HoD (h)', fontsize = 8)
-ax1.set_ylabel('Power (W)', fontsize = 8)
-
-yticks = np.arange(0,450, 200)
-xticks = np.arange(0,24,4)
-ax1.set_yticks(yticks)
-ax1.set_xticks(xticks)
-
-ax1.grid()
-
-
-ax2.plot(x, Trans_Workday, color = 'darkred', linewidth = 0.5)
-ax2.plot(x, Trans_Saturday, color = 'darkgreen', linewidth = 0.5)
-ax2.plot(x, Trans_Sunday, color = 'darkblue', linewidth = 0.5)
-ax2.set_title('Transmission', fontsize = 10)
-ax2.set_xlabel('HoD (h)', fontsize = 8)
-ax2.set_ylabel('Power (W)', fontsize = 8)
-ax2.grid()
-
-ax2.set_yticks(yticks)
-ax2.set_xticks(xticks)
-
-
-
-
-ax3.plot(x, Summer_Workday, color = 'darkred', linewidth = 0.5)
-ax3.plot(x, Summer_Saturday, color = 'darkgreen', linewidth = 0.5)
-ax3.plot(x, Summer_Sunday, color ='darkblue', linewidth = 0.5)
-ax3.set_title('Summer', fontsize = 10)
-ax3.set_xlabel('HoD (h)', fontsize = 8)
-ax3.set_ylabel('Power (W)', fontsize = 8)
-ax3.grid()
-
-ax3.set_yticks(yticks)
-ax3.set_xticks(xticks)
-
-
-
-
-#plt.tight_layout();
-plt.subplots_adjust(hspace= 0.8)
-
-
-plt.savefig('DHW', dpi=600, format=None,
-            transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
-            facecolor='w', edgecolor='w')
+plt.ylabel('Period for optimization')
 
 plt.show()
+
+plt.savefig('SmartApp', dpi=600, format=None,
+            transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
+            facecolor='w', edgecolor='w')
