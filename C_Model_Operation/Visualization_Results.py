@@ -1,9 +1,9 @@
-# import seaborn as sns
-#
-# import pandas as pd
-# from matplotlib import pyplot as plt
-# import numpy as np
-#
+import seaborn as sns
+
+import pandas as pd
+from matplotlib import pyplot as plt
+import numpy as np
+
 # ## 6.1 PV
 # ##PV and Battery with Reference to no PV
 #
@@ -147,3 +147,28 @@
 #             facecolor='w', edgecolor='w')
 # plt.show()
 #
+
+## Saving potential static and dynamic
+
+
+orders = np.array([[935, 354, 413, 413, 314, 336, 82],
+                   [1234, 652, 522, 457, 393, 358, 107],
+                   [887, 359, 426, 426, 325, 261, 85],
+                   [1162, 628, 525, 466, 401, 313, 109],
+                   [857, 380, 423, 423, 338, 211, 89],
+                   [1078, 605, 505, 456, 411, 261, 113]])
+
+plt.figure(figsize=(8, 3))
+xlabels = ['All', 'EV opt.(V2B)', 'Grid2Bat', 'Battery', 'EV opt.', 'Heat/Cool', 'SmartApp']
+ylabels = ['AG1 static', 'dynamic', 'AG2 static', 'dynamic', 'AG3 static', 'dynamic']
+
+sns.heatmap(orders, xticklabels=xlabels, yticklabels=ylabels, cmap='mako_r', \
+            annot=False, fmt='g', linewidth=0.75, linecolor='white',
+            cbar_kws={'label': 'Savings in € per year', 'orientation': 'horizontal'})
+
+plt.tight_layout();
+
+plt.savefig('Result_Saving potential_all', dpi=600, format=None,
+            transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
+            facecolor='w', edgecolor='w')
+plt.show()
