@@ -19,7 +19,7 @@ if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
     #TableGenerator(CONN).run()
     #OperationOptimization(CONN).run()
-    #Visualization(CONN).run()
+    Visualization(CONN).run()
 
 
 
