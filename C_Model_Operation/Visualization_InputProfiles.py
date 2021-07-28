@@ -1,5 +1,128 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+var = pd.read_excel('InputProfiles.xlsx', 'Sheet1')
+
+
+
+
+# print(var)
+#
+# d0 = var['d0'].tolist()
+# d5 = var['d5'].tolist()
+# d10 = var['d10'].tolist()
+# d15 = var['d15'].tolist()
+# static = var['static'].tolist()
+# fit = var['fit'].tolist()
+#
+# plt.rcParams["figure.figsize"] = (10,6)
+# plt.plot(d0, label= '+/- 0%', color = 'black', linewidth = 0.75)
+# plt.plot(d5, label= '+/- 5%', color = 'darkslategray', linewidth = 0.5)
+# plt.plot(d10, label= '+/- 10%', color = 'teal', linewidth = 0.5)
+# plt.plot(d15, label= '+/- 15%', color = 'steelblue', linewidth = 0.5)
+#
+# plt.plot(static, label= 'Static', color = 'darkblue', linewidth = 0.75)
+# plt.plot(fit, label= 'FiT', color = 'darkgreen', linewidth = 0.75)
+# plt.xlabel('Hour of week (h)')
+# plt.ylabel('Electricity price and FiT (€/kWh)')
+#
+# plt.legend(loc='upper right')
+# plt.grid()
+# plt.savefig('Pricing', dpi=600, format=None,
+#              transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
+#              facecolor='w', edgecolor='w')
+# plt.show()
+
+
+
+
+
+# ### PV
+#
+# PV = var['PV'].tolist()
+# plt.rcParams["figure.figsize"] = (10,4)
+# plt.plot(PV, color = 'darkorange',label = '1kWp', linewidth = 0.2)
+# plt.xlabel('Hour of year (h)')
+# plt.ylabel('Generated power (W)')
+# plt.legend(loc='upper right')
+# plt.grid()
+#
+# plt.savefig('PV', dpi=600, format=None,
+#              transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
+#              facecolor='w', edgecolor='w')
+# plt.show()
+
+
+
+
+
+# # ### Weather
+# #
+# Temp = var['Temp'].tolist()
+# Rad = var['Rad'].tolist()
+#
+#
+# t = range(8760)
+# fig, ax1 = plt.subplots()
+# fig.set_size_inches(10,5)
+# ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+#
+# ax1.set_xlabel('Hour of year (h)')
+# ax1.set_ylabel('Global radiation on horizontal surface (W/m²)')
+# Gh = ax1.plot(t, Rad, color='darkorange', linewidth = 1.5, label = 'Global radiation', alpha = 0.5)
+#
+# ax2.set_ylabel('Temperature (°C)')  # we already handled the x-label with ax1
+# Temp = ax2.plot(t, Temp, color='darkred', linewidth = 0.25, label ='Temperature')
+#
+# GhTemp = Gh+Temp
+# labs = [l.get_label() for l in GhTemp]
+# ax1.legend(GhTemp, labs, loc=0)
+#
+# fig.tight_layout()  # otherwise the right y-label is slightly clipped
+# plt.grid()
+#
+# plt.savefig('Weather', dpi=600, format=None,
+#              transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
+#              facecolor='w', edgecolor='w')
+# plt.show()
+
+
+
+
+
+### COP
+
+Air = var['Air'].tolist()
+Water = var['Water'].tolist()
+DHW= var['DHW'].tolist()
+DHWWater = var['DHWWater'].tolist()
+t = var['Axis'].tolist()
+
+
+
+fig, ax1 = plt.subplots()
+fig.set_size_inches(10,5)
+
+
+ax1.set_xlabel('Ambient temperature (°C)')
+ax1.set_ylabel('COP')
+ax1.plot(t, Air, color='darkred', linewidth = 1.5, label = 'HP Air-Water (Space Heating, 35 °C)', alpha = 0.5)
+ax1.plot(t, Water, color='royalblue', linewidth = 1.5, label = 'HP Water-Water (Space Heating, 35 °C)', alpha = 0.5)
+ax1.plot(t, DHW, color='darkred', linestyle = '--', linewidth = 1.5, label = 'HP Air-Water (DHW, 55°C)', alpha = 0.5)
+ax1.plot(t, DHWWater, color='royalblue',linestyle ='--', linewidth = 1.5, label = 'HP Water-Water (DHW, 55°C)', alpha = 0.5)
+plt.legend(loc = 'upper right')
+
+
+fig.tight_layout()  # otherwise the right y-label is slightly clipped
+plt.grid()
+
+plt.savefig('COP', dpi=600, format=None,
+             transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
+             facecolor='w', edgecolor='w')
+plt.show()
+
+
+
 
 
 #
@@ -157,25 +280,56 @@ import numpy as np
 
 
 
-# Smart Appliances
+# # Smart Appliances
+#
+# plt.rcParams["figure.figsize"] = (10,3)
+# Dishwasher = [1, 0, 1, 1, 0,1,1]
+# Washingmachine = [1,0,1,0,1,0,1]
+# bars = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+# y_pos = np.arange(len(bars))
+#
+# plt.bar(y_pos, Dishwasher, label = 'Dishwasher', color ='gainsboro', hatch ='/', alpha = 0.5)
+# plt.bar(y_pos, Washingmachine, label = 'Washing machine + dryer ', color ='gainsboro', hatch ='\\', alpha = 0.5)
+#
+# plt.yticks([0,1], ['0', '1'])
+# plt.xticks(y_pos, bars)
+# plt.legend(loc='upper right')
+#
+# plt.ylabel('Period for optimization (24 h)')
+#
+# plt.savefig('SmartApp', dpi=600, format=None,
+#             transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
+#             facecolor='w', edgecolor='w')
+# plt.show()
+#
+#
+#
+#
+# #EV use hours
+#
+# plt.rcParams["figure.figsize"] = (10,3)
+# labels = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+#
+# Morning = (7, 7, 7, 7, 7,24,24)
+# Away = (10, 10, 10, 10, 10,0,0)
+# Evening = (7, 7, 7, 7, 7,0,0)
+#
+# width = 0.99       # the width of the bars: can also be len(x) sequence
+#
+# fig, ax = plt.subplots()
+#
+# ax.bar(labels, Morning, width, label='M1: At home', color = 'cadetblue')
+# ax.bar(labels, Away, width, bottom=Morning,
+#        label='M2: Away', color ='darkgray')
+# ax.bar(labels, Evening, width, bottom=np.add(Morning,Away), color ='cadetblue')
+#
+# plt.ylabel('Hour of the day (h)')
+# plt.yticks = (0,24,4)
+#
+# ax.legend(loc='upper right')
+# plt.savefig('EVhours', dpi=600, format=None,
+#             transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
+#             facecolor='w', edgecolor='w')
+#
+# plt.show()
 
-plt.rcParams["figure.figsize"] = (10,3)
-Dishwasher = [1, 0, 1, 1, 0,1,1]
-Washingmachine = [1,0,1,0,1,0,1]
-bars = ('Monday', 'Thuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
-y_pos = np.arange(len(bars))
-
-plt.bar(y_pos, Dishwasher, label = 'Dishwasher', color ='gainsboro', hatch ='/', alpha = 0.5)
-plt.bar(y_pos, Washingmachine, label = 'Washing machine + dryer ', color ='gainsboro', hatch ='\\', alpha = 0.5)
-
-plt.yticks([0,1], ['0', '1'])
-plt.xticks(y_pos, bars)
-plt.legend(loc='upper right')
-
-plt.ylabel('Period for optimization')
-
-plt.show()
-
-plt.savefig('SmartApp', dpi=600, format=None,
-            transparent=False, bbox_inches=None, pad_inches=0.1, metadata=None,
-            facecolor='w', edgecolor='w')
