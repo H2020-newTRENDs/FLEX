@@ -8,6 +8,12 @@ from _Philipp.Radiation import calculate_angels_of_sun
 from B_Classes.B2_Building import HeatingCooling_noDR
 
 
+def create_dict(liste):
+    dictionary = {}
+    for index, value in enumerate(liste, start=1):
+        dictionary[index] = value
+    return dictionary
+
 def showResults_noDR(Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR, plot_EPlus=False):
     if plot_EPlus==True:
         B1_EPlus = pd.read_csv("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Prosumager\\_Philipp\\inputdata\\Building1_EPlus.csv", sep=";")
@@ -436,8 +442,11 @@ def compare_solar_radation():
     timearray = pd.date_range("01-01-2010 00:00:00", "01-01-2011 00:00:00", freq="H", closed="left",
                               tz=datetime.timezone.utc)
     GlobalHorizontalRadiation = Temperature_data.loc[:, "GloHorzRad {Wh/m2}"].drop(0).to_numpy().astype(np.float)
-    azimuth_sun, altitude_sun, E_nord, E_sued, E_ost, E_west, E_dir = \
-        calculate_angels_of_sun(latitude, longitude, timearray, GlobalHorizontalRadiation)
+    E_diff = Temperature_data.loc[:, "DifHorzRad {Wh/m2}"].drop(0).to_numpy().astype(np.float)
+    E_dir = GlobalHorizontalRadiation - E_diff
+
+    azimuth_sun, altitude_sun, E_nord, E_sued, E_ost, E_west = \
+        calculate_angels_of_sun(latitude, longitude, timearray, E_dir, E_diff)
     # define building data
     buildingData = pd.read_excel(base_input_path / "Building_data_for_EPlus.xlsx", engine="openpyxl")
 
@@ -465,8 +474,15 @@ def compare_solar_radation():
         initial_thermal_mass_temp=20,
         T_air_min=20,
         T_air_max=26)
-    fig, (ax1, ax2) = plt.subplots(2, 1)
     x_achse = np.arange(len(Q_Heating_noDR))
+    fig2, ax1 = plt.subplots()
+    ax1.plot(x_achse, E_dir+E_diff, label="rad gains pysolar")
+    ax1.plot(x_achse, Q_sol_EPlus[:, 0], label="rad gains E+", alpha=0.5)
+    ax1.legend()
+    plt.show()
+
+    fig, (ax1, ax2) = plt.subplots(2, 1)
+
     ax1.plot(x_achse, Q_sol[:, 0], label="rad gains pysolar")
     ax1.plot(x_achse, Q_sol_EPlus[:, 0], label="rad gains E+", alpha=0.5)
     ax1.legend()
@@ -491,17 +507,17 @@ if __name__=="__main__":
     Buildings = HeatingCooling_noDR(buildingData)
 
     # Sprungantwort()
-    # compare_solar_radation()
+    compare_solar_radation()
 
-    hours_of_preheating = 3
-    hours_of_shifting = 3
-    T_outside = 12
-    T_min_indoor = 20
-    T_max_indoor = 26
-    T_offset_indoor = 2
-    HouseNr = 3  # startet bei 1! nicht bei 0
-    calculate_LoadShiftPotential(Buildings, hours_of_preheating, hours_of_shifting, T_outside,
-                                 T_min_indoor, T_max_indoor, HouseNr, T_offset_indoor=T_offset_indoor)
+    # hours_of_preheating = 3
+    # hours_of_shifting = 3
+    # T_outside = 12
+    # T_min_indoor = 20
+    # T_max_indoor = 26
+    # T_offset_indoor = 2
+    # HouseNr = 3  # startet bei 1! nicht bei 0
+    # calculate_LoadShiftPotential(Buildings, hours_of_preheating, hours_of_shifting, T_outside,
+    #                              T_min_indoor, T_max_indoor, HouseNr, T_offset_indoor=T_offset_indoor)
 
 
 
