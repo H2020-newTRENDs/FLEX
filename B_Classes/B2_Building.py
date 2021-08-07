@@ -1,6 +1,8 @@
 from A_Infrastructure.A1_CONS import CONS
 import numpy as np
 import pandas as pd
+import geopandas as gpd
+from pyproj import CRS, Transformer
 
 
 class Building:
@@ -251,93 +253,120 @@ class HeatingCooling_noDR:
 
         return Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t
 
-    def get_solar_radiation_cilestial_direction(self, lat, lon, startyear=2010, endyear=2010):
-        """
-        This function gets the solar radiation for every cilestial direction (North, East, West, South) on a vertical
-        plane. This radiation will later be multiplied with the respective window areas to calculate the radiation
-        gains. The function takes the latitude and longitude as input and the start and endyear. Possible years are
-        2005 until 2017.
 
-                    Explanation of header of returned dataframe:
-                #  P: PV system power (W)
-                #  Gb(i): Beam (direct) irradiance on the inclined plane (plane of the array) (W/m2)
-                #  Gd(i): Diffuse irradiance on the inclined plane (plane of the array) (W/m2)
-                #  Gr(i): Reflected irradiance on the inclined plane (plane of the array) (W/m2)
-                #  H_sun: Sun height (degree)
-                #  T2m: 2-m air temperature (degree Celsius)
-                #  WS10m: 10-m total wind speed (m/s)
-                #  Int: 1 means solar radiation values are reconstructed
+def get_solar_radiation_cilestial_direction(lat, lon, startyear=2010, endyear=2010):
+    """
+    This function gets the solar radiation for every cilestial direction (North, East, West, South) on a vertical
+    plane. This radiation will later be multiplied with the respective window areas to calculate the radiation
+    gains. The function takes the latitude and longitude as input and the start and endyear. Possible years are
+    2005 until 2017.
 
-        The output Dataframe has a multiIndex. First index is celestial direction, second index is the above explained.
-        """
-        def get_JRC(aspect):
-            # % JRC data
-            # possible years are 2005 to 2017
-            pvCalculation = 0  # 0 for no and 1 for yes
-            peakPower = 1  # kWp
-            pvLoss = 14  # system losses in %
-            pvTechChoice = "crystSi"  # Choices are: "crystSi", "CIS", "CdTe" and "Unknown".
-            trackingtype = 0  # Type of suntracking used, 0=fixed, 1=single horizontal axis aligned north-south, 2=two-axis
-            # tracking, 3=vertical axis tracking, 4=single horizontal axis aligned east-west,
-            # 5=single inclined axis aligned north-south.
-            # angle is set to 90° because we are looking at a vertical plane
-            angle = 90  # Inclination angle from horizontal plane
-            optimalInclination = 0  # Calculate the optimum inclination angle. Value of 1 for "yes".
-            # All other values (or no value) mean "no". Not relevant for 2-axis tracking.
-            optimalAngles = 0  # Calculate the optimum inclination AND orientation angles. Value of 1 for "yes".
-            # All other values (or no value) mean "no". Not relevant for tracking planes.
+                Explanation of header of returned dataframe:
+            #  P: PV system power (W)
+            #  Gb(i): Beam (direct) irradiance on the inclined plane (plane of the array) (W/m2)
+            #  Gd(i): Diffuse irradiance on the inclined plane (plane of the array) (W/m2)
+            #  Gr(i): Reflected irradiance on the inclined plane (plane of the array) (W/m2)
+            #  H_sun: Sun height (degree)
+            #  T2m: 2-m air temperature (degree Celsius)
+            #  WS10m: 10-m total wind speed (m/s)
+            #  Int: 1 means solar radiation values are reconstructed
 
-            req = f"https://re.jrc.ec.europa.eu/api/seriescalc?lat={lat}&" \
-                  f"lon={lon}&" \
-                  f"startyear={startyear}&" \
-                  f"endyear={endyear}&" \
-                  f"pvcalculation={pvCalculation}&" \
-                  f"peakpower={peakPower}&" \
-                  f"loss={pvLoss}&" \
-                  f"pvtechchoice={pvTechChoice}&" \
-                  f"components={1}&" \
-                  f"trackingtype={trackingtype}&" \
-                  f"optimalinclination={optimalInclination}&" \
-                  f"optimalangles={optimalAngles}&" \
-                  f"angle={angle}&" \
-                  f"aspect={aspect}"
-            # read the csv from api and set column names to list of 20 because depending on input parameters the number
-            # of rows will vary. This way all parameters are included for sure, empty rows are dropped afterwards:
-            df = pd.read_csv(req, sep=",", header=None, names=range(20)).dropna(how="all", axis=1)
-            # drop rows with nan:
-            df = df.dropna().reset_index(drop=True)
-            # set header to first column
-            columnNames = df.iloc[0]
-            df = df.iloc[1:, :]
-            df.columns = columnNames
-            return df
+    The output Dataframe has a multiIndex. First index is celestial direction, second index is the above explained.
+    """
+    def get_JRC(aspect):
+        # % JRC data
+        # possible years are 2005 to 2017
+        pvCalculation = 0  # 0 for no and 1 for yes
+        peakPower = 1  # kWp
+        pvLoss = 14  # system losses in %
+        pvTechChoice = "crystSi"  # Choices are: "crystSi", "CIS", "CdTe" and "Unknown".
+        trackingtype = 0  # Type of suntracking used, 0=fixed, 1=single horizontal axis aligned north-south,
+        # 2=two-axis tracking, 3=vertical axis tracking, 4=single horizontal axis aligned east-west,
+        # 5=single inclined axis aligned north-south.
+        # angle is set to 90° because we are looking at a vertical plane
+        angle = 90  # Inclination angle from horizontal plane
+        optimalInclination = 0  # Calculate the optimum inclination angle. Value of 1 for "yes".
+        # All other values (or no value) mean "no". Not relevant for 2-axis tracking.
+        optimalAngles = 0  # Calculate the optimum inclination AND orientation angles. Value of 1 for "yes".
+        # All other values (or no value) mean "no". Not relevant for tracking planes.
 
-        # Himmelsrichtung kann nur "north", "south", "east", "west" sein:
-        # Orientation (azimuth) angle of the (fixed) plane, 0=south, 90=west, -90=east. Not relevant for tracking planes.
-        for CelestialDirection in ["south", "east", "west", "north"]:
-            if CelestialDirection == "south":
-                aspect = 0
-                df_south = get_JRC(aspect)
-            elif CelestialDirection == "east":
-                aspect = -90
-                df_east = get_JRC(aspect)
-            elif CelestialDirection == "west":
-                aspect = 90
-                df_west = get_JRC(aspect)
-            elif CelestialDirection == "north":
-                aspect = -180
-                df_north = get_JRC(aspect)
-        bigFrame = pd.concat([df_south, df_east, df_west, df_north], axis=1)
-        # create header with Multi Index:
-        columnNames = df_north.columns.to_list()
-        bigHeader = pd.MultiIndex.from_product([["south", "east", "west", "north"],
-                                                columnNames],
-                                               names=['CelestialDirection', 'columns'])
-        bigFrame.columns = bigHeader
-        return bigFrame
+        req = f"https://re.jrc.ec.europa.eu/api/seriescalc?lat={lat}&" \
+              f"lon={lon}&" \
+              f"startyear={startyear}&" \
+              f"endyear={endyear}&" \
+              f"pvcalculation={pvCalculation}&" \
+              f"peakpower={peakPower}&" \
+              f"loss={pvLoss}&" \
+              f"pvtechchoice={pvTechChoice}&" \
+              f"components={1}&" \
+              f"trackingtype={trackingtype}&" \
+              f"optimalinclination={optimalInclination}&" \
+              f"optimalangles={optimalAngles}&" \
+              f"angle={angle}&" \
+              f"aspect={aspect}"
+        # read the csv from api and set column names to list of 20 because depending on input parameters the number
+        # of rows will vary. This way all parameters are included for sure, empty rows are dropped afterwards:
+        df = pd.read_csv(req, sep=",", header=None, names=range(20)).dropna(how="all", axis=1)
+        # drop rows with nan:
+        df = df.dropna().reset_index(drop=True)
+        # set header to first column
+        header = df.iloc[0]
+        df = df.iloc[1:, :]
+        df.columns = header
+        return df
+
+    # CelestialDirections are "north", "south", "east", "west":
+    # Orientation (azimuth) angle of the (fixed) plane, 0=south, 90=west, -90=east. Not relevant for tracking planes.
+    for CelestialDirection in ["south", "east", "west", "north"]:
+        if CelestialDirection == "south":
+            aspect = 0
+            df_south = get_JRC(aspect)
+        elif CelestialDirection == "east":
+            aspect = -90
+            df_east = get_JRC(aspect)
+        elif CelestialDirection == "west":
+            aspect = 90
+            df_west = get_JRC(aspect)
+        elif CelestialDirection == "north":
+            aspect = -180
+            df_north = get_JRC(aspect)
+    bigFrame = pd.concat([df_south, df_east, df_west, df_north], axis=1)
+    # create header with Multi Index:
+    columnNames = df_north.columns.to_list()
+    bigHeader = pd.MultiIndex.from_product([["south", "east", "west", "north"],
+                                            columnNames],
+                                           names=['CelestialDirection', 'columns'])
+    bigFrame.columns = bigHeader
+    return bigFrame
+
+def getNutsCenter(nuts_id,
+              url_nuts0_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_0.geojson",
+              url_nuts1_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_1.geojson",
+              url_nuts2_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_2.geojson",
+              url_nuts3_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_3.geojson"):
+    """
+    This function returns the latitude and longitude of the center of a NUTS region.
+    """
+    nuts_id = nuts_id.strip()
+    if len(nuts_id) == 2:
+        url = url_nuts0_poly
+    elif len(nuts_id) == 3:
+        url = url_nuts1_poly
+    elif len(nuts_id) == 4:
+        url = url_nuts2_poly
+    elif len(nuts_id) > 4:
+        url = url_nuts3_poly
+    else:
+        assert False, f"Error could not identify nuts level for {nuts_id}"
+    nuts = gpd.read_file(url)
+    transformer = Transformer.from_crs(CRS("EPSG:3035"), CRS("EPSG:4326"))
+    point = nuts[nuts.NUTS_ID == nuts_id].centroid.values[0]
+    return transformer.transform(point.y, point.x)  # returns lat, lon
 
 
 if __name__ == "__main__":
-    Testing = HeatingCooling_noDR()
-    # example is vienna
-    df = Testing.get_solar_radiation_cilestial_direction(lat=48.210033, lon=16.363449)
+    # example is austria
+    # Mittelpunkt von NUTS0
+    nuts0 = "AT"
+    lat, lon = getNutsCenter(nuts0)
+    df = get_solar_radiation_cilestial_direction(lat=lat, lon=lon)
