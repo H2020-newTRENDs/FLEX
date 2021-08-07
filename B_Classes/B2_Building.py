@@ -44,9 +44,6 @@ class Building:
         self.MaximalBuildingMassTemperature = para_series['MaximalBuildingMassTemperature']
 
 
-
-
-
 class HeatingCooling_noDR:
 
     def __init__(self, ID_BuildingOption_dataframe):
@@ -55,10 +52,11 @@ class HeatingCooling_noDR:
             self.name = ID_BuildingOption_dataframe['name']
             self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
             self.number_of_dwellings_per_building = ID_BuildingOption_dataframe['number_of_dwellings_per_building']
-            self.areawindows =ID_BuildingOption_dataframe['areawindows']
-            self.area_suitable_solar =ID_BuildingOption_dataframe['area_suitable_solar']
+            self.areawindows = ID_BuildingOption_dataframe['areawindows']
+            self.area_suitable_solar = ID_BuildingOption_dataframe['area_suitable_solar']
             self.ued_dhw = ID_BuildingOption_dataframe['ued_dhw']
-            self.AreaWindowEastWest = ID_BuildingOption_dataframe['average_effective_area_wind_west_east_red_cool'].to_numpy()
+            self.AreaWindowEastWest = ID_BuildingOption_dataframe[
+                'average_effective_area_wind_west_east_red_cool'].to_numpy()
             self.AreaWindowSouth = ID_BuildingOption_dataframe['average_effective_area_wind_south_red_cool'].to_numpy()
             self.AreaWindowNorth = ID_BuildingOption_dataframe['average_effective_area_wind_north_red_cool'].to_numpy()
             self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
@@ -76,9 +74,6 @@ class HeatingCooling_noDR:
         except:
             self.Af = ID_BuildingOption_dataframe["areafloor"].to_numpy()
 
-
-
-
     def ref_HeatingCooling(self, T_outside, Q_solar=None,
                            initial_thermal_mass_temp=20, T_air_min=20, T_air_max=26):
         """
@@ -95,9 +90,9 @@ class HeatingCooling_noDR:
             Q_sol_all = pd.read_csv(CONS().DatabasePath + "\\directRadiation_himmelsrichtung_GER.csv", sep=";")
             Q_sol_north = np.outer(Q_sol_all.loc[:, "RadiationNorth"].to_numpy(), self.AreaWindowNorth)
             Q_sol_south = np.outer(Q_sol_all.loc[:, "RadiationSouth"].to_numpy(), self.AreaWindowSouth)
-            Q_sol_east_west = np.outer((Q_sol_all.loc[:, "RadiationEast"].to_numpy() +
-                                        Q_sol_all.loc[:, "RadiationWest"].to_numpy()), self.AreaWindowEastWest)
-            Q_solar = Q_sol_north + Q_sol_south + Q_sol_east_west
+            Q_sol_east = np.outer(Q_sol_all.loc[:, "RadiationEast"].to_numpy(), self.AreaWindowEastWest)
+            Q_sol_west = np.outer(Q_sol_all.loc[:, "RadiationWest"].to_numpy(), self.AreaWindowEastWest)
+            Q_solar = Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west
             print("Q_solar is calculated from csv file")
         else:
             pass
@@ -255,3 +250,94 @@ class HeatingCooling_noDR:
         Tm_t = np.nan_to_num(Tm_t, nan=0)
 
         return Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t
+
+    def get_solar_radiation_cilestial_direction(self, lat, lon, startyear=2010, endyear=2010):
+        """
+        This function gets the solar radiation for every cilestial direction (North, East, West, South) on a vertical
+        plane. This radiation will later be multiplied with the respective window areas to calculate the radiation
+        gains. The function takes the latitude and longitude as input and the start and endyear. Possible years are
+        2005 until 2017.
+
+                    Explanation of header of returned dataframe:
+                #  P: PV system power (W)
+                #  Gb(i): Beam (direct) irradiance on the inclined plane (plane of the array) (W/m2)
+                #  Gd(i): Diffuse irradiance on the inclined plane (plane of the array) (W/m2)
+                #  Gr(i): Reflected irradiance on the inclined plane (plane of the array) (W/m2)
+                #  H_sun: Sun height (degree)
+                #  T2m: 2-m air temperature (degree Celsius)
+                #  WS10m: 10-m total wind speed (m/s)
+                #  Int: 1 means solar radiation values are reconstructed
+
+        The output Dataframe has a multiIndex. First index is celestial direction, second index is the above explained.
+        """
+        def get_JRC(aspect):
+            # % JRC data
+            # possible years are 2005 to 2017
+            pvCalculation = 0  # 0 for no and 1 for yes
+            peakPower = 1  # kWp
+            pvLoss = 14  # system losses in %
+            pvTechChoice = "crystSi"  # Choices are: "crystSi", "CIS", "CdTe" and "Unknown".
+            trackingtype = 0  # Type of suntracking used, 0=fixed, 1=single horizontal axis aligned north-south, 2=two-axis
+            # tracking, 3=vertical axis tracking, 4=single horizontal axis aligned east-west,
+            # 5=single inclined axis aligned north-south.
+            # angle is set to 90° because we are looking at a vertical plane
+            angle = 90  # Inclination angle from horizontal plane
+            optimalInclination = 0  # Calculate the optimum inclination angle. Value of 1 for "yes".
+            # All other values (or no value) mean "no". Not relevant for 2-axis tracking.
+            optimalAngles = 0  # Calculate the optimum inclination AND orientation angles. Value of 1 for "yes".
+            # All other values (or no value) mean "no". Not relevant for tracking planes.
+
+            req = f"https://re.jrc.ec.europa.eu/api/seriescalc?lat={lat}&" \
+                  f"lon={lon}&" \
+                  f"startyear={startyear}&" \
+                  f"endyear={endyear}&" \
+                  f"pvcalculation={pvCalculation}&" \
+                  f"peakpower={peakPower}&" \
+                  f"loss={pvLoss}&" \
+                  f"pvtechchoice={pvTechChoice}&" \
+                  f"components={1}&" \
+                  f"trackingtype={trackingtype}&" \
+                  f"optimalinclination={optimalInclination}&" \
+                  f"optimalangles={optimalAngles}&" \
+                  f"angle={angle}&" \
+                  f"aspect={aspect}"
+            # read the csv from api and set column names to list of 20 because depending on input parameters the number
+            # of rows will vary. This way all parameters are included for sure, empty rows are dropped afterwards:
+            df = pd.read_csv(req, sep=",", header=None, names=range(20)).dropna(how="all", axis=1)
+            # drop rows with nan:
+            df = df.dropna().reset_index(drop=True)
+            # set header to first column
+            columnNames = df.iloc[0]
+            df = df.iloc[1:, :]
+            df.columns = columnNames
+            return df
+
+        # Himmelsrichtung kann nur "north", "south", "east", "west" sein:
+        # Orientation (azimuth) angle of the (fixed) plane, 0=south, 90=west, -90=east. Not relevant for tracking planes.
+        for CelestialDirection in ["south", "east", "west", "north"]:
+            if CelestialDirection == "south":
+                aspect = 0
+                df_south = get_JRC(aspect)
+            elif CelestialDirection == "east":
+                aspect = -90
+                df_east = get_JRC(aspect)
+            elif CelestialDirection == "west":
+                aspect = 90
+                df_west = get_JRC(aspect)
+            elif CelestialDirection == "north":
+                aspect = -180
+                df_north = get_JRC(aspect)
+        bigFrame = pd.concat([df_south, df_east, df_west, df_north], axis=1)
+        # create header with Multi Index:
+        columnNames = df_north.columns.to_list()
+        bigHeader = pd.MultiIndex.from_product([["south", "east", "west", "north"],
+                                                columnNames],
+                                               names=['CelestialDirection', 'columns'])
+        bigFrame.columns = bigHeader
+        return bigFrame
+
+
+if __name__ == "__main__":
+    Testing = HeatingCooling_noDR()
+    # example is vienna
+    df = Testing.get_solar_radiation_cilestial_direction(lat=48.210033, lon=16.363449)
