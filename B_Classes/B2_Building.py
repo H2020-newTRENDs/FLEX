@@ -370,14 +370,20 @@ def getNutsCenter(nuts_id,
     return transformer.transform(point.y, point.x)  # returns lat, lon
 
 def calculate_hourly_COP(outsideTemperature):
+    """
+    This function calculates the hourly COP for space heating and DHW based on the table in the database which provides
+    values for temperatures between -22 and 40 °C. Every value is interpolated between the temperature steps.
+    Input must be the outside temperature vector for every hour of the year.
+    Output are two numpy arrays with 8760 entries for every hours of the year.
+    """
     # calculate COP of HP for heating and DHW:
     CONN = DB().create_Connection(CONS().RootDB)
     HeatPump_COP = DB().read_DataFrame(REG_Table().Sce_HeatPump_COPCurve, CONN)
     HeatPump_COP = HeatPump_COP[:-1]
 
     # create COP vector with linear interpolation:
-    HeatPump_HourlyCOP = np.zeros((8760, 1))
-    DHW_HourlyCOP = np.zeros((8760, 1))
+    HeatPump_HourlyCOP = np.zeros((8760,))
+    DHW_HourlyCOP = np.zeros((8760,))
     for index, temperature in enumerate(outsideTemperature):
         if temperature <= min(HeatPump_COP.TemperatureEnvironment):
             HeatPump_HourlyCOP[index] = min(HeatPump_COP.COP_SpaceHeating)
