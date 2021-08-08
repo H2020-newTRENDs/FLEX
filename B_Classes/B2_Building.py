@@ -3,6 +3,9 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 from pyproj import CRS, Transformer
+from A_Infrastructure.A2_DB import DB
+from C_Model_Operation.C1_REG import REG_Table
+
 
 
 class Building:
@@ -89,6 +92,7 @@ class HeatingCooling_noDR:
             T_outside = T_outside.loc[:, "Temperature"]
 
         if Q_solar is None:
+            print("keine Solarstrahlung gegeben! \n Achtung falsches Ergebnis!")
             Q_sol_all = pd.read_csv(CONS().DatabasePath + "\\directRadiation_himmelsrichtung_GER.csv", sep=";")
             Q_sol_north = np.outer(Q_sol_all.loc[:, "RadiationNorth"].to_numpy(), self.AreaWindowNorth)
             Q_sol_south = np.outer(Q_sol_all.loc[:, "RadiationSouth"].to_numpy(), self.AreaWindowSouth)
@@ -273,6 +277,7 @@ def get_solar_radiation_cilestial_direction(lat, lon, startyear=2010, endyear=20
 
     The output Dataframe has a multiIndex. First index is celestial direction, second index is the above explained.
     """
+
     def get_JRC(aspect):
         # % JRC data
         # possible years are 2005 to 2017
@@ -339,11 +344,12 @@ def get_solar_radiation_cilestial_direction(lat, lon, startyear=2010, endyear=20
     bigFrame.columns = bigHeader
     return bigFrame
 
+
 def getNutsCenter(nuts_id,
-              url_nuts0_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_0.geojson",
-              url_nuts1_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_1.geojson",
-              url_nuts2_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_2.geojson",
-              url_nuts3_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_3.geojson"):
+                  url_nuts0_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_0.geojson",
+                  url_nuts1_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_1.geojson",
+                  url_nuts2_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_2.geojson",
+                  url_nuts3_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_3.geojson"):
     """
     This function returns the latitude and longitude of the center of a NUTS region.
     """
@@ -363,6 +369,36 @@ def getNutsCenter(nuts_id,
     point = nuts[nuts.NUTS_ID == nuts_id].centroid.values[0]
     return transformer.transform(point.y, point.x)  # returns lat, lon
 
+def calculate_hourly_COP(outsideTemperature):
+    # calculate COP of HP for heating and DHW:
+    CONN = DB().create_Connection(CONS().RootDB)
+    HeatPump_COP = DB().read_DataFrame(REG_Table().Sce_HeatPump_COPCurve, CONN)
+    HeatPump_COP = HeatPump_COP[:-1]
+
+    # create COP vector with linear interpolation:
+    HeatPump_HourlyCOP = np.zeros((8760, 1))
+    DHW_HourlyCOP = np.zeros((8760, 1))
+    for index, temperature in enumerate(outsideTemperature):
+        if temperature <= min(HeatPump_COP.TemperatureEnvironment):
+            HeatPump_HourlyCOP[index] = min(HeatPump_COP.COP_SpaceHeating)
+            DHW_HourlyCOP[index] = min(HeatPump_COP.COP_HotWater)
+            continue
+        if temperature >= 18:
+            HeatPump_HourlyCOP[index] = max(HeatPump_COP.COP_SpaceHeating)
+            DHW_HourlyCOP[index] = max(HeatPump_COP.COP_HotWater)
+            continue
+        for index2, temperatureEnvironment in enumerate(HeatPump_COP.TemperatureEnvironment):
+            if temperatureEnvironment - temperature <= 0 and temperatureEnvironment - temperature >> -1:
+                HeatPump_HourlyCOP[index] = HeatPump_COP.COP_SpaceHeating[index2] + \
+                                            (HeatPump_COP.COP_SpaceHeating[index2 + 1] -
+                                             HeatPump_COP.COP_SpaceHeating[
+                                                 index2]) \
+                                            * abs(temperatureEnvironment - temperature)
+                DHW_HourlyCOP[index] = HeatPump_COP.COP_HotWater[index2] + \
+                                       (HeatPump_COP.COP_HotWater[index2 + 1] - HeatPump_COP.COP_HotWater[index2]) * \
+                                       abs(temperatureEnvironment - temperature)
+
+    return HeatPump_HourlyCOP, DHW_HourlyCOP
 
 if __name__ == "__main__":
     # example is austria
