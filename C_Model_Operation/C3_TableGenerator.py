@@ -426,7 +426,7 @@ class TableGenerator:
 
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_HeatPump_HourlyCOP, TargetTable_columns, self.Conn)
 
-    def gen_SolarRadiation_windows(self, nuts_id):  # TODO write for loop for multiple nuts IDs!
+    def gen_SolarRadiation_windows_and_outsideTemperature(self, nuts_id):  # TODO write for loop for multiple nuts IDs!
         """
         This function gets the solar radiation for every cilestial direction (North, East, West, South) on a vertical
         plane. This radiation will later be multiplied with the respective window areas to calculate the radiation
@@ -521,22 +521,23 @@ class TableGenerator:
             if CelestialDirection == "south":
                 aspect = 0
                 df_south = get_JRC(aspect, startyear, endyear)
-                south_radiation = df_south["Gb(i)"] + df_south["Gd(i)"]
+                south_radiation = pd.to_numeric(df_south["Gb(i)"]) + pd.to_numeric(df_south["Gd(i)"])
             elif CelestialDirection == "east":
                 aspect = -90
                 df_east = get_JRC(aspect, startyear, endyear)
-                east_radiation = df_east["Gb(i)"] + df_east["Gd(i)"]
+                east_radiation = pd.to_numeric(df_east["Gb(i)"]) + pd.to_numeric(df_east["Gd(i)"])
             elif CelestialDirection == "west":
                 aspect = 90
                 df_west = get_JRC(aspect, startyear, endyear)
-                west_radiation = df_west["Gb(i)"] + df_west["Gd(i)"]
+                west_radiation = pd.to_numeric(df_west["Gb(i)"]) + pd.to_numeric(df_west["Gd(i)"])
             elif CelestialDirection == "north":
                 aspect = -180
                 df_north = get_JRC(aspect, startyear, endyear)
-                north_radiation = df_north["Gb(i)"] + df_north["Gd(i)"]
+                north_radiation = pd.to_numeric(df_north["Gb(i)"]) + pd.to_numeric(df_north["Gd(i)"])
 
-        ID_Hour = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn).ID_Hour
-        ID_Country = pd.Series([nuts_id] * len(ID_Hour))  # TODO maybe change to corresponding number??
+        ID_Timestructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
+        ID_Hour = ID_Timestructure.ID_Hour
+        ID_Country = pd.Series([nuts_id] * len(ID_Hour), name="ID_Country")  # TODO maybe change to corresponding number??
         bigFrame = pd.concat([ID_Country,
                               ID_Hour,
                               south_radiation.reset_index(drop=True),
@@ -545,9 +546,14 @@ class TableGenerator:
                               north_radiation.reset_index(drop=True)],
                              axis=1)
         bigFrame.columns = ["ID_Country", "ID_Hour", "south", "east", "west", "north"]
-
+        # write radiation data to database
         DB().write_DataFrame(bigFrame, REG_Table().Gen_Sce_Weather_Radiation_SkyDirections, bigFrame.columns, self.Conn)
 
+        ## write table for outside temperature:
+        outsideTemperature = pd.to_numeric(df_south["T2m"].reset_index(drop=True).rename("Temperature"))
+        TemperatureFrame = pd.concat([ID_Country, ID_Timestructure, outsideTemperature], axis=1)
+        # write temperature data to database
+        DB().write_DataFrame(TemperatureFrame, REG_Table().Sce_Weather_Temperature, TemperatureFrame.columns, self.Conn)
 
     def run(self):
         # these have to be run before ID Household
@@ -577,7 +583,9 @@ class TableGenerator:
 if __name__=="__main__":
     CONN = DB().create_Connection(CONS().RootDB)
     A = TableGenerator(CONN)
-    # A.gen_Sce_HeatPump_HourlyCOP()  # works
+
 
     NUTS_ID = "AT"
-    A.gen_SolarRadiation_windows(nuts_id=NUTS_ID)
+    A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
+
+    A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
