@@ -51,7 +51,10 @@ class Building:
 
 class HeatingCooling_noDR:
 
-    def __init__(self, ID_BuildingOption_dataframe):
+    def __init__(self):
+        conn = DB().create_Connection(CONS().RootDB)
+        self.Conn = conn
+        ID_BuildingOption_dataframe = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.Conn)
         try:
             self.index = ID_BuildingOption_dataframe['index']
             self.name = ID_BuildingOption_dataframe['name']
@@ -79,29 +82,25 @@ class HeatingCooling_noDR:
         except:
             self.Af = ID_BuildingOption_dataframe["areafloor"].to_numpy()
 
-    def ref_HeatingCooling(self, T_outside, Q_solar=None,
-                           initial_thermal_mass_temp=20, T_air_min=20, T_air_max=26):
+    def ref_HeatingCooling(self, initial_thermal_mass_temp=20, T_air_min=20, T_air_max=26):
         """
         This function calculates the heating and cooling demand as well as the indoor temperature for every building
         category based in the 5R1C model. The results are hourls vectors for one year. Q_solar is imported from a CSV
         at the time!
         """
-        if type(T_outside) is np.ndarray:
-            pass
-        else:
-            T_outside = T_outside.loc[:, "Temperature"]
+        # get outside temperature from database
+        T_outside = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()
+        # calculate solar gains
+        # solar gains from different celestial directions
+        radiation = DB().read_DataFrame(REG_Table().Gen_Sce_Weather_Radiation_SkyDirections, self.Conn)
+        Q_sol_north = np.outer(radiation.north.to_numpy(), self.AreaWindowSouth)
+        Q_sol_east = np.outer(radiation.east.to_numpy(), self.AreaWindowEastWest / 2)
+        Q_sol_south = np.outer(radiation.south.to_numpy(), self.AreaWindowSouth)
+        Q_sol_west = np.outer(radiation.west.to_numpy(), self.AreaWindowEastWest / 2)
 
-        if Q_solar is None:
-            print("keine Solarstrahlung gegeben! \n Achtung falsches Ergebnis!")
-            Q_sol_all = pd.read_csv(CONS().DatabasePath + "\\directRadiation_himmelsrichtung_GER.csv", sep=";")
-            Q_sol_north = np.outer(Q_sol_all.loc[:, "RadiationNorth"].to_numpy(), self.AreaWindowNorth)
-            Q_sol_south = np.outer(Q_sol_all.loc[:, "RadiationSouth"].to_numpy(), self.AreaWindowSouth)
-            Q_sol_east = np.outer(Q_sol_all.loc[:, "RadiationEast"].to_numpy(), self.AreaWindowEastWest)
-            Q_sol_west = np.outer(Q_sol_all.loc[:, "RadiationWest"].to_numpy(), self.AreaWindowEastWest)
-            Q_solar = Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west
-            print("Q_solar is calculated from csv file")
-        else:
-            pass
+        Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
+
+
         # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
         Atot = 4.5 * self.Af
         # Speicherkapazität J/K
@@ -135,18 +134,11 @@ class HeatingCooling_noDR:
         heating_power_10 = self.Af * 10
 
         for t in timesteps:  # t is the index for each timestep
-            # # Equ. C.2
-            # PHI_m = Am / Atot * (0.5 * Q_InternalGains + Q_solar[t, :])
-            # # Equ. C.3
-            # PHI_st = (1 - Am / Atot - self.Htr_w / 9.1 / Atot) * \
-            #          (0.5 * Q_InternalGains + Q_solar[t, :])
-
-            # For RefBuilding Thomas
             # Equ. C.2
-            PHI_m = Am / Atot * (0.5 * Q_InternalGains + Q_solar[t])
+            PHI_m = Am / Atot * (0.5 * Q_InternalGains + Q_solar[t, :])
             # Equ. C.3
             PHI_st = (1 - Am / Atot - self.Htr_w / 9.1 / Atot) * \
-                     (0.5 * Q_InternalGains + Q_solar[t])
+                     (0.5 * Q_InternalGains + Q_solar[t, :])
 
             # (T_sup = T_outside weil die Zuluft nicht vorgewärmt oder vorgekühlt wird)
             T_sup[t] = T_outside[t]
@@ -263,8 +255,7 @@ class HeatingCooling_noDR:
 
 
 if __name__ == "__main__":
-    # example is austria
-    # Mittelpunkt von NUTS0
-    nuts0 = "AT"
-    lat, lon = getNutsCenter(nuts0)
-    df = get_solar_radiation_cilestial_direction(lat=lat, lon=lon)
+    A = HeatingCooling_noDR()
+    A.ref_HeatingCooling()
+
+    pass
