@@ -301,9 +301,22 @@ class TableGenerator:
         TargetTable = TimeStructure.ID_Hour.to_numpy()
         TargetTable = np.column_stack([TargetTable, TimeStructure.ID_DayHour.to_numpy()])
         TargetTable_columns = ["ID_Hour", "ID_DayHour"]
-        for i in range(NumberOfDishWasherProfiles):
+        for i in range(NumberOfDishWasherProfiles+1):
             TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
             TargetTable_columns.append("DishWasherHours " + str(i))
+
+        # iterate through table and assign random values between 06:00 and 22:00 on UseDays:
+        # this table is for reference scenarios or if the dishwasher is not optimized:
+        TargetTable2 = np.copy(TargetTable)
+        for index in range(0, len(TargetTable2), 24):
+            for column in range(2, TargetTable2.shape[1]):
+                if TargetTable2[index, column] == 1:
+                    HourOfTheDay = np.random.randint(low=6, high=23)
+                    TargetTable2[index+HourOfTheDay, column] = 1
+                    TargetTable2[index:index+HourOfTheDay, column] = 0
+                    TargetTable2[index+HourOfTheDay+1:index+24, column] = 0
+        # write dataframe with starting hours to database:
+        DB().write_DataFrame(TargetTable2, REG_Table().Gen_Sce_DishWasherStartingHours, TargetTable_columns, self.Conn)
 
         # set values to 0 when it is before 6 am:
         TargetTable[:, 2:][TargetTable[:, 1] < 6] = 0
@@ -338,14 +351,28 @@ class TableGenerator:
         TargetTable = TimeStructure.ID_Hour.to_numpy()
         TargetTable = np.column_stack([TargetTable, TimeStructure.ID_DayHour.to_numpy()])
         TargetTable_columns = ["ID_Hour", "ID_DayHour"]
-        for i in range(NumberOfWashingMachineProfiles):
+        for i in range(NumberOfWashingMachineProfiles+1):
             TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
             TargetTable_columns.append("WashingMachineHours " + str(i))
+
+        # iterate through table and assign random values between 06:00 and 19:00 on UseDays (dryer has
+        # to be used as well):
+        # this table is for reference scenarios or if the dishwasher is not optimized:
+        TargetTable2 = np.copy(TargetTable)
+        for index in range(0, len(TargetTable2), 24):
+            for column in range(2, TargetTable2.shape[1]):
+                if TargetTable2[index, column] == 1:
+                    HourOfTheDay = np.random.randint(low=6, high=20)
+                    TargetTable2[index+HourOfTheDay, column] = 1
+                    TargetTable2[index:index+HourOfTheDay, column] = 0
+                    TargetTable2[index+HourOfTheDay+1:index+24, column] = 0
+        # write dataframe with starting hours to database:
+        DB().write_DataFrame(TargetTable2, REG_Table().Gen_Sce_WashingMachineStartingHours, TargetTable_columns, self.Conn)
 
         # set values to 0 when it is before 6 am:
         TargetTable[:, 2:][TargetTable[:, 1] < 6] = 0
         # set values to 0 when it is after 10 pm:
-        TargetTable[:, 2:][TargetTable[:, 1] > 22] = 0
+        TargetTable[:, 2:][TargetTable[:, 1] > 20] = 0
 
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_WashingMachineHours, TargetTable_columns, self.Conn)
 
