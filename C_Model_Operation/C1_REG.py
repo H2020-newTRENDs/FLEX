@@ -60,7 +60,6 @@ class REG_Table:
         self.Sce_ID_TimeStructure = self.Scenario + self.ID + "TimeStructure" # base year: 2010
         # self.Sce_ID_LifestyleType = self.Scenario + self.ID + "LifestyleType"
         self.Sce_ID_TargetTemperatureType = self.Scenario + self.ID + "TargetTemperatureType"
-        self.Sce_ID_TargetTemperature = self.Scenario + self.ID + "TargetTemperature"
 
         self.Sce_ID_BaseElectricityProfileType = self.Scenario + self.ID + "BaseElectricityProfileType"
         self.Sce_ID_ElectricityPriceType = self.Scenario + self.ID + "ElectricityPriceType"
@@ -94,10 +93,11 @@ class REG_Table:
         self.Gen_Sce_CarAtHomeHours = self.GeneratedData + self.Scenario + 'CarAtHomeHours'
 
         self.Gen_Sce_Technology_HeatPumpCOP = self.GeneratedData +self.Scenario + "Technology_HeatPumpCOP"
-        self.Gen_Sce_HotWaterProfile = self.GeneratedData +self.Scenario + 'HotWaterProfile'
-        self.Gen_Sce_PhotovoltaicProfile = self.GeneratedData +self.Scenario + 'PhotovoltaicProfile'  # based on 1kWp
-        self.Gen_Sce_Weather_Radiation_SkyDirections = self.GeneratedData +self.Scenario + 'Weather_Radiation_SkyDirections'  # Philipp
-        self.Gen_Sce_HeatPump_HourlyCOP = self.GeneratedData +self.Scenario + "HeatPump_HourlyCOP"
+        self.Gen_Sce_HotWaterProfile = self.GeneratedData + self.Scenario + 'HotWaterProfile'
+        self.Gen_Sce_PhotovoltaicProfile = self.GeneratedData + self.Scenario + 'PhotovoltaicProfile'  # based on 1kWp
+        self.Gen_Sce_Weather_Radiation_SkyDirections = self.GeneratedData + self.Scenario + 'Weather_Radiation_SkyDirections' 
+        self.Gen_Sce_HeatPump_HourlyCOP = self.GeneratedData + self.Scenario + "HeatPump_HourlyCOP"
+        self.Gen_Sce_TargetTemperature = self.GeneratedData + self.Scenario + "TargetTemperature"
 
         # Gen_Sce_SolarRadiationDirections...
 
