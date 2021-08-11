@@ -89,13 +89,16 @@ class REG_Table:
         self.Gen_Sce_ID_Environment = self.GeneratedData + self.Scenario + self.ID + "Environment"
 
         self.Gen_Sce_DishWasherHours = self.GeneratedData + self.Scenario + "DishWasherHours"
+        self.Gen_Sce_DishWasherStartingHours = self.GeneratedData + self.Scenario + "DishWasherStartingHours"
         self.Gen_Sce_WashingMachineHours = self.GeneratedData + self.Scenario + "WashingMachineHours"
+        self.Gen_Sce_WashingMachineStartingHours = self.GeneratedData + self.Scenario + "WashingMachineStartingHours"
+
         self.Gen_Sce_CarAtHomeHours = self.GeneratedData + self.Scenario + 'CarAtHomeHours'
 
         self.Gen_Sce_Technology_HeatPumpCOP = self.GeneratedData +self.Scenario + "Technology_HeatPumpCOP"
         self.Gen_Sce_HotWaterProfile = self.GeneratedData + self.Scenario + 'HotWaterProfile'
         self.Gen_Sce_PhotovoltaicProfile = self.GeneratedData + self.Scenario + 'PhotovoltaicProfile'  # based on 1kWp
-        self.Gen_Sce_Weather_Radiation_SkyDirections = self.GeneratedData + self.Scenario + 'Weather_Radiation_SkyDirections' 
+        self.Gen_Sce_Weather_Radiation_SkyDirections = self.GeneratedData + self.Scenario + 'Weather_Radiation_SkyDirections'
         self.Gen_Sce_HeatPump_HourlyCOP = self.GeneratedData + self.Scenario + "HeatPump_HourlyCOP"
         self.Gen_Sce_TargetTemperature = self.GeneratedData + self.Scenario + "TargetTemperature"
 
