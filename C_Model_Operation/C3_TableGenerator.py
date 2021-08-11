@@ -628,7 +628,7 @@ class TableGenerator:
                         "CoolingTargetTemperatureSmartHome"]
 
         # write set temperature data to database
-        DB().write_DataFrame(TargetFrame, REG_Table().Sce_ID_TargetTemperature, column_names, self.Conn)
+        DB().write_DataFrame(TargetFrame, REG_Table().Gen_Sce_TargetTemperature, column_names, self.Conn)
 
 
     def run(self):
