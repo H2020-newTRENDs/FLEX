@@ -276,7 +276,7 @@ class TableGenerator:
     # 3 Generate the scenario tables
     # ------------------------------
 
-    def gen_Sce_Demand_DishWasherHours(self, NumberOfDishWasherProfiles):
+    def gen_Sce_Demand_DishWasherHours(self, NumberOfDishWasherProfiles):  # TODO if more than 1 dishwasher type is implemented, rewrite the function
         """
         creates Dish washer days where the dishwasher can be used on a random basis. Hours of the days where
         the Dishwasher has to be used are index = 1 and hours of days where the dishwasher is not used are indexed = 0
@@ -284,7 +284,7 @@ class TableGenerator:
         Demand_DishWasher = DB().read_DataFrame(REG_Table().Sce_Demand_DishWasher, self.Conn)
         TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
 
-        # Asumtion Nr1. Dishwasher runs maximum once a day:
+        # Assumption: Dishwasher runs maximum once a day:
         UseDays = int(Demand_DishWasher.DishWasherCycle)
         TotalDays = TimeStructure.ID_Day.to_numpy()[-1]
 
@@ -305,26 +305,39 @@ class TableGenerator:
             TargetTable_columns.append("DishWasherHours " + str(i))
 
         # save arrays to database:
-        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_DishWasherHours, TargetTable_columns,self.Conn)
+        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_DishWasherHours, TargetTable_columns, self.Conn)
 
 
-    def gen_Sce_Demand_WashingMachineHours(self):
-        # trockner wird nicht extra ausgegeben weil er an waschmaschine hängt
+    def gen_Sce_Demand_WashingMachineHours(self, NumberOfWashingMachineProfiles):
+        """
+        same as dish washer function above
+        """
+        # Dryer has no own function because it will always be used after the washing machine
+        Demand_WashingMachine = DB().read_DataFrame(REG_Table().Sce_Demand_WashingMachine, self.Conn)
+        TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
 
-        self.Demand_WashingMachine = DB().read_DataFrame(REG_Table().Sce_Demand_WashingMachine, self.Conn)
-        Demand_WashingMachine = self.Demand_WashingMachine
-        Cycle = Demand_WashingMachine.WashingMachineCycle
-        print(Cycle)
-        hours = self.gen_Sce_ApplianceUseHours(Cycle)
-        print(hours)
+        # Assumption: Washing machine runs maximum once a day:
+        UseDays = int(Demand_WashingMachine.WashingMachineCycle)
+        TotalDays = TimeStructure.ID_Day.to_numpy()[-1]
 
-        TargetTable_list = []
-        for hour in range(0, len(hours)):
-            TargetTable_list.append([hour + 1, hours[hour]])
+        # create array with 0 or 1 for every hour a day and random choice of 0 and 1 but with correct numbers of 1
+        # (UseDays)
+        def rand_bin_array(usedays, totaldays):
+            arr = np.zeros(totaldays)
+            arr[:usedays] = 1
+            np.random.shuffle(arr)
+            arr = np.repeat(arr, 24, axis=0)
+            return arr
 
-        TargetTable_columns = ['ID_Hour', "WashingMachineHours"]
-        DB().write_DataFrame(TargetTable_list, REG_Table().Gen_Sce_WashingMachineHours, TargetTable_columns, self.Conn)
-        pass
+        TargetTable = TimeStructure.ID_Hour.to_numpy()
+        TargetTable = np.column_stack([TargetTable, TimeStructure.ID_DayHour.to_numpy()])
+        TargetTable_columns = ["ID_Hour", "ID_DayHour"]
+        for i in range(NumberOfWashingMachineProfiles):
+            TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
+            TargetTable_columns.append("WashingMachineHours " + str(i))
+
+        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_WashingMachineHours, TargetTable_columns, self.Conn)
+
 
     def gen_Sce_ID_Environment(self):
 
@@ -678,5 +691,8 @@ if __name__ == "__main__":
     # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_OBJ_ID_PV(NUTS_ID)
 
+
     NumberOfDishWasherProfiles = 10
+    NumberOfWashingMachineProfiles = 10
     A.gen_Sce_Demand_DishWasherHours(NumberOfDishWasherProfiles)  # only use once! profiles are randomly generated
+    A.gen_Sce_Demand_WashingMachineHours(NumberOfWashingMachineProfiles)  # only use once! profiles are randomly generated
