@@ -153,10 +153,6 @@ class TableGenerator:
         self.gen_OBJ_ID_Table_1To1(REG_Table().Gen_OBJ_ID_Battery, Battery)
         return None
 
-    def gen_OBJ_ID_ElectricVehicle(self):
-        ElectricVehicle = DB().read_DataFrame(REG_Table().ID_ElectricVehicleType, self.Conn)
-        self.gen_OBJ_ID_Table_1To1(REG_Table().Gen_OBJ_ID_ElectricVehicle, ElectricVehicle)
-        return None
 
     def gen_OBJ_ID_Household(self):
         """
@@ -294,71 +290,6 @@ class TableGenerator:
                                 ID += 1
 
         DB().write_DataFrame(TargetTable_list, REG_Table().Gen_Sce_ID_Environment, TargetTable_columns, self.Conn)
-
-    def gen_Sce_CarAtHomeHours(self):
-
-        self.Demand_ElectricVehicleBehavior = DB().read_DataFrame(REG_Table().Sce_Demand_ElectricVehicleBehavior,
-                                                                  self.Conn)
-        ElectricVehicleBehavior = self.Demand_ElectricVehicleBehavior
-        LeaveTime = int(ElectricVehicleBehavior.EVLeaveHomeClock)
-        ArriveTime = int(ElectricVehicleBehavior.EVArriveHomeClock)
-
-        self.TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
-        TimeStructure = self.TimeStructure
-        ID_DayType = TimeStructure.ID_DayType
-
-        print(ID_DayType)
-        print(type(ID_DayType))
-
-        # list of ID_DayType has 8760 values, this is reduced to 365 values with the type of day
-
-        j = 0
-        DayType = []
-        for i in ID_DayType:
-            if i == 1:
-                j = j + 1
-                if j == 24:
-                    DayType.append(1)
-                    j = 0
-            elif i == 2:
-                j = j + 1
-                if j == 24:
-                    DayType.append(2)
-                    j = 0
-            elif i == 3:
-                j = j + 1
-                if j == 24:
-                    DayType.append(3)
-                    j = 0
-        print(DayType)
-        print(len(DayType))
-
-        # generate from list daytype the hours of use of the car, weekend it is not used now
-
-        CarStatus = []
-        for i in DayType:
-            if i == 1:
-                for i in range(0, LeaveTime):
-                    CarStatus.append(1)
-                for i in range(LeaveTime, ArriveTime):
-                    CarStatus.append(0)
-                for i in range(ArriveTime, 24):
-                    CarStatus.append((1))
-            elif i == 2 or i == 3:
-                for i in range(0, 24):
-                    CarStatus.append(1)
-
-        print(CarStatus)
-        print(len(CarStatus))
-
-        TargetTable_columns = ['ID_Hour', "CarAtHomeHours"]
-
-        TargetTable_list = []
-        for Hour in range(0, len(CarStatus)):
-            TargetTable_list.append([Hour + 1, CarStatus[Hour]])
-
-        DB().write_DataFrame(TargetTable_list, REG_Table().Gen_Sce_CarAtHomeHours, TargetTable_columns, self.Conn)
-        pass
 
     def gen_Sce_HeatPump_HourlyCOP(self):
         """
