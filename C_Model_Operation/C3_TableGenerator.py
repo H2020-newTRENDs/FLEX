@@ -279,7 +279,8 @@ class TableGenerator:
     def gen_Sce_Demand_DishWasherHours(self, NumberOfDishWasherProfiles):  # TODO if more than 1 dishwasher type is implemented, rewrite the function
         """
         creates Dish washer days where the dishwasher can be used on a random basis. Hours of the days where
-        the Dishwasher has to be used are index = 1 and hours of days where the dishwasher is not used are indexed = 0
+        the Dishwasher has to be used are index = 1 and hours of days where the dishwasher is not used are indexed = 0.
+        Dishwasher is not used during the night, only between 06:00 and 22:00.
         """
         Demand_DishWasher = DB().read_DataFrame(REG_Table().Sce_Demand_DishWasher, self.Conn)
         TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
@@ -303,6 +304,11 @@ class TableGenerator:
         for i in range(NumberOfDishWasherProfiles):
             TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
             TargetTable_columns.append("DishWasherHours " + str(i))
+
+        # set values to 0 when it is before 6 am:
+        TargetTable[:, 2:][TargetTable[:, 1] < 6] = 0
+        # set values to 0 when it is after 10 pm:
+        TargetTable[:, 2:][TargetTable[:, 1] > 22] = 0
 
         # save arrays to database:
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_DishWasherHours, TargetTable_columns, self.Conn)
@@ -335,6 +341,11 @@ class TableGenerator:
         for i in range(NumberOfWashingMachineProfiles):
             TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
             TargetTable_columns.append("WashingMachineHours " + str(i))
+
+        # set values to 0 when it is before 6 am:
+        TargetTable[:, 2:][TargetTable[:, 1] < 6] = 0
+        # set values to 0 when it is after 10 pm:
+        TargetTable[:, 2:][TargetTable[:, 1] > 22] = 0
 
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_WashingMachineHours, TargetTable_columns, self.Conn)
 
@@ -692,7 +703,8 @@ if __name__ == "__main__":
     # A.gen_OBJ_ID_PV(NUTS_ID)
 
 
+
     NumberOfDishWasherProfiles = 10
     NumberOfWashingMachineProfiles = 10
-    A.gen_Sce_Demand_DishWasherHours(NumberOfDishWasherProfiles)  # only use once! profiles are randomly generated
-    A.gen_Sce_Demand_WashingMachineHours(NumberOfWashingMachineProfiles)  # only use once! profiles are randomly generated
+    # A.gen_Sce_Demand_DishWasherHours(NumberOfDishWasherProfiles)  # only use once! profiles are randomly generated
+    # A.gen_Sce_Demand_WashingMachineHours(NumberOfWashingMachineProfiles)  # only use once! profiles are randomly generated
