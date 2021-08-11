@@ -60,6 +60,7 @@ class REG_Table:
         self.Sce_ID_TimeStructure = self.Scenario + self.ID + "TimeStructure" # base year: 2010
         # self.Sce_ID_LifestyleType = self.Scenario + self.ID + "LifestyleType"
         self.Sce_ID_TargetTemperatureType = self.Scenario + self.ID + "TargetTemperatureType"
+        self.Sce_ID_TargetTemperature = self.Scenario + self.ID + "TargetTemperature"
 
         self.Sce_ID_BaseElectricityProfileType = self.Scenario + self.ID + "BaseElectricityProfileType"
         self.Sce_ID_ElectricityPriceType = self.Scenario + self.ID + "ElectricityPriceType"
