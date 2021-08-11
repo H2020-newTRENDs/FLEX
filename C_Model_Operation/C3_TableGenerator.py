@@ -6,6 +6,7 @@ from A_Infrastructure.A1_CONS import CONS
 import geopandas as gpd
 from pyproj import CRS, Transformer
 
+
 class TableGenerator:
 
     def __init__(self, conn):
@@ -370,8 +371,10 @@ class TableGenerator:
         # calculate COP of HP for heating and DHW:
         outsideTemperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()
         HeatPump_COP = DB().read_DataFrame(REG_Table().Sce_HeatPump_COPCurve, self.Conn)
-        HeatPump_COP_Water = HeatPump_COP.loc[HeatPump_COP['ID_SpaceHeatingBoilerType'] == 2]  # outside heat changer to water
-        HeatPump_COP_Air = HeatPump_COP.loc[HeatPump_COP['ID_SpaceHeatingBoilerType'] == 1]  # outside heat exchanger to air
+        HeatPump_COP_Water = HeatPump_COP.loc[
+            HeatPump_COP['ID_SpaceHeatingBoilerType'] == 2]  # outside heat changer to water
+        HeatPump_COP_Air = HeatPump_COP.loc[
+            HeatPump_COP['ID_SpaceHeatingBoilerType'] == 1]  # outside heat exchanger to air
 
         # create COP vector with linear interpolation:
         HeatPump_HourlyCOP_Air = np.zeros((8760,))
@@ -389,16 +392,16 @@ class TableGenerator:
                 continue
             for index2, temperatureEnvironment in enumerate(HeatPump_COP_Air.TemperatureEnvironment):
                 if temperatureEnvironment - temperature <= 0 and temperatureEnvironment - temperature > -1:
-
                     HeatPump_HourlyCOP_Air[index] = HeatPump_COP_Air.COP_SpaceHeating[index2] + \
-                                                (HeatPump_COP_Air.COP_SpaceHeating[index2 + 1] -
-                                                 HeatPump_COP_Air.COP_SpaceHeating[
-                                                     index2]) \
-                                                * abs(temperatureEnvironment - temperature)
+                                                    (HeatPump_COP_Air.COP_SpaceHeating[index2 + 1] -
+                                                     HeatPump_COP_Air.COP_SpaceHeating[
+                                                         index2]) \
+                                                    * abs(temperatureEnvironment - temperature)
 
                     DHW_HourlyCOP_Air[index] = HeatPump_COP_Air.COP_HotWater[index2] + \
-                                           (HeatPump_COP_Air.COP_HotWater[index2 + 1] - HeatPump_COP_Air.COP_HotWater[index2]) * \
-                                           abs(temperatureEnvironment - temperature)
+                                               (HeatPump_COP_Air.COP_HotWater[index2 + 1] -
+                                                HeatPump_COP_Air.COP_HotWater[index2]) * \
+                                               abs(temperatureEnvironment - temperature)
 
         TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
         ID_Hour = TimeStructure.ID_Hour
@@ -419,10 +422,10 @@ class TableGenerator:
                                "HotWaterHourlyCOP"]
 
         TargetTable = np.column_stack((ID_SpaceHeatingBoilerType,
-                                    ID_Hour,
-                                    Temperature,
-                                    HeatPump_HourlyCOP_both,
-                                    DHW_HourlyCOP_both))
+                                       ID_Hour,
+                                       Temperature,
+                                       HeatPump_HourlyCOP_both,
+                                       DHW_HourlyCOP_both))
 
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_HeatPump_HourlyCOP, TargetTable_columns, self.Conn)
 
@@ -443,8 +446,9 @@ class TableGenerator:
                 #  WS10m: 10-m total wind speed (m/s)
                 #  Int: 1 means solar radiation values are reconstructed
 
-        The output Dataframe has a multiIndex. First index is celestial direction, second index is the above explained.
+        The output is Sce_Weather_Temperature and Gen_Sce_Weather_Radiation_SkyDirections in the SQLite Database.
         """
+
         def getNutsCenter(nuts_id,
                           url_nuts0_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_0.geojson",
                           url_nuts1_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_1.geojson",
@@ -468,7 +472,6 @@ class TableGenerator:
             transformer = Transformer.from_crs(CRS("EPSG:3035"), CRS("EPSG:4326"))
             point = nuts[nuts.NUTS_ID == nuts_id].centroid.values[0]
             return transformer.transform(point.y, point.x)  # returns lat, lon
-
 
         def get_JRC(aspect, startyear, endyear):
             # % JRC data
@@ -537,7 +540,8 @@ class TableGenerator:
 
         ID_Timestructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
         ID_Hour = ID_Timestructure.ID_Hour
-        ID_Country = pd.Series([nuts_id] * len(ID_Hour), name="ID_Country")  # TODO maybe change to corresponding number??
+        ID_Country = pd.Series([nuts_id] * len(ID_Hour),
+                               name="ID_Country")  # TODO maybe change to corresponding number??
         bigFrame = pd.concat([ID_Country,
                               ID_Hour,
                               south_radiation.reset_index(drop=True),
@@ -554,6 +558,78 @@ class TableGenerator:
         TemperatureFrame = pd.concat([ID_Country, ID_Timestructure, outsideTemperature], axis=1)
         # write temperature data to database
         DB().write_DataFrame(TemperatureFrame, REG_Table().Sce_Weather_Temperature, TemperatureFrame.columns, self.Conn)
+
+    def gen_sce_indoor_temperature(self):
+        outsideTemperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()
+        TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
+        ID_Hour = TimeStructure.ID_Hour
+        ID_DayHour = TimeStructure.ID_DayHour.to_numpy()
+        # load min max indoor temperature from profile table
+        targetTemperature = DB().read_DataFrame(REG_Table().Sce_ID_TargetTemperatureType, self.Conn)
+
+        T_min_young = targetTemperature.HeatingTargetTemperatureYoung
+        T_max_young = targetTemperature.CoolingTargetTemperatureYoung
+
+        T_min_old = targetTemperature.HeatingTargetTemperatureOld
+        T_max_old = targetTemperature.CoolingTargetTemperatureOld
+
+        # temperature with night reduction: lowering min temperature by 2°C from 22:00 to 06:00 every day:
+        T_min_young_nightReduction = np.array([])
+        T_min_old_nightReduction = np.array([])
+        for hour in ID_DayHour:
+            if hour <= 6:
+                T_min_young_nightReduction = np.append(T_min_young_nightReduction, (float(T_min_young)-2))
+                T_min_old_nightReduction = np.append(T_min_old_nightReduction, (float(T_min_old) - 2))
+            elif hour >= 22:
+                T_min_young_nightReduction = np.append(T_min_young_nightReduction, (float(T_min_young)-2))
+                T_min_old_nightReduction = np.append(T_min_old_nightReduction, (float(T_min_old) - 2))
+            else:
+                T_min_young_nightReduction = np.append(T_min_young_nightReduction, float(T_min_young))
+                T_min_old_nightReduction = np.append(T_min_old_nightReduction, float(T_min_old))
+
+
+        # set temperature with smart system that adapts according to outside temperatuer to save energy:
+        # the heating temperature will be calculated by a function, if the heating temperature is above 21°C,
+        # it is capped. The maximum temperature will be the minimum temperature + 5°C in winter and when the minimum
+        # temperature is above 22°C the maximum temperature is set to 27°C for cooling.
+        # Fct: Tset = 20°C + (T_outside - 20°C + 12)/8
+        T_min_smartHome = np.array([])
+        T_max_smartHome = np.array([])
+        for T_out in outsideTemperature:
+            if 20 + (T_out - 20 + 12) / 8 <= 21:
+                T_min_smartHome = np.append(T_min_smartHome, 20 + (T_out - 20 + 12) / 8)
+                T_max_smartHome = np.append(T_max_smartHome, 20 + (T_out - 20 + 12) / 8 + 5)
+            else:
+                T_min_smartHome = np.append(T_min_smartHome, 21)
+                T_max_smartHome = np.append(T_max_smartHome, 27)
+
+
+
+
+        TargetFrame = np.column_stack([ID_DayHour,
+                                       ID_Hour,
+                                       [float(T_min_young)] * len(ID_Hour),
+                                       [float(T_max_young)] * len(ID_Hour),
+                                       [float(T_min_old)] * len(ID_Hour),
+                                       [float(T_max_old)] * len(ID_Hour),
+                                       T_min_young_nightReduction,
+                                       T_min_old_nightReduction,
+                                       T_min_smartHome,
+                                       T_max_smartHome])
+        column_names = ["ID_DayHour",
+                        "ID_Hour",
+                        "HeatingTargetTemperatureYoung",
+                        "CoolingTargetTemperatureYoung",
+                        "HeatingTargetTemperatureOld",
+                        "CoolingTargetTemperatureOld",
+                        "HeatingTargetTemperatureYoungNightReduction",
+                        "HeatingTargetTemperatureOldNightReduction",
+                        "HeatingTargetTemperatureSmartHome",
+                        "CoolingTargetTemperatureSmartHome"]
+
+        # write set temperature data to database
+        DB().write_DataFrame(TargetFrame, REG_Table().Sce_ID_TargetTemperature, column_names, self.Conn)
+
 
     def run(self):
         # these have to be run before ID Household
@@ -580,12 +656,12 @@ class TableGenerator:
         # +Radiation
         pass
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
     A = TableGenerator(CONN)
-
-
     NUTS_ID = "AT"
-    A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
+    # A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
 
-    A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
+    # A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
+    A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
