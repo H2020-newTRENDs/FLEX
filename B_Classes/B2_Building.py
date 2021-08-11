@@ -82,23 +82,36 @@ class HeatingCooling_noDR:
         except:
             self.Af = ID_BuildingOption_dataframe["areafloor"].to_numpy()
 
-    def ref_HeatingCooling(self, initial_thermal_mass_temp=20, T_air_min=20, T_air_max=26):
+    def ref_HeatingCooling(self, T_outside=None, Q_solar=None, initial_thermal_mass_temp=20, T_air_min=20, T_air_max=27):
         """
         This function calculates the heating and cooling demand as well as the indoor temperature for every building
         category based in the 5R1C model. The results are hourls vectors for one year. Q_solar is imported from a CSV
-        at the time!
+        at the time! Inputs for T_outside and Q_solar have to be numpy arrays, otherwise the temperature and radiation
+        is taken from the database.
         """
-        # get outside temperature from database
-        T_outside = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()
-        # calculate solar gains
-        # solar gains from different celestial directions
-        radiation = DB().read_DataFrame(REG_Table().Gen_Sce_Weather_Radiation_SkyDirections, self.Conn)
-        Q_sol_north = np.outer(radiation.north.to_numpy(), self.AreaWindowSouth)
-        Q_sol_east = np.outer(radiation.east.to_numpy(), self.AreaWindowEastWest / 2)
-        Q_sol_south = np.outer(radiation.south.to_numpy(), self.AreaWindowSouth)
-        Q_sol_west = np.outer(radiation.west.to_numpy(), self.AreaWindowEastWest / 2)
 
-        Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
+        if isinstance(T_outside, np.ndarray):
+            pass
+        else:
+            # get outside temperature from database
+            T_outside = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()
+        if isinstance(T_air_min, int):
+            T_air_min = np.full((len(T_outside),), T_air_min)
+            T_air_max = np.full((len(T_outside),), T_air_max)
+        else:
+            pass
+        if isinstance(Q_solar, np.ndarray):
+            pass
+        else:
+            # calculate solar gains
+            # solar gains from different celestial directions
+            radiation = DB().read_DataFrame(REG_Table().Gen_Sce_Weather_Radiation_SkyDirections, self.Conn)
+            Q_sol_north = np.outer(radiation.north.to_numpy(), self.AreaWindowSouth)
+            Q_sol_east = np.outer(radiation.east.to_numpy(), self.AreaWindowEastWest / 2)
+            Q_sol_south = np.outer(radiation.south.to_numpy(), self.AreaWindowSouth)
+            Q_sol_west = np.outer(radiation.west.to_numpy(), self.AreaWindowEastWest / 2)
+
+            Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
 
 
         # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
@@ -213,12 +226,12 @@ class HeatingCooling_noDR:
 
             for i in range(len(self.Hve)):
                 # Check if air temperature without heating is in between boundaries and calculate actual HC power:
-                if T_air_0[i] >= T_air_min and T_air_0[i] <= T_air_max:
+                if T_air_0[i] >= T_air_min[t] and T_air_0[i] <= T_air_max[t]:
                     Q_Heating_noDR[t, i] = 0
-                elif T_air_0[i] < T_air_min:  # heating is required
-                    Q_Heating_noDR[t, i] = heating_power_10[i] * (T_air_min - T_air_0[i]) / (T_air_10[i] - T_air_0[i])
-                elif T_air_0[i] > T_air_max:  # cooling is required
-                    Q_Cooling_noDR[t, i] = heating_power_10[i] * (T_air_max - T_air_0[i]) / (T_air_10_c[i] - T_air_0[i])
+                elif T_air_0[i] < T_air_min[t]:  # heating is required
+                    Q_Heating_noDR[t, i] = heating_power_10[i] * (T_air_min[t] - T_air_0[i]) / (T_air_10[i] - T_air_0[i])
+                elif T_air_0[i] > T_air_max[t]:  # cooling is required
+                    Q_Cooling_noDR[t, i] = heating_power_10[i] * (T_air_max[t] - T_air_0[i]) / (T_air_10_c[i] - T_air_0[i])
 
             # now calculate the actual temperature of thermal mass Tm_t with Q_HC_real:
             # Equ. C.5 with actual heating power
