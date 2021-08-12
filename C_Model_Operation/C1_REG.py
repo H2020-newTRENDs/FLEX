@@ -92,6 +92,7 @@ class REG_Table:
         self.Gen_Sce_DishWasherStartingHours = self.GeneratedData + self.Scenario + "DishWasherStartingHours"
         self.Gen_Sce_WashingMachineHours = self.GeneratedData + self.Scenario + "WashingMachineHours"
         self.Gen_Sce_WashingMachineStartingHours = self.GeneratedData + self.Scenario + "WashingMachineStartingHours"
+        self.Gen_Sce_DryerStartingHours = self.GeneratedData + self.Scenario + "DryerStartingHours"
 
         self.Gen_Sce_CarAtHomeHours = self.GeneratedData + self.Scenario + 'CarAtHomeHours'
 
