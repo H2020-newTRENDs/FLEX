@@ -321,8 +321,8 @@ class TableGenerator:
         for index in range(0, len(TargetTable2), 24):
             for column in range(2, TargetTable2.shape[1]):
                 if TargetTable2[index, column] == 1:
-                    HourOfTheDay = np.random.randint(low=6, high=22)
-                    TargetTable2[index+HourOfTheDay:index+HourOfTheDay+DishWasherDuration-1, column] = 1
+                    HourOfTheDay = np.random.randint(low=6, high=22) - 1
+                    TargetTable2[index+HourOfTheDay:index+HourOfTheDay+DishWasherDuration, column] = 1
                     TargetTable2[index:index+HourOfTheDay, column] = 0
                     TargetTable2[index+HourOfTheDay+DishWasherDuration:index+24, column] = 0
         # write dataframe with starting hours to database:
@@ -347,6 +347,8 @@ class TableGenerator:
         # Dryer has no own function because it will always be used after the washing machine
         Demand_WashingMachine = DB().read_DataFrame(REG_Table().Sce_Demand_WashingMachine, self.Conn)
         WashingMachineDuration = int(Demand_WashingMachine.WashingMachineDuration)
+        Demand_Dryer = DB().read_DataFrame(REG_Table().Sce_Demand_Dryer, self.Conn)
+        DryerDuration = int(Demand_Dryer.DryerDuration)
         TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
 
         # Assumption: Washing machine runs maximum once a day:
@@ -366,37 +368,56 @@ class TableGenerator:
         TargetTable = np.column_stack([TargetTable, TimeStructure.ID_DayHour.to_numpy()])
         TargetTable_columns = {"ID_Hour": "INTEGER",
                                "ID_DayHour": "INTEGER"}
+        Dryer_columns = {"ID_Hour": "INTEGER",
+                         "ID_DayHour": "INTEGER"}
         for i in range(NumberOfWashingMachineProfiles+1):
             TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
             TargetTable_columns["WashingMachineHours " + str(i)] = "REAL"
+            Dryer_columns["DryerHours " + str(i)] = "REAL"
 
         # iterate through table and assign random values between 06:00 and 19:00 on UseDays (dryer has
         # to be used as well):
         # this table is for reference scenarios or if the dishwasher is not optimized:
-        TargetTable2 = np.copy(TargetTable)
-        for index in range(0, len(TargetTable2), 24):
-            for column in range(2, TargetTable2.shape[1]):
-                if TargetTable2[index, column] == 1:
-                    HourOfTheDay = np.random.randint(low=6, high=20)
-                    TargetTable2[index+HourOfTheDay:index+HourOfTheDay+WashingMachineDuration-1, column] = 1
-                    TargetTable2[index:index+HourOfTheDay, column] = 0
-                    TargetTable2[index+HourOfTheDay+WashingMachineDuration:index+24, column] = 0
+        TargetTable_washmachine = np.copy(TargetTable)
+        TargetTable_dryer = np.copy(TargetTable)  # for the dryer
+        for index in range(0, len(TargetTable_washmachine), 24):
+            for column in range(2, TargetTable_washmachine.shape[1]):
+                if TargetTable_washmachine[index, column] == 1:
+                    HourOfTheDay = np.random.randint(low=6, high=20)-1  # weil bei 0 zu zählen anfängt (Hour of day 6 ist 7 uhr)
+                    TargetTable_washmachine[index+HourOfTheDay:index+HourOfTheDay+WashingMachineDuration, column] = 1
+                    TargetTable_washmachine[index:index+HourOfTheDay, column] = 0
+                    TargetTable_washmachine[index+HourOfTheDay+WashingMachineDuration:index+24, column] = 0
+
+                    # Dryer always starts 1 hour after the washing machine:
+                    TargetTable_dryer[index+HourOfTheDay+WashingMachineDuration+1:index+HourOfTheDay+WashingMachineDuration+1+DryerDuration, column] = 1
+                    TargetTable_dryer[index:index+HourOfTheDay+WashingMachineDuration+1, column] = 0
+                    TargetTable_dryer[index+HourOfTheDay+WashingMachineDuration+1+DryerDuration:index + 24, column] = 0
 
         # write dataframe with starting hours to database:
-        DB().write_DataFrame(TargetTable2, REG_Table().Gen_Sce_WashingMachineStartingHours, TargetTable_columns.keys(),
+        DB().write_DataFrame(TargetTable_washmachine, REG_Table().Gen_Sce_WashingMachineStartingHours, TargetTable_columns.keys(),
                              self.Conn, dtype=TargetTable_columns)
+        DB().write_DataFrame(TargetTable_dryer, REG_Table().Gen_Sce_DryerStartingHours, Dryer_columns.keys(),
+                             self.Conn, dtype=Dryer_columns)
 
         # set values to 0 when it is before 6 am:
         TargetTable[:, 2:][TargetTable[:, 1] < 6] = 0
         # set values to 0 when it is after 10 pm:
         TargetTable[:, 2:][TargetTable[:, 1] > 20] = 0
-
+        # save starting days for optimization:
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_WashingMachineHours, TargetTable_columns.keys(),
                              self.Conn, dtype=TargetTable_columns)
 
-        # create Table for Dryer:
-        # Dryer always starts one hour after the washing machine
-        TargetTable3 = TargetTable2.copy()
+
+        def shift(arr, num, fill_value=0):  # this function shifts all the entries in the array downwards
+            result = np.empty_like(arr)
+            result[:num] = fill_value
+            result[num:] = arr[:-num]
+            return result
+        # remove first 2 columns because they are hours and should not get shifted:
+        TargetTable_dryer = TargetTable_dryer[:, 3:]
+        TargetTable_dryer = shift(TargetTable_dryer, 1)
+
+
 
 
 
@@ -757,9 +778,9 @@ if __name__ == "__main__":
     NUTS_ID = "AT"
     # A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
 
-    A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
-    A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
-    A.gen_OBJ_ID_PV(NUTS_ID)
+    # A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
+    # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
+    # A.gen_OBJ_ID_PV(NUTS_ID)
 
 
 
