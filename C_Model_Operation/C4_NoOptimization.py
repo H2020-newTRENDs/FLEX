@@ -62,11 +62,11 @@ class no_DR:
                     T_air_max=27)  # has no influence cause its winter -- > only heating
         return T_thermalMass_constant[-1, :]
 
-    def calculate_tank_energy(self, Total_Load, Q_Heating_noDR):
+    def calculate_tank_energy(self, Total_Load_minusPV, Q_Heating_noDR, PV_profile_surplus, COP_SpaceHeating):
         ID_SpaceHeatingTankType = 1  # TODO choose TankType automatically
         TankSize = float(
             self.HotWaterTank[self.HotWaterTank["ID_SpaceHeatingTankType"] == ID_SpaceHeatingTankType].TankSize)
-        TankMinTempertaure = float(self.HotWaterTank[self.HotWaterTank[
+        TankMinTemperature = float(self.HotWaterTank[self.HotWaterTank[
                                                          "ID_SpaceHeatingTankType"] == ID_SpaceHeatingTankType].TankMinimalTemperature)
         TankMaxTemperature = float(self.HotWaterTank[self.HotWaterTank[
                                                          "ID_SpaceHeatingTankType"] == ID_SpaceHeatingTankType].TankMaximalTemperature)
@@ -81,76 +81,136 @@ class no_DR:
 
         # Assumption: Tank is always kept at minimum temperature except when it is charged with surplus energy:
         # Note: I completely neglect Hot Water here (but its also neglected in the optimization)
-        TankLoss_hourly = np.zeros(Total_Load.shape)
-        CurrentTankTemperature = np.zeros(Total_Load.shape)
-        Electricity_surplus = np.zeros(Total_Load.shape)
-        Electricity_deficit = np.zeros(Total_Load.shape)
+        TankLoss_hourly = np.zeros(PV_profile_surplus.shape)
+        CurrentTankTemperature = np.zeros(PV_profile_surplus.shape)
+        Electricity_surplus = np.zeros(PV_profile_surplus.shape)
+        Electricity_deficit = np.zeros(PV_profile_surplus.shape)
         Q_heating_HP = np.copy(Q_Heating_noDR) * 1_000  # W
         for index, row in enumerate(TankLoss_hourly):
             for column, element in enumerate(row):
                 if index == 0:
-                    TankLoss_hourly[index, column] = (
-                                                                 TankStartTemperature - TankSurroundingTemperature) * TankSurfaceArea * TankLoss  # W
+                    TankLoss_hourly[index, column] = (TankStartTemperature - TankSurroundingTemperature) * TankSurfaceArea * TankLoss  # W
+                    # surplus of PV electricity is used to charge the tank:
                     CurrentTankTemperature[index, column] = TankStartTemperature + \
                                                             (PV_profile_surplus[index, column] * 1_000 *
                                                              COP_SpaceHeating[index] - TankLoss_hourly[index, column]) / \
                                                             (TankSize * self.CPWater)
-                    if Q_heating_HP[index, column] > 0:
-                        # when the tanktemperature is above min temp, the energy will be used for heating
-                        EnergyInTank = (TankStartTemperature - TankMinTempertaure) * (TankSize * self.CPWater)
-                        # if the Energy in the tank is enough to heat the building, the Q_heating_HP goes to 0
-                        if EnergyInTank > Q_heating_HP[index, column]:
-                            SurplusEnergy = EnergyInTank - Q_heating_HP[index, column]
-                            Q_heating_HP[index, column] = 0  # Building is heated by tank
-                            CurrentTankTemperature[index, column] = TankMinTempertaure + SurplusEnergy / (
-                                        TankSize * self.CPWater)  # the tank temperature drops to minimal temperature + the energy that is left
-                        # if the energy in the tank is not enough to heat the building Q_heating_HP will be just reduced
-                        if EnergyInTank <= Q_heating_HP[index, column]:
-                            DeficitEnergy = Q_heating_HP[index, column] - EnergyInTank
-                            Q_heating_HP[index, column] = DeficitEnergy  # Building is partly heated by tank
-                            CurrentTankTemperature[
-                                index, column] = TankMinTempertaure  # the tank temperature drops to minimal energy
 
-                if index > 0:
-                    TankLoss_hourly[index, column] = (CurrentTankTemperature[
-                                                          index - 1, column] - TankSurroundingTemperature) * TankSurfaceArea * TankLoss  # W
-                    CurrentTankTemperature[index, column] = CurrentTankTemperature[index - 1, column] + \
-                                                            (PV_profile_surplus[index, column] * 1_000 *
-                                                             COP_SpaceHeating[index] -
-                                                             TankLoss_hourly[index, column]) / \
-                                                            (TankSize * self.CPWater)
                     # if temperature exceed maximum temperature, surplus of electricity is calculated
                     # and temperature is kept at max temperature:
                     if CurrentTankTemperature[index, column] > TankMaxTemperature:
                         Electricity_surplus[index, column] = (CurrentTankTemperature[
                                                                   index, column] - TankMaxTemperature) * (
-                                                                     TankSize * self.CPWater)  # W
+                                                                     TankSize * self.CPWater) / COP_SpaceHeating[index]  # W
                         CurrentTankTemperature[index, column] = TankMaxTemperature
 
                     # if temperature drops below minimum temperature, temperature is kept at minimum temperature
                     # and neccesary electricity is calculated
-                    if CurrentTankTemperature[index, column] <= TankMinTempertaure:
-                        Electricity_deficit[index, column] = (TankMinTempertaure - CurrentTankTemperature[
+                    if CurrentTankTemperature[index, column] <= TankMinTemperature:
+                        Electricity_deficit[index, column] = (TankMinTemperature - CurrentTankTemperature[
                             index, column]) * (TankSize * self.CPWater)
-                        CurrentTankTemperature[index, column] = TankMinTempertaure
+                        CurrentTankTemperature[index, column] = TankMinTemperature
 
-                    if Q_heating_HP[index, column] > 0:
-                        # when the tanktemperature is above min temp, the energy will be used for heating
-                        EnergyInTank = (CurrentTankTemperature[index, column] - TankMinTempertaure) * (
-                                    TankSize * self.CPWater)
-                        # if the Energy in the tank is enough to heat the building, the Q_heating_HP goes to 0
-                        if EnergyInTank > Q_heating_HP[index, column]:
-                            SurplusEnergy = EnergyInTank - Q_heating_HP[index, column]
-                            Q_heating_HP[index, column] = 0  # Building is completely heated by tank
-                            CurrentTankTemperature[index, column] = TankMinTempertaure + SurplusEnergy / (
-                                    TankSize * self.CPWater)  # the tank temperature drops to minimal temperature + the energy that is left
-                        # if the energy in the tank is not enough to heat the building Q_heating_HP will be just reduced
-                        if EnergyInTank <= Q_heating_HP[index, column]:
-                            DeficitEnergy = Q_heating_HP[index, column] - EnergyInTank
-                            Q_heating_HP[index, column] = DeficitEnergy  # Building is partly heated by tank
-                            CurrentTankTemperature[
-                                index, column] = TankMinTempertaure  # the tank temperature drops to minimal energy
+                    # if there is energy in the tank it will be used for heating:
+                    if CurrentTankTemperature[index, column] > TankMinTemperature:
+                        EnergyInTank = (TankStartTemperature - TankMinTemperature) * (TankSize * self.CPWater)
 
+                        # if the PV does not cover the whole elctricity in this hour, the tank will cover for heating
+                        if Total_Load_minusPV[index, column] > 0:
+                            # if the PV does not cover any energy for the heating:
+                            if Total_Load_minusPV[index, column] > Q_heating_HP[index, column]/COP_SpaceHeating[index]:  # means that the heating is not covered at all by the PV (it covers other things first)
+                                # if the Energy in the tank is enough to heat the building, the Q_heating_HP goes to 0
+                                if EnergyInTank > Q_heating_HP[index, column]:
+                                    SurplusEnergy = EnergyInTank - Q_heating_HP[index, column]
+                                    Q_heating_HP[index, column] = 0  # Building is heated by tank
+                                    CurrentTankTemperature[index, column] = TankMinTemperature + SurplusEnergy / (
+                                            TankSize * self.CPWater)  # the tank temperature drops to minimal temperature + the energy that is left
+                                # if the energy in the tank is not enough to heat the building Q_heating_HP will be just reduced
+                                if EnergyInTank <= Q_heating_HP[index, column]:
+                                    DeficitEnergy = Q_heating_HP[index, column] - EnergyInTank
+                                    Q_heating_HP[index, column] = DeficitEnergy  # Building is partly heated by tank
+                                    CurrentTankTemperature[index, column] = TankMinTemperature  # the tank temperature drops to minimal energy
+
+                            # if the PV does cover part of the heating energy:
+                            if Total_Load_minusPV[index, column] <= Q_heating_HP[index, column]/COP_SpaceHeating[index]:
+                                # calculate the part than can be covered by the tank:
+                                remaining_heating_Energy = (Q_heating_HP[index, column]/COP_SpaceHeating[index] - Total_Load_minusPV[index, column])*COP_SpaceHeating[index]
+                                # if the energy in the tank is enough to cover the remaining heating energy:
+                                if EnergyInTank > remaining_heating_Energy:
+                                    SurplusEnergy = EnergyInTank - remaining_heating_Energy
+                                    Q_heating_HP[index, column] = 0   # Building is heated by tank and PV
+                                    CurrentTankTemperature[index, column] = TankMinTemperature + SurplusEnergy / (
+                                            TankSize * self.CPWater)
+                                # if the energy in the tank is not enough to cover the remaining heating energy:
+                                if EnergyInTank <= remaining_heating_Energy:
+                                    DeficitEnergy = remaining_heating_Energy - EnergyInTank
+                                    Q_heating_HP[index, column] = DeficitEnergy
+                                    CurrentTankTemperature[index, column] = TankMinTemperature  # the tank temperature drops to minimal energy
+
+
+                if index > 0:
+                    TankLoss_hourly[index, column] = (CurrentTankTemperature[index - 1, column] - TankSurroundingTemperature) * TankSurfaceArea * TankLoss  # W
+                    CurrentTankTemperature[index, column] = CurrentTankTemperature[index - 1, column] + \
+                                                            (PV_profile_surplus[index, column] * 1_000 *
+                                                             COP_SpaceHeating[index] -
+                                                             TankLoss_hourly[index, column]) / \
+                                                            (TankSize * self.CPWater)
+
+                    # if temperature exceed maximum temperature, surplus of electricity is calculated
+                    # and temperature is kept at max temperature:
+                    if CurrentTankTemperature[index, column] > TankMaxTemperature:
+                        Electricity_surplus[index, column] = (CurrentTankTemperature[
+                                                                  index, column] - TankMaxTemperature) * (
+                                                                     TankSize * self.CPWater) / COP_SpaceHeating[index] # W
+                        CurrentTankTemperature[index, column] = TankMaxTemperature
+
+                    # if temperature drops below minimum temperature, temperature is kept at minimum temperature
+                    # and neccesary electricity is calculated
+                    if CurrentTankTemperature[index, column] <= TankMinTemperature:
+                        Electricity_deficit[index, column] = (TankMinTemperature - CurrentTankTemperature[
+                            index, column]) * (TankSize * self.CPWater)
+                        CurrentTankTemperature[index, column] = TankMinTemperature
+
+                    # if there is energy in the tank it will be used for heating:
+                    if CurrentTankTemperature[index, column] > TankMinTemperature:
+                        EnergyInTank = (TankStartTemperature - TankMinTemperature) * (TankSize * self.CPWater)
+
+                        # if the PV does not cover the whole electricity in this hour, the tank will cover for heating
+                        if Total_Load_minusPV[index, column] > 0:
+                            # if the PV does not cover any energy for the heating:
+                            if Total_Load_minusPV[index, column] > Q_heating_HP[index, column]/COP_SpaceHeating[index]:  # means that the heating is not covered at all by the PV (it covers other things first)
+                                # if the Energy in the tank is enough to heat the building, the Q_heating_HP goes to 0
+                                if EnergyInTank > Q_heating_HP[index, column]:
+                                    SurplusEnergy = EnergyInTank - Q_heating_HP[index, column]
+                                    Q_heating_HP[index, column] = 0  # Building is heated by tank
+                                    CurrentTankTemperature[index, column] = TankMinTemperature + SurplusEnergy / (
+                                            TankSize * self.CPWater)  # the tank temperature drops to minimal temperature + the energy that is left
+                                # if the energy in the tank is not enough to heat the building Q_heating_HP will be just reduced
+                                if EnergyInTank <= Q_heating_HP[index, column]:
+                                    DeficitEnergy = Q_heating_HP[index, column] - EnergyInTank
+                                    Q_heating_HP[index, column] = DeficitEnergy  # Building is partly heated by tank
+                                    CurrentTankTemperature[index, column] = TankMinTemperature  # the tank temperature drops to minimal energy
+
+                            # if the PV does cover part of the heating energy:
+                            if Total_Load_minusPV[index, column] <= Q_heating_HP[index, column]/COP_SpaceHeating[index]:
+                                # calculate the part than can be covered by the tank:
+                                remaining_heating_Energy = (Q_heating_HP[index, column]/COP_SpaceHeating[index] - Total_Load_minusPV[index, column])*COP_SpaceHeating[index]
+                                # if the energy in the tank is enough to cover the remaining heating energy:
+                                if EnergyInTank > remaining_heating_Energy:
+                                    SurplusEnergy = EnergyInTank - remaining_heating_Energy
+                                    Q_heating_HP[index, column] = 0  # Building is heated by tank and PV
+                                    CurrentTankTemperature[index, column] = TankMinTemperature + SurplusEnergy / (
+                                            TankSize * self.CPWater)
+                                # if the energy in the tank is not enough to cover the remaining heating energy:
+                                if EnergyInTank <= remaining_heating_Energy:
+                                    DeficitEnergy = remaining_heating_Energy - EnergyInTank
+                                    Q_heating_HP[index, column] = DeficitEnergy
+                                    CurrentTankTemperature[index, column] = TankMinTemperature  # the tank temperature drops to minimal energy
+
+        #  Q_heating_HP is now the heating energy with the usage of the tank
+        # Electricity_surplus is the electricity that can not be stored in the tank
+        # Electricity_deficit is the electricity needed to keep the tank on temperature
+        # TankLoss_hourly are the total losses of the tank
         return TankLoss_hourly, CurrentTankTemperature, Electricity_surplus, Electricity_deficit, Q_heating_HP # all energies in W
 
 
@@ -226,7 +286,7 @@ def calculate_noDR(self):
         for column in range(Q_Cooling_noDR.shape[1]):
             CoolingProfile[:, column] = Q_Cooling_noDR[:, column] / AC_hourly_COP
 
-        # add up all electric loads:
+        # add up all electric loads but without Heating:
         Total_Load = np.zeros(Q_Heating_noDR.shape)
         for column in range(Q_Heating_noDR.shape[1]):
             Total_Load[:, column] = self.BaseLoadProfile + \
@@ -251,8 +311,15 @@ def calculate_noDR(self):
         Total_Load_minusPV[Total_Load_minusPV < 0] = 0
 
         # When there is PV surplus energy it either goes to a storage or is sold to the grid:
+        # Water Tank as storage:
+        # TODO Abfrage if tank is used
         TankLoss_hourly, CurrentTankTemperature, Electricity_surplus, Electricity_deficit, Q_heating_HP = \
-            self.calculate_tank_energy(Total_Load, Q_Heating_noDR)
+            self.calculate_tank_energy(Total_Load_minusPV, Q_Heating_noDR)
+
+
+        # Battery storage:
+
+
 
 
 
