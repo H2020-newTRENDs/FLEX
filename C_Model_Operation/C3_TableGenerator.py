@@ -192,7 +192,11 @@ class TableGenerator:
         ID_Hour = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn).ID_Hour.to_numpy()
 
         PV_options = DB().read_DataFrame(REG_Table().ID_PVType, self.Conn)
-        columnNames = ["ID_Country", "ID_PVType", "ID_Hour", "PVPower", "Unit"]
+        columnNames = {"ID_Country": "INTEGER",
+                       "ID_PVType": "INTEGER",
+                       "ID_Hour": "INTEGER",
+                       "PVPower": "REAL",
+                       "Unit": "TEXT"}
         TargetTable = np.zeros((1, len(columnNames)))
         id_country = np.full((len(ID_Hour),), nuts_id)
         unit = np.full((len(ID_Hour),), "kW")
@@ -208,7 +212,8 @@ class TableGenerator:
         # drop first column of TargetTable because its 0 from np.zeros:
         TargetTable = TargetTable[1:, :]
 
-        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_PhotovoltaicProfile, columnNames, self.Conn, dtype=[int,int,int,float,str])
+        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_PhotovoltaicProfile, columnNames.keys(),
+                             self.Conn, dtype=columnNames)
 
 
     def gen_OBJ_ID_Battery(self):
@@ -303,10 +308,11 @@ class TableGenerator:
 
         TargetTable = TimeStructure.ID_Hour.to_numpy()
         TargetTable = np.column_stack([TargetTable, TimeStructure.ID_DayHour.to_numpy()])
-        TargetTable_columns = ["ID_Hour", "ID_DayHour"]
+        TargetTable_columns = {"ID_Hour": "INTEGER",
+                               "ID_DayHour": "INTEGER"}
         for i in range(NumberOfDishWasherProfiles+1):
             TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
-            TargetTable_columns.append("DishWasherHours " + str(i))
+            TargetTable_columns["DishWasherHours " + str(i)] = "REAL"
 
         # iterate through table and assign random values between 06:00 and 21:00 on UseDays:
         # this table is for reference scenarios or if the dishwasher is not optimized: First a random starting time is
@@ -320,7 +326,8 @@ class TableGenerator:
                     TargetTable2[index:index+HourOfTheDay, column] = 0
                     TargetTable2[index+HourOfTheDay+DishWasherDuration:index+24, column] = 0
         # write dataframe with starting hours to database:
-        DB().write_DataFrame(TargetTable2, REG_Table().Gen_Sce_DishWasherStartingHours, TargetTable_columns, self.Conn)
+        DB().write_DataFrame(TargetTable2, REG_Table().Gen_Sce_DishWasherStartingHours, TargetTable_columns.keys(),
+                             self.Conn, dtype=TargetTable_columns)
 
         # set values to 0 when it is before 6 am:
         TargetTable[:, 2:][TargetTable[:, 1] < 6] = 0
@@ -328,7 +335,8 @@ class TableGenerator:
         TargetTable[:, 2:][TargetTable[:, 1] > 21] = 0
 
         # save arrays to database:
-        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_DishWasherHours, TargetTable_columns, self.Conn)
+        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_DishWasherHours, TargetTable_columns.keys(),
+                             self.Conn, dtype=TargetTable_columns)
 
 
     def gen_Sce_Demand_WashingMachineHours(self, NumberOfWashingMachineProfiles):
@@ -356,10 +364,11 @@ class TableGenerator:
 
         TargetTable = TimeStructure.ID_Hour.to_numpy()
         TargetTable = np.column_stack([TargetTable, TimeStructure.ID_DayHour.to_numpy()])
-        TargetTable_columns = ["ID_Hour", "ID_DayHour"]
+        TargetTable_columns = {"ID_Hour": "INTEGER",
+                               "ID_DayHour": "INTEGER"}
         for i in range(NumberOfWashingMachineProfiles+1):
             TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
-            TargetTable_columns.append("WashingMachineHours " + str(i))
+            TargetTable_columns["WashingMachineHours " + str(i)] = "REAL"
 
         # iterate through table and assign random values between 06:00 and 19:00 on UseDays (dryer has
         # to be used as well):
@@ -372,15 +381,23 @@ class TableGenerator:
                     TargetTable2[index+HourOfTheDay:index+HourOfTheDay+WashingMachineDuration-1, column] = 1
                     TargetTable2[index:index+HourOfTheDay, column] = 0
                     TargetTable2[index+HourOfTheDay+WashingMachineDuration:index+24, column] = 0
+
         # write dataframe with starting hours to database:
-        DB().write_DataFrame(TargetTable2, REG_Table().Gen_Sce_WashingMachineStartingHours, TargetTable_columns, self.Conn)
+        DB().write_DataFrame(TargetTable2, REG_Table().Gen_Sce_WashingMachineStartingHours, TargetTable_columns.keys(),
+                             self.Conn, dtype=TargetTable_columns)
 
         # set values to 0 when it is before 6 am:
         TargetTable[:, 2:][TargetTable[:, 1] < 6] = 0
         # set values to 0 when it is after 10 pm:
         TargetTable[:, 2:][TargetTable[:, 1] > 20] = 0
 
-        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_WashingMachineHours, TargetTable_columns, self.Conn)
+        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_WashingMachineHours, TargetTable_columns.keys(),
+                             self.Conn, dtype=TargetTable_columns)
+
+        # create Table for Dryer:
+        # Dryer always starts one hour after the washing machine
+        TargetTable3 = TargetTable2.copy()
+
 
 
     def gen_Sce_ID_Environment(self):
@@ -482,11 +499,11 @@ class TableGenerator:
         ID_Hour = np.append(ID_Hour, ID_Hour)
         Temperature = np.append(outsideTemperature, outsideTemperature)
 
-        TargetTable_columns = ["ID_SpaceHeatingBoilerType",
-                               "ID_Hour",
-                               "Temperature",
-                               "SpaceHeatingHourlyCOP",
-                               "HotWaterHourlyCOP"]
+        TargetTable_columns = {"ID_SpaceHeatingBoilerType": "INTEGER",
+                               "ID_Hour": "INTEGER",
+                               "Temperature": "REAL",
+                               "SpaceHeatingHourlyCOP": "REAL",
+                               "HotWaterHourlyCOP": "REAL"}
 
         TargetTable = np.column_stack((ID_SpaceHeatingBoilerType,
                                        ID_Hour,
@@ -494,7 +511,8 @@ class TableGenerator:
                                        HeatPump_HourlyCOP_both,
                                        DHW_HourlyCOP_both))
 
-        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_HeatPump_HourlyCOP, TargetTable_columns, self.Conn)
+        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_HeatPump_HourlyCOP, TargetTable_columns.keys(),
+                             self.Conn, dtype=TargetTable_columns)
 
 
     def getNutsCenter(self, nuts_id,
@@ -617,15 +635,25 @@ class TableGenerator:
                               west_radiation.reset_index(drop=True),
                               north_radiation.reset_index(drop=True)],
                              axis=1)
-        bigFrame.columns = ["ID_Country", "ID_Hour", "south", "east", "west", "north"]
+        columns = {"ID_Country": "INTEGER",
+                   "ID_Hour": "INTEGER",
+                   "south": "REAL",
+                   "east": "REAL",
+                   "west": "REAL",
+                   "north": "REAL"}
         # write radiation data to database
-        DB().write_DataFrame(bigFrame, REG_Table().Gen_Sce_Weather_Radiation_SkyDirections, bigFrame.columns, self.Conn)
+        DB().write_DataFrame(bigFrame, REG_Table().Gen_Sce_Weather_Radiation_SkyDirections, columns.keys(),
+                             self.Conn, dtype=columns)
 
         ## write table for outside temperature:
         outsideTemperature = pd.to_numeric(df_south["T2m"].reset_index(drop=True).rename("Temperature"))
         TemperatureFrame = pd.concat([ID_Country, ID_Timestructure, outsideTemperature], axis=1)
+        dtypes = {"ID_Country": "INTEGER",
+                  "ID_Hour": "INTEGER",
+                  "Temperature": "REAL"}
         # write temperature data to database
-        DB().write_DataFrame(TemperatureFrame, REG_Table().Sce_Weather_Temperature, TemperatureFrame.columns, self.Conn)
+        DB().write_DataFrame(TemperatureFrame, REG_Table().Sce_Weather_Temperature, TemperatureFrame.columns,
+                             self.Conn, dtype=dtypes)
 
     def gen_sce_indoor_temperature(self):
         outsideTemperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()
@@ -671,9 +699,6 @@ class TableGenerator:
                 T_min_smartHome = np.append(T_min_smartHome, 21)
                 T_max_smartHome = np.append(T_max_smartHome, 27)
 
-
-
-
         TargetFrame = np.column_stack([ID_DayHour,
                                        ID_Hour,
                                        [float(T_min_young)] * len(ID_Hour),
@@ -684,19 +709,20 @@ class TableGenerator:
                                        T_min_old_nightReduction,
                                        T_min_smartHome,
                                        T_max_smartHome])
-        column_names = ["ID_DayHour",
-                        "ID_Hour",
-                        "HeatingTargetTemperatureYoung",
-                        "CoolingTargetTemperatureYoung",
-                        "HeatingTargetTemperatureOld",
-                        "CoolingTargetTemperatureOld",
-                        "HeatingTargetTemperatureYoungNightReduction",
-                        "HeatingTargetTemperatureOldNightReduction",
-                        "HeatingTargetTemperatureSmartHome",
-                        "CoolingTargetTemperatureSmartHome"]
+        column_names = {"ID_DayHour": "INTEGER",
+                        "ID_Hour": "INTEGER",
+                        "HeatingTargetTemperatureYoung": "REAL",
+                        "CoolingTargetTemperatureYoung": "REAL",
+                        "HeatingTargetTemperatureOld": "REAL",
+                        "CoolingTargetTemperatureOld": "REAL",
+                        "HeatingTargetTemperatureYoungNightReduction": "REAL",
+                        "HeatingTargetTemperatureOldNightReduction": "REAL",
+                        "HeatingTargetTemperatureSmartHome": "REAL",
+                        "CoolingTargetTemperatureSmartHome": "REAL"}
 
         # write set temperature data to database
-        DB().write_DataFrame(TargetFrame, REG_Table().Gen_Sce_TargetTemperature, column_names, self.Conn)
+        DB().write_DataFrame(TargetFrame, REG_Table().Gen_Sce_TargetTemperature, column_names.keys(),
+                             self.Conn, dtype=column_names)
 
 
     def run(self):
@@ -731,13 +757,13 @@ if __name__ == "__main__":
     NUTS_ID = "AT"
     # A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
 
-    # A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
-    # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
-    # A.gen_OBJ_ID_PV(NUTS_ID)
+    A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
+    A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
+    A.gen_OBJ_ID_PV(NUTS_ID)
 
 
 
     NumberOfDishWasherProfiles = 10
     NumberOfWashingMachineProfiles = 10
-    # A.gen_Sce_Demand_DishWasherHours(NumberOfDishWasherProfiles)  # only use once! profiles are randomly generated
-    # A.gen_Sce_Demand_WashingMachineHours(NumberOfWashingMachineProfiles)  # only use once! profiles are randomly generated
+    A.gen_Sce_Demand_DishWasherHours(NumberOfDishWasherProfiles)  # only use once! profiles are randomly generated
+    A.gen_Sce_Demand_WashingMachineHours(NumberOfWashingMachineProfiles)  # only use once! profiles are randomly generated
