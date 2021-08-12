@@ -183,7 +183,7 @@ class TableGenerator:
             df = df.iloc[1:, :]
             df.columns = header
             df = df.reset_index(drop=True)
-            PV_Profile = pd.to_numeric(df["P"]).to_numpy()
+            PV_Profile = pd.to_numeric(df["P"]).to_numpy() / 1_000  # kW
             return PV_Profile
 
         startyear = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn).ID_Year.iloc[0]
@@ -312,7 +312,7 @@ class TableGenerator:
                                "ID_DayHour": "INTEGER"}
         for i in range(NumberOfDishWasherProfiles+1):
             TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
-            TargetTable_columns["DishWasherHours " + str(i)] = "REAL"
+            TargetTable_columns["DishWasherHours " + str(i)] = "INTEGER"
 
         # iterate through table and assign random values between 06:00 and 21:00 on UseDays:
         # this table is for reference scenarios or if the dishwasher is not optimized: First a random starting time is
@@ -372,8 +372,8 @@ class TableGenerator:
                          "ID_DayHour": "INTEGER"}
         for i in range(NumberOfWashingMachineProfiles+1):
             TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
-            TargetTable_columns["WashingMachineHours " + str(i)] = "REAL"
-            Dryer_columns["DryerHours " + str(i)] = "REAL"
+            TargetTable_columns["WashingMachineHours " + str(i)] = "INTEGER"
+            Dryer_columns["DryerHours " + str(i)] = "INTEGER"
 
         # iterate through table and assign random values between 06:00 and 19:00 on UseDays (dryer has
         # to be used as well):
@@ -406,19 +406,6 @@ class TableGenerator:
         # save starting days for optimization:
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_WashingMachineHours, TargetTable_columns.keys(),
                              self.Conn, dtype=TargetTable_columns)
-
-
-        def shift(arr, num, fill_value=0):  # this function shifts all the entries in the array downwards
-            result = np.empty_like(arr)
-            result[:num] = fill_value
-            result[num:] = arr[:-num]
-            return result
-        # remove first 2 columns because they are hours and should not get shifted:
-        TargetTable_dryer = TargetTable_dryer[:, 3:]
-        TargetTable_dryer = shift(TargetTable_dryer, 1)
-
-
-
 
 
     def gen_Sce_ID_Environment(self):
@@ -746,6 +733,19 @@ class TableGenerator:
                              self.Conn, dtype=column_names)
 
 
+    def gen_Sce_AC_HourlyCOP(self):
+        TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
+        ID_Hour = TimeStructure.ID_Hour.to_numpy()
+
+        # constant COP of 3 is estimated:
+        COP = 3
+        COP_array = np.full((len(ID_Hour),), COP)
+        TargetTable = np.column_stack([ID_Hour, COP_array])
+        columns = {"ID_Hour": "INTEGER",
+                   "ACHourlyCOP": "REAL"}
+        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_AC_HourlyCOP, columns.keys(), self.Conn, dtype=columns)
+
+
     def run(self):
         # these have to be run before ID Household
         self.gen_OBJ_ID_Building()
@@ -780,11 +780,12 @@ if __name__ == "__main__":
 
     # A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
-    # A.gen_OBJ_ID_PV(NUTS_ID)
+    # A.gen_Sce_AC_HourlyCOP()
+    A.gen_OBJ_ID_PV(NUTS_ID)
 
 
 
     NumberOfDishWasherProfiles = 10
     NumberOfWashingMachineProfiles = 10
-    A.gen_Sce_Demand_DishWasherHours(NumberOfDishWasherProfiles)  # only use once! profiles are randomly generated
-    A.gen_Sce_Demand_WashingMachineHours(NumberOfWashingMachineProfiles)  # only use once! profiles are randomly generated
+    # A.gen_Sce_Demand_DishWasherHours(NumberOfDishWasherProfiles)  # only use once! profiles are randomly generated
+    # A.gen_Sce_Demand_WashingMachineHours(NumberOfWashingMachineProfiles)  # only use once! profiles are randomly generated
