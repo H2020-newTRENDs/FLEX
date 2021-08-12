@@ -202,13 +202,13 @@ class TableGenerator:
                 PVProfile = np.full((len(ID_Hour),), 0)
             else:
                 PVProfile = get_JRC(lat, lon, startyear, endyear, peakPower)
-            id_pv_type = np.full((len(PVProfile),), PV_options.ID_PVType[index])
+            id_pv_type = np.full((len(PVProfile),), int(PV_options.ID_PVType[index]))
             table = np.column_stack([id_country, id_pv_type, ID_Hour, PVProfile, unit])
             TargetTable = np.vstack([TargetTable, table])
         # drop first column of TargetTable because its 0 from np.zeros:
         TargetTable = TargetTable[1:, :]
 
-        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_PhotovoltaicProfile, columnNames, self.Conn)
+        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_PhotovoltaicProfile, columnNames, self.Conn, dtype=[int,int,int,float,str])
 
 
     def gen_OBJ_ID_Battery(self):
@@ -281,8 +281,11 @@ class TableGenerator:
         creates Dish washer days where the dishwasher can be used on a random basis. Hours of the days where
         the Dishwasher has to be used are index = 1 and hours of days where the dishwasher is not used are indexed = 0.
         Dishwasher is not used during the night, only between 06:00 and 22:00.
+
+        Dishwasher starting hours are randomly generated between 06:00 and 22:00 and a seperate dataframe is created
         """
         Demand_DishWasher = DB().read_DataFrame(REG_Table().Sce_Demand_DishWasher, self.Conn)
+        DishWasherDuration = int(Demand_DishWasher.DishWasherDuration)
         TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
 
         # Assumption: Dishwasher runs maximum once a day:
@@ -305,23 +308,24 @@ class TableGenerator:
             TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
             TargetTable_columns.append("DishWasherHours " + str(i))
 
-        # iterate through table and assign random values between 06:00 and 22:00 on UseDays:
-        # this table is for reference scenarios or if the dishwasher is not optimized:
+        # iterate through table and assign random values between 06:00 and 21:00 on UseDays:
+        # this table is for reference scenarios or if the dishwasher is not optimized: First a random starting time is
+        # specified and from there the timeslots for the duration of the dishwasher are set to 1:
         TargetTable2 = np.copy(TargetTable)
         for index in range(0, len(TargetTable2), 24):
             for column in range(2, TargetTable2.shape[1]):
                 if TargetTable2[index, column] == 1:
-                    HourOfTheDay = np.random.randint(low=6, high=23)
-                    TargetTable2[index+HourOfTheDay, column] = 1
+                    HourOfTheDay = np.random.randint(low=6, high=22)
+                    TargetTable2[index+HourOfTheDay:index+HourOfTheDay+DishWasherDuration-1, column] = 1
                     TargetTable2[index:index+HourOfTheDay, column] = 0
-                    TargetTable2[index+HourOfTheDay+1:index+24, column] = 0
+                    TargetTable2[index+HourOfTheDay+DishWasherDuration:index+24, column] = 0
         # write dataframe with starting hours to database:
         DB().write_DataFrame(TargetTable2, REG_Table().Gen_Sce_DishWasherStartingHours, TargetTable_columns, self.Conn)
 
         # set values to 0 when it is before 6 am:
         TargetTable[:, 2:][TargetTable[:, 1] < 6] = 0
         # set values to 0 when it is after 10 pm:
-        TargetTable[:, 2:][TargetTable[:, 1] > 22] = 0
+        TargetTable[:, 2:][TargetTable[:, 1] > 21] = 0
 
         # save arrays to database:
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_DishWasherHours, TargetTable_columns, self.Conn)
@@ -330,9 +334,11 @@ class TableGenerator:
     def gen_Sce_Demand_WashingMachineHours(self, NumberOfWashingMachineProfiles):
         """
         same as dish washer function above
+        washingmachine starting hours are between 06:00 and 20:00 because the dryer might be used afterwards
         """
         # Dryer has no own function because it will always be used after the washing machine
         Demand_WashingMachine = DB().read_DataFrame(REG_Table().Sce_Demand_WashingMachine, self.Conn)
+        WashingMachineDuration = int(Demand_WashingMachine.WashingMachineDuration)
         TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
 
         # Assumption: Washing machine runs maximum once a day:
@@ -363,9 +369,9 @@ class TableGenerator:
             for column in range(2, TargetTable2.shape[1]):
                 if TargetTable2[index, column] == 1:
                     HourOfTheDay = np.random.randint(low=6, high=20)
-                    TargetTable2[index+HourOfTheDay, column] = 1
+                    TargetTable2[index+HourOfTheDay:index+HourOfTheDay+WashingMachineDuration-1, column] = 1
                     TargetTable2[index:index+HourOfTheDay, column] = 0
-                    TargetTable2[index+HourOfTheDay+1:index+24, column] = 0
+                    TargetTable2[index+HourOfTheDay+WashingMachineDuration:index+24, column] = 0
         # write dataframe with starting hours to database:
         DB().write_DataFrame(TargetTable2, REG_Table().Gen_Sce_WashingMachineStartingHours, TargetTable_columns, self.Conn)
 
