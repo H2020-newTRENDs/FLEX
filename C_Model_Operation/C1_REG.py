@@ -101,7 +101,9 @@ class REG_Table:
         self.Gen_Sce_PhotovoltaicProfile = self.GeneratedData + self.Scenario + 'PhotovoltaicProfile'  # based on 1kWp
         self.Gen_Sce_Weather_Radiation_SkyDirections = self.GeneratedData + self.Scenario + 'Weather_Radiation_SkyDirections'
         self.Gen_Sce_HeatPump_HourlyCOP = self.GeneratedData + self.Scenario + "HeatPump_HourlyCOP"
+        self.Gen_Sce_ACPump_HourlyCOP = self.GeneratedData + self.Scenario + "AC_HourlyCOP"
         self.Gen_Sce_TargetTemperature = self.GeneratedData + self.Scenario + "TargetTemperature"
+
 
         # Gen_Sce_SolarRadiationDirections...
 
