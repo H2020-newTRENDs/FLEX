@@ -4,6 +4,7 @@ from A_Infrastructure.A1_CONS import CONS
 from B_Classes.B2_Building import HeatingCooling_noDR
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 
@@ -62,7 +63,15 @@ class no_DR:
                     T_air_max=27)  # has no influence cause its winter -- > only heating
         return T_thermalMass_constant[-1, :]
 
+
     def calculate_tank_energy(self, Total_Load_minusPV, Q_Heating_noDR, PV_profile_surplus, COP_SpaceHeating):
+        """
+        Calculates the energy/temperature inside the hot water tank and the heating energy that has to be actually used
+        when the tank energy is always used for heating when necessary. Input parameters are all provided in kW
+        (except COP which has no unit). Return values are also provided in kW.
+        """
+        Total_Load_minusPV = Total_Load_minusPV * 1_000  # W
+        PV_profile_surplus = PV_profile_surplus * 1_000  # W
         ID_SpaceHeatingTankType = 1  # TODO choose TankType automatically
         TankSize = float(
             self.HotWaterTank[self.HotWaterTank["ID_SpaceHeatingTankType"] == ID_SpaceHeatingTankType].TankSize)
@@ -92,7 +101,7 @@ class no_DR:
                     TankLoss_hourly[index, column] = (TankStartTemperature - TankSurroundingTemperature) * TankSurfaceArea * TankLoss  # W
                     # surplus of PV electricity is used to charge the tank:
                     CurrentTankTemperature[index, column] = TankStartTemperature + \
-                                                            (PV_profile_surplus[index, column] * 1_000 *
+                                                            (PV_profile_surplus[index, column] *
                                                              COP_SpaceHeating[index] - TankLoss_hourly[index, column]) / \
                                                             (TankSize * self.CPWater)
 
@@ -113,7 +122,7 @@ class no_DR:
 
                     # if there is energy in the tank it will be used for heating:
                     if CurrentTankTemperature[index, column] > TankMinTemperature:
-                        EnergyInTank = (TankStartTemperature - TankMinTemperature) * (TankSize * self.CPWater)
+                        EnergyInTank = (CurrentTankTemperature[index, column] - TankMinTemperature) * (TankSize * self.CPWater)
 
                         # if the PV does not cover the whole elctricity in this hour, the tank will cover for heating
                         if Total_Load_minusPV[index, column] > 0:
@@ -151,7 +160,7 @@ class no_DR:
                 if index > 0:
                     TankLoss_hourly[index, column] = (CurrentTankTemperature[index - 1, column] - TankSurroundingTemperature) * TankSurfaceArea * TankLoss  # W
                     CurrentTankTemperature[index, column] = CurrentTankTemperature[index - 1, column] + \
-                                                            (PV_profile_surplus[index, column] * 1_000 *
+                                                            (PV_profile_surplus[index, column] *
                                                              COP_SpaceHeating[index] -
                                                              TankLoss_hourly[index, column]) / \
                                                             (TankSize * self.CPWater)
@@ -173,7 +182,7 @@ class no_DR:
 
                     # if there is energy in the tank it will be used for heating:
                     if CurrentTankTemperature[index, column] > TankMinTemperature:
-                        EnergyInTank = (TankStartTemperature - TankMinTemperature) * (TankSize * self.CPWater)
+                        EnergyInTank = (CurrentTankTemperature[index, column] - TankMinTemperature) * (TankSize * self.CPWater)
 
                         # if the PV does not cover the whole electricity in this hour, the tank will cover for heating
                         if Total_Load_minusPV[index, column] > 0:
@@ -194,7 +203,7 @@ class no_DR:
                             # if the PV does cover part of the heating energy:
                             if Total_Load_minusPV[index, column] <= Q_heating_HP[index, column]/COP_SpaceHeating[index]:
                                 # calculate the part than can be covered by the tank:
-                                remaining_heating_Energy = (Q_heating_HP[index, column]/COP_SpaceHeating[index] - Total_Load_minusPV[index, column])*COP_SpaceHeating[index]
+                                remaining_heating_Energy = (Q_heating_HP[index, column]/COP_SpaceHeating[index] - Total_Load_minusPV[index, column]) * COP_SpaceHeating[index]
                                 # if the energy in the tank is enough to cover the remaining heating energy:
                                 if EnergyInTank > remaining_heating_Energy:
                                     SurplusEnergy = EnergyInTank - remaining_heating_Energy
@@ -211,10 +220,24 @@ class no_DR:
         # Electricity_surplus is the electricity that can not be stored in the tank
         # Electricity_deficit is the electricity needed to keep the tank on temperature
         # TankLoss_hourly are the total losses of the tank
-        return TankLoss_hourly, CurrentTankTemperature, Electricity_surplus, Electricity_deficit, Q_heating_HP # all energies in W
+
+        # convert the energie back to kW:
+        TankLoss_hourly = TankLoss_hourly / 1_000
+        Electricity_surplus = Electricity_surplus / 1_000
+        Electricity_deficit = Electricity_deficit / 1_000
+        Q_heating_HP = Q_heating_HP / 1_000
+        return TankLoss_hourly, CurrentTankTemperature, Electricity_surplus, Electricity_deficit, Q_heating_HP # all energies in kW, temperature in °C
 
 
-def calculate_noDR(self):
+    def calculate_battery_energy(self):
+
+
+
+        pass
+
+
+
+    def calculate_noDR(self):
         """
         Assumption for the Reference scenario: the produced PV power is always used for the immediate electric demand,
         if there is a surplus of PV power, it will be used to charge the Battery,
@@ -313,21 +336,47 @@ def calculate_noDR(self):
         # When there is PV surplus energy it either goes to a storage or is sold to the grid:
         # Water Tank as storage:
         # TODO Abfrage if tank is used
-        TankLoss_hourly, CurrentTankTemperature, Electricity_surplus, Electricity_deficit, Q_heating_HP = \
-            self.calculate_tank_energy(Total_Load_minusPV, Q_Heating_noDR)
+        TankLoss_hourly, CurrentTankTemperature, Electricity_surplus, Electricity_deficit, Q_heating_withTank = \
+            self.calculate_tank_energy(Total_Load_minusPV, Q_Heating_noDR, PV_profile_surplus, COP_SpaceHeating)
+        # remaining surplus of electricity
+        PV_profile_surplus = Electricity_surplus
 
+        electricity_that_is_available_for_heating_the_tank = PV_profile.sum(axis=0)-(Total_Load.sum(axis=0)-Total_Load_minusPV.sum(axis=0))
 
         # Battery storage:
 
 
 
 
+        plotanfang = 400
+        plotende = 424
+        # check results
+        x_achse = np.arange(plotanfang, plotende)
+        fig = plt.figure()
+        ax1 = plt.gca()
+        ax1.plot(x_achse, Q_Heating_noDR[plotanfang:plotende, 1], label="Q_heating no Tank", alpha=0.8)
+        ax1.plot(x_achse, Q_heating_withTank[plotanfang:plotende, 1], label="Q_heating with Tank", alpha=0.8)
+
+        ax2 = ax1.twinx()
+        ax1.plot(x_achse, PV_profile_surplus[plotanfang:plotende, 1], label="PV surplus", alpha=0.4, color="yellow")
+
+        ax2.plot(x_achse, CurrentTankTemperature[plotanfang:plotende, 1], label="tank Temp", color="red", alpha=0.2)
+        ax1.legend()
+        plt.show()
+
+        fig = plt.figure()
+        ax1 = plt.gca()
+
+        ax1.plot(x_achse, PV_profile[plotanfang:plotende], color="yellow", label="pv profile")
+        ax1.plot(x_achse, Total_Load[plotanfang:plotende, 1], color="black", linewidth=0.2, label="total load")
+        ax1.plot(x_achse, PV_profile_surplus[plotanfang:plotende, 1] / 1000, label="PV surplus", alpha=0.8, color="orange")
+        ax1.plot(x_achse, Total_Load_minusPV[plotanfang:plotende, 1], label="total load - PV", alpha=0.7, color="red")
+
+        ax1.legend()
+        plt.show()
 
 
-
-
-        a=1
-
+        a = 1
 
 
 
