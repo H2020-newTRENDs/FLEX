@@ -229,11 +229,92 @@ class no_DR:
         return TankLoss_hourly, CurrentTankTemperature, Electricity_surplus, Electricity_deficit, Q_heating_HP # all energies in kW, temperature in °C
 
 
-    def calculate_battery_energy(self):
+    def calculate_battery_energy(self, Total_Load_minusPV, PV_profile_surplus):
+        """
+
+        Assumption: The battery is not discharging itself.
+        """
+        # TODO define ID battery
+        ID_BatteryType = 3
+        Capacity = float(self.Battery[self.Battery["ID_BatteryType"] == ID_BatteryType].Capacity)  # kWh
+        MaxChargePower = float(self.Battery[self.Battery["ID_BatteryType"] == ID_BatteryType].MaxChargePower)  # kW
+        MaxDischargePower = float(self.Battery[self.Battery["ID_BatteryType"] == ID_BatteryType].MaxDischargePower)  # kW
+        ChargeEfficiency = float(self.Battery[self.Battery["ID_BatteryType"] == ID_BatteryType].ChargeEfficiency)
+        DischargeEfficiency = float(self.Battery[self.Battery["ID_BatteryType"] == ID_BatteryType].DischargeEfficiency)
+
+        # Battery is not charged at the beginning of the simulation
+        BatterySOC = np.zeros(PV_profile_surplus.shape)
+        Electricity_surplus = np.zeros(PV_profile_surplus.shape)
+        Total_load_battery = np.copy(Total_Load_minusPV)
+
+        for index, row in enumerate(BatterySOC):
+            for column, element in enumerate(row):
+                if index == 0:  # there will be no charging at 01:00 clock in the morning of the 1st january:
+                    BatterySOC[index, column] = 0
+
+                if index > 0:
+                    # if there is surplus energy, the battery will be charged
+                    if PV_profile_surplus[index, column] > 0:
+                        # check if the battery can store the power or if its already fully charged:
+                        if BatterySOC[index-1, column] < Capacity:  # there is space to charge
+
+                            if PV_profile_surplus[index, column] <= MaxChargePower:  # maximum charging power is not exceeded
+                                # determine how much capacity is available:
+                                capacity_left = Capacity - BatterySOC[index-1, column]
+                                BatterySOC[index, column] = BatterySOC[index-1, column] + PV_profile_surplus[index, column] * ChargeEfficiency
+                                # check if the battery exceeds maximum charge limit, if yes:
+                                if BatterySOC[index, column] > Capacity:
+                                    charging_energy = capacity_left / ChargeEfficiency
+                                    Electricity_surplus[index, column] = PV_profile_surplus[index, column] - charging_energy
+                                    BatterySOC[index, column] = Capacity
+
+                            if PV_profile_surplus[index, column] > MaxChargePower:  # maximum charging power is exceeded
+                                # determine how much capacity is available:
+                                capacity_left = Capacity - BatterySOC[index-1, column]
+                                BatterySOC[index, column] = BatterySOC[index-1, column] + MaxChargePower * ChargeEfficiency
+                                Electricity_surplus[index, column] = PV_profile_surplus[index, column] - MaxChargePower
+                                # check if the battery exceeds maximum charge limit, if yes:
+                                if BatterySOC[index, column] > Capacity:
+                                    charging_energy = capacity_left / ChargeEfficiency
+                                    Electricity_surplus[index, column] = PV_profile_surplus[index, column] - charging_energy
+                                    BatterySOC[index, column] = Capacity
+
+                        # if battery can not be charged because its full:
+                        if BatterySOC[index-1, column] == Capacity:
+                            BatterySOC[index, column] = Capacity
+                            Electricity_surplus[index, column] = PV_profile_surplus[index, column]
 
 
 
-        pass
+                    # if there is no surplus of energy and the battery has energy stored, it will provide energy:
+                    if PV_profile_surplus[index, column] == 0:
+                        # check if battery has power:
+                        if BatterySOC[index-1, column] > 0:
+                            # if the power in battery is enough to cover whole electricity demand:
+                            if BatterySOC[index-1, column] > Total_Load_minusPV[index, column] / DischargeEfficiency:
+                                Total_load_battery[index, column] = 0
+                                BatterySOC[index, column] = BatterySOC[index-1, column] - Total_Load_minusPV[index, column] / DischargeEfficiency
+                                # check if maximum discharge power is exceeded:
+                                if Total_load_battery[index, column] / DischargeEfficiency > MaxDischargePower:
+                                    Total_load_battery[index, column] = Total_Load_minusPV[index, column] - MaxDischargePower
+                                    BatterySOC[index, column] = BatterySOC[index-1, column] - MaxDischargePower / DischargeEfficiency
+
+                            # if the power in the battery is not enough to cover the whole electricity demand:
+                            if BatterySOC[index-1, column] <= Total_Load_minusPV[index, column] / DischargeEfficiency:
+                                Total_load_battery[index, column] = Total_Load_minusPV[index, column] - BatterySOC[index-1, column]*DischargeEfficiency
+                                BatterySOC[index, 1] = 0
+                                # check if max discharge power is exceeded:
+                                if BatterySOC[index-1, column] > MaxDischargePower:
+                                    BatterySOC[index, column] = BatterySOC[index-1, column] - MaxDischargePower/DischargeEfficiency
+                                    Total_load_battery[index, column] = Total_Load_minusPV[index, column] - MaxDischargePower
+
+
+        return Total_load_battery, Electricity_surplus, BatterySOC  # kW and kWh
+
+
+
+
+
 
 
 
@@ -336,33 +417,36 @@ class no_DR:
         # When there is PV surplus energy it either goes to a storage or is sold to the grid:
         # Water Tank as storage:
         # TODO Abfrage if tank is used
-        TankLoss_hourly, CurrentTankTemperature, Electricity_surplus, Electricity_deficit, Q_heating_withTank = \
-            self.calculate_tank_energy(Total_Load_minusPV, Q_Heating_noDR, PV_profile_surplus, COP_SpaceHeating)
-        # remaining surplus of electricity
-        PV_profile_surplus = Electricity_surplus
+        # TankLoss_hourly, CurrentTankTemperature, Electricity_surplus, Electricity_deficit, Q_heating_withTank = \
+        #     self.calculate_tank_energy(Total_Load_minusPV, Q_Heating_noDR, PV_profile_surplus, COP_SpaceHeating)
+        # # remaining surplus of electricity
+        # PV_profile_surplus = Electricity_surplus
 
-        electricity_that_is_available_for_heating_the_tank = PV_profile.sum(axis=0)-(Total_Load.sum(axis=0)-Total_Load_minusPV.sum(axis=0))
 
         # Battery storage:
+        Total_load_battery, Electricity_surplus, BatterySOC = \
+            self.calculate_battery_energy(Total_Load_minusPV, PV_profile_surplus)
+
+        PV_profile_surplus = Electricity_surplus
 
 
 
-
-        plotanfang = 400
-        plotende = 424
+        plotanfang = 4000
+        plotende = 4050
         # check results
         x_achse = np.arange(plotanfang, plotende)
-        fig = plt.figure()
-        ax1 = plt.gca()
-        ax1.plot(x_achse, Q_Heating_noDR[plotanfang:plotende, 1], label="Q_heating no Tank", alpha=0.8)
-        ax1.plot(x_achse, Q_heating_withTank[plotanfang:plotende, 1], label="Q_heating with Tank", alpha=0.8)
 
-        ax2 = ax1.twinx()
-        ax1.plot(x_achse, PV_profile_surplus[plotanfang:plotende, 1], label="PV surplus", alpha=0.4, color="yellow")
-
-        ax2.plot(x_achse, CurrentTankTemperature[plotanfang:plotende, 1], label="tank Temp", color="red", alpha=0.2)
-        ax1.legend()
-        plt.show()
+        # fig = plt.figure()
+        # ax1 = plt.gca()
+        # ax1.plot(x_achse, Q_Heating_noDR[plotanfang:plotende, 1], label="Q_heating no Tank", alpha=0.8)
+        # ax1.plot(x_achse, Q_heating_withTank[plotanfang:plotende, 1], label="Q_heating with Tank", alpha=0.8)
+        #
+        # ax2 = ax1.twinx()
+        # ax1.plot(x_achse, PV_profile_surplus[plotanfang:plotende, 1], label="PV surplus", alpha=0.4, color="yellow")
+        #
+        # ax2.plot(x_achse, CurrentTankTemperature[plotanfang:plotende, 1], label="tank Temp", color="red", alpha=0.2)
+        # ax1.legend()
+        # plt.show()
 
         fig = plt.figure()
         ax1 = plt.gca()
@@ -371,6 +455,20 @@ class no_DR:
         ax1.plot(x_achse, Total_Load[plotanfang:plotende, 1], color="black", linewidth=0.2, label="total load")
         ax1.plot(x_achse, PV_profile_surplus[plotanfang:plotende, 1] / 1000, label="PV surplus", alpha=0.8, color="orange")
         ax1.plot(x_achse, Total_Load_minusPV[plotanfang:plotende, 1], label="total load - PV", alpha=0.7, color="red")
+
+        ax1.legend()
+        plt.show()
+
+
+        fig = plt.figure()
+        ax1 = plt.gca()
+        ax2 = ax1.twinx()
+        ax1.plot(x_achse, Total_Load_minusPV[plotanfang:plotende, 1], label="total load - PV", alpha=0.7, color="red", linewidth=0.2)
+        plt.plot(x_achse, PV_profile[plotanfang:plotende], color="yellow", label="pv profile", alpha=0.8, linewidth=0.7)
+        ax1.plot(x_achse, Total_Load[plotanfang:plotende, 1], color="black", linewidth=0.2, label="total load")
+        ax1.plot(x_achse, Total_load_battery[plotanfang:plotende, 1], color="blue", linewidth=0.3, label="load with battery")
+
+        ax2.plot(x_achse, BatterySOC[plotanfang:plotende, 1], color="green", linewidth=0.3, alpha=0.7)
 
         ax1.legend()
         plt.show()
