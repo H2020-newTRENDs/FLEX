@@ -166,25 +166,16 @@ class REG_Var:
         self.E_Grid = self.EndEnergy + "Grid"
         self.E_Grid2Load = self.EndEnergy + "Grid2Load"
         self.E_Grid2Battery = self.EndEnergy + "Grid2Battery"
-        self.E_Grid2EV = self.EndEnergy + "Grid2EV"
 
         self.E_PV = self.EndEnergy + "PV"
         self.E_PV2Load = self.EndEnergy + "PV2Load"
         self.E_PV2Battery = self.EndEnergy + "PV2Battery"
-        self.E_PV2EV = self.EndEnergy + "PV2EV"
         self.E_PV2Grid = self.EndEnergy + "PV2Grid"
 
         self.E_BatteryCharge = self.EndEnergy + "BatteryCharge"
         self.E_BatteryDischarge = self.EndEnergy + "BatteryDischarge"
         self.E_Battery2Load = self.EndEnergy + "Battery2Load"
-        self.E_Battery2EV = self.EndEnergy + "Battery2EV"
         self.BatteryStateOfCharge = "BatteryStateOfCharge"
-
-        self.E_EVCharge = self.EndEnergy + "EVCharge"
-        self.E_EVDischarge = self.EndEnergy + "EV2Discharge"
-        self.E_EV2Load = self.EndEnergy + "EV2Load"
-        self.E_EV2Battery = self.EndEnergy + "EV2Battery"
-        self.EVStateOfCharge = "EVStateOfCharge"
 
         self.E_Load = self.EndEnergy + "Load"
 
@@ -209,23 +200,15 @@ class REG_Var:
         self.Year_E_Grid = self.Year + self.E_Grid
         self.Year_E_Grid2Load = self.Year + self.E_Grid2Load
         self.Year_E_Grid2Battery = self.Year + self.E_Grid2Battery
-        self.Year_E_Grid2EV = self.Year + self.E_Grid2EV
 
         self.Year_E_PV = self.Year + self.E_PV
         self.Year_E_PV2Load = self.Year + self.E_PV2Load
         self.Year_E_PV2Battery = self.Year + self.E_PV2Battery
-        self.Year_E_PV2EV = self.Year + self.E_PV2EV
         self.Year_E_PV2Grid = self.Year + self.E_PV2Grid
 
         self.Year_E_BatteryCharge = self.Year + self.E_BatteryCharge
         self.Year_E_BatteryDischarge = self.Year + self.E_BatteryDischarge
         self.Year_E_Battery2Load = self.Year + self.E_Battery2Load
-        self.Year_E_Battery2EV = self.Year + self.E_Battery2EV
-
-        self.Year_E_EVCharge = self.Year + self.E_EVCharge
-        self.Year_E_EVDischarge = self.Year + self.E_EVDischarge
-        self.Year_E_EV2Load = self.Year + self.E_EV2Load
-        self.Year_E_EV2Battery = self.Year + self.E_EV2Battery
 
         self.Year_E_Load = self.Year + self.E_Load
         self.Year_E_ElectricityDemand = self.Year + self.EndEnergy + "TotalElectricityDemand"
@@ -241,7 +224,6 @@ class REG_Var:
         self.Household_CoolingAdoption = "Household_CoolingAdoption"
         self.Household_PVPower = "Household_PVPower"
         self.Household_BatteryCapacity = "Household_BatteryCapacity"
-        self.Household_EVBatterySize = "Household_EVBatterySize"
         self.Environment_ElectricityPriceType = "Environment_ElectricityPriceType"
 
 
