@@ -42,25 +42,16 @@ class Visualization:
                           self.VAR.E_Grid: self.COLOR.black,
                           self.VAR.E_Grid2Load: self.COLOR.black,
                           self.VAR.E_Grid2Battery: self.COLOR.dark_red,
-                          self.VAR.E_Grid2EV: self.COLOR.red,
 
                           self.VAR.E_PV: self.COLOR.green,
                           self.VAR.E_PV2Load: self.COLOR.orange,
                           self.VAR.E_PV2Battery: self.COLOR.blue,
-                          self.VAR.E_PV2EV: self.COLOR.dark_grey,
                           self.VAR.E_PV2Grid: self.COLOR.dark_green,
 
                           self.VAR.E_BatteryCharge: self.COLOR.green,
                           self.VAR.E_BatteryDischarge: self.COLOR.green,
                           self.VAR.E_Battery2Load: self.COLOR.red,
-                          self.VAR.E_Battery2EV: self.COLOR.green,
                           self.VAR.BatteryStateOfCharge: self.COLOR.turquoise,
-
-                          self.VAR.E_EVCharge: self.COLOR.green,
-                          self.VAR.E_EVDischarge: self.COLOR.green,
-                          self.VAR.E_EV2Load: self.COLOR.dark_red,
-                          self.VAR.E_EV2Battery: self.COLOR.green,
-                          self.VAR.EVStateOfCharge: self.COLOR.turquoise,
 
                           self.VAR.E_Load: self.COLOR.green,
                           self.VAR.OutsideTemperature: self.COLOR.blue,
@@ -89,7 +80,6 @@ class Visualization:
                         grid_2_load,
                         pv_2_load,
                         battery_2_load,
-                        ev_2_load,
                         **kwargs):
 
         figure = plt.figure(figsize=(20, 8), dpi=200, frameon=False)
@@ -164,13 +154,6 @@ class Visualization:
                  alpha=alpha_value,
                  color=battery_2_load["color"])
 
-        ax_1.bar(x_values,
-                 - ev_2_load["values"],
-                 label=ev_2_load["label"],
-                 bottom=- pv_2_load["values"]  - grid_2_load["values"]  - battery_2_load["values"],
-                 alpha=alpha_value,
-                 color=ev_2_load["color"])
-
         ax_1.grid(color='grey', linestyle='--', linewidth=1)
 
         if "x_label_weekday" in kwargs:
@@ -200,7 +183,6 @@ class Visualization:
     def plot_PV(self, id_household, id_environment, horizon,
                 pv_2_load,
                 pv_2_battery,
-                pv_2_ev,
                 pv_2_grid,
                 electricity_price,
                 feedin_tariff,
@@ -226,16 +208,9 @@ class Visualization:
                  color=pv_2_battery["color"])
 
         ax_1.bar(x_values,
-                 pv_2_ev["values"],
-                 label=pv_2_ev["label"],
-                 bottom=pv_2_load["values"] + pv_2_battery["values"],
-                 alpha=alpha_value,
-                 color=pv_2_ev["color"])
-
-        ax_1.bar(x_values,
                  pv_2_grid["values"],
                  label=pv_2_grid["label"],
-                 bottom=pv_2_load["values"] + pv_2_battery["values"] + pv_2_ev["values"],
+                 bottom=pv_2_load["values"] + pv_2_battery["values"],
                  alpha=alpha_value,
                  color=pv_2_grid["color"])
 
@@ -284,13 +259,12 @@ class Visualization:
         figure.savefig(CONS().FiguresPath + fig_name + ".png", dpi=200, format='PNG')
         plt.close(figure)
 
-    def plot_Battery_EV(self, id_household, id_environment, horizon,
-                        grid_2_battery_ev,
-                        pv_2_battery_ev,
-                        battery_ev_each_other,
-                        battery_ev_2_load,
-                        battery_ev_soc,
-                        **kwargs):
+    def plot_Battery(self, id_household, id_environment, horizon,
+                     grid_2_battery,
+                     pv_2_battery,
+                     battery_2_load,
+                     battery_soc,
+                     **kwargs):
 
         figure = plt.figure(figsize=(20, 8), dpi=200, frameon=False)
         ax_1 = figure.add_axes([0.1, 0.1, 0.8, 0.75])
@@ -299,39 +273,32 @@ class Visualization:
         linewidth_value = 2
 
         ax_1.bar(x_values,
-                 grid_2_battery_ev["values"],
-                 label=grid_2_battery_ev["label"],
+                 grid_2_battery["values"],
+                 label=grid_2_battery["label"],
                  alpha=alpha_value,
-                 color=grid_2_battery_ev["color"])
+                 color=grid_2_battery["color"])
 
         ax_1.bar(x_values,
-                 pv_2_battery_ev["values"],
-                 label=pv_2_battery_ev["label"],
-                 bottom=grid_2_battery_ev["values"],
+                 pv_2_battery["values"],
+                 label=pv_2_battery["label"],
+                 bottom=grid_2_battery["values"],
                  alpha=alpha_value,
-                 color=pv_2_battery_ev["color"])
+                 color=pv_2_battery["color"])
 
         ax_1.bar(x_values,
-                 battery_ev_each_other["values"],
-                 label=battery_ev_each_other["label"],
-                 bottom=grid_2_battery_ev["values"] + pv_2_battery_ev["values"],
+                 battery_2_load["values"] * (-1),
+                 label=battery_2_load["label"],
                  alpha=alpha_value,
-                 color=battery_ev_each_other["color"])
-
-        ax_1.bar(x_values,
-                 battery_ev_2_load["values"] * (-1),
-                 label=battery_ev_2_load["label"],
-                 alpha=alpha_value,
-                 color=battery_ev_2_load["color"])
+                 color=battery_2_load["color"])
 
         ax_2 = ax_1.twinx()
 
         ax_2.plot(x_values,
-                  battery_ev_soc["values"],
+                  battery_soc["values"],
                   linewidth=linewidth_value,
                   linestyle='-',
-                  label=battery_ev_soc["label"],
-                  color=battery_ev_soc["color"])
+                  label=battery_soc["label"],
+                  color=battery_soc["color"])
 
         ax_1.grid(color='grey', linestyle='--', linewidth=1)
 
@@ -536,7 +503,6 @@ class Visualization:
         Grid = SystemOperation[self.VAR.E_Grid]
         Grid2Load = SystemOperation[self.VAR.E_Grid2Load]
         Grid2Battery = SystemOperation[self.VAR.E_Grid2Battery]
-        Grid2EV = SystemOperation[self.VAR.E_Grid2EV]
 
         # Load
         BaseElectricityLoad = SystemOperation[self.VAR.E_BaseElectricityLoad]
@@ -550,22 +516,13 @@ class Visualization:
         PV = SystemOperation[self.VAR.E_PV]
         PV2Load = SystemOperation[self.VAR.E_PV2Load]
         PV2Battery = SystemOperation[self.VAR.E_PV2Battery]
-        PV2EV = SystemOperation[self.VAR.E_PV2EV]
         PV2Grid = SystemOperation[self.VAR.E_PV2Grid]
 
         # Battery
         BatteryCharge = SystemOperation[self.VAR.E_BatteryCharge]
         BatteryDischarge = SystemOperation[self.VAR.E_BatteryDischarge]
         Battery2Load = SystemOperation[self.VAR.E_Battery2Load]
-        Battery2EV = SystemOperation[self.VAR.E_Battery2EV]
         BatteryStateOfCharge = SystemOperation[self.VAR.BatteryStateOfCharge]
-
-        # EV
-        EVCharge = SystemOperation[self.VAR.E_EVCharge]
-        EVDischarge = SystemOperation[self.VAR.E_EVDischarge]
-        EV2Load = SystemOperation[self.VAR.E_EV2Load]
-        EV2Battery = SystemOperation[self.VAR.E_EV2Battery]
-        EVStateOfCharge = SystemOperation[self.VAR.EVStateOfCharge]
 
         # 3. Space heating and cooling
         Q_HeatPump = SystemOperation[self.VAR.Q_HeatPump]
@@ -619,9 +576,6 @@ class Visualization:
         Battery2Load_element = {"values": Battery2Load,
                                 "label": "Battery2Load",
                                 "color": self.VarColors[self.VAR.E_Battery2Load]}
-        EV2Load_element = {"values": EV2Load,
-                           "label": "EV2Load",
-                           "color": self.VarColors[self.VAR.E_EV2Load]}
 
         if Horizon[0] < 100:
             y_lim_range = np.array((-15, 15))
@@ -637,7 +591,6 @@ class Visualization:
                              Grid2Load_element,
                              PV2Load_element,
                              Battery2Load_element,
-                             EV2Load_element,
                              x_label_weekday=True,
                              y_lim=y_lim_range)
 
@@ -650,9 +603,6 @@ class Visualization:
         PV2Battery_element = {"values": PV2Battery,
                               "label": "PV2Battery",
                               "color": self.VarColors[self.VAR.E_PV2Battery]}
-        PV2EV_element = {"values": PV2EV,
-                         "label": "PV2EV",
-                         "color": self.VarColors[self.VAR.E_PV2EV]}
         PV2Grid_element = {"values": PV2Grid,
                            "label": "PV2Grid",
                            "color": self.VarColors[self.VAR.E_PV2Grid]}
@@ -666,7 +616,6 @@ class Visualization:
         self.plot_PV(id_household, id_environment, Horizon,
                      PV2Load_element,
                      PV2Battery_element,
-                     PV2EV_element,
                      PV2Grid_element,
                      ElectricityPrice_element,
                      FeedinTariff_element,
@@ -682,9 +631,6 @@ class Visualization:
         PV2Battery_element = {"values": PV2Battery,
                               "label": "PV2Battery",
                               "color": self.VarColors[self.VAR.E_PV2Battery]}
-        EV2Battery_element = {"values": EV2Battery,
-                              "label": "EV2Battery",
-                              "color": self.VarColors[self.VAR.E_EV2Battery]}
         Battery2Load_element = {"values": Battery2Load,
                                 "label": "Battery2Load",
                                 "color": self.VarColors[self.VAR.E_Battery2Load]}
@@ -698,52 +644,18 @@ class Visualization:
         else:
             y1_lim_range = np.array((-6, 6))
             y2_lim_range = np.array((0, 12))
-        self.plot_Battery_EV(id_household, id_environment, Horizon,
-                             Grid2Battery_element,
-                             PV2Battery_element,
-                             EV2Battery_element,
-                             Battery2Load_element,
-                             BatteryStateOfCharge_element,
-                             tech="Battery",
-                             x_label_weekday=True,
-                             y_lim=(y1_lim_range, y2_lim_range))
+        self.plot_Battery(id_household, id_environment, Horizon,
+                          Grid2Battery_element,
+                          PV2Battery_element,
+                          Battery2Load_element,
+                          BatteryStateOfCharge_element,
+                          tech="Battery",
+                          x_label_weekday=True,
+                          y_lim=(y1_lim_range, y2_lim_range))
 
-        # ----------
-        # Plot 4: EV
-        # ----------
-        Grid2EV_element = {"values": Grid2EV,
-                           "label": "Grid2EV",
-                           "color": self.VarColors[self.VAR.E_Grid2EV]}
-        PV2EV_element = {"values": PV2EV,
-                         "label": "PV2EV",
-                         "color": self.VarColors[self.VAR.E_PV2EV]}
-        Battery2EV_element = {"values": Battery2EV,
-                              "label": "Battery2EV",
-                              "color": self.VarColors[self.VAR.E_Battery2EV]}
-        EV2Load_element = {"values": EV2Load,
-                           "label": "EV2Load",
-                           "color": self.VarColors[self.VAR.E_EV2Load]}
-        EVStateOfCharge_element = {"values": EVStateOfCharge,
-                                   "label": "EVSoC",
-                                   "color": self.VarColors[self.VAR.EVStateOfCharge]}
-        if Horizon[0] < 100:
-            y1_lim_range = np.array((-20, 20))
-            y2_lim_range = np.array((0, 80))
-        else:
-            y1_lim_range = np.array((-8, 8))
-            y2_lim_range = np.array((0, 80))
-        self.plot_Battery_EV(id_household, id_environment, Horizon,
-                             Grid2EV_element,
-                             PV2EV_element,
-                             Battery2EV_element,
-                             EV2Load_element,
-                             EVStateOfCharge_element,
-                             tech="EV",
-                             x_label_weekday=True,
-                             y_lim=(y1_lim_range, y2_lim_range))
 
         # --------------------
-        # Plot 5: Room heating
+        # Plot 4: Room heating
         # --------------------
         Q_HeatPump_element = {"values": Q_HeatPump,
                               "label": "HeatPump",
