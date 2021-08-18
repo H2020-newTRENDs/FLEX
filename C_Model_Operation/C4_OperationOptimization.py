@@ -203,8 +203,8 @@ class OperationOptimization:
             (self.HotWaterProfile['ID_HotWaterProfileType'] == Environment["ID_HotWaterProfileType"]) &
             (self.HotWaterProfile['ID_Country'] == Household.ID_Country) &
             (self.HotWaterProfile['ID_HouseholdType'] == Household.ID_HouseholdType)]
-        HotWaterProfile1 = HotWaterProfileSelect['HotWaterPart1'].to_numpy()
-        HotWaterProfile2 = HotWaterProfileSelect['HotWaterPart2'].to_numpy()
+        HotWaterProfile1 = HotWaterProfileSelect['HotWaterPart1'].to_numpy() * 1_000  # W
+        HotWaterProfile2 = HotWaterProfileSelect['HotWaterPart2'].to_numpy() * 1_000  # W
 
         # COP for HotWater generation
         HotWaterHourlyCOP = self.HeatPump_HourlyCOP.loc[
@@ -280,9 +280,9 @@ class OperationOptimization:
         # -------------
 
         # price
-        m.ElectricityPrice = pyo.Param(m.t, initialize=self.creat_Dict(ElectricityPrice))
+        m.ElectricityPrice = pyo.Param(m.t, initialize=self.creat_Dict(ElectricityPrice / 1_000))  # C/Wh
         # Feed in Tariff of Photovoltaic
-        m.FiT = pyo.Param(m.t, initialize=self.creat_Dict(FeedinTariff))  # C/kWh
+        m.FiT = pyo.Param(m.t, initialize=self.creat_Dict(FeedinTariff / 1_000))  # C/Wh
         # solar gains:
         m.Q_Solar = pyo.Param(m.t, initialize=self.creat_Dict(Q_sol))  # W
         # outside temperature
@@ -300,10 +300,7 @@ class OperationOptimization:
 
         # Smart Technologies
         m.DayHour = pyo.Param(m.t, initialize=self.creat_Dict(self.TimeStructure["ID_DayHour"]))
-        m.DishWasherTheoreticalHours = pyo.Param(m.t, within=pyo.Binary,
-                                                 initialize=self.creat_Dict(DishWasherHours))
-        m.WashingMachineTheoreticalHours = pyo.Param(m.t, within=pyo.Binary,
-                                                     initialize=self.creat_Dict(WashingMachineHours))
+
 
         # ----------------------------
         # 2. Variables and constraints
@@ -323,30 +320,30 @@ class OperationOptimization:
         m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals,
                                   bounds=(0, float(Household.SpaceCooling.SpaceCoolingPower)))  # W
 
-        # def heating_cooling_bounds(m, t):
-        #     return (HeatingTargetTemperature[t-1], CoolingTargetTemperature[t-1])
-        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals)#,  bounds=heating_cooling_bounds)
+        def heating_cooling_bounds(m, t):
+            return (HeatingTargetTemperature[t-1], CoolingTargetTemperature[t-1])
+        m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals,  bounds=heating_cooling_bounds)
 
         m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals,
                          bounds=(0, float(Household.Building.MaximalBuildingMassTemperature)))
 
         # Grid, limit set by 21 kW
-        m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals)#, bounds=(0, float(Household.Building.MaximalGridPower)))  # 380 * 32 * 1,72
-        m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower)))
-        m.Grid2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower)))
+        m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))  # 380 * 32 * 1,72
+        m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
+        m.Grid2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
 
         # PV
-        m.PV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower)))
-        m.PV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower)))
-        m.PV2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower)))
-        m.Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower)))
-        m.Feedin = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower)))
+        m.PV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
+        m.PV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
+        m.PV2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
+        m.Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
+        m.Feedin = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
 
         # Battery
-        m.BatSoC = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Battery.Capacity)))
-        m.BatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Battery.MaxChargePower)))
-        m.BatDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxDischargePower))
-        m.Bat2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Battery.MaxDischargePower)))  # battery can only discharge to load
+        m.BatSoC = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Battery.Capacity * 1_000)))
+        m.BatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Battery.MaxChargePower * 1_000)))
+        m.BatDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxDischargePower * 1_000))
+        m.Bat2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Battery.MaxDischargePower * 1_000)))  # battery can only discharge to load
 
         # Smart Technologies
         if DishWasherSmartStatus == 1:
@@ -354,6 +351,8 @@ class OperationOptimization:
             m.DishWasher2 = pyo.Var(m.t, within=pyo.Binary)
             m.DishWasher3 = pyo.Var(m.t, within=pyo.Binary)
             m.DishWasherStart = pyo.Var(m.t, within=pyo.Binary)
+            m.DishWasherTheoreticalHours = pyo.Param(m.t, within=pyo.Binary,
+                                                     initialize=self.creat_Dict(DishWasherHours))
         else:
             m.DishWasher1 = pyo.Param(m.t, initialize=self.creat_Dict(DishWasherHours))  # exact hours are given
             m.DishWasher2 = pyo.Param(m.t, initialize=self.creat_Dict(np.zeros((self.OptimizationHourHorizon,))))
@@ -364,6 +363,8 @@ class OperationOptimization:
             m.WashingMachine2 = pyo.Var(m.t, within=pyo.Binary)
             m.WashingMachine3 = pyo.Var(m.t, within=pyo.Binary)
             m.WashingMachineStart = pyo.Var(m.t, within=pyo.Binary)
+            m.WashingMachineTheoreticalHours = pyo.Param(m.t, within=pyo.Binary,
+                                                         initialize=self.creat_Dict(WashingMachineHours))
             m.Dryer1 = pyo.Var(m.t, within=pyo.Binary)
             m.Dryer2 = pyo.Var(m.t, within=pyo.Binary)
         else:
@@ -404,7 +405,7 @@ class OperationOptimization:
 
         m.calc_SumOfFeedin = pyo.Constraint(m.t, rule=calc_SumOfFeedin)
 
-        # (5) EV is extra in EVSoC
+        # (5) load coverage
         def calc_SupplyOfLoads(m, t):
             if Household.Battery.Capacity == 0:
                 return m.Grid2Load[t] + m.PV2Load[t] == m.Load[t]
@@ -421,9 +422,9 @@ class OperationOptimization:
                    + m.Q_RoomCooling[t] / Household.SpaceCooling.SpaceCoolingEfficiency \
                    + m.HWPart1[t] / m.SpaceHeatingHourlyCOP[t] \
                    + m.HWPart2[t] / m.HotWaterHourlyCOP[t] \
-                   + (m.DishWasher1[t] + m.DishWasher2[t] + m.DishWasher3[t]) * DishWasherPower \
-                   + (m.WashingMachine1[t] + m.WashingMachine2[t] + m.WashingMachine3[t]) * WashingMachinePower \
-                   + (m.Dryer1[t] + m.Dryer2[t]) * DryerPower
+                   + (m.DishWasher1[t] + m.DishWasher2[t] + m.DishWasher3[t]) * DishWasherPower * 1_000 \
+                   + (m.WashingMachine1[t] + m.WashingMachine2[t] + m.WashingMachine3[t]) * WashingMachinePower * 1_000 \
+                   + (m.Dryer1[t] + m.Dryer2[t]) * DryerPower * 1_000
 
         m.calc_SumOfLoads = pyo.Constraint(m.t, rule=calc_SumOfLoads)
 
@@ -467,80 +468,84 @@ class OperationOptimization:
         # ---------------------------------------
 
         # DishWasher
-        def calc_DishWasherHours2(m, t):
-            if t >= 8759:
+        if DishWasherSmartStatus == 1:
+            def calc_DishWasherHours2(m, t):
+                if t >= 8759:
+                    return m.DishWasher2[t] == 0
+                elif m.DishWasherTheoreticalHours[t] == 1 and (DishWasherDuration == 2 or DishWasherDuration == 3):
+                    return m.DishWasher1[t] == m.DishWasher2[t + 1]
                 return m.DishWasher2[t] == 0
-            elif m.DishWasherTheoreticalHours[t] == 1 and (DishWasherDuration == 2 or DishWasherDuration == 3):
-                return m.DishWasher1[t] == m.DishWasher2[t + 1]
-            return m.DishWasher2[t] == 0
 
-        m.calc_DishWasherHours2 = pyo.Constraint(m.t, rule=calc_DishWasherHours2)
+            m.calc_DishWasherHours2 = pyo.Constraint(m.t, rule=calc_DishWasherHours2)
 
-        def calc_DishWasherHours3(m, t):
-            if t >= 8758:
+            def calc_DishWasherHours3(m, t):
+                if t >= 8758:
+                    return m.DishWasher3[t] == 0
+                elif m.DishWasherTheoreticalHours[t] == 1 and DishWasherDuration == 3:
+                    return m.DishWasher1[t] == m.DishWasher3[t + 2]
                 return m.DishWasher3[t] == 0
-            elif m.DishWasherTheoreticalHours[t] == 1 and DishWasherDuration == 3:
-                return m.DishWasher1[t] == m.DishWasher3[t + 2]
-            return m.DishWasher3[t] == 0
 
-        m.calc_DishWasherHours3 = pyo.Constraint(m.t, rule=calc_DishWasherHours3)
+            m.calc_DishWasherHours3 = pyo.Constraint(m.t, rule=calc_DishWasherHours3)
 
-        def calc_DishWasherStartTime(m, t):   # TODO write other function if dishwasher is not smart
-            if m.t[t] == 1:
-                return m.DishWasherStart[t] == 0
+            def calc_DishWasherStartTime(m, t):   # TODO write other function if dishwasher is not smart
+                if m.t[t] == 1:
+                    return m.DishWasherStart[t] == 0
+                elif m.DishWasherTheoreticalHours[t] == 1 and m.DayHour[t] == 20:
+                    return m.DishWasherStart[t] == m.DishWasherStart[t - 1] - 1 * DishWasherSmartStatus
 
-            return m.DishWasherStart[t] == m.DishWasherStart[t - 1] \
-                   + m.DishWasher1[t] * m.DishWasherTheoreticalHours[t] * DishWasherSmartStatus
+                return m.DishWasherStart[t] == m.DishWasherStart[t - 1] \
+                       + m.DishWasher1[t] * m.DishWasherTheoreticalHours[t] * DishWasherSmartStatus
 
-        m.calc_DishWasherStartTime = pyo.Constraint(m.t, rule=calc_DishWasherStartTime)
+            m.calc_DishWasherStartTime = pyo.Constraint(m.t, rule=calc_DishWasherStartTime)
 
         # WashingMachine and Dryer
-        def calc_WashingMachineHours2(m, t):
-            if t >= 8759:
+        if WashingMachineSmartStatus == 1:
+            def calc_WashingMachineHours2(m, t):
+                if t >= 8759:
+                    return m.WashingMachine2[t] == 0
+                elif m.WashingMachineTheoreticalHours[t] == 1 and (WashingMachineDuration == 2 or WashingMachineDuration == 3):
+                    return m.WashingMachine1[t] == m.WashingMachine2[t + 1]
                 return m.WashingMachine2[t] == 0
-            elif m.WashingMachineTheoreticalHours[t] == 1 and (WashingMachineDuration == 2 or WashingMachineDuration == 3):
-                return m.WashingMachine1[t] == m.WashingMachine2[t + 1]
-            return m.WashingMachine2[t] == 0
 
-        m.calc_WashingMachineHours2 = pyo.Constraint(m.t, rule=calc_WashingMachineHours2)
+            m.calc_WashingMachineHours2 = pyo.Constraint(m.t, rule=calc_WashingMachineHours2)
 
-        def calc_WashingMachineHours3(m, t):
-            if t >= 8758:
-                return m.WashingMachine2[t] == 0
-            elif m.WashingMachineTheoreticalHours[t] == 1 and WashingMachineDuration == 3:
-                return m.WashingMachine1[t] == m.WashingMachine3[t + 2]
-            return m.WashingMachine3[t] == 0
+            def calc_WashingMachineHours3(m, t):
+                if t >= 8758:
+                    return m.WashingMachine2[t] == 0
+                elif m.WashingMachineTheoreticalHours[t] == 1 and WashingMachineDuration == 3:
+                    return m.WashingMachine1[t] == m.WashingMachine3[t + 2]
+                return m.WashingMachine3[t] == 0
 
-        m.calc_WashingMachineHours3 = pyo.Constraint(m.t, rule=calc_WashingMachineHours3)
+            m.calc_WashingMachineHours3 = pyo.Constraint(m.t, rule=calc_WashingMachineHours3)
 
-        def calc_WashingMachineStartTime(m, t):
-            if m.t[t] == 1:
-                return m.WashingMachineStart[t] == 0  # no starting in the first hour
+            def calc_WashingMachineStartTime(m, t):
+                if m.t[t] == 1:
+                    return m.WashingMachineStart[t] == 0  # no starting in the first hour
 
-            return m.WashingMachineStart[t] == m.WashingMachineStart[t - 1] + m.WashingMachine1[t] * \
-                   m.WashingMachineTheoreticalHours[t] * WashingMachineSmartStatus
+                return m.WashingMachineStart[t] == m.WashingMachineStart[t - 1] + m.WashingMachine1[t] * \
+                       m.WashingMachineTheoreticalHours[t] * WashingMachineSmartStatus
 
-        m.calc_WashingMachineStartTime = pyo.Constraint(m.t, rule=calc_WashingMachineStartTime)
+            m.calc_WashingMachineStartTime = pyo.Constraint(m.t, rule=calc_WashingMachineStartTime)
 
-        def calc_Dryer1(m, t):
-            if t >= 8757:
-                return m.Dryer1[t] == 0
-            if DryerAdoption == 0:
-                return m.Dryer1[t] == 0
-            return m.WashingMachine1[t] == m.Dryer1[t + 3]
+            def calc_Dryer1(m, t):
+                if t >= 8757:
+                    return m.Dryer1[t] == 0
+                if DryerAdoption == 0:
+                    return m.Dryer1[t] == 0
+                return m.WashingMachine1[t] == m.Dryer1[t + 3]
 
-        m.calc_Dryer1 = pyo.Constraint(m.t, rule=calc_Dryer1)
+            m.calc_Dryer1 = pyo.Constraint(m.t, rule=calc_Dryer1)
 
-        def calc_Dryer2(m, t):
-            if t >= 8756:
-                return m.Dryer2[t] == 0
-            if DryerAdoption == 0:
-                return m.Dryer2[t] == 0
-            elif DryerDuration == 2:
-                return m.WashingMachine1[t] == m.Dryer2[t + 4]
-            return m.Dryer2[t + 4] == 0
+            def calc_Dryer2(m, t):
+                if t >= 8756:
+                    return m.Dryer2[t] == 0
+                if DryerAdoption == 0:
+                    return m.Dryer2[t] == 0
+                elif DryerDuration == 2:
+                    return m.WashingMachine1[t] == m.Dryer2[t + 4]
+                return m.Dryer2[t + 4] == 0
 
-        m.calc_Dryer2 = pyo.Constraint(m.t, rule=calc_Dryer2)
+            m.calc_Dryer2 = pyo.Constraint(m.t, rule=calc_Dryer2)
 
         # --------------------------------------
         # 5. State transition: HeatPump and Tank
@@ -618,6 +623,7 @@ class OperationOptimization:
         PyomoModelInstance = m.create_instance(report_timing=False)
         Opt = pyo.SolverFactory("gurobi")
         results = Opt.solve(PyomoModelInstance, tee=False)
+        PyomoModelInstance.display("./log.txt")
         print('Total Operation Cost: ' + str(round(PyomoModelInstance.Objective(), 2)))
 
         return Household, Environment, PyomoModelInstance
@@ -633,4 +639,4 @@ class OperationOptimization:
 
 if __name__ == "__main__":
     Conn = DB().create_Connection(CONS().RootDB)
-    OperationOptimization(Conn).run_Optimization(0, 0)
+    OperationOptimization(Conn).run_Optimization(2, 0)
