@@ -343,6 +343,7 @@ class TableGenerator:
         """
         same as dish washer function above
         washingmachine starting hours are between 06:00 and 20:00 because the dryer might be used afterwards
+        Note: The last day is not being used! because in the optimization the dryer would run until
         """
         # Dryer has no own function because it will always be used after the washing machine
         Demand_WashingMachine = DB().read_DataFrame(REG_Table().Sce_Demand_WashingMachine, self.Conn)
@@ -353,7 +354,7 @@ class TableGenerator:
 
         # Assumption: Washing machine runs maximum once a day:
         UseDays = int(Demand_WashingMachine.WashingMachineCycle)
-        TotalDays = TimeStructure.ID_Day.to_numpy()[-1]
+        TotalDays = TimeStructure.ID_Day.to_numpy()[-1] - 1  # last day is added later
 
         # create array with 0 or 1 for every hour a day and random choice of 0 and 1 but with correct numbers of 1
         # (UseDays)
@@ -364,8 +365,8 @@ class TableGenerator:
             arr = np.repeat(arr, 24, axis=0)
             return arr
 
-        TargetTable = TimeStructure.ID_Hour.to_numpy()
-        TargetTable = np.column_stack([TargetTable, TimeStructure.ID_DayHour.to_numpy()])
+        TargetTable = TimeStructure.ID_Hour.to_numpy()[:-24]
+        TargetTable = np.column_stack([TargetTable, TimeStructure.ID_DayHour.to_numpy()[:-24]])
         TargetTable_columns = {"ID_Hour": "INTEGER",
                                "ID_DayHour": "INTEGER"}
         Dryer_columns = {"ID_Hour": "INTEGER",
@@ -374,6 +375,15 @@ class TableGenerator:
             TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
             TargetTable_columns["WashingMachineHours " + str(i)] = "INTEGER"
             Dryer_columns["DryerHours " + str(i)] = "INTEGER"
+
+        # append the last day to the target table:
+        lastDay_hours = TimeStructure.ID_Hour.to_numpy()[-24:]
+        lastDay_IDHours = TimeStructure.ID_DayHour.to_numpy()[-24:]
+        lastDay_zeros = np.zeros((len(lastDay_IDHours), TargetTable.shape[1]-2))
+        lastDay = np.column_stack([lastDay_hours, lastDay_IDHours, lastDay_zeros])
+
+        # merge last day to target table:
+        TargetTable = np.vstack([TargetTable, lastDay])
 
         # iterate through table and assign random values between 06:00 and 19:00 on UseDays (dryer has
         # to be used as well):
@@ -781,11 +791,11 @@ if __name__ == "__main__":
     # A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_Sce_AC_HourlyCOP()
-    A.gen_OBJ_ID_PV(NUTS_ID)
+    # A.gen_OBJ_ID_PV(NUTS_ID)
 
 
 
     NumberOfDishWasherProfiles = 10
     NumberOfWashingMachineProfiles = 10
     # A.gen_Sce_Demand_DishWasherHours(NumberOfDishWasherProfiles)  # only use once! profiles are randomly generated
-    # A.gen_Sce_Demand_WashingMachineHours(NumberOfWashingMachineProfiles)  # only use once! profiles are randomly generated
+    A.gen_Sce_Demand_WashingMachineHours(NumberOfWashingMachineProfiles)  # only use once! profiles are randomly generated
