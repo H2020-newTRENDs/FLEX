@@ -30,7 +30,7 @@ class Visualization:
                           self.VAR.HeatPumpPerformanceFactor: self.COLOR.green,
                           self.VAR.E_HeatPump: self.COLOR.brown,
                           self.VAR.E_AmbientHeat: self.COLOR.green,
-                          self.VAR.Q_HeatingElement: self.COLOR.red,
+                          self.VAR.Q_HeatingElement: self.COLOR.yellow,
                           self.VAR.Q_RoomHeating: self.COLOR.light_brown,
 
                           self.VAR.Q_RoomCooling: self.COLOR.green,
@@ -500,33 +500,33 @@ class Visualization:
 
         # 2. Electricity balance
         # Grid
-        Grid = SystemOperation[self.VAR.E_Grid]
-        Grid2Load = SystemOperation[self.VAR.E_Grid2Load]
-        Grid2Battery = SystemOperation[self.VAR.E_Grid2Battery]
+        Grid = SystemOperation[self.VAR.E_Grid] / 1_000  # kW
+        Grid2Load = SystemOperation[self.VAR.E_Grid2Load] / 1_000  # kW
+        Grid2Battery = SystemOperation[self.VAR.E_Grid2Battery] / 1_000  # kW
 
         # Load
-        BaseElectricityLoad = SystemOperation[self.VAR.E_BaseElectricityLoad]
-        SmartAppliance = SystemOperation[self.VAR.E_SmartAppliance]
-        HeatPump = SystemOperation[self.VAR.E_HeatPump]
-        HeatElement = SystemOperation[self.VAR.Q_HeatingElement]
-        Cooling = SystemOperation[self.VAR.E_RoomCooling]
-        HotWater = SystemOperation[self.VAR.E_HotWater]
+        BaseElectricityLoad = SystemOperation[self.VAR.E_BaseElectricityLoad]  # kW
+        SmartAppliance = SystemOperation[self.VAR.E_SmartAppliance]  # kW
+        HeatPump = SystemOperation[self.VAR.E_HeatPump]  # kW
+        HeatElement = SystemOperation[self.VAR.Q_HeatingElement]  # kW
+        Cooling = SystemOperation[self.VAR.E_RoomCooling] / 1_000  # kW
+        HotWater = SystemOperation[self.VAR.E_HotWater] / 1_000  # kW # kW
 
         # PV
-        PV = SystemOperation[self.VAR.E_PV]
-        PV2Load = SystemOperation[self.VAR.E_PV2Load]
-        PV2Battery = SystemOperation[self.VAR.E_PV2Battery]
-        PV2Grid = SystemOperation[self.VAR.E_PV2Grid]
+        PV = SystemOperation[self.VAR.E_PV] / 1_000  # kW
+        PV2Load = SystemOperation[self.VAR.E_PV2Load] / 1_000  # kW
+        PV2Battery = SystemOperation[self.VAR.E_PV2Battery] / 1_000  # kW
+        PV2Grid = SystemOperation[self.VAR.E_PV2Grid] / 1_000  # kW
 
         # Battery
-        BatteryCharge = SystemOperation[self.VAR.E_BatteryCharge]
-        BatteryDischarge = SystemOperation[self.VAR.E_BatteryDischarge]
-        Battery2Load = SystemOperation[self.VAR.E_Battery2Load]
-        BatteryStateOfCharge = SystemOperation[self.VAR.BatteryStateOfCharge]
+        BatteryCharge = SystemOperation[self.VAR.E_BatteryCharge] / 1_000  # kW
+        BatteryDischarge = SystemOperation[self.VAR.E_BatteryDischarge] / 1_000  # kW
+        Battery2Load = SystemOperation[self.VAR.E_Battery2Load] / 1_000  # kW
+        BatteryStateOfCharge = SystemOperation[self.VAR.BatteryStateOfCharge] / 1_000  # kWh
 
         # 3. Space heating and cooling
-        Q_HeatPump = SystemOperation[self.VAR.Q_HeatPump]
-        Q_RoomHeating = SystemOperation[self.VAR.Q_RoomHeating]
+        Q_HeatPump = SystemOperation[self.VAR.Q_HeatPump]  # kW
+        Q_RoomHeating = SystemOperation[self.VAR.Q_RoomHeating]  # kW
         OutsideTemperature = SystemOperation[self.VAR.OutsideTemperature]
         RoomTemperature = SystemOperation[self.VAR.RoomTemperature]
         BuildingMassTemperature = SystemOperation[self.VAR.BuildingMassTemperature]
@@ -703,13 +703,16 @@ class Visualization:
                                      y_lim=(y1_lim_range, y2_lim_range))
 
     def run(self):
-        for household_id in range(1, 2):
-            for environment_id in range(1, 3):
-                self.visualization_SystemOperation(household_id, environment_id, week=8)
-                self.visualization_SystemOperation(household_id, environment_id, week=34)
+        for household_id in range(3):
+            for environment_id in range(1, 2):
+                self.visualization_SystemOperation(household_id+1, environment_id, week=8)
+                self.visualization_SystemOperation(household_id+1, environment_id, week=34)
 
 
 
+if __name__ == "__main__":
+    CONN = DB().create_Connection(CONS().RootDB)
+    Visualization(CONN).run()
 
 
 
