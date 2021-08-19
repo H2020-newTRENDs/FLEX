@@ -237,18 +237,17 @@ class TableGenerator:
         HotWater = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_HotWater, self.Conn)
         PV = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_PV, self.Conn)
         Battery = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Battery, self.Conn)
-        ElectricVehicle = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_ElectricVehicle, self.Conn)
 
         TargetTable_list = []
         TargetTable_columns = ["ID"]
         for table in [Country, HouseholdType, AgeGroup]:
             TargetTable_columns += list(table.keys())
         TargetTable_columns += ["ID_Building", "ID_ApplianceGroup", "ID_SpaceHeating", "ID_SpaceCooling",
-                                "ID_HotWater", "ID_PV", "ID_Battery", "ID_ElectricVehicle"]
+                                "ID_HotWater", "ID_PV", "ID_Battery"]
         ID = 1
         TotalRounds = len(Country) * len(HouseholdType) * len(AgeGroup) * len(Building) * \
                       len(ApplianceGroup) * len(SpaceHeating) * len(SpaceCooling) * len(HotWater) * \
-                      len(PV) * len(Battery) * len(ElectricVehicle)
+                      len(PV) * len(Battery)
 
         for row1 in range(0, len(Country)):
             for row2 in range(0, len(HouseholdType)):
@@ -260,7 +259,6 @@ class TableGenerator:
                                     for row8 in range(0, len(HotWater)):
                                         for row9 in range(0, len(PV)):
                                             for row10 in range(0, len(Battery)):
-                                                for row11 in range(0, len(ElectricVehicle)):
                                                     TargetTable_list.append([ID] +
                                                                             list(Country.iloc[row1].values) +
                                                                             list(HouseholdType.iloc[row2].values) +
@@ -271,8 +269,8 @@ class TableGenerator:
                                                                             [SpaceCooling.iloc[row7]["ID"]] +
                                                                             [HotWater.iloc[row8]["ID"]] +
                                                                             [PV.iloc[row9]["ID"]] +
-                                                                            [Battery.iloc[row10]["ID"]] +
-                                                                            [ElectricVehicle.iloc[row11]["ID"]])
+                                                                            [Battery.iloc[row10]["ID"]]
+                                                                            )
                                                     print("Round: " + str(ID) + "/" + str(TotalRounds))
                                                     ID += 1
         DB().write_DataFrame(TargetTable_list, REG_Table().Gen_OBJ_ID_Household, TargetTable_columns, self.Conn)
@@ -793,9 +791,9 @@ if __name__ == "__main__":
     # A.gen_Sce_AC_HourlyCOP()
     # A.gen_OBJ_ID_PV(NUTS_ID)
 
-
+    A.gen_OBJ_ID_Household()
 
     NumberOfDishWasherProfiles = 10
     NumberOfWashingMachineProfiles = 10
     # A.gen_Sce_Demand_DishWasherHours(NumberOfDishWasherProfiles)  # only use once! profiles are randomly generated
-    A.gen_Sce_Demand_WashingMachineHours(NumberOfWashingMachineProfiles)  # only use once! profiles are randomly generated
+    # A.gen_Sce_Demand_WashingMachineHours(NumberOfWashingMachineProfiles)  # only use once! profiles are randomly generated
