@@ -99,7 +99,7 @@ class OperationOptimization:
             DishWasherHours = self.DishWasherHours["DishWasherHours " + str(randomApplianceProfile)].to_numpy()
         else:
             raise ValueError('No valid DishWasher smartStatus was provided')
-        DishWasherPower = float(Household.ApplianceGroup.DishWasherPower)
+        DishWasherPower = float(Household.ApplianceGroup.DishWasherPower) * 1_000
         DishWasherDuration = int(self.Sce_Demand_DishWasher["DishWasherDuration"])
 
         # WashingMachine and Dryer
@@ -112,9 +112,9 @@ class OperationOptimization:
         else:
             raise ValueError('No valid Washingmachine smartStatus was provided')
 
-        WashingMachinePower = float(Household.ApplianceGroup.WashingMachinePower)
+        WashingMachinePower = float(Household.ApplianceGroup.WashingMachinePower) * 1_000
         WashingMachineDuration = int(self.Sce_Demand_WashingMachine.WashingMachineDuration)
-        DryerPower = float(Household.ApplianceGroup.DryerPower)
+        DryerPower = float(Household.ApplianceGroup.DryerPower) * 1_000
         DryerDuration = int(self.Demand_Dryer["DryerDuration"])
         DryerAdoption = int(Household.ApplianceGroup.DryerAdoption)
 
@@ -289,6 +289,8 @@ class OperationOptimization:
         m.T_outside = pyo.Param(m.t, initialize=self.creat_Dict(self.Temperature["Temperature"].to_numpy()))  # °C
         # COP of heatpump
         m.SpaceHeatingHourlyCOP = pyo.Param(m.t, initialize=self.creat_Dict(SpaceHeatingHourlyCOP))
+        # COP of cooling
+        m.CoolingCOP = pyo.Param(m.t, initialize=self.creat_Dict(ACHourlyCOP))
         # electricity load profile
         m.BaseLoadProfile = pyo.Param(m.t, initialize=self.creat_Dict(BaseLoadProfile))  # W
         # PV profile
@@ -419,12 +421,12 @@ class OperationOptimization:
             return m.Load[t] == m.BaseLoadProfile[t] \
                    + m.Q_TankHeating[t] / m.SpaceHeatingHourlyCOP[t] \
                    + m.Q_HeatingElement[t] \
-                   + m.Q_RoomCooling[t] / Household.SpaceCooling.SpaceCoolingEfficiency \
+                   + m.Q_RoomCooling[t] / m.CoolingCOP[t] \
                    + m.HWPart1[t] / m.SpaceHeatingHourlyCOP[t] \
                    + m.HWPart2[t] / m.HotWaterHourlyCOP[t] \
-                   + (m.DishWasher1[t] + m.DishWasher2[t] + m.DishWasher3[t]) * DishWasherPower * 1_000 \
-                   + (m.WashingMachine1[t] + m.WashingMachine2[t] + m.WashingMachine3[t]) * WashingMachinePower * 1_000 \
-                   + (m.Dryer1[t] + m.Dryer2[t]) * DryerPower * 1_000
+                   + (m.DishWasher1[t] + m.DishWasher2[t] + m.DishWasher3[t]) * DishWasherPower  \
+                   + (m.WashingMachine1[t] + m.WashingMachine2[t] + m.WashingMachine3[t]) * WashingMachinePower  \
+                   + (m.Dryer1[t] + m.Dryer2[t]) * DryerPower
 
         m.calc_SumOfLoads = pyo.Constraint(m.t, rule=calc_SumOfLoads)
 
@@ -630,7 +632,7 @@ class OperationOptimization:
 
     def run(self):
         DC = DataCollector(self.Conn)
-        for household_RowID in range(0, 1):
+        for household_RowID in range(0, 3):
             for environment_RowID in range(0, 1):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
@@ -639,4 +641,4 @@ class OperationOptimization:
 
 if __name__ == "__main__":
     Conn = DB().create_Connection(CONS().RootDB)
-    OperationOptimization(Conn).run_Optimization(2, 0)
+    OperationOptimization(Conn).run()
