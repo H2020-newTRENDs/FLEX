@@ -59,7 +59,9 @@ class DataCollector:
                                            self.VAR.E_Battery2Load: "REAL",
                                            self.VAR.BatteryStateOfCharge: "REAL",
 
-                                           self.VAR.E_Load: "REAL"}
+                                           self.VAR.E_Load: "REAL"
+                                           }
+
         self.SystemOperationYear_Column = {self.VAR.ID_Household: "INTEGER",
                                            self.VAR.ID_Environment: "INTEGER",
                                            self.VAR.OperationCost: "REAL",
@@ -93,7 +95,6 @@ class DataCollector:
                                            self.VAR.Year_E_Battery2Load: "REAL",
 
                                            self.VAR.Year_E_Load: "REAL",
-                                           self.VAR.Year_E_ElectricityDemand: "REAL",
                                            self.VAR.Year_E_PVSelfUse: "REAL",
                                            self.VAR.Year_PVSelfConsumptionRate: "REAL",
                                            self.VAR.Year_PVSelfSufficiencyRate: "REAL",
@@ -117,7 +118,7 @@ class DataCollector:
 
     def collect_OptimizationResult(self, Household, Environment, PyomoModelInstance):
 
-        ElectricityPrice_array = self.extract_Result2Array(PyomoModelInstance.ElectricityPrice.extract_values())
+        ElectricityPrice_array = self.extract_Result2Array(PyomoModelInstance.ElectricityPrice.extract_values()) * 1000  # Cent/kWh
         FeedinTariff_array = self.extract_Result2Array(PyomoModelInstance.FiT.extract_values()) * 1_000  # Cent/kWh
         OutsideTemperature_array = self.extract_Result2Array(PyomoModelInstance.T_outside.extract_values())
 
@@ -173,7 +174,7 @@ class DataCollector:
 
         E_Load_array = self.extract_Result2Array(PyomoModelInstance.Load.extract_values())
 
-        # self.SystemOperationHour_ValueList (column stack is 60 times faster than for loop)
+        # self.SystemOperationHour_ValueList (column stack is 6 times faster than for loop)
         SystemOperationHour_ValueList = np.column_stack([
             np.full((len(E_Load_array),), Household.ID),
             np.full((len(E_Load_array),), Environment["ID"]),
@@ -256,7 +257,6 @@ class DataCollector:
                                                    E_BatDischarge_array.sum(),
                                                    E_Bat2Load_array.sum(),
 
-
                                                    E_Load_array.sum(),
                                                    E_PV_array.sum() - E_PV2Grid_array.sum(),
                                                    (E_PV_array.sum() - E_PV2Grid_array.sum())/E_PV_array.sum(),
@@ -270,7 +270,6 @@ class DataCollector:
                                                    Household.SpaceCooling.AdoptionStatus,
                                                    Household.PV.PVPower,
                                                    Household.Battery.Capacity,
-                                                   Household.ElectricVehicle.BatterySize,
                                                    Environment["ID_ElectricityPriceType"]])
 
     def save_OptimizationResult(self):
