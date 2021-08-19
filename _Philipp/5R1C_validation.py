@@ -331,7 +331,10 @@ def calculate_LoadShiftPotential(Buildings, hours_of_preheating, hours_of_shifti
     plt.bar(["preheating", "discharging"], [0, RemainingEnergy[0]], color=["red", "orange"], bottom=SaveHeatShifting[0])
     plt.bar(["preheating", "discharging"], [0, TotalLoss[0]], color=["red", "grey"], bottom=SaveHeatShifting[0]+RemainingEnergy[0])
 
-
+    plt.text("preheating", ExcessHeatPreheat[0]/2, "additional \n energy", ha="center")
+    plt.text("discharging", SaveHeatShifting[0]/2, "reduced energy", ha="center")
+    plt.text("discharging", SaveHeatShifting[0] + RemainingEnergy[0] / 2, "energy remaining \n in thermal mass", ha="center")
+    plt.text("discharging", SaveHeatShifting[0] + RemainingEnergy[0] + TotalLoss[0] / 2, "thermal losses", ha="center")
     plt.show()
 
 
