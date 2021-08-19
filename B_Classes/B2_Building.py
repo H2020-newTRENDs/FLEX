@@ -82,13 +82,23 @@ class HeatingCooling_noDR:
         except:
             self.Af = ID_BuildingOption_dataframe["areafloor"].to_numpy()
 
-    def ref_HeatingCooling(self, T_outside=None, Q_solar=None, initial_thermal_mass_temp=20, T_air_min=20, T_air_max=27):
+    def ref_HeatingCooling(self, T_outside=None, Q_solar=None, initial_thermal_mass_temp=20, T_air_min=20, T_air_max=27,
+                           **kwargs):
         """
         This function calculates the heating and cooling demand as well as the indoor temperature for every building
         category based in the 5R1C model. The results are hourls vectors for one year. Q_solar is imported from a CSV
         at the time! Inputs for T_outside and Q_solar have to be numpy arrays, otherwise the temperature and radiation
         is taken from the database.
         """
+        # ------------------------------------------------------------------------------------------
+        # this is for the purpose of using the function outside of the database with specific inputs
+        if "Buildings" in kwargs:
+            self.InternalGains = kwargs["Buildings"]['spec_int_gains_cool_watt'].to_numpy()
+            self.Hop = kwargs["Buildings"]['Hop'].to_numpy()
+            self.Htr_w = kwargs["Buildings"]['Htr_w'].to_numpy()
+            self.Hve = kwargs["Buildings"]['Hve'].to_numpy()
+            self.CM_factor = kwargs["Buildings"]['CM_factor'].to_numpy()
+            self.Am_factor = kwargs["Buildings"]['Am_factor'].to_numpy()
 
         if isinstance(T_outside, np.ndarray):
             pass
@@ -103,7 +113,7 @@ class HeatingCooling_noDR:
         if isinstance(Q_solar, np.ndarray):
             pass
         else:
-            # calculate solar gains
+            # calculate solar gains from database
             # solar gains from different celestial directions
             radiation = DB().read_DataFrame(REG_Table().Gen_Sce_Weather_Radiation_SkyDirections, self.Conn)
             Q_sol_north = np.outer(radiation.north.to_numpy(), self.AreaWindowSouth)
@@ -112,7 +122,7 @@ class HeatingCooling_noDR:
             Q_sol_west = np.outer(radiation.west.to_numpy(), self.AreaWindowEastWest / 2)
 
             Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
-
+        # ------------------------------------------------------------------------------------------
 
         # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
         Atot = 4.5 * self.Af
