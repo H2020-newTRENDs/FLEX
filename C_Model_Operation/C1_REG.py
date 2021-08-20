@@ -115,6 +115,7 @@ class REG_Table:
         self.Res_SystemOperationYear = self.Result + "SystemOperationYear"  # 3: col: IDHH, col IDEnvi, col: cost
 
         self.Res_Reference_HeatingCooling = self.Result + 'Reference_HeatingCooling'
+        self.Res_Reference_HeatingCooling_Year = self.Result + 'Reference_HeatingCooling_Year'
 
 
 
