@@ -1,7 +1,9 @@
 from A_Infrastructure.A2_DB import DB
-from C_Model_Operation.C1_REG import REG_Table
+from C_Model_Operation.C1_REG import REG_Table, REG_Var
 from A_Infrastructure.A1_CONS import CONS
 from B_Classes.B2_Building import HeatingCooling_noDR
+from B_Classes.B1_Household import Household
+from C_Model_Operation.C2_DataCollector import DataCollector
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,6 +13,8 @@ class no_DR:
 
     def __init__(self, conn=DB().create_Connection(CONS().RootDB)):
         self.Conn = conn
+        self.ID_Household = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Household, self.Conn)
+        self.ID_Environment = DB().read_DataFrame(REG_Table().Gen_Sce_ID_Environment, self.Conn)
 
         self.BaseLoadProfile = DB().read_DataFrame(REG_Table().Sce_Demand_BaseElectricityProfile,
                                                    self.Conn).BaseElectricityProfile.to_numpy()
@@ -23,9 +27,22 @@ class no_DR:
         self.Battery = DB().read_DataFrame(REG_Table().ID_BatteryType, self.Conn)
         self.HotWaterTank = DB().read_DataFrame(REG_Table().ID_SpaceHeatingTankType, self.Conn)
         self.AppliancePower = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_ApplianceGroup, self.Conn)
-        self.HeatPumpCOP = DB().read_DataFrame(REG_Table().Gen_Sce_HeatPump_HourlyCOP, self.Conn)
+        self.HeatPump_HourlyCOP = DB().read_DataFrame(REG_Table().Gen_Sce_HeatPump_HourlyCOP, self.Conn)
 
         self.CPWater = 4200 / 3600
+
+
+
+    def gen_Household(self, row_id):
+        ParaSeries = self.ID_Household.iloc[row_id]
+        HouseholdAgent = Household(ParaSeries, self.Conn)
+        return HouseholdAgent
+
+
+    def gen_Environment(self, row_id):
+        EnvironmentSeries = self.ID_Environment.iloc[row_id]
+        return EnvironmentSeries
+
 
     def calculate_initial_thermal_mass_temp(self):
         """
@@ -62,7 +79,7 @@ class no_DR:
                     T_air_max=27)  # has no influence cause its winter -- > only heating
         return T_thermalMass_constant[-1, :]
 
-    def calculate_tank_energy(self, Total_Load_minusPV, Q_Heating_noDR, PV_profile_surplus, COP_SpaceHeating, ID_SpaceHeatingTankType):
+    def calculate_tank_energy(self, Total_Load_minusPV, Q_Heating_noDR, PV_profile_surplus, Household):
         """
         Calculates the energy/temperature inside the hot water tank and the heating energy that has to be actually used
         when the tank energy is always used for heating when necessary. Input parameters are all provided in kW
@@ -70,20 +87,16 @@ class no_DR:
         """
         Total_Load_minusPV = Total_Load_minusPV * 1_000  # W
         PV_profile_surplus = PV_profile_surplus * 1_000  # W
-        TankSize = float(
-            self.HotWaterTank[self.HotWaterTank["ID_SpaceHeatingTankType"] == ID_SpaceHeatingTankType].TankSize)
-        TankMinTemperature = float(self.HotWaterTank[self.HotWaterTank[
-                                                         "ID_SpaceHeatingTankType"] == ID_SpaceHeatingTankType].TankMinimalTemperature)
-        TankMaxTemperature = float(self.HotWaterTank[self.HotWaterTank[
-                                                         "ID_SpaceHeatingTankType"] == ID_SpaceHeatingTankType].TankMaximalTemperature)
-        TankSurfaceArea = float(
-            self.HotWaterTank[self.HotWaterTank["ID_SpaceHeatingTankType"] == ID_SpaceHeatingTankType].TankSurfaceArea)
-        TankLoss = float(
-            self.HotWaterTank[self.HotWaterTank["ID_SpaceHeatingTankType"] == ID_SpaceHeatingTankType].TankLoss)
-        TankSurroundingTemperature = float(self.HotWaterTank[self.HotWaterTank[
-                                                                 "ID_SpaceHeatingTankType"] == ID_SpaceHeatingTankType].TankSurroundingTemperature)
-        TankStartTemperature = float(self.HotWaterTank[self.HotWaterTank[
-                                                           "ID_SpaceHeatingTankType"] == ID_SpaceHeatingTankType].TankStartTemperature)
+        TankSize = float(Household.SpaceHeating.TankSize)
+        TankMinTemperature = float(Household.SpaceHeating.TankMinimalTemperature)
+        TankMaxTemperature = float(Household.SpaceHeating.TankMaximalTemperature)
+        TankSurfaceArea = float(Household.SpaceHeating.TankSurfaceArea)
+        TankLoss = float(Household.SpaceHeating.TankLoss)
+        TankSurroundingTemperature = float(Household.SpaceHeating.TankSurroundingTemperature)
+        TankStartTemperature = float(Household.SpaceHeating.TankStartTemperature)
+        COP_SpaceHeating = self.HeatPump_HourlyCOP.loc[
+            self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==
+            Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP'].to_numpy()
 
         # Assumption: Tank is always kept at minimum temperature except when it is charged with surplus energy:
         # Note: I completely neglect Hot Water here (but its also neglected in the optimization)
@@ -267,17 +280,16 @@ class no_DR:
         Total_Load_WaterTank = Total_Load_WaterTank / 1_000
         return TankLoss_hourly, CurrentTankTemperature, Electricity_surplus, Electricity_deficit, Q_heating_HP, Total_Load_WaterTank  # all energies in kW, temperature in °C
 
-    def calculate_battery_energy(self, Total_Load_minusPV, PV_profile_surplus, ID_BatteryType):
+    def calculate_battery_energy(self, Total_Load_minusPV, PV_profile_surplus, Household):
         """
 
         Assumption: The battery is not discharging itself.
         """
-        Capacity = float(self.Battery[self.Battery["ID_BatteryType"] == ID_BatteryType].Capacity)  # kWh
-        MaxChargePower = float(self.Battery[self.Battery["ID_BatteryType"] == ID_BatteryType].MaxChargePower)  # kW
-        MaxDischargePower = float(
-            self.Battery[self.Battery["ID_BatteryType"] == ID_BatteryType].MaxDischargePower)  # kW
-        ChargeEfficiency = float(self.Battery[self.Battery["ID_BatteryType"] == ID_BatteryType].ChargeEfficiency)
-        DischargeEfficiency = float(self.Battery[self.Battery["ID_BatteryType"] == ID_BatteryType].DischargeEfficiency)
+        Capacity = float(Household.Battery.Capacity)  # kWh
+        MaxChargePower = float(Household.Battery.MaxChargePower)  # kW
+        MaxDischargePower = float(Household.Battery.MaxDischargePower)  # kW
+        ChargeEfficiency = float(Household.Battery.ChargeEfficiency)
+        DischargeEfficiency = float(Household.Battery.DischargeEfficiency)
 
         # Battery is not charged at the beginning of the simulation
         BatterySOC = np.zeros(PV_profile_surplus.shape)
@@ -307,6 +319,7 @@ class no_DR:
                                     Electricity_surplus[index, column] = PV_profile_surplus[
                                                                              index, column] - charging_energy
                                     BatterySOC[index, column] = Capacity
+
 
                             if PV_profile_surplus[index, column] > MaxChargePower:  # maximum charging power is exceeded
                                 # determine how much capacity is available:
@@ -356,13 +369,7 @@ class no_DR:
 
         return Total_load_battery, Electricity_surplus, BatterySOC  # kW and kWh
 
-    def calculate_noDR(self, ID_ElectricityPriceType,
-                       ID_FeedinTarifType,
-                       ID_BatteryType,
-                       ID_SpaceHeatingTankType,
-                       ID_PVType,
-                       HeatPumpType
-                       ):
+    def calculate_noDR(self, household_RowID, environment_RowID):
         """
         Assumption for the Reference scenario: the produced PV power is always used for the immediate electric demand,
         if there is a surplus of PV power, it will be used to charge the Battery,
@@ -373,6 +380,12 @@ class no_DR:
         The Washing Machine as well as Dryer and Dishwasher are used during the day on a random time between 06:00
         and 22:00.
         """
+        Household = self.gen_Household(household_RowID)  # Gen_OBJ_ID_Household
+        Environment = self.gen_Environment(environment_RowID)  # Gen_Sce_ID_Environment
+
+
+        # ID_PVType
+        # HeatPumpType
         # TODO specify how to use different set temperatures for different scenarios!
         T_indoorSetMin = self.IndoorSetTemperatures.HeatingTargetTemperatureYoung.to_numpy()
         T_indoorSetMax = self.IndoorSetTemperatures.CoolingTargetTemperatureYoung.to_numpy()
@@ -383,9 +396,18 @@ class no_DR:
             initial_thermal_mass_temp=initial_thermal_mass_temperature,
             T_air_min=T_indoorSetMin,
             T_air_max=T_indoorSetMax)
+        # check if heating element has to be used for the HP:
+        HeatingElement = np.zeros(Q_Heating_noDR.shape)
+        for index, row in enumerate(Q_Heating_noDR):
+            for column, element in enumerate(row):
+                if element > Household.SpaceHeating.HeatPumpMaximalThermalPower:
+                    Q_Heating_noDR[index, column] = Household.SpaceHeating.HeatPumpMaximalThermalPower
+                    HeatingElement[index, column] = element - Household.SpaceHeating.HeatPumpMaximalThermalPower
+
         # change values to kW:
         Q_Heating_noDR = Q_Heating_noDR / 1_000
         Q_Cooling_noDR = Q_Cooling_noDR / 1_000
+        HeatingElement = HeatingElement / 1_000
 
         # PV production profile:
         PV_production = DB().read_DataFrame(REG_Table().Gen_Sce_PhotovoltaicProfile, self.Conn)
@@ -413,10 +435,17 @@ class no_DR:
         DryerProfile = DryerStartingHours * DryerPower
 
         # electricity for DHW:
-        COP_SpaceHeating = self.HeatPumpCOP[self.HeatPumpCOP["ID_SpaceHeatingBoilerType"] == HeatPumpType
-                                            ].SpaceHeatingHourlyCOP.to_numpy()
-        COP_HotWater = self.HeatPumpCOP[self.HeatPumpCOP["ID_SpaceHeatingBoilerType"] == HeatPumpType
-                                        ].HotWaterHourlyCOP.to_numpy()
+        COP_SpaceHeating = self.HeatPump_HourlyCOP.loc[
+            self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==
+            Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP'].to_numpy()
+
+        COP_HotWater = self.HeatPump_HourlyCOP.loc[
+            self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==
+            Household.SpaceHeating.ID_SpaceHeatingBoilerType].HotWaterHourlyCOP.to_numpy()
+
+
+        Q_HotWater = self.HotWaterProfile.HotWaterPart1.to_numpy() + self.HotWaterProfile.HotWaterPart2.to_numpy()
+
         DHWProfile = self.HotWaterProfile.HotWaterPart1.to_numpy() / COP_SpaceHeating + \
                      self.HotWaterProfile.HotWaterPart2.to_numpy() / COP_HotWater
 
@@ -440,12 +469,16 @@ class no_DR:
                                     WashingMachineProfile + \
                                     DishWasherProfile + \
                                     HeatingProfile[:, column] + \
-                                    CoolingProfile[:, column]
+                                    CoolingProfile[:, column] + \
+                                    HeatingElement[:, column]
+
+        # only load of electric appliances:
+        Load_Appliances = DryerProfile + WashingMachineProfile + DishWasherProfile
 
         # The PV profile is substracted from the total load
         Total_Load_minusPV = np.zeros(Total_Load.shape)
         for column in range(Total_Load_minusPV.shape[1]):
-            Total_Load_minusPV[:, column] = Total_Load[:, column] - PV_profile
+            Total_Load_minusPV[:, column] = Total_Load[:, column] - PV_profile  # kW
 
         # determine the surplus PV power:
         PV_profile_surplus = np.copy(Total_Load_minusPV)
@@ -458,21 +491,25 @@ class no_DR:
         # if neither battery nor hotwater tank are used:
         final_Load = np.copy(Total_Load_minusPV)
         # electricity surplus is the energy that is sold back to the grid because it can not be used:
-        Electricity_surplus = np.copy(PV_profile_surplus)
+        Electricity_surplus = np.copy(PV_profile_surplus)  # kW
 
         # Battery storage:
         # if battery is used:
-        if float(self.Battery[self.Battery["ID_BatteryType"] == ID_BatteryType].Capacity) > 0:
-            Total_load_battery, Electricity_surplus, BatterySOC = \
-                self.calculate_battery_energy(final_Load, Electricity_surplus, ID_BatteryType)
+        if float(Household.Battery.Capacity) > 0:
+            Total_load_battery, Electricity_surplus_Battery, BatterySOC = \
+                self.calculate_battery_energy(final_Load, Electricity_surplus, Household)
             final_Load = Total_load_battery
-            Electricity_surplus = Electricity_surplus
+            # amount of electricity from PV to Battery:
+            PV2Battery = Electricity_surplus - Electricity_surplus_Battery
+            Electricity_surplus = Electricity_surplus_Battery
+        else:
+            PV2Battery = np.zeros(Electricity_surplus.shape)
 
         # When there is PV surplus energy it either goes to a storage or is sold to the grid:
         # Water Tank as storage:
-        if float(self.HotWaterTank[self.HotWaterTank["ID_SpaceHeatingTankType"] == ID_SpaceHeatingTankType].TankSize) > 0:
+        if float(Household.SpaceHeating.TankSize) > 0:
             TankLoss_hourly, CurrentTankTemperature, Electricity_surplus, Electricity_deficit, Q_heating_withTank, Total_Load_WaterTank = \
-                self.calculate_tank_energy(final_Load, Q_Heating_noDR, Electricity_surplus, COP_SpaceHeating, ID_SpaceHeatingTankType)
+                self.calculate_tank_energy(final_Load, Q_Heating_noDR, Electricity_surplus, Household)
             # remaining surplus of electricity
             Electricity_surplus = Electricity_surplus
             final_Load = Total_Load_WaterTank
@@ -480,11 +517,76 @@ class no_DR:
 
 
         # calculate the electricity cost:
-        PriceHourly = self.ElectricityPrice[self.ElectricityPrice["ID_ElectricityPriceType"] == ID_ElectricityPriceType].HourlyElectricityPrice.to_numpy()
-        FIT = self.FeedinTariff[self.FeedinTariff["ID_FeedinTariffType"] == ID_FeedinTarifType].HourlyFeedinTariff.to_numpy()
+        PriceHourly = self.ElectricityPrice.loc[
+            (self.ElectricityPrice['ID_ElectricityPriceType'] == Environment["ID_ElectricityPriceType"]) &
+            (self.ElectricityPrice['ID_Country'] == Household.ID_Country)]['HourlyElectricityPrice'].to_numpy()
+
+        FIT = self.FeedinTariff.loc[(self.FeedinTariff['ID_FeedinTariffType'] == Environment["ID_FeedinTariffType"]) &
+                       (self.ElectricityPrice['ID_Country'] == Household.ID_Country)]['HourlyFeedinTariff'].to_numpy()
+
         total_elec_cost = np.zeros(final_Load.shape)
         for column in range(final_Load.shape[1]):
             total_elec_cost[:, column] = PriceHourly * final_Load[:, column] - Electricity_surplus[:, column] * FIT
+
+        # TODO return Dataframe equivalent to optimization frame
+        # Dataframe for yearly values:
+        YearlyFrame = []
+        YearlyFrame.append([Household.ID,
+                                Environment.ID,
+                                total_elec_cost.sum(axis=0)[Household.ID - 1],
+
+                                self.BaseLoadProfile.sum(),  # Base electricity load
+                                Load_Appliances.sum(axis=0),
+                                Q_Heating_noDR.sum(axis=0)[Household.ID - 1],   # Note that Roomheating and Tankheating are the same
+                                HeatingProfile.sum(axis=0)[Household.ID - 1],  # electricity for heating
+                                Q_Heating_noDR.sum(axis=0)[Household.ID - 1] / HeatingProfile.sum(axis=0)[Household.ID - 1],  # heatpump Performance factor
+                                Q_Heating_noDR.sum(axis=0)[Household.ID - 1] - HeatingProfile.sum(axis=0)[Household.ID - 1],   # ambient heat
+                                HeatingElement.sum(axis=0)[Household.ID - 1],  # heating element
+                                Q_Heating_noDR.sum(axis=0)[Household.ID - 1],  # Note that Roomheating and Tankheating are the same
+
+
+                                Q_Cooling_noDR.sum(axis=0)[Household.ID - 1],  # cooling energy
+                                CoolingProfile.sum(axis=0)[Household.ID - 1],  # cooling electricity
+
+                                Q_HotWater.sum(axis=0),  # hot water energy
+                                DHWProfile.sum(axis=0),  # hot water electricity
+
+                                final_Load.sum(axis=0)[Household.ID - 1],
+                                final_Load.sum(axis=0)[Household.ID - 1],
+                                0,
+
+                                PV_profile.sum(),
+                                PV_profile.sum() - Electricity_surplus.sum(axis=0)[Household.ID - 1],  # PV2Load
+                                PV2Battery.sum(axis=0)[Household.ID - 1],   # PV2Bat
+                                Electricity_surplus.sum(axis=0)[Household.ID - 1],  # PV2Grid
+
+                                PV2Battery.sum(axis=0)[Household.ID - 1],  # Battery charge
+                                PV2Battery.sum(axis=0)[Household.ID - 1] *
+                                Household.Battery.DischargeEfficiency *
+                                Household.Battery.ChargeEfficiency,   # Battery discharge
+                                PV2Battery.sum(axis=0)[Household.ID - 1] *
+                                Household.Battery.DischargeEfficiency *
+                                Household.Battery.ChargeEfficiency,  # Battery 2 Load
+
+                                Total_Load.sum(axis=0)[Household.ID - 1],  # Yearly total load
+                                (PV_profile - PV_profile_surplus[:, Household.ID - 1]).sum(),  # PV self use
+                                (PV_profile - PV_profile_surplus[:, Household.ID - 1]).sum()/PV_profile.sum(),  # PV self consumption rate
+                                (PV_profile - PV_profile_surplus[:, Household.ID - 1]).sum() / Total_Load.sum(axis=0)[Household.ID - 1],  # PV self Sufficiency rate
+
+                                Household.Building.hwb_norm1,
+                                Household.ApplianceGroup.DishWasherShifting,
+                                Household.ApplianceGroup.WashingMachineShifting,
+                                Household.ApplianceGroup.DryerShifting,
+                                Household.SpaceHeating.TankSize,
+                                Household.SpaceCooling.AdoptionStatus,
+                                Household.PV.PVPower,
+                                Household.Battery.Capacity,
+                                Environment["ID_ElectricityPriceType"]
+                                ])
+
+        DB().write_DataFrame(np.vstack(YearlyFrame), REG_Table().Res_Reference_HeatingCooling_Year,
+                             DataCollector(self.Conn).SystemOperationYear_Column.keys(), self.Conn,
+                             dtype=DataCollector(self.Conn).SystemOperationYear_Column)
 
 
         return final_Load, total_elec_cost
@@ -535,6 +637,11 @@ class no_DR:
 
         a = 1
 
+    def run(self):
+        for household_RowID in range(0, 3):
+            for environment_RowID in range(0, 1):
+                no_DR().calculate_noDR(household_RowID, environment_RowID)
+
 
 if __name__ == "__main__":
     ID_ElectricityPriceType = 2  # 1 is static, 2 is variable
@@ -542,5 +649,8 @@ if __name__ == "__main__":
     ID_BatteryType = 3
     ID_SpaceHeatingTankType = 1
     ID_PVType = 3
-    HeatPumpType = 1  # define heat source of HP, 1 is Air, 2 is Water:
-    no_DR().calculate_noDR(ID_ElectricityPriceType, ID_FeedinTarifType, ID_BatteryType, ID_SpaceHeatingTankType, ID_PVType,  HeatPumpType)
+    for household_RowID in range(0, 3):
+        for environment_RowID in range(0, 1):
+            no_DR().calculate_noDR(household_RowID, environment_RowID)
+
+
