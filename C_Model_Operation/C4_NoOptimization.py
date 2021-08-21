@@ -31,18 +31,17 @@ class no_DR:
 
         self.CPWater = 4200 / 3600
 
-
+        self.HourlyFrame = []
+        self.YearlyFrame = []
 
     def gen_Household(self, row_id):
         ParaSeries = self.ID_Household.iloc[row_id]
         HouseholdAgent = Household(ParaSeries, self.Conn)
         return HouseholdAgent
 
-
     def gen_Environment(self, row_id):
         EnvironmentSeries = self.ID_Environment.iloc[row_id]
         return EnvironmentSeries
-
 
     def calculate_initial_thermal_mass_temp(self):
         """
@@ -110,7 +109,7 @@ class no_DR:
             for column, element in enumerate(row):
                 if index == 0:
                     TankLoss_hourly[index, column] = (
-                                                                 TankStartTemperature - TankSurroundingTemperature) * TankSurfaceArea * TankLoss  # W
+                                                             TankStartTemperature - TankSurroundingTemperature) * TankSurfaceArea * TankLoss  # W
                     # surplus of PV electricity is used to charge the tank:
                     CurrentTankTemperature[index, column] = TankStartTemperature + \
                                                             (PV_profile_surplus[index, column] *
@@ -139,7 +138,7 @@ class no_DR:
                     # if there is energy in the tank it will be used for heating:
                     if CurrentTankTemperature[index, column] > TankMinTemperature:
                         EnergyInTank = (CurrentTankTemperature[index, column] - TankMinTemperature) * (
-                                    TankSize * self.CPWater)
+                                TankSize * self.CPWater)
 
                         # if the PV does not cover the whole elctricity in this hour, the tank will cover for heating
                         if Total_Load_minusPV[index, column] > 0:
@@ -209,7 +208,7 @@ class no_DR:
                     # if there is energy in the tank it will be used for heating:
                     if CurrentTankTemperature[index, column] > TankMinTemperature:
                         EnergyInTank = (CurrentTankTemperature[index, column] - TankMinTemperature) * (
-                                    TankSize * self.CPWater)
+                                TankSize * self.CPWater)
 
                         # if the PV does not cover the whole electricity in this hour, the tank will cover for heating
                         if Total_Load_minusPV[index, column] > 0:
@@ -320,7 +319,6 @@ class no_DR:
                                                                              index, column] - charging_energy
                                     BatterySOC[index, column] = Capacity
 
-
                             if PV_profile_surplus[index, column] > MaxChargePower:  # maximum charging power is exceeded
                                 # determine how much capacity is available:
                                 capacity_left = Capacity - BatterySOC[index - 1, column]
@@ -383,12 +381,22 @@ class no_DR:
         Household = self.gen_Household(household_RowID)  # Gen_OBJ_ID_Household
         Environment = self.gen_Environment(environment_RowID)  # Gen_Sce_ID_Environment
 
-
         # ID_PVType
         # HeatPumpType
         # TODO specify how to use different set temperatures for different scenarios!
         T_indoorSetMin = self.IndoorSetTemperatures.HeatingTargetTemperatureYoung.to_numpy()
         T_indoorSetMax = self.IndoorSetTemperatures.CoolingTargetTemperatureYoung.to_numpy()
+
+        # calculate solar gains from database
+        # solar gains from different celestial directions
+        radiation = DB().read_DataFrame(REG_Table().Gen_Sce_Weather_Radiation_SkyDirections,
+                                        self.Conn)  # TODO careful when there are more profiles
+        Q_sol_north = np.outer(radiation.north.to_numpy(), HeatingCooling_noDR().AreaWindowSouth)
+        Q_sol_east = np.outer(radiation.east.to_numpy(), HeatingCooling_noDR().AreaWindowEastWest / 2)
+        Q_sol_south = np.outer(radiation.south.to_numpy(), HeatingCooling_noDR().AreaWindowSouth)
+        Q_sol_west = np.outer(radiation.west.to_numpy(), HeatingCooling_noDR().AreaWindowEastWest / 2)
+
+        Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
 
         # calculate the heating anf cooling energy for all buildings in IDBuildingOption:
         initial_thermal_mass_temperature = self.calculate_initial_thermal_mass_temp()
@@ -411,7 +419,7 @@ class no_DR:
 
         # PV production profile:
         PV_production = DB().read_DataFrame(REG_Table().Gen_Sce_PhotovoltaicProfile, self.Conn)
-        PV_profile = pd.to_numeric(PV_production.loc[PV_production["ID_PVType"] == ID_PVType, :].PVPower).to_numpy()
+        PV_profile = pd.to_numeric(PV_production.loc[PV_production["ID_PVType"] == Household.PV.ID_PVType, :].PVPower).to_numpy()
 
         # Dishwasher Profile
         # TODO select one of the random profiles (now i only use number 1)
@@ -442,7 +450,6 @@ class no_DR:
         COP_HotWater = self.HeatPump_HourlyCOP.loc[
             self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==
             Household.SpaceHeating.ID_SpaceHeatingBoilerType].HotWaterHourlyCOP.to_numpy()
-
 
         Q_HotWater = self.HotWaterProfile.HotWaterPart1.to_numpy() + self.HotWaterProfile.HotWaterPart2.to_numpy()
 
@@ -514,143 +521,196 @@ class no_DR:
             Electricity_surplus = Electricity_surplus
             final_Load = Total_Load_WaterTank
 
-
-
         # calculate the electricity cost:
         PriceHourly = self.ElectricityPrice.loc[
             (self.ElectricityPrice['ID_ElectricityPriceType'] == Environment["ID_ElectricityPriceType"]) &
             (self.ElectricityPrice['ID_Country'] == Household.ID_Country)]['HourlyElectricityPrice'].to_numpy()
 
         FIT = self.FeedinTariff.loc[(self.FeedinTariff['ID_FeedinTariffType'] == Environment["ID_FeedinTariffType"]) &
-                       (self.ElectricityPrice['ID_Country'] == Household.ID_Country)]['HourlyFeedinTariff'].to_numpy()
+                                    (self.ElectricityPrice['ID_Country'] == Household.ID_Country)][
+            'HourlyFeedinTariff'].to_numpy()
 
         total_elec_cost = np.zeros(final_Load.shape)
         for column in range(final_Load.shape[1]):
             total_elec_cost[:, column] = PriceHourly * final_Load[:, column] - Electricity_surplus[:, column] * FIT
 
-        # TODO return Dataframe equivalent to optimization frame
         # Dataframe for yearly values:
-        YearlyFrame = []
-        YearlyFrame.append([Household.ID,
-                                Environment.ID,
-                                total_elec_cost.sum(axis=0)[Household.ID - 1],
+        self.YearlyFrame.append([Household.ID,
+                                 Environment.ID,
+                                 total_elec_cost.sum(axis=0)[Household.ID - 1],
 
-                                self.BaseLoadProfile.sum(),  # Base electricity load
-                                Load_Appliances.sum(axis=0),
-                                Q_Heating_noDR.sum(axis=0)[Household.ID - 1],   # Note that Roomheating and Tankheating are the same
-                                HeatingProfile.sum(axis=0)[Household.ID - 1],  # electricity for heating
-                                Q_Heating_noDR.sum(axis=0)[Household.ID - 1] / HeatingProfile.sum(axis=0)[Household.ID - 1],  # heatpump Performance factor
-                                Q_Heating_noDR.sum(axis=0)[Household.ID - 1] - HeatingProfile.sum(axis=0)[Household.ID - 1],   # ambient heat
-                                HeatingElement.sum(axis=0)[Household.ID - 1],  # heating element
-                                Q_Heating_noDR.sum(axis=0)[Household.ID - 1],  # Note that Roomheating and Tankheating are the same
+                                 self.BaseLoadProfile.sum(),  # Base electricity load
+                                 Load_Appliances.sum(axis=0),
+                                 Q_Heating_noDR.sum(axis=0)[Household.ID - 1],
+                                 # Note that Roomheating and Tankheating are the same
+                                 HeatingProfile.sum(axis=0)[Household.ID - 1],  # electricity for heating
+                                 Q_Heating_noDR.sum(axis=0)[Household.ID - 1] / HeatingProfile.sum(axis=0)[
+                                     Household.ID - 1],  # heatpump Performance factor
+                                 Q_Heating_noDR.sum(axis=0)[Household.ID - 1] - HeatingProfile.sum(axis=0)[
+                                     Household.ID - 1],  # ambient heat
+                                 HeatingElement.sum(axis=0)[Household.ID - 1],  # heating element
+                                 Q_Heating_noDR.sum(axis=0)[Household.ID - 1],
+                                 # Note that Roomheating and Tankheating are the same
 
+                                 Q_Cooling_noDR.sum(axis=0)[Household.ID - 1],  # cooling energy
+                                 CoolingProfile.sum(axis=0)[Household.ID - 1],  # cooling electricity
 
-                                Q_Cooling_noDR.sum(axis=0)[Household.ID - 1],  # cooling energy
-                                CoolingProfile.sum(axis=0)[Household.ID - 1],  # cooling electricity
+                                 Q_HotWater.sum(axis=0),  # hot water energy
+                                 DHWProfile.sum(axis=0),  # hot water electricity
 
-                                Q_HotWater.sum(axis=0),  # hot water energy
-                                DHWProfile.sum(axis=0),  # hot water electricity
+                                 final_Load.sum(axis=0)[Household.ID - 1],
+                                 final_Load.sum(axis=0)[Household.ID - 1],
+                                 0,
 
-                                final_Load.sum(axis=0)[Household.ID - 1],
-                                final_Load.sum(axis=0)[Household.ID - 1],
-                                0,
+                                 PV_profile.sum(),
+                                 PV_profile.sum() - Electricity_surplus.sum(axis=0)[Household.ID - 1],  # PV2Load
+                                 PV2Battery.sum(axis=0)[Household.ID - 1],  # PV2Bat
+                                 Electricity_surplus.sum(axis=0)[Household.ID - 1],  # PV2Grid
 
-                                PV_profile.sum(),
-                                PV_profile.sum() - Electricity_surplus.sum(axis=0)[Household.ID - 1],  # PV2Load
-                                PV2Battery.sum(axis=0)[Household.ID - 1],   # PV2Bat
-                                Electricity_surplus.sum(axis=0)[Household.ID - 1],  # PV2Grid
+                                 PV2Battery.sum(axis=0)[Household.ID - 1],  # Battery charge
+                                 PV2Battery.sum(axis=0)[Household.ID - 1] *
+                                 Household.Battery.DischargeEfficiency *
+                                 Household.Battery.ChargeEfficiency,  # Battery discharge
+                                 PV2Battery.sum(axis=0)[Household.ID - 1] *
+                                 Household.Battery.DischargeEfficiency *
+                                 Household.Battery.ChargeEfficiency,  # Battery 2 Load
 
-                                PV2Battery.sum(axis=0)[Household.ID - 1],  # Battery charge
-                                PV2Battery.sum(axis=0)[Household.ID - 1] *
-                                Household.Battery.DischargeEfficiency *
-                                Household.Battery.ChargeEfficiency,   # Battery discharge
-                                PV2Battery.sum(axis=0)[Household.ID - 1] *
-                                Household.Battery.DischargeEfficiency *
-                                Household.Battery.ChargeEfficiency,  # Battery 2 Load
+                                 Total_Load.sum(axis=0)[Household.ID - 1],  # Yearly total load
+                                 (PV_profile - PV_profile_surplus[:, Household.ID - 1]).sum(),  # PV self use
+                                 (PV_profile - PV_profile_surplus[:, Household.ID - 1]).sum() / PV_profile.sum(),
+                                 # PV self consumption rate
+                                 (PV_profile - PV_profile_surplus[:, Household.ID - 1]).sum() / Total_Load.sum(axis=0)[
+                                     Household.ID - 1],  # PV self Sufficiency rate
 
-                                Total_Load.sum(axis=0)[Household.ID - 1],  # Yearly total load
-                                (PV_profile - PV_profile_surplus[:, Household.ID - 1]).sum(),  # PV self use
-                                (PV_profile - PV_profile_surplus[:, Household.ID - 1]).sum()/PV_profile.sum(),  # PV self consumption rate
-                                (PV_profile - PV_profile_surplus[:, Household.ID - 1]).sum() / Total_Load.sum(axis=0)[Household.ID - 1],  # PV self Sufficiency rate
+                                 Household.Building.hwb_norm1,
+                                 Household.ApplianceGroup.DishWasherShifting,
+                                 Household.ApplianceGroup.WashingMachineShifting,
+                                 Household.ApplianceGroup.DryerShifting,
+                                 Household.SpaceHeating.TankSize,
+                                 Household.SpaceCooling.AdoptionStatus,
+                                 Household.PV.PVPower,
+                                 Household.Battery.Capacity,
+                                 Environment["ID_ElectricityPriceType"]
+                                 ])
 
-                                Household.Building.hwb_norm1,
-                                Household.ApplianceGroup.DishWasherShifting,
-                                Household.ApplianceGroup.WashingMachineShifting,
-                                Household.ApplianceGroup.DryerShifting,
-                                Household.SpaceHeating.TankSize,
-                                Household.SpaceCooling.AdoptionStatus,
-                                Household.PV.PVPower,
-                                Household.Battery.Capacity,
-                                Environment["ID_ElectricityPriceType"]
-                                ])
+        # hourly values:
+        self.HourlyFrame.append(np.column_stack([np.full((len(Total_Load), ), Household.ID),  # household ID
+                                                  np.full((len(Total_Load), ), Environment.ID),  # environment ID
+                                                  np.arange(1, len(Total_Load) + 1),   # Hours ID
+                                                  PriceHourly,  # elec price
+                                                  FIT,  # Feed in tarif
+                                                  self.outsideTemperature.to_numpy(),  # outside temperature
+                                                  # change when more temperature profiles are being saved!
 
-        DB().write_DataFrame(np.vstack(YearlyFrame), REG_Table().Res_Reference_HeatingCooling_Year,
+                                                  self.BaseLoadProfile,   # base load
+                                                  DishWasherProfile,   # E dish washer
+                                                  WashingMachineProfile,  # E washing machine
+                                                  DryerProfile,  # E dryer
+                                                  Load_Appliances,  # E all 3 appliances
+
+                                                  Q_Heating_noDR[:, Household.ID - 1],   # Q Heat pump (tank heating)
+                                                  COP_SpaceHeating,  # Hourly COP of HP
+                                                  HeatingProfile[:, Household.ID - 1],  # E of HP
+                                                  Q_Heating_noDR[:, Household.ID - 1] - HeatingProfile[:, Household.ID - 1],  # ambient energy
+                                                  HeatingElement[:, Household.ID - 1],  # E of heating element
+                                                  Q_Heating_noDR[:, Household.ID - 1],  # room heating
+                                                  # room heating is same as tank heating
+
+                                                  T_Room_noDR[:, Household.ID - 1],  # room temperature
+                                                  Tm_t_noDR[:, Household.ID - 1],  # thermal mass temperature
+                                                  Q_solar[:, Household.ID - 1],  # solar gains
+
+                                                  Q_Cooling_noDR[:, Household.ID - 1],  # Q cooling
+                                                  CoolingProfile[:, Household.ID - 1],  # E cooling
+
+                                                  Q_HotWater,  # Q hotwater
+                                                  DHWProfile,  # E hotwater
+
+                                                  final_Load[:, Household.ID - 1],
+                                                  final_Load[:, Household.ID - 1], # Grid 2 Load is the same as Grid because grid is only used for load
+                                                  np.zeros(len(Total_Load, )), # grid 2 bat = 0 because the battery is only charged by PV
+
+                                                  PV_profile,
+                                                  PV_profile - Electricity_surplus[:, Household.ID - 1],  # PV 2 Load
+                                                  PV2Battery[:, Household.ID - 1],  # PV 2 Battery
+                                                  Electricity_surplus[:, Household.ID - 1],  # PV2Grid
+
+                                                  PV2Battery[:, Household.ID - 1],  # Battery charge
+                                                  PV2Battery[:, Household.ID - 1] *
+                                                  Household.Battery.DischargeEfficiency *
+                                                  Household.Battery.ChargeEfficiency,  # Battery discharge,
+                                                  PV2Battery[:, Household.ID - 1] *
+                                                  Household.Battery.DischargeEfficiency *
+                                                  Household.Battery.ChargeEfficiency,  # Battery 2 Load,
+                                                  BatterySOC[:, Household.ID - 1],  # Battery SOC
+
+                                                  Total_Load[:, Household.ID - 1]
+                                                  ])
+                                 )
+
+    def save_ReferenzeResults(self):
+        DB().write_DataFrame(np.vstack(self.YearlyFrame), REG_Table().Res_Reference_HeatingCooling_Year,
                              DataCollector(self.Conn).SystemOperationYear_Column.keys(), self.Conn,
                              dtype=DataCollector(self.Conn).SystemOperationYear_Column)
 
+        DB().write_DataFrame(np.vstack(self.HourlyFrame), REG_Table().Res_Reference_HeatingCooling,
+                             DataCollector(self.Conn).SystemOperationHour_Column.keys(), self.Conn,
+                             dtype=DataCollector(self.Conn).SystemOperationHour_Column)
 
-        return final_Load, total_elec_cost
 
-        plotanfang = 4000
-        plotende = 4050
-        # check results
-        x_achse = np.arange(plotanfang, plotende)
 
-        # fig = plt.figure()
-        # ax1 = plt.gca()
-        # ax1.plot(x_achse, Q_Heating_noDR[plotanfang:plotende, 1], label="Q_heating no Tank", alpha=0.8)
-        # ax1.plot(x_achse, Q_heating_withTank[plotanfang:plotende, 1], label="Q_heating with Tank", alpha=0.8)
-        #
-        # ax2 = ax1.twinx()
-        # ax1.plot(x_achse, PV_profile_surplus[plotanfang:plotende, 1], label="PV surplus", alpha=0.4, color="yellow")
-        #
-        # ax2.plot(x_achse, CurrentTankTemperature[plotanfang:plotende, 1], label="tank Temp", color="red", alpha=0.2)
-        # ax1.legend()
-        # plt.show()
 
-        fig = plt.figure()
-        ax1 = plt.gca()
+    # plotanfang = 4000
+    # plotende = 4050
+    # # check results
+    # x_achse = np.arange(plotanfang, plotende)
 
-        ax1.plot(x_achse, PV_profile[plotanfang:plotende], color="yellow", label="pv profile")
-        ax1.plot(x_achse, Total_Load[plotanfang:plotende, 1], color="black", linewidth=0.2, label="total load")
-        ax1.plot(x_achse, PV_profile_surplus[plotanfang:plotende, 1] / 1000, label="PV surplus", alpha=0.8,
-                 color="orange")
-        ax1.plot(x_achse, Total_Load_minusPV[plotanfang:plotende, 1], label="total load - PV", alpha=0.7, color="red")
+    # fig = plt.figure()
+    # ax1 = plt.gca()
+    # ax1.plot(x_achse, Q_Heating_noDR[plotanfang:plotende, 1], label="Q_heating no Tank", alpha=0.8)
+    # ax1.plot(x_achse, Q_heating_withTank[plotanfang:plotende, 1], label="Q_heating with Tank", alpha=0.8)
+    #
+    # ax2 = ax1.twinx()
+    # ax1.plot(x_achse, PV_profile_surplus[plotanfang:plotende, 1], label="PV surplus", alpha=0.4, color="yellow")
+    #
+    # ax2.plot(x_achse, CurrentTankTemperature[plotanfang:plotende, 1], label="tank Temp", color="red", alpha=0.2)
+    # ax1.legend()
+    # plt.show()
 
-        ax1.legend()
-        plt.show()
+    # fig = plt.figure()
+    # ax1 = plt.gca()
+    #
+    # ax1.plot(x_achse, PV_profile[plotanfang:plotende], color="yellow", label="pv profile")
+    # ax1.plot(x_achse, Total_Load[plotanfang:plotende, 1], color="black", linewidth=0.2, label="total load")
+    # ax1.plot(x_achse, PV_profile_surplus[plotanfang:plotende, 1] / 1000, label="PV surplus", alpha=0.8,
+    #          color="orange")
+    # ax1.plot(x_achse, Total_Load_minusPV[plotanfang:plotende, 1], label="total load - PV", alpha=0.7, color="red")
+    #
+    # ax1.legend()
+    # plt.show()
+    #
+    # fig = plt.figure()
+    # ax1 = plt.gca()
+    # ax2 = ax1.twinx()
+    # ax1.plot(x_achse, Total_Load_minusPV[plotanfang:plotende, 1], label="total load - PV", alpha=0.7, color="red",
+    #          linewidth=0.2)
+    # plt.plot(x_achse, PV_profile[plotanfang:plotende], color="yellow", label="pv profile", alpha=0.8, linewidth=0.7)
+    # ax1.plot(x_achse, Total_Load[plotanfang:plotende, 1], color="black", linewidth=0.2, label="total load")
+    # ax1.plot(x_achse, Total_load_battery[plotanfang:plotende, 1], color="blue", linewidth=0.3,
+    #          label="load with battery")
+    #
+    # ax2.plot(x_achse, BatterySOC[plotanfang:plotende, 1], color="green", linewidth=0.3, alpha=0.7)
+    #
+    # ax1.legend()
+    # plt.show()
 
-        fig = plt.figure()
-        ax1 = plt.gca()
-        ax2 = ax1.twinx()
-        ax1.plot(x_achse, Total_Load_minusPV[plotanfang:plotende, 1], label="total load - PV", alpha=0.7, color="red",
-                 linewidth=0.2)
-        plt.plot(x_achse, PV_profile[plotanfang:plotende], color="yellow", label="pv profile", alpha=0.8, linewidth=0.7)
-        ax1.plot(x_achse, Total_Load[plotanfang:plotende, 1], color="black", linewidth=0.2, label="total load")
-        ax1.plot(x_achse, Total_load_battery[plotanfang:plotende, 1], color="blue", linewidth=0.3,
-                 label="load with battery")
-
-        ax2.plot(x_achse, BatterySOC[plotanfang:plotende, 1], color="green", linewidth=0.3, alpha=0.7)
-
-        ax1.legend()
-        plt.show()
-
-        a = 1
 
     def run(self):
         for household_RowID in range(0, 3):
             for environment_RowID in range(0, 1):
-                no_DR().calculate_noDR(household_RowID, environment_RowID)
+                self.calculate_noDR(household_RowID, environment_RowID)
+        self.save_ReferenzeResults()
 
 
 if __name__ == "__main__":
-    ID_ElectricityPriceType = 2  # 1 is static, 2 is variable
-    ID_FeedinTarifType = 1  # 1 is static (only option right now)
-    ID_BatteryType = 3
-    ID_SpaceHeatingTankType = 1
-    ID_PVType = 3
-    for household_RowID in range(0, 3):
-        for environment_RowID in range(0, 1):
-            no_DR().calculate_noDR(household_RowID, environment_RowID)
-
-
+    no_DR().run()
