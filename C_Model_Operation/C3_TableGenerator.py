@@ -667,7 +667,7 @@ class TableGenerator:
         dtypes = {"ID_Country": "INTEGER",
                   "ID_Hour": "INTEGER",
                   "Temperature": "REAL"}
-        # write temperature data to database
+        # write temperature data to database  TODO write so many temperature profiles are saved depending on region
         DB().write_DataFrame(TemperatureFrame, REG_Table().Sce_Weather_Temperature, TemperatureFrame.columns,
                              self.Conn, dtype=dtypes)
 
@@ -784,7 +784,7 @@ if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
     A = TableGenerator(CONN)
     NUTS_ID = "AT"
-    # A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
+    A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
 
     # A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
