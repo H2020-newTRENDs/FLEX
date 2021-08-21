@@ -175,7 +175,7 @@ class DataCollector:
         E_Load_array = self.extract_Result2Array(PyomoModelInstance.Load.extract_values())
 
         # self.SystemOperationHour_ValueList (column stack is 6 times faster than for loop)
-        SystemOperationHour_ValueList = np.column_stack([
+        self.SystemOperationHour_ValueList.append(np.column_stack([
             np.full((len(E_Load_array),), Household.ID),
             np.full((len(E_Load_array),), Environment["ID"]),
             np.arange(1, self.OptimizationHourHorizon+1),
@@ -220,9 +220,8 @@ class DataCollector:
             E_Bat2Load_array,
             E_BatSoC_array,
 
-            E_Load_array
-        ])
-        self.SystemOperationHour_ValueList.append(SystemOperationHour_ValueList)
+            E_Load_array])
+        )
 
         self.SystemOperationYear_ValueList.append([Household.ID,
                                                    Environment["ID"],
