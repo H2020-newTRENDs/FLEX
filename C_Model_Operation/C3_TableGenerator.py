@@ -14,6 +14,7 @@ class TableGenerator:
 
         self.SolarRadiationList = []
         self.TemperatureList = []
+        self.PVPowerList = []
 
     # ---------------------------------------
     # 1 Functions used to generate the tables
@@ -209,13 +210,38 @@ class TableGenerator:
                 PVProfile = np.full((len(ID_Hour),), 0)
             else:
                 PVProfile = get_JRC(lat, lon, startyear, endyear, peakPower)
-            id_pv_type = np.full((len(PVProfile),), int(PV_options.ID_PVType[index]))
-            table = np.column_stack([id_country, id_pv_type, ID_Hour, PVProfile, unit])
-            TargetTable = np.vstack([TargetTable, table])
-        # drop first column of TargetTable because its 0 from np.zeros:
-        TargetTable = TargetTable[1:, :]
 
-        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_PhotovoltaicProfile, columnNames.keys(),
+            pv_power = np.full((len(PVProfile),), float(peakPower))
+            table = np.column_stack([id_country, pv_power, PVProfile])
+            self.PVPowerList.append(table)
+
+    def save_PV2Base(self, id_country):
+        # table = np.column_stack([id_country, id_pv_type, ID_Hour, PVProfile, unit])
+        # TargetTable = np.vstack([TargetTable, table])
+        # drop first column of TargetTable because its 0 from np.zeros:
+        PVTable = np.vstack(self.PVPowerList)
+        unique_regions = np.unique(PVTable[:, 0])
+        unique_PVPower = np.unique(PVTable[:, 1]).astype(float)
+
+
+        targetFrame = []
+        for power in unique_PVPower:
+            sumFrame = np.zeros(shape=(8760, 1))
+            for region in unique_regions:
+
+                powerTable = PVTable[np.where(PVTable[:, 0]==region), 1:].astype(float).squeeze()
+                sumFrame = sumFrame + powerTable[np.where(powerTable[:, 0]==power), 1].T
+
+            MeanFrame = sumFrame / len(unique_regions)
+            targetFrame.append(np.column_stack([np.full((8760, ), ID_COUNTRY), np.full((8760, ), power),  MeanFrame, np.full((8760, ), "kW")]))
+        targetFrame = np.vstack(targetFrame)
+
+        columnNames = {"ID_Country": "INTEGER",
+                       "ID_PVType": "INTEGER",
+                       "PVPower": "REAL",
+                       "Unit": "TEXT"}
+
+        DB().write_DataFrame(targetFrame, REG_Table().Gen_Sce_PhotovoltaicProfile, columnNames.keys(),
                              self.Conn, dtype=columnNames)
 
 
@@ -696,7 +722,7 @@ class TableGenerator:
                   "ID_Hour": "INTEGER",
                   "Temperature": "REAL"}
         # write temperature data to database  TODO write so many temperature profiles are saved depending on region
-        DB().write_DataFrame(TemperatureFrame, REG_Table().Sce_Weather_Temperature, TemperatureFrame.columns,
+        DB().write_DataFrame(TemperatureFrame, REG_Table().Sce_Weather_Temperature, dtypes.keys(),
                              self.Conn, dtype=dtypes)
 
 
@@ -823,14 +849,17 @@ if __name__ == "__main__":
                 "AT331", "AT332", "AT333", "AT334", "AT335",
                 "AT341", "AT342"]
     for NUTS_ID in NUTS_IDs:
-        A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
+        # A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
+        A.gen_OBJ_ID_PV(NUTS_ID)
+
     ID_COUNTRY = "AT"
-    A.save_temp_and_radiation(ID_COUNTRY)
+    # A.save_temp_and_radiation(ID_COUNTRY)
+    A.save_PV2Base(ID_COUNTRY)
 
     # A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_Sce_AC_HourlyCOP()
-    # A.gen_OBJ_ID_PV(NUTS_ID)
+
 
     # A.gen_OBJ_ID_Household()
 
