@@ -27,10 +27,12 @@ class Visualization:
                           self.VAR.E_SmartAppliance: self.COLOR.green,
 
                           self.VAR.Q_HeatPump: self.COLOR.dark_red,
+                          self.VAR.Q_HeatPump_Ref: self.COLOR.dark_blue,
                           self.VAR.HeatPumpPerformanceFactor: self.COLOR.green,
                           self.VAR.E_HeatPump: self.COLOR.brown,
                           self.VAR.E_AmbientHeat: self.COLOR.green,
                           self.VAR.Q_HeatingElement: self.COLOR.yellow,
+                          self.VAR.Q_HeatingElement_Ref: self.COLOR.turquoise,
                           self.VAR.Q_RoomHeating: self.COLOR.light_brown,
 
                           self.VAR.Q_RoomCooling: self.COLOR.green,
@@ -53,7 +55,8 @@ class Visualization:
                           self.VAR.E_Battery2Load: self.COLOR.red,
                           self.VAR.BatteryStateOfCharge: self.COLOR.turquoise,
 
-                          self.VAR.E_Load: self.COLOR.green,
+                          self.VAR.E_Load: self.COLOR.orange,
+                          self.VAR.E_Load_Ref: self.COLOR.blue,
                           self.VAR.OutsideTemperature: self.COLOR.blue,
                           self.VAR.RoomTemperature: self.COLOR.red,
                           self.VAR.BuildingMassTemperature: self.COLOR.orange,
@@ -61,6 +64,10 @@ class Visualization:
         self.PlotHorizon = {}
         self.TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
         self.SystemOperationHour = DB().read_DataFrame(REG_Table().Res_SystemOperationHour, self.Conn)
+        self.SystemOperationYear = DB().read_DataFrame(REG_Table().Res_SystemOperationYear, self.Conn)
+        self.ReferenceOperationHour = DB().read_DataFrame(REG_Table().Res_Reference_HeatingCooling, self.Conn)
+        self.ReferenceOperationYear = DB().read_DataFrame(REG_Table().Res_Reference_HeatingCooling_Year, self.Conn)
+
 
     def adjust_ylim(self, lim_array):
 
@@ -702,6 +709,167 @@ class Visualization:
                                      x_label_weekday=True,
                                      y_lim=(y1_lim_range, y2_lim_range))
 
+
+    def visualize_comparison2Reference(self, id_household, id_environment, **kargs):
+
+        HourStart = 1
+        HourEnd = 8760
+        if "horizon" in kargs:
+            HourStart = kargs["horizon"][0]
+            HourEnd = kargs["horizon"][1]
+        else:
+            pass
+        if "week" in kargs:
+            TimeStructure_select = self.TimeStructure.loc[self.TimeStructure["ID_Week"] == kargs["week"]]
+            HourStart = TimeStructure_select.iloc[0]["ID_Hour"]
+            HourEnd = TimeStructure_select.iloc[-1]["ID_Hour"]
+        else:
+            pass
+        Horizon = [HourStart, HourEnd]
+        Optimization_Results = self.SystemOperationHour.loc[(self.SystemOperationHour[self.VAR.ID_Household] == id_household) &
+                                                       (self.SystemOperationHour[self.VAR.ID_Environment] == id_environment) &
+                                                       (self.SystemOperationHour[self.VAR.ID_Hour] >= HourStart) &
+                                                       (self.SystemOperationHour[self.VAR.ID_Hour] <= HourEnd)]
+
+        Reference_Results = self.ReferenceOperationHour.loc[(self.ReferenceOperationHour[self.VAR.ID_Household] == id_household) &
+                                                       (self.ReferenceOperationHour[self.VAR.ID_Environment] == id_environment) &
+                                                       (self.ReferenceOperationHour[self.VAR.ID_Hour] >= HourStart) &
+                                                       (self.ReferenceOperationHour[self.VAR.ID_Hour] <= HourEnd)]
+
+        Q_HeatPump_Reference = {"values": Reference_Results.Q_HeatPump.to_numpy(),
+                                "label": "HeatPump_Ref",
+                                "color": self.VarColors[self.VAR.Q_HeatPump_Ref]}
+        Q_HeatPump_Optim = {"values": Optimization_Results.Q_HeatPump.to_numpy(),
+                            "label": "HeatPump_Optim",
+                            "color": self.VarColors[self.VAR.Q_HeatPump]}
+
+        Q_HeatingElement_Reference = {"values": Reference_Results.Q_HeatingElement.to_numpy(),
+                                      "label": "Heating Element Ref",
+                                      "color": self.VarColors[self.VAR.Q_HeatingElement_Ref]}
+        Q_HeatingElement_Optim = {"values": Optimization_Results.Q_HeatingElement.to_numpy(),
+                                  "label": "Heating Element Optim",
+                                  "color": self.VarColors[self.VAR.Q_HeatingElement]}
+
+        E_Load = {"values": Optimization_Results.E_Load.to_numpy(),
+                  "label": "E Load Optim",
+                  "color": self.VarColors[self.VAR.E_Load]}
+        E_Load_Ref = {"values": Reference_Results.E_Load.to_numpy(),
+                      "label": "E Load Ref",
+                      "color": self.VarColors[self.VAR.E_Load_Ref]}
+
+        if Horizon[0] < 100:
+            y1_lim_range = np.array((0, 20))
+            y2_lim_range = np.array((0, 8))
+        else:
+            y1_lim_range = np.array((0, 12))
+            #y1_lim_range = np.array((-5, 15))
+            y2_lim_range = np.array((0, 6))
+
+        self.plot_load_comparison(id_household, id_environment, Horizon,
+                                  Q_HeatPump_Reference,
+                                  Q_HeatPump_Optim,
+                                  Q_HeatingElement_Reference,
+                                  Q_HeatingElement_Optim,
+                                  E_Load,
+                                  E_Load_Ref,
+                                  x_label_weekday=True,
+                                  y_lim=(y1_lim_range, y2_lim_range))
+
+    def plot_load_comparison(self, id_household, id_environment, horizon,
+                             Q_HeatPump_Reference,
+                             Q_HeatPump_Optim,
+                             Q_HeatingElement_Reference,
+                             Q_HeatingElement_Optim,
+                             E_Load,
+                             E_Load_Ref,
+                             **kwargs):
+        # plot comparison:
+        figure, (ax_1, ax_2) = plt.subplots(2, 1, figsize=(20, 8), dpi=200, frameon=False)
+        # ax_1 = figure.add_axes([0.1, 0.1, 0.8, 0.75])
+        x_values = range(horizon[0], horizon[1] + 1)
+        alpha_value = 0.8
+        linewidth_value = 2
+        # heat load
+        ax_1.plot(x_values,
+                  Q_HeatPump_Optim["values"],
+                  linewidth=linewidth_value,
+                  label=Q_HeatPump_Optim["label"],
+                  alpha=alpha_value,
+                  color=Q_HeatPump_Optim["color"])
+        # heat load reference
+        ax_1.plot(x_values,
+                  Q_HeatPump_Reference["values"],
+                  linewidth=linewidth_value,
+                  label=Q_HeatPump_Reference["label"],
+                  alpha=alpha_value,
+                  color=Q_HeatPump_Reference["color"])
+
+        ax_1.bar(x_values,
+                 Q_HeatingElement_Optim["values"],
+                 label=Q_HeatingElement_Optim["label"],
+                 alpha=alpha_value,
+                 color=Q_HeatingElement_Optim["color"])
+
+        ax_1.bar(x_values,
+                 Q_HeatingElement_Reference["values"],
+                 label=Q_HeatingElement_Reference["label"],
+                 alpha=alpha_value,
+                 color=Q_HeatingElement_Reference["color"])
+
+        # ax_2 = ax_1.twinx()
+
+        ax_2.plot(x_values,
+                  E_Load["values"],
+                  linewidth=linewidth_value,
+                  linestyle='-',
+                  label=E_Load["label"],
+                  color=E_Load["color"])
+
+        ax_2.plot(x_values,
+                  E_Load_Ref["values"],
+                  linewidth=linewidth_value,
+                  linestyle='-',
+                  label=E_Load_Ref["label"],
+                  color=E_Load_Ref["color"])
+
+        ax_1.grid(color='grey', linestyle='--', linewidth=1, which="both", axis="y")
+        ax_2.grid(color='grey', linestyle='--', linewidth=1, which="both", axis="y")
+
+        if "x_label_weekday" in kwargs:
+            tick_position = [horizon[0] + 11.5] + [horizon[0] + 11.5 + 24 * day for day in range(1, 7)]
+            x_ticks_label = ["Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun"]
+            ax_2.set_xticks(tick_position)
+            ax_2.set_xticklabels(x_ticks_label, fontsize=20)
+            ax_1.xaxis.set_visible(False)
+        else:
+            ax_2.set_xlabel("Hour of the Year", fontsize=20, labelpad=10)
+            ax_1.xaxis.set_visible(False)
+        # ax_1.set_ylabel("Energy output of boiler(+) and tank(-) (kW)", fontsize=20, labelpad=10)
+        ax_1.set_ylabel("Heating Energy (kW)", fontsize=20, labelpad=10)
+
+        ax_1.set_ylabel("Thermal Heating \n Power (kW)", fontsize=20, labelpad=10)
+        ax_2.set_ylabel("Total Electric \n Load (kWh)", fontsize=20, labelpad=10)
+        if "y_lim" in kwargs:
+            ax_1.set_ylim(self.adjust_ylim(kwargs["y_lim"][0]))
+            ax_2.set_ylim(self.adjust_ylim(kwargs["y_lim"][1]))
+        figure.legend(fontsize=15, bbox_to_anchor=(0, 1.04, 1, 0.2), bbox_transform=ax_1.transAxes,
+                      loc=1, ncol=3, borderaxespad=0, mode='expand', frameon=True)
+
+        for tick in ax_2.xaxis.get_major_ticks():
+            tick.label1.set_fontsize(20)
+        for tick in ax_1.yaxis.get_major_ticks():
+            tick.label1.set_fontsize(20)
+        for tick in ax_2.yaxis.get_major_ticks():
+            tick.label1.set_fontsize(20)
+
+        fig_name = "Heating Comparison" + "_H" + str(id_household) + "_E" + str(id_environment) + \
+                   "_H" + str(horizon[0]) + "_" + str(horizon[1])
+        figure.savefig(CONS().FiguresPath + fig_name + ".png", dpi=200, format='PNG')
+        plt.show()
+        plt.close(figure)
+
+
+
     def run(self):
         for household_id in range(3):
             for environment_id in range(1, 2):
@@ -712,6 +880,7 @@ class Visualization:
 
 if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
+    Visualization(CONN).visualize_comparison2Reference(1, 1, week=8)
     Visualization(CONN).run()
 
 
