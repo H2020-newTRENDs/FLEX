@@ -12,6 +12,9 @@ class TableGenerator:
     def __init__(self, conn):
         self.Conn = conn
 
+        self.SolarRadiationList = []
+        self.TemperatureList = []
+
     # ---------------------------------------
     # 1 Functions used to generate the tables
     # ---------------------------------------
@@ -644,32 +647,58 @@ class TableGenerator:
         ID_Hour = ID_Timestructure.ID_Hour
         ID_Country = pd.Series([nuts_id] * len(ID_Hour),
                                name="ID_Country")  # TODO maybe change to corresponding number??
-        bigFrame = pd.concat([ID_Country,
-                              ID_Hour,
-                              south_radiation.reset_index(drop=True),
-                              east_radiation.reset_index(drop=True),
-                              west_radiation.reset_index(drop=True),
-                              north_radiation.reset_index(drop=True)],
-                             axis=1)
+        self.SolarRadiationList.append(np.column_stack([ID_Country.to_numpy(),
+                                                       ID_Hour.to_numpy(),
+                                                       south_radiation.reset_index(drop=True).to_numpy(),
+                                                       east_radiation.reset_index(drop=True).to_numpy(),
+                                                       west_radiation.reset_index(drop=True).to_numpy(),
+                                                       north_radiation.reset_index(drop=True).to_numpy()])
+                                       )
+
+        ## write table for outside temperature:
+        outsideTemperature = pd.to_numeric(df_south["T2m"].reset_index(drop=True).rename("Temperature"))
+        self.TemperatureList.append(np.column_stack([ID_Country.to_numpy(), outsideTemperature.to_numpy()]))
+
+    def save_temp_and_radiation(self, id_country):
+        solarRadiationFrame = np.vstack(self.SolarRadiationList)
+        temperatureFrame = np.vstack(self.TemperatureList)
+        unique_regions = np.unique(solarRadiationFrame[:, 0])
+        AdditionsFrame_radiation = np.zeros(shape=(8760, 4))
+        AdditionsFrame_temperature = np.zeros(shape=(1, 8760))
+        for region in unique_regions:
+            AdditionsFrame_radiation = AdditionsFrame_radiation + \
+                                       solarRadiationFrame[np.where(solarRadiationFrame[:, 0] == region), 2:]
+            AdditionsFrame_temperature = AdditionsFrame_temperature + \
+                                         temperatureFrame[np.where(temperatureFrame[:, 0] == region), 1]
+
+        # Mittelwert:
+        MeanFrame_radiation = AdditionsFrame_radiation / len(unique_regions)
+        MeanFrame_temperature = AdditionsFrame_temperature / len(unique_regions)
+
+        ID_Timestructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
+        ID_Country = np.full((len(ID_Timestructure), ), id_country)
+        # save solar radiation
         columns = {"ID_Country": "INTEGER",
                    "ID_Hour": "INTEGER",
                    "south": "REAL",
                    "east": "REAL",
                    "west": "REAL",
                    "north": "REAL"}
+        RadiationFrame = np.column_stack([ID_Country, ID_Timestructure.ID_Hour.to_numpy(), MeanFrame_radiation.squeeze()])
         # write radiation data to database
-        DB().write_DataFrame(bigFrame, REG_Table().Gen_Sce_Weather_Radiation_SkyDirections, columns.keys(),
-                             self.Conn, dtype=columns)
+        DB().write_DataFrame(RadiationFrame, REG_Table().Gen_Sce_Weather_Radiation_SkyDirections,
+                             columns.keys(), self.Conn, dtype=columns)
 
-        ## write table for outside temperature:
-        outsideTemperature = pd.to_numeric(df_south["T2m"].reset_index(drop=True).rename("Temperature"))
-        TemperatureFrame = pd.concat([ID_Country, ID_Timestructure, outsideTemperature], axis=1)
-        dtypes = {"ID_Country": "INTEGER",
+        # save tempearture data
+        TemperatureFrame = np.column_stack([ID_Country, ID_Timestructure.ID_Hour.to_numpy(), MeanFrame_temperature.squeeze()])
+
+        dtypes = {"ID_Country": "TEXT",
                   "ID_Hour": "INTEGER",
                   "Temperature": "REAL"}
         # write temperature data to database  TODO write so many temperature profiles are saved depending on region
         DB().write_DataFrame(TemperatureFrame, REG_Table().Sce_Weather_Temperature, TemperatureFrame.columns,
                              self.Conn, dtype=dtypes)
+
 
     def gen_sce_indoor_temperature(self):
         outsideTemperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()
@@ -783,15 +812,27 @@ class TableGenerator:
 if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
     A = TableGenerator(CONN)
-    NUTS_ID = "AT"
-    A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
+
+    NUTS_IDs = ["AT111", "AT112", "AT113",
+                "AT121", "AT122", "AT123", "AT124", "AT125", "AT126", "AT127",
+                "AT130",
+                "AT211", "AT212", "AT213",
+                "AT221", "AT222", "AT223", "AT225", "AT226",
+                "AT311", "AT312", "AT313", "AT314", "AT315",
+                "AT321", "AT322", "AT323",
+                "AT331", "AT332", "AT333", "AT334", "AT335",
+                "AT341", "AT342"]
+    for NUTS_ID in NUTS_IDs:
+        A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
+    ID_COUNTRY = "AT"
+    A.save_temp_and_radiation(ID_COUNTRY)
 
     # A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_Sce_AC_HourlyCOP()
     # A.gen_OBJ_ID_PV(NUTS_ID)
 
-    A.gen_OBJ_ID_Household()
+    # A.gen_OBJ_ID_Household()
 
     NumberOfDishWasherProfiles = 10
     NumberOfWashingMachineProfiles = 10
