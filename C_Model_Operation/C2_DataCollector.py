@@ -150,29 +150,29 @@ class DataCollector:
         CoolingHourlyCOP = self.extract_Result2Array(PyomoModelInstance.CoolingCOP.extract_values())
         E_RoomCooling_array = Q_RoomCooling_array / CoolingHourlyCOP
 
-        Q_HW1_array = self.extract_Result2Array(PyomoModelInstance.HWPart1.extract_values())
+        Q_HW1_array = self.extract_Result2Array(PyomoModelInstance.HWPart1.extract_values()) / 1000
         E_HW1_array = Q_HW1_array / SpaceHeatingHourlyCOP_array
-        Q_HW2_array = self.extract_Result2Array(PyomoModelInstance.HWPart2.extract_values())
+        Q_HW2_array = self.extract_Result2Array(PyomoModelInstance.HWPart2.extract_values()) / 1000
         HotWaterHourlyCOP_array = self.extract_Result2Array(PyomoModelInstance.HotWaterHourlyCOP.extract_values())
         E_HW2_array = Q_HW2_array / HotWaterHourlyCOP_array
         Q_HotWater_array = Q_HW1_array + Q_HW2_array
         E_HotWater_array = E_HW1_array + E_HW2_array
 
-        E_Grid_array = self.extract_Result2Array(PyomoModelInstance.Grid.extract_values())
-        E_Grid2Load_array = self.extract_Result2Array(PyomoModelInstance.Grid2Load.extract_values())
-        E_Grid2Bat_array = self.extract_Result2Array(PyomoModelInstance.Grid2Bat.extract_values())
+        E_Grid_array = self.extract_Result2Array(PyomoModelInstance.Grid.extract_values()) / 1000
+        E_Grid2Load_array = self.extract_Result2Array(PyomoModelInstance.Grid2Load.extract_values()) / 1000
+        E_Grid2Bat_array = self.extract_Result2Array(PyomoModelInstance.Grid2Bat.extract_values()) / 1000
 
-        E_PV_array = self.extract_Result2Array(PyomoModelInstance.PhotovoltaicProfile.extract_values())
-        E_PV2Load_array = self.extract_Result2Array(PyomoModelInstance.PV2Load.extract_values())
-        E_PV2Bat_array = self.extract_Result2Array(PyomoModelInstance.PV2Bat.extract_values())
-        E_PV2Grid_array = self.extract_Result2Array(PyomoModelInstance.PV2Grid.extract_values())
+        E_PV_array = self.extract_Result2Array(PyomoModelInstance.PhotovoltaicProfile.extract_values()) / 1000
+        E_PV2Load_array = self.extract_Result2Array(PyomoModelInstance.PV2Load.extract_values()) / 1000
+        E_PV2Bat_array = self.extract_Result2Array(PyomoModelInstance.PV2Bat.extract_values()) / 1000
+        E_PV2Grid_array = self.extract_Result2Array(PyomoModelInstance.PV2Grid.extract_values()) / 1000
 
-        E_BatCharge_array = self.extract_Result2Array(PyomoModelInstance.BatCharge.extract_values())
-        E_BatDischarge_array = self.extract_Result2Array(PyomoModelInstance.BatDischarge.extract_values())
-        E_Bat2Load_array = self.extract_Result2Array(PyomoModelInstance.Bat2Load.extract_values())
-        E_BatSoC_array = self.extract_Result2Array(PyomoModelInstance.BatSoC.extract_values())
+        E_BatCharge_array = self.extract_Result2Array(PyomoModelInstance.BatCharge.extract_values()) / 1000
+        E_BatDischarge_array = self.extract_Result2Array(PyomoModelInstance.BatDischarge.extract_values()) / 1000
+        E_Bat2Load_array = self.extract_Result2Array(PyomoModelInstance.Bat2Load.extract_values()) / 1000
+        E_BatSoC_array = self.extract_Result2Array(PyomoModelInstance.BatSoC.extract_values()) / 1000
 
-        E_Load_array = self.extract_Result2Array(PyomoModelInstance.Load.extract_values())
+        E_Load_array = self.extract_Result2Array(PyomoModelInstance.Load.extract_values()) / 1000
 
         # self.SystemOperationHour_ValueList (column stack is 6 times faster than for loop)
         self.SystemOperationHour_ValueList.append(np.column_stack([
