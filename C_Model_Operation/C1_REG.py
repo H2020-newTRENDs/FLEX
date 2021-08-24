@@ -148,30 +148,41 @@ class REG_Var:
         self.E_SmartAppliance = self.EndEnergy + "SmartAppliance"
 
         self.Q_HeatPump = self.UsefulEnergy + "HeatPump"
+        self.Q_HeatPump_Ref = self.UsefulEnergy + "HeatPump_Ref"
         self.HeatPumpPerformanceFactor = "HeatPumpPerformanceFactor"
         self.E_HeatPump = self.EndEnergy + "HeatPump"
+        self.E_HeatPump_Ref = self.EndEnergy + "HeatPump_Ref"
         self.E_AmbientHeat = self.EndEnergy + "AmbientHeat"
         self.Q_HeatingElement = self.UsefulEnergy + "HeatingElement"
+        self.Q_HeatingElement_Ref = self.UsefulEnergy + "HeatingElement_Ref"
         self.Q_RoomHeating = self.UsefulEnergy + "RoomHeating"
 
         self.RoomTemperature = "RoomTemperature"
+        self.RoomTemperature_Ref = "RoomTemperature_Ref"
         self.BuildingMassTemperature = "BuildingMassTemperature"
+        self.BuildingMassTemperature_Ref = "BuildingMassTemperature_Ref"
         self.Q_SolarGain = self.UsefulEnergy + "SolarGain"
 
         self.Q_RoomCooling = self.UsefulEnergy + "RoomCooling"
+        self.Q_RoomCooling_Ref = self.UsefulEnergy + "RoomCooling_Ref"
         self.E_RoomCooling = self.EndEnergy + "RoomCooling"
+        self.E_RoomCooling_Ref = self.EndEnergy + "RoomCooling_Ref"
 
         self.Q_HotWater = self.UsefulEnergy + "HotWater"
         self.E_HotWater = self.EndEnergy + "HotWater"
 
         self.E_Grid = self.EndEnergy + "Grid"
+        self.E_Grid_Ref = self.EndEnergy + "Grid_Ref"
         self.E_Grid2Load = self.EndEnergy + "Grid2Load"
         self.E_Grid2Battery = self.EndEnergy + "Grid2Battery"
 
         self.E_PV = self.EndEnergy + "PV"
         self.E_PV2Load = self.EndEnergy + "PV2Load"
+        self.E_PV2Load_Ref = self.EndEnergy + "PV2Load_Ref"
         self.E_PV2Battery = self.EndEnergy + "PV2Battery"
+        self.E_PV2Battery_Ref = self.EndEnergy + "PV2Battery_Ref"
         self.E_PV2Grid = self.EndEnergy + "PV2Grid"
+        self.E_PV2Grid_Ref = self.EndEnergy + "PV2Grid_Ref"
 
         self.E_BatteryCharge = self.EndEnergy + "BatteryCharge"
         self.E_BatteryDischarge = self.EndEnergy + "BatteryDischarge"
@@ -179,6 +190,7 @@ class REG_Var:
         self.BatteryStateOfCharge = "BatteryStateOfCharge"
 
         self.E_Load = self.EndEnergy + "Load"
+        self.E_Load_Ref = self.EndEnergy + "Load_Ref"
 
         # SystemOperationYear
         self.OperationCost = "OperationCost"
