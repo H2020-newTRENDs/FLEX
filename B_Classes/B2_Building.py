@@ -26,7 +26,7 @@ class Building:
         self.horizontal_shading_building = para_series['horizontal_shading_building']  #
         self.areawindows = para_series['areawindows']
         self.area_suitable_solar = para_series['area_suitable_solar']
-        self.ued_dhw = para_series['ued_dhw']
+        # self.ued_dhw = para_series['ued_dhw']
         self.average_effective_area_wind_west_east_red_cool \
             = para_series['average_effective_area_wind_west_east_red_cool']
         self.average_effective_area_wind_south_red_cool \
@@ -41,7 +41,7 @@ class Building:
         self.Hve = para_series['Hve']
         self.CM_factor = para_series['CM_factor']
         self.Am_factor = para_series['Am_factor']
-        self.hwb_norm1 = para_series['hwb_norm1']
+        self.hwb_norm1 = para_series['hwb_norm']
         self.country_ID = para_series['country_ID']
 
         self.MaximalGridPower = para_series['MaximalGridPower']
@@ -55,21 +55,21 @@ class HeatingCooling_noDR:
         conn = DB().create_Connection(CONS().RootDB)
         self.Conn = conn
         ID_BuildingOption_dataframe = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.Conn)
-        try:
-            self.index = ID_BuildingOption_dataframe['index']
-            self.name = ID_BuildingOption_dataframe['name']
-            self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
-            self.number_of_dwellings_per_building = ID_BuildingOption_dataframe['number_of_dwellings_per_building']
-            self.areawindows = ID_BuildingOption_dataframe['areawindows']
-            self.area_suitable_solar = ID_BuildingOption_dataframe['area_suitable_solar']
-            self.ued_dhw = ID_BuildingOption_dataframe['ued_dhw']
-            self.AreaWindowEastWest = ID_BuildingOption_dataframe[
-                'average_effective_area_wind_west_east_red_cool'].to_numpy()
-            self.AreaWindowSouth = ID_BuildingOption_dataframe['average_effective_area_wind_south_red_cool'].to_numpy()
-            self.AreaWindowNorth = ID_BuildingOption_dataframe['average_effective_area_wind_north_red_cool'].to_numpy()
-            self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
-        except:
-            pass
+        # try:
+        self.index = ID_BuildingOption_dataframe['index']
+        self.name = ID_BuildingOption_dataframe['name']
+        self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
+        self.number_of_dwellings_per_building = ID_BuildingOption_dataframe['number_of_dwellings_per_building']
+        self.areawindows = ID_BuildingOption_dataframe['areawindows']
+        self.area_suitable_solar = ID_BuildingOption_dataframe['area_suitable_solar']
+        # self.ued_dhw = ID_BuildingOption_dataframe['ued_dhw']
+        self.AreaWindowEastWest = ID_BuildingOption_dataframe[
+            'average_effective_area_wind_west_east_red_cool'].to_numpy()
+        self.AreaWindowSouth = ID_BuildingOption_dataframe['average_effective_area_wind_south_red_cool'].to_numpy()
+        self.AreaWindowNorth = ID_BuildingOption_dataframe['average_effective_area_wind_north_red_cool'].to_numpy()
+        self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
+        # except:
+        #     pass
         self.InternalGains = ID_BuildingOption_dataframe['spec_int_gains_cool_watt'].to_numpy()
         self.Hop = ID_BuildingOption_dataframe['Hop'].to_numpy()
         self.Htr_w = ID_BuildingOption_dataframe['Htr_w'].to_numpy()
