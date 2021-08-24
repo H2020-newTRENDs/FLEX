@@ -17,6 +17,7 @@ class Household:
         self.Conn = conn
         self.ID = para_series['ID']
         self.ID_Country = para_series["ID_Country"]
+        self.ID_Building = para_series["ID_Building"]
         self.ID_HouseholdType = para_series["ID_HouseholdType"]
         self.AveragePersons = para_series["AveragePersons"]
         self.EquivalentPersons = para_series["EquivalentPersons"]
