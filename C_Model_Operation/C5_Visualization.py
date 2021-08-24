@@ -3,6 +3,8 @@ __author__ = 'Songmin'
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 
 from A_Infrastructure.A1_CONS import CONS
 from A_Infrastructure.A2_DB import DB
@@ -68,7 +70,6 @@ class Visualization:
         self.ReferenceOperationHour = DB().read_DataFrame(REG_Table().Res_Reference_HeatingCooling, self.Conn)
         self.ReferenceOperationYear = DB().read_DataFrame(REG_Table().Res_Reference_HeatingCooling_Year, self.Conn)
 
-
     def adjust_ylim(self, lim_array):
 
         tiny = (lim_array[1] - lim_array[0]) * 0.02
@@ -133,11 +134,10 @@ class Visualization:
         ax_1.bar(x_values,
                  room_cooling["values"],
                  label=room_cooling["label"],
-                 bottom=base_load["values"] +hot_water["values"] + smart_appliance["values"] + heat_pump["values"] + heat_element["values"],
+                 bottom=base_load["values"] + hot_water["values"] + smart_appliance["values"] + heat_pump["values"] +
+                        heat_element["values"],
                  alpha=alpha_value,
                  color=room_cooling["color"])
-
-
 
         # supply
         ax_1.bar(x_values,
@@ -157,7 +157,7 @@ class Visualization:
         ax_1.bar(x_values,
                  - battery_2_load["values"],
                  label=battery_2_load["label"],
-                 bottom= - pv_2_load["values"] - grid_2_load["values"] ,
+                 bottom=- pv_2_load["values"] - grid_2_load["values"],
                  alpha=alpha_value,
                  color=battery_2_load["color"])
 
@@ -183,7 +183,8 @@ class Visualization:
         for tick in ax_1.yaxis.get_major_ticks():
             tick.label1.set_fontsize(20)
 
-        fig_name = "SystemLoad_H" + str(id_household) + "_E" + str(id_environment) + "_H" + str(horizon[0]) + "_" + str(horizon[1])
+        fig_name = "SystemLoad_H" + str(id_household) + "_E" + str(id_environment) + "_H" + str(horizon[0]) + "_" + str(
+            horizon[1])
         figure.savefig(CONS().FiguresPath + fig_name + ".png", dpi=200, format='PNG')
         plt.close(figure)
 
@@ -262,7 +263,8 @@ class Visualization:
         for tick in ax_2.yaxis.get_major_ticks():
             tick.label2.set_fontsize(20)
 
-        fig_name = "PV_H" + str(id_household) + "_E" + str(id_environment) + "_H" + str(horizon[0]) + "_" + str(horizon[1])
+        fig_name = "PV_H" + str(id_household) + "_E" + str(id_environment) + "_H" + str(horizon[0]) + "_" + str(
+            horizon[1])
         figure.savefig(CONS().FiguresPath + fig_name + ".png", dpi=200, format='PNG')
         plt.close(figure)
 
@@ -452,9 +454,8 @@ class Visualization:
         else:
             ax_1.set_xlabel("Hour of the Year", fontsize=20, labelpad=10)
 
-        #ax_1.set_ylabel("Energy output of boiler(+) and tank(-) (kW)", fontsize=20, labelpad=10)
+        # ax_1.set_ylabel("Energy output of boiler(+) and tank(-) (kW)", fontsize=20, labelpad=10)
         ax_1.set_ylabel("Energy output of boiler (kW)", fontsize=20, labelpad=10)
-
 
         ax_2.set_ylabel("Electricity Price (€)", fontsize=20, labelpad=10)
         if "y_lim" in kwargs:
@@ -475,7 +476,6 @@ class Visualization:
         figure.savefig(CONS().FiguresPath + fig_name + ".png", dpi=200, format='PNG')
         plt.close(figure)
 
-
     def visualization_SystemOperation(self, id_household, id_environment, **kargs):
 
         HourStart = 1
@@ -492,10 +492,11 @@ class Visualization:
         else:
             pass
 
-        SystemOperation = self.SystemOperationHour.loc[(self.SystemOperationHour[self.VAR.ID_Household] == id_household) &
-                                                       (self.SystemOperationHour[self.VAR.ID_Environment] == id_environment) &
-                                                       (self.SystemOperationHour[self.VAR.ID_Hour] >= HourStart) &
-                                                       (self.SystemOperationHour[self.VAR.ID_Hour] <= HourEnd)]
+        SystemOperation = self.SystemOperationHour.loc[
+            (self.SystemOperationHour[self.VAR.ID_Household] == id_household) &
+            (self.SystemOperationHour[self.VAR.ID_Environment] == id_environment) &
+            (self.SystemOperationHour[self.VAR.ID_Hour] >= HourStart) &
+            (self.SystemOperationHour[self.VAR.ID_Hour] <= HourEnd)]
 
         # ----------------
         # Data preparation
@@ -660,7 +661,6 @@ class Visualization:
                           x_label_weekday=True,
                           y_lim=(y1_lim_range, y2_lim_range))
 
-
         # --------------------
         # Plot 4: Room heating
         # --------------------
@@ -686,7 +686,7 @@ class Visualization:
             y2_lim_range = np.array((0.2, 0.4))
         else:
             y1_lim_range = np.array((0, 12))
-            #y1_lim_range = np.array((-5, 15))
+            # y1_lim_range = np.array((-5, 15))
             y2_lim_range = np.array((0.2, 0.4))
         self.plot_RoomHeating(id_household, id_environment, Horizon,
                               Q_HeatPump_element,
@@ -709,7 +709,6 @@ class Visualization:
                                      x_label_weekday=True,
                                      y_lim=(y1_lim_range, y2_lim_range))
 
-
     def visualize_comparison2Reference(self, id_household, id_environment, **kargs):
 
         HourStart = 1
@@ -726,15 +725,17 @@ class Visualization:
         else:
             pass
         Horizon = [HourStart, HourEnd]
-        Optimization_Results = self.SystemOperationHour.loc[(self.SystemOperationHour[self.VAR.ID_Household] == id_household) &
-                                                       (self.SystemOperationHour[self.VAR.ID_Environment] == id_environment) &
-                                                       (self.SystemOperationHour[self.VAR.ID_Hour] >= HourStart) &
-                                                       (self.SystemOperationHour[self.VAR.ID_Hour] <= HourEnd)]
+        Optimization_Results = self.SystemOperationHour.loc[
+            (self.SystemOperationHour[self.VAR.ID_Household] == id_household) &
+            (self.SystemOperationHour[self.VAR.ID_Environment] == id_environment) &
+            (self.SystemOperationHour[self.VAR.ID_Hour] >= HourStart) &
+            (self.SystemOperationHour[self.VAR.ID_Hour] <= HourEnd)]
 
-        Reference_Results = self.ReferenceOperationHour.loc[(self.ReferenceOperationHour[self.VAR.ID_Household] == id_household) &
-                                                       (self.ReferenceOperationHour[self.VAR.ID_Environment] == id_environment) &
-                                                       (self.ReferenceOperationHour[self.VAR.ID_Hour] >= HourStart) &
-                                                       (self.ReferenceOperationHour[self.VAR.ID_Hour] <= HourEnd)]
+        Reference_Results = self.ReferenceOperationHour.loc[
+            (self.ReferenceOperationHour[self.VAR.ID_Household] == id_household) &
+            (self.ReferenceOperationHour[self.VAR.ID_Environment] == id_environment) &
+            (self.ReferenceOperationHour[self.VAR.ID_Hour] >= HourStart) &
+            (self.ReferenceOperationHour[self.VAR.ID_Hour] <= HourEnd)]
 
         Q_HeatPump_Reference = {"values": Reference_Results.Q_HeatPump.to_numpy(),
                                 "label": "HeatPump_Ref",
@@ -762,7 +763,7 @@ class Visualization:
             y2_lim_range = np.array((0, 8))
         else:
             y1_lim_range = np.array((0, 12))
-            #y1_lim_range = np.array((-5, 15))
+            # y1_lim_range = np.array((-5, 15))
             y2_lim_range = np.array((0, 6))
 
         self.plot_load_comparison(id_household, id_environment, Horizon,
@@ -774,6 +775,46 @@ class Visualization:
                                   E_Load_Ref,
                                   x_label_weekday=True,
                                   y_lim=(y1_lim_range, y2_lim_range))
+
+    def plot_total_comparison(self, id_household, id_environment, horizon):
+        reference_results = self.ReferenceOperationYear.loc[:, ["ID_Household",
+                                                                "OperationCost",
+                                                                "Year_Q_HeatPump",
+                                                                "Year_E_HeatPump",
+                                                                "Year_Q_HeatingElement",
+                                                                "Year_Q_RoomCooling",
+                                                                "Year_E_PV2Load",
+                                                                "Year_E_PV2Grid",
+                                                                "Year_E_Load"
+                                                                ]]
+        reference_results.loc[:, "Optimization"] = "Reference"
+
+        optimization_results = self.SystemOperationYear.loc[:, ["ID_Household",
+                                                                "OperationCost",
+                                                                "Year_Q_HeatPump",
+                                                                "Year_E_HeatPump",
+                                                                "Year_Q_HeatingElement",
+                                                                "Year_Q_RoomCooling",
+                                                                "Year_E_PV2Load",
+                                                                "Year_E_PV2Grid",
+                                                                "Year_E_Load"
+                                                                ]]
+
+
+        optimization_results.loc[:, "Option"] = "Optimization"
+        frame = pd.concat([reference_results, optimization_results], axis=0)
+
+        frame = pd.melt(frame=frame, id_vars=["Optimization", "ID_Household"])
+
+        sns.boxplot(x=frame["variable"], y=frame["value"], hue="Optimization", data=frame)
+        ax = plt.gca()
+        plt.xticks(rotation=45)
+
+        plt.show()
+
+        x_achse = ["Cost", "Q_Heating", "E_heating", "PV_selfUse", "E_load"]
+
+        pass
 
     def plot_load_comparison(self, id_household, id_environment, horizon,
                              Q_HeatPump_Reference,
@@ -868,43 +909,14 @@ class Visualization:
         plt.show()
         plt.close(figure)
 
-
-
     def run(self):
         for household_id in range(3):
             for environment_id in range(1, 2):
-                self.visualization_SystemOperation(household_id+1, environment_id, week=8)
-                self.visualization_SystemOperation(household_id+1, environment_id, week=34)
-
+                self.visualization_SystemOperation(household_id + 1, environment_id, week=8)
+                self.visualization_SystemOperation(household_id + 1, environment_id, week=34)
 
 
 if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
     Visualization(CONN).visualize_comparison2Reference(1, 1, week=8)
     Visualization(CONN).run()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
