@@ -23,7 +23,6 @@ class OperationOptimization:
         self.TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
         self.OptimizationHourHorizon = len(self.TimeStructure)
         self.Temperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn)
-        self.Radiation = DB().read_DataFrame(REG_Table().Sce_Weather_Radiation, self.Conn)
 
         self.ElectricityPrice = DB().read_DataFrame(REG_Table().Sce_Price_HourlyElectricityPrice, self.Conn)
         self.FeedinTariff = DB().read_DataFrame(REG_Table().Sce_Price_HourlyFeedinTariff, self.Conn)
@@ -632,6 +631,7 @@ class OperationOptimization:
 
     def run(self):
         DC = DataCollector(self.Conn)
+        runs = len(self.ID_Household)
         for household_RowID in range(0, 3):
             for environment_RowID in range(0, 1):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
