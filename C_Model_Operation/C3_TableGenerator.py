@@ -211,8 +211,8 @@ class TableGenerator:
             else:
                 PVProfile = get_JRC(lat, lon, startyear, endyear, peakPower)
 
-            pv_power = np.full((len(PVProfile),), float(peakPower))
-            table = np.column_stack([id_country, pv_power, PVProfile])
+            pv_type = np.full((len(PVProfile),), int(PV_options.ID_PVType[index]))
+            table = np.column_stack([id_country, pv_type, PVProfile])
             self.PVPowerList.append(table)
 
     def save_PV2Base(self, id_country):
@@ -850,18 +850,19 @@ if __name__ == "__main__":
                 "AT341", "AT342"]
     for NUTS_ID in NUTS_IDs:
         # A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
-        A.gen_OBJ_ID_PV(NUTS_ID)
+        # A.gen_OBJ_ID_PV(NUTS_ID)
+        pass
 
     ID_COUNTRY = "AT"
     # A.save_temp_and_radiation(ID_COUNTRY)
-    A.save_PV2Base(ID_COUNTRY)
+    # A.save_PV2Base(ID_COUNTRY)
 
     # A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_Sce_AC_HourlyCOP()
 
-
-    # A.gen_OBJ_ID_Household()
+    A.gen_OBJ_ID_Building()   # create gen_obj_id_building
+    A.gen_OBJ_ID_Household()
 
     NumberOfDishWasherProfiles = 10
     NumberOfWashingMachineProfiles = 10
