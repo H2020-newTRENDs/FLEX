@@ -384,8 +384,12 @@ class no_DR:
         # ID_PVType
         # HeatPumpType
         # TODO specify how to use different set temperatures for different scenarios!
-        T_indoorSetMin = self.IndoorSetTemperatures.HeatingTargetTemperatureYoung.to_numpy()
-        T_indoorSetMax = self.IndoorSetTemperatures.CoolingTargetTemperatureYoung.to_numpy()
+        if Household.Name_AgeGroup == "Young":
+            T_indoorSetMin = self.IndoorSetTemperatures.HeatingTargetTemperatureYoung.to_numpy()
+            T_indoorSetMax = self.IndoorSetTemperatures.CoolingTargetTemperatureYoung.to_numpy()
+        elif Household.Name_AgeGroup == "SmartHome":
+            T_indoorSetMin = self.IndoorSetTemperatures.HeatingTargetTemperatureSmartHome.to_numpy()
+            T_indoorSetMax = self.IndoorSetTemperatures.CoolingTargetTemperatureSmartHome.to_numpy()
 
         # calculate solar gains from database
         # solar gains from different celestial directions
@@ -511,6 +515,7 @@ class no_DR:
             Electricity_surplus = Electricity_surplus_Battery
         else:
             PV2Battery = np.zeros(Electricity_surplus.shape)
+            BatterySOC = np.zeros(Electricity_surplus.shape)
 
         # When there is PV surplus energy it either goes to a storage or is sold to the grid:
         # Water Tank as storage:
@@ -520,6 +525,7 @@ class no_DR:
             # remaining surplus of electricity
             Electricity_surplus = Electricity_surplus
             final_Load = Total_Load_WaterTank
+            Q_Heating_noDR = Q_heating_withTank
 
         # calculate the electricity cost:
         PriceHourly = self.ElectricityPrice.loc[
@@ -534,8 +540,10 @@ class no_DR:
         for column in range(final_Load.shape[1]):
             total_elec_cost[:, column] = PriceHourly * final_Load[:, column] - Electricity_surplus[:, column] * FIT
 
+        print("Total Operation Cost: " + str(round(total_elec_cost.sum(axis=0)[Household.ID_Building - 1])))
         # Dataframe for yearly values:
         self.YearlyFrame.append([Household.ID,
+                                 Household.ID_Building,
                                  Environment.ID,
                                  total_elec_cost.sum(axis=0)[Household.ID_Building - 1],
 
@@ -595,45 +603,44 @@ class no_DR:
 
         # hourly values:
         self.HourlyFrame.append(np.column_stack([np.full((len(Total_Load), ), Household.ID),  # household ID
-                                                  np.full((len(Total_Load), ), Environment.ID),  # environment ID
-                                                  np.arange(1, len(Total_Load) + 1),   # Hours ID
-                                                  PriceHourly,  # elec price
-                                                  FIT,  # Feed in tarif
-                                                  self.outsideTemperature.to_numpy(),  # outside temperature
-                                                  # change when more temperature profiles are being saved!
+                                                 np.full((len(Total_Load),), Household.ID_Building),
+                                                 np.full((len(Total_Load), ), Environment.ID),  # environment ID
+                                                 np.arange(1, len(Total_Load) + 1),   # Hours ID
+                                                 PriceHourly,  # elec price
+                                                 FIT,  # Feed in tarif
+                                                 self.outsideTemperature.to_numpy(),  # outside temperature
+                                                 # change when more temperature profiles are being saved!
 
-                                                  self.BaseLoadProfile,   # base load
-                                                  DishWasherProfile,   # E dish washer
-                                                  WashingMachineProfile,  # E washing machine
-                                                  DryerProfile,  # E dryer
-                                                  Load_Appliances,  # E all 3 appliances
+                                                 self.BaseLoadProfile,   # base load
+                                                 DishWasherProfile,   # E dish washer
+                                                 WashingMachineProfile,  # E washing machine
+                                                 DryerProfile,  # E dryer
+                                                 Load_Appliances,  # E all 3 appliances
 
-                                                  Q_Heating_noDR[:, Household.ID_Building - 1],   # Q Heat pump (tank heating)
-                                                  COP_SpaceHeating,  # Hourly COP of HP
-                                                  HeatingProfile[:, Household.ID_Building - 1],  # E of HP
-                                                  Q_Heating_noDR[:, Household.ID_Building - 1] - HeatingProfile[:, Household.ID_Building - 1],  # ambient energy
-                                                  HeatingElement[:, Household.ID_Building - 1],  # E of heating element
-                                                  Q_Heating_noDR[:, Household.ID_Building - 1],  # room heating
-                                                  # room heating is same as tank heating
+                                                 Q_Heating_noDR[:, Household.ID_Building - 1],   # Q Heat pump (tank heating)
+                                                 COP_SpaceHeating,  # Hourly COP of HP
+                                                 HeatingProfile[:, Household.ID_Building - 1],  # E of HP
+                                                 Q_Heating_noDR[:, Household.ID_Building - 1] - HeatingProfile[:, Household.ID_Building - 1],  # ambient energy
+                                                 HeatingElement[:, Household.ID_Building - 1],  # E of heating element
+                                                 Q_Heating_noDR[:, Household.ID_Building - 1],  # room heating
+                                                 # room heating is same as tank heating
 
-                                                  T_Room_noDR[:, Household.ID_Building - 1],  # room temperature
-                                                  Tm_t_noDR[:, Household.ID_Building - 1],  # thermal mass temperature
-                                                  Q_solar[:, Household.ID_Building - 1],  # solar gains
+                                                 T_Room_noDR[:, Household.ID_Building - 1],  # room temperature
+                                                 Tm_t_noDR[:, Household.ID_Building - 1],  # thermal mass temperature
+                                                 Q_solar[:, Household.ID_Building - 1],  # solar gains
+                                                 Q_Cooling_noDR[:, Household.ID_Building - 1],  # Q cooling
+                                                 CoolingProfile[:, Household.ID_Building - 1],  # E cooling
 
-                                                  Q_Cooling_noDR[:, Household.ID_Building - 1],  # Q cooling
-                                                  CoolingProfile[:, Household.ID_Building - 1],  # E cooling
+                                                 Q_HotWater,  # Q hotwater
+                                                 DHWProfile,  # E hotwater
+                                                 final_Load[:, Household.ID_Building - 1],
+                                                 final_Load[:, Household.ID_Building - 1], # Grid 2 Load is the same as Grid because grid is only used for load
+                                                 np.zeros(len(Total_Load, )), # grid 2 bat = 0 because the battery is only charged by PV
 
-                                                  Q_HotWater,  # Q hotwater
-                                                  DHWProfile,  # E hotwater
-
-                                                  final_Load[:, Household.ID_Building - 1],
-                                                  final_Load[:, Household.ID_Building - 1], # Grid 2 Load is the same as Grid because grid is only used for load
-                                                  np.zeros(len(Total_Load, )), # grid 2 bat = 0 because the battery is only charged by PV
-
-                                                  PV_profile,
-                                                  PV_profile - Electricity_surplus[:, Household.ID_Building - 1],  # PV 2 Load
-                                                  PV2Battery[:, Household.ID_Building - 1],  # PV 2 Battery
-                                                  Electricity_surplus[:, Household.ID_Building - 1],  # PV2Grid
+                                                 PV_profile,
+                                                 PV_profile - Electricity_surplus[:, Household.ID_Building - 1],  # PV 2 Load
+                                                 PV2Battery[:, Household.ID_Building - 1],  # PV 2 Battery
+                                                 Electricity_surplus[:, Household.ID_Building - 1],  # PV2Grid
 
                                                   PV2Battery[:, Household.ID_Building - 1],  # Battery charge
                                                   PV2Battery[:, Household.ID_Building - 1] *
@@ -709,9 +716,12 @@ class no_DR:
         runs = len(self.ID_Household)
         for household_RowID in range(0, runs):
             for environment_RowID in range(0, 1):
+                print("Houshold ID: " + str(household_RowID+1))
+                print("Environment ID: " + str(environment_RowID+1))
                 self.calculate_noDR(household_RowID, environment_RowID)
         self.save_ReferenzeResults()
 
 
 if __name__ == "__main__":
     no_DR().run()
+    print("finished")
