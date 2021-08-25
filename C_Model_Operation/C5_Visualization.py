@@ -776,7 +776,7 @@ class Visualization:
                                   x_label_weekday=True,
                                   y_lim=(y1_lim_range, y2_lim_range))
 
-    def plot_total_comparison(self, id_household, id_environment, horizon):
+    def plot_total_comparison(self, id_household, id_environment):
         reference_results = self.ReferenceOperationYear.loc[:, ["ID_Household",
                                                                 "OperationCost",
                                                                 "Year_Q_HeatPump",
@@ -803,6 +803,17 @@ class Visualization:
 
         optimization_results.loc[:, "Option"] = "Optimization"
         frame = pd.concat([reference_results, optimization_results], axis=0)
+        # TODO einfach die zwei frames concaten untereinander
+
+        fig, axes = plt.subplots(2, 2, sharey=True, figsize=[15, 10])
+        axes = axes.flatten()
+        sns.violinplot(x="ID_Building", y="OperationCost", data=self.ReferenceOperationYear, ax=axes[0])
+        sns.violinplot(x="Household_PVPower", y="OperationCost", data=self.ReferenceOperationYear, ax=axes[1])
+
+        sns.violinplot(x="Household_TankSize", y="OperationCost", data=self.ReferenceOperationYear, ax=axes[2])
+        sns.violinplot(x="Household_BatteryCapacity", y="OperationCost", data=self.ReferenceOperationYear, ax=axes[3])
+        plt.show()
+
 
         frame = pd.melt(frame=frame, id_vars=["Optimization", "ID_Household"])
 
@@ -918,5 +929,7 @@ class Visualization:
 
 if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
+    Visualization(CONN).plot_total_comparison(1, 1)
     Visualization(CONN).visualize_comparison2Reference(1, 1, week=8)
+
     Visualization(CONN).run()
