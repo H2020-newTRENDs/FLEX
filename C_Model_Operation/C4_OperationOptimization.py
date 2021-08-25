@@ -245,8 +245,8 @@ class OperationOptimization:
         #               4 --> Old + night reduction
         #               5 --> smart home
         # ---------------------
-        # TODO add age groupts to database
-        if Household.ID_AgeGroup == 1:
+        # TODO add age groupts to database and other distinction!
+        if Household.Name_AgeGroup == "Young":
             HeatingTargetTemperature = self.TargetTemperature['HeatingTargetTemperatureYoung']
             CoolingTargetTemperature = self.TargetTemperature['CoolingTargetTemperatureYoung']
         elif Household.ID_AgeGroup == 2:
@@ -258,7 +258,7 @@ class OperationOptimization:
         elif Household.ID_AgeGroup == 4:
             HeatingTargetTemperature = self.TargetTemperature['HeatingTargetTemperatureOldNightReduction']
             CoolingTargetTemperature = self.TargetTemperature['CoolingTargetTemperatureOldNightReduction']
-        elif Household.ID_AgeGroup == 5:
+        elif Household.ID_AgeGroup == "SmartHome":
             HeatingTargetTemperature = self.TargetTemperature['HeatingTargetTemperatureSmartHome']
             CoolingTargetTemperature = self.TargetTemperature['CoolingTargetTemperatureSmartHome']
 
@@ -473,7 +473,7 @@ class OperationOptimization:
             def calc_DishWasherHours2(m, t):
                 if t >= 8759:
                     return m.DishWasher2[t] == 0
-                elif m.DishWasherTheoreticalHours[t] == 1 and (DishWasherDuration == 2 or DishWasherDuration == 3):
+                elif m.DishWasherTheoreticalHours[t] == 1:
                     return m.DishWasher1[t] == m.DishWasher2[t + 1]
                 return m.DishWasher2[t] == 0
 
@@ -481,21 +481,21 @@ class OperationOptimization:
 
             def calc_DishWasherHours3(m, t):
                 if t >= 8758:
-                    return m.DishWasher3[t] == 0
+                    return m.DishWasher2[t] == 0
                 elif m.DishWasherTheoreticalHours[t] == 1 and DishWasherDuration == 3:
                     return m.DishWasher1[t] == m.DishWasher3[t + 2]
                 return m.DishWasher3[t] == 0
 
             m.calc_DishWasherHours3 = pyo.Constraint(m.t, rule=calc_DishWasherHours3)
 
-            def calc_DishWasherStartTime(m, t):   # TODO write other function if dishwasher is not smart
+            def calc_DishWasherStartTime(m, t):
                 if m.t[t] == 1:
                     return m.DishWasherStart[t] == 0
-                elif m.DishWasherTheoreticalHours[t] == 1 and m.DayHour[t] == 20:
-                    return m.DishWasherStart[t] == m.DishWasherStart[t - 1] - 1 * DishWasherSmartStatus
+                elif m.DishWasherTheoreticalHours[t] == 1 and m.DayHour[t] == 21:
+                    return m.DishWasherStart[t] == m.DishWasherStart[t - 1] - 1
 
-                return m.DishWasherStart[t] == m.DishWasherStart[t - 1] \
-                       + m.DishWasher1[t] * m.DishWasherTheoreticalHours[t] * DishWasherSmartStatus
+                return m.DishWasherStart[t] == m.DishWasherStart[t - 1] + \
+                       m.DishWasher1[t] * m.DishWasherTheoreticalHours[t]
 
             m.calc_DishWasherStartTime = pyo.Constraint(m.t, rule=calc_DishWasherStartTime)
 
@@ -504,7 +504,7 @@ class OperationOptimization:
             def calc_WashingMachineHours2(m, t):
                 if t >= 8759:
                     return m.WashingMachine2[t] == 0
-                elif m.WashingMachineTheoreticalHours[t] == 1 and (WashingMachineDuration == 2 or WashingMachineDuration == 3):
+                elif m.WashingMachineTheoreticalHours[t] == 1:
                     return m.WashingMachine1[t] == m.WashingMachine2[t + 1]
                 return m.WashingMachine2[t] == 0
 
@@ -522,6 +522,8 @@ class OperationOptimization:
             def calc_WashingMachineStartTime(m, t):
                 if m.t[t] == 1:
                     return m.WashingMachineStart[t] == 0  # no starting in the first hour
+                elif m.WashingMachineTheoreticalHours[t] == 1 and m.DayHour[t] == 20:
+                    return m.WashingMachineStart[t] == m.WashingMachineStart[t - 1] - 1
 
                 return m.WashingMachineStart[t] == m.WashingMachineStart[t - 1] + m.WashingMachine1[t] * \
                        m.WashingMachineTheoreticalHours[t] * WashingMachineSmartStatus
@@ -632,7 +634,7 @@ class OperationOptimization:
     def run(self):
         DC = DataCollector(self.Conn)
         runs = len(self.ID_Household)
-        for household_RowID in range(0, 3):
+        for household_RowID in range(0, 1):
             for environment_RowID in range(0, 1):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
