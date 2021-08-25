@@ -66,7 +66,7 @@ class REG_Table:
         self.Sce_ID_FeedinTariffType = self.Scenario + self.ID + "FeedinTariffType"
         self.Sce_ID_HotWaterProfileType = self.Scenario + self.ID + 'HotWaterProfileType'
         self.Sce_ID_PhotovoltaicProfileType = self.Scenario + self.ID + 'PhotovoltaicProfileType'
-        self.Sce_ID_EnergyCostType = self.Scenario+ self.ID + 'EnergyCostType'
+        self.Sce_ID_EnergyCostType = self.Scenario + self.ID + 'EnergyCostType'
 
         self.Sce_Weather_Radiation = self.Scenario + "Weather_Radiation" # from helioclim dataset for year 2010
         self.Sce_Weather_Temperature = self.Scenario + "Weather_Temperature" # from MERRA2 dataset for year 2010
@@ -96,7 +96,7 @@ class REG_Table:
 
         self.Gen_Sce_CarAtHomeHours = self.GeneratedData + self.Scenario + 'CarAtHomeHours'
 
-        self.Gen_Sce_Technology_HeatPumpCOP = self.GeneratedData +self.Scenario + "Technology_HeatPumpCOP"
+        self.Gen_Sce_Technology_HeatPumpCOP = self.GeneratedData + self.Scenario + "Technology_HeatPumpCOP"
         self.Gen_Sce_HotWaterProfile = self.GeneratedData + self.Scenario + 'HotWaterProfile'
         self.Gen_Sce_PhotovoltaicProfile = self.GeneratedData + self.Scenario + 'PhotovoltaicProfile'  # based on 1kWp
         self.Gen_Sce_Weather_Radiation_SkyDirections = self.GeneratedData + self.Scenario + 'Weather_Radiation_SkyDirections'
@@ -135,6 +135,7 @@ class REG_Var:
         self.ID_Household = self.ID + "Household"
         self.ID_Environment = self.ID + "Environment"
         self.ID_Hour = self.ID + "Hour"
+        self.ID_Building = self.ID + "Building"
 
         self.ElectricityPrice = "ElectricityPrice"
         self.FeedinTariff = "FeedinTariff"

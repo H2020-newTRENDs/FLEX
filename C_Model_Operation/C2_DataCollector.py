@@ -16,6 +16,7 @@ class DataCollector:
         self.OptimizationHourHorizon = len(self.TimeStructure)
         self.VAR = REG_Var()
         self.SystemOperationHour_Column = {self.VAR.ID_Household: "INTEGER",
+                                           self.VAR.ID_Building: "INTEGER",
                                            self.VAR.ID_Environment: "INTEGER",
                                            self.VAR.ID_Hour: "INTEGER",
                                            self.VAR.ElectricityPrice: "REAL",
@@ -63,6 +64,7 @@ class DataCollector:
                                            }
 
         self.SystemOperationYear_Column = {self.VAR.ID_Household: "INTEGER",
+                                           self.VAR.ID_Building: "INTEGER",
                                            self.VAR.ID_Environment: "INTEGER",
                                            self.VAR.OperationCost: "REAL",
 
@@ -177,6 +179,7 @@ class DataCollector:
         # self.SystemOperationHour_ValueList (column stack is 6 times faster than for loop)
         self.SystemOperationHour_ValueList.append(np.column_stack([
             np.full((len(E_Load_array),), Household.ID),
+            np.full((len(E_Load_array),), Household.ID_Building),
             np.full((len(E_Load_array),), Environment["ID"]),
             np.arange(1, self.OptimizationHourHorizon+1),
             ElectricityPrice_array,
@@ -224,6 +227,7 @@ class DataCollector:
         )
 
         self.SystemOperationYear_ValueList.append([Household.ID,
+                                                   Household.ID_Building,
                                                    Environment["ID"],
                                                    PyomoModelInstance.Objective(),
 
