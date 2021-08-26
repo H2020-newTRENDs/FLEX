@@ -250,16 +250,16 @@ class OperationOptimization:
         if Household.Name_AgeGroup == "Young":
             HeatingTargetTemperature = self.TargetTemperature['HeatingTargetTemperatureYoung']
             CoolingTargetTemperature = self.TargetTemperature['CoolingTargetTemperatureYoung']
-        elif Household.ID_AgeGroup == 2:
+        elif Household.Name_AgeGroup == 2:
             HeatingTargetTemperature = self.TargetTemperature['HeatingTargetTemperatureOld']
             CoolingTargetTemperature = self.TargetTemperature['CoolingTargetTemperatureOld']
-        elif Household.ID_AgeGroup == 3:
+        elif Household.Name_AgeGroup == 3:
             HeatingTargetTemperature = self.TargetTemperature['HeatingTargetTemperatureYoungNightReduction']
             CoolingTargetTemperature = self.TargetTemperature['CoolingTargetTemperatureYoungNightReduction']
-        elif Household.ID_AgeGroup == 4:
+        elif Household.Name_AgeGroup == 4:
             HeatingTargetTemperature = self.TargetTemperature['HeatingTargetTemperatureOldNightReduction']
             CoolingTargetTemperature = self.TargetTemperature['CoolingTargetTemperatureOldNightReduction']
-        elif Household.ID_AgeGroup == "SmartHome":
+        elif Household.Name_AgeGroup == "SmartHome":
             HeatingTargetTemperature = self.TargetTemperature['HeatingTargetTemperatureSmartHome']
             CoolingTargetTemperature = self.TargetTemperature['CoolingTargetTemperatureSmartHome']
 
@@ -339,7 +339,10 @@ class OperationOptimization:
         # Grid, limit set by 21 kW
         m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))  # 380 * 32 * 1,72
         m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
-        m.Grid2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
+        if Household.Battery.Capacity == 0:
+            m.Grid2Bat = pyo.Param(m.t, initialize=self.creat_Dict(np.zeros(shape=(self.OptimizationHourHorizon, ))))
+        else:
+            m.Grid2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
 
         # PV
         if Household.PV.PVPower == 0:
@@ -704,7 +707,7 @@ class OperationOptimization:
     def run(self):
         DC = DataCollector(self.Conn)
         runs = len(self.ID_Household)
-        for household_RowID in range(11, 12):
+        for household_RowID in range(0, runs):
             for environment_RowID in range(0, 1):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
