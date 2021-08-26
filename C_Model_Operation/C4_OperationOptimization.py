@@ -10,6 +10,7 @@ from A_Infrastructure.A2_DB import DB
 from C_Model_Operation.C2_DataCollector import DataCollector
 from B_Classes.B1_Household import Household
 from A_Infrastructure.A1_CONS import CONS
+import time
 
 
 class OperationOptimization:
@@ -64,9 +65,9 @@ class OperationOptimization:
             Dictionary[index] = value
         return Dictionary
 
-    def run_Optimization(self, household_RowID, environment_RowID):
-
-        print('Optimization: ID_Household = ' + str(household_RowID) + ", ID_Environment = " + str(environment_RowID))
+    def run_Optimization(self, household_RowID, environment_RowID):  # TODO achtung mit water-water HP gehts nicht!
+        time_start = time.time()
+        print('Optimization: ID_Household = ' + str(household_RowID+1) + ", ID_Environment = " + str(environment_RowID+1))
         Household = self.gen_Household(household_RowID)  # Gen_OBJ_ID_Household
         Environment = self.gen_Environment(environment_RowID)  # Gen_Sce_ID_Environment
 
@@ -270,7 +271,7 @@ class OperationOptimization:
         # ###############################################
         # Part III. Pyomo Optimization: cost minimization
         # ###############################################
-
+        time0 = time.time()
         m = pyo.AbstractModel()
         m.t = pyo.RangeSet(1, self.OptimizationHourHorizon)
 
@@ -312,10 +313,17 @@ class OperationOptimization:
                                   bounds=(0, float(Household.SpaceHeating.HeatPumpMaximalThermalPower)))  # W
         m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals,
                                      bounds=(0, float(Household.SpaceHeating.HeatingElementPower)))  # W
-        m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CPWater * M_WaterTank * (273.15 + T_TankMin),
-                                                                     CPWater * M_WaterTank * (273.15 + T_TankMax)))  # Wh
-        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals,
-                                  bounds=(0, float(Household.SpaceHeating.MaximalPowerFloorHeating)))  # W
+
+        if Household.SpaceHeating.TankSize == 0:
+            m.E_tank = pyo.Param(m.t, initialize=self.creat_Dict(np.zeros(shape=(self.OptimizationHourHorizon, ))))
+            m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                                      bounds=(0, float(Household.SpaceHeating.HeatPumpMaximalThermalPower+Household.SpaceHeating.HeatingElementPower)))  # W
+        else:
+            m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CPWater * M_WaterTank * (273.15 + T_TankMin),
+                                                                         CPWater * M_WaterTank * (273.15 + T_TankMax)))  # Wh
+
+            m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                                      bounds=(0, float(Household.SpaceHeating.MaximalPowerFloorHeating)))  # W
 
         # energy used for cooling
         m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals,
@@ -381,8 +389,13 @@ class OperationOptimization:
 
         # (1) Overall energy balance
         def calc_ElectricalEnergyBalance(m, t):
-            if Household.Battery.Capacity == 0:
+            if Household.Battery.Capacity == 0 and Household.PV.PVPower > 0:
                 return m.Grid[t] + m.PhotovoltaicProfile[t] == m.Feedin[t] + m.Load[t]
+            elif Household.PV.PVPower == 0 and Household.Battery.Capacity > 0:
+                return m.Grid[t] + m.BatDischarge[t] == m.Feedin[t] + m.Load[t] + \
+                       m.BatCharge[t]
+            elif Household.PV.PVPower == 0 and Household.Battery.Capacity == 0:
+                return m.Grid[t] == m.Feedin[t] + m.Load[t]
             else:
                 return m.Grid[t] + m.PhotovoltaicProfile[t] + m.BatDischarge[t] == m.Feedin[t] + m.Load[t] + m.BatCharge[t]
 
@@ -390,15 +403,22 @@ class OperationOptimization:
 
         # (2)
         def calc_UseOfGrid(m, t):
-            return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t] * Household.Battery.Grid2Battery
+            if Household.Battery.Capacity == 0:
+                return m.Grid[t] == m.Grid2Load[t]
+            else:
+                return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t] * Household.Battery.Grid2Battery
 
         m.calc_UseOfGrid = pyo.Constraint(m.t, rule=calc_UseOfGrid)
 
         # (3)
-        def calc_UseOfPV(m, t):
-            return m.PV2Load[t] + m.PV2Bat[t] + m.PV2Grid[t] == m.PhotovoltaicProfile[t]
+        if Household.PV.PVPower > 0:
+            def calc_UseOfPV(m, t):
+                if Household.Battery.Capacity == 0:
+                    return m.PV2Load[t] + m.PV2Grid[t] == m.PhotovoltaicProfile[t]
+                else:
+                    return m.PV2Load[t] + m.PV2Bat[t] + m.PV2Grid[t] == m.PhotovoltaicProfile[t]
 
-        m.calc_UseOfPV = pyo.Constraint(m.t, rule=calc_UseOfPV)
+            m.calc_UseOfPV = pyo.Constraint(m.t, rule=calc_UseOfPV)
 
         # (4)
         def calc_SumOfFeedin(m, t):
@@ -408,8 +428,12 @@ class OperationOptimization:
 
         # (5) load coverage
         def calc_SupplyOfLoads(m, t):
-            if Household.Battery.Capacity == 0:
+            if Household.Battery.Capacity == 0 and Household.PV.PVPower > 0:
                 return m.Grid2Load[t] + m.PV2Load[t] == m.Load[t]
+            elif Household.Battery.Capacity > 0 and Household.PV.PVPower == 0:
+                return m.Grid2Load[t] + m.Bat2Load[t] == m.Load[t]
+            elif Household.Battery.Capacity == 0 and Household.PV.PVPower == 0:
+                return m.Grid2Load[t] == m.Load[t]
             else:
                 return m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] == m.Load[t]
 
@@ -553,14 +577,17 @@ class OperationOptimization:
         # --------------------------------------
         # 5. State transition: HeatPump and Tank
         # --------------------------------------
-
-        def tank_energy(m, t):
-            if t == 1:
-                return m.E_tank[t] == CPWater * M_WaterTank * (273.15 + T_TankStart)
-            else:
-                return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t] + m.Q_TankHeating[t] + m.Q_HeatingElement[t] \
-                       - U_ValueTank * A_SurfaceTank * (
-                                   (m.E_tank[t] / (M_WaterTank * CPWater)) - (T_TankSurrounding + 273.15))
+        if Household.SpaceHeating.TankSize == 0:
+            def tank_energy(m, t):
+                return m.Q_TankHeating[t] + m.Q_HeatingElement[t] == m.Q_RoomHeating[t]
+        else:
+            def tank_energy(m, t):
+                if t == 1:
+                    return m.E_tank[t] == CPWater * M_WaterTank * (273.15 + T_TankStart)
+                else:
+                    return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t] + m.Q_TankHeating[t] + m.Q_HeatingElement[t] \
+                           - U_ValueTank * A_SurfaceTank * (
+                                       (m.E_tank[t] / (M_WaterTank * CPWater)) - (T_TankSurrounding + 273.15))
 
         m.tank_energy_rule = pyo.Constraint(m.t, rule=tank_energy)
 
@@ -624,21 +651,26 @@ class OperationOptimization:
         # ---------
 
         PyomoModelInstance = m.create_instance(report_timing=False)
-        Opt = pyo.SolverFactory("gurobi")
+        Opt = pyo.SolverFactory("gurobi")#, solver_io='python') schneller ohne solver_io=python um 10 sekunden
+        Opt.options["TimeLimit"] = 360
         results = Opt.solve(PyomoModelInstance, tee=False)
-        PyomoModelInstance.display("./log.txt")
+        # save log file
+        # PyomoModelInstance.display("./log.txt")
         print('Total Operation Cost: ' + str(round(PyomoModelInstance.Objective(), 2)))
 
+        time1 = time.time()
+        print("time optimization:" + str(time1 - time0))
+        print("total time: " + str(time1 - time_start))
         return Household, Environment, PyomoModelInstance
 
     def run(self):
         DC = DataCollector(self.Conn)
         runs = len(self.ID_Household)
-        for household_RowID in range(0, 1):
+        for household_RowID in range(117, 118):
             for environment_RowID in range(0, 1):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
-        DC.save_OptimizationResult()
+        # DC.save_OptimizationResult()
 
 
 if __name__ == "__main__":
