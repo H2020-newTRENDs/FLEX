@@ -807,30 +807,56 @@ class Visualization:
 
         frame = pd.concat([self.ReferenceOperationYear, self.SystemOperationYear], axis=0)
 
-        fig, axes = plt.subplots(2, 2, sharey=True, figsize=[15, 10])
-        axes = axes.flatten()
-        sns.violinplot(x="ID_Building", y="OperationCost", hue="Option", data=frame, ax=axes[0], split=True,
-                       inner="stick", palette="muted")
-        sns.violinplot(x="Household_PVPower", y="OperationCost", hue="Option", data=frame, ax=axes[1], split=True,
-                       inner="stick", palette="muted")
+        def create_violin_plot(Frame, y_achse, title):
+            fig, axes = plt.subplots(2, 2, sharey=True, figsize=[15, 10])
+            fig.suptitle(title)
+            axes = axes.flatten()
+            sns.violinplot(x="ID_Building", y=y_achse, hue="Option", data=Frame, ax=axes[0], split=True,
+                           inner="stick", palette="muted")
+            sns.violinplot(x="Household_PVPower", y=y_achse, hue="Option", data=Frame, ax=axes[1], split=True,
+                           inner="stick", palette="muted")
 
-        sns.violinplot(x="Household_TankSize", y="OperationCost", hue="Option", data=frame, ax=axes[2], split=True,
-                       inner="stick", palette="muted")
-        sns.violinplot(x="Household_BatteryCapacity", y="OperationCost", hue="Option", data=frame, ax=axes[3],
-                       split=True, inner="stick", palette="muted")
-        plt.show()
+            sns.violinplot(x="Household_TankSize", y=y_achse, hue="Option", data=Frame, ax=axes[2], split=True,
+                           inner="stick", palette="muted")
+            sns.violinplot(x="Household_BatteryCapacity", y=y_achse, hue="Option", data=Frame, ax=axes[3],
+                           split=True, inner="stick", palette="muted")
+            for i in range(axes.shape[0]):
+                axes[i].grid(axis="y")
+            plt.show()
+
+        create_violin_plot(frame, "OperationCost", "Operation Costs")
+        create_violin_plot(frame, "Year_E_Load", "total electricity consumption")
 
 
 
+        ref_list = pd.DataFrame(columns=optimization_results.columns)
+        opt_list = pd.DataFrame(columns=optimization_results.columns)
+        for index in range(optimization_results.shape[0]):
+            if reference_results.loc[index, "OperationCost"] < optimization_results.loc[index, "OperationCost"]:
+                print("Household ID: " + str(self.SystemOperationYear.loc[index, "ID_Household"]))
+                print("Battery: " + str(reference_results.loc[index, "Household_BatteryCapacity"]))
+                print("PV Peak: " + str(reference_results.loc[index, "Household_PVPower"]))
+                print("Tank: " + str(reference_results.loc[index, "Household_TankSize"]))
+
+                ref_list = ref_list.append(reference_results.iloc[index, :], ignore_index=True)
+                opt_list = opt_list.append(optimization_results.iloc[index, :], ignore_index=True)
 
 
-        frame = pd.melt(frame=frame, id_vars=["Optimization", "ID_Household"])
+        frame_for_violin = pd.concat([ref_list, opt_list], axis=0)
 
-        sns.boxplot(x=frame["variable"], y=frame["value"], hue="Optimization", data=frame)
-        ax = plt.gca()
-        plt.xticks(rotation=45)
+        create_violin_plot(frame_for_violin, "OperationCost", "Costs of special buildings")
+        create_violin_plot(frame_for_violin, "Year_E_Load", "electricity consumption special buildings")
 
-        plt.show()
+        house12_ref = self.ReferenceOperationHour.loc[self.ReferenceOperationHour["ID_Household"]==12, :]
+        house12_opt = self.SystemOperationHour.loc[self.SystemOperationHour["ID_Household"] == 12, :]
+
+        solar_diff = house12_ref.loc[:, "Q_SolarGain"]/1000 - house12_opt.loc[:, "Q_SolarGain"]
+
+        heating_diff = house12_ref.loc[:, "Q_HeatPump"] - house12_opt.loc[:, "Q_HeatPump"]
+
+        cooling_diff = house12_ref.loc[:, "Q_RoomCooling"] - house12_opt.loc[:, "Q_RoomCooling"]
+
+
 
 
         pass
