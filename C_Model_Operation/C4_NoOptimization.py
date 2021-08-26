@@ -395,7 +395,7 @@ class no_DR:
         # solar gains from different celestial directions
         radiation = DB().read_DataFrame(REG_Table().Gen_Sce_Weather_Radiation_SkyDirections,
                                         self.Conn)  # TODO careful when there are more profiles
-        Q_sol_north = np.outer(radiation.north.to_numpy(), HeatingCooling_noDR().AreaWindowSouth)
+        Q_sol_north = np.outer(radiation.north.to_numpy(), HeatingCooling_noDR().AreaWindowNorth)
         Q_sol_east = np.outer(radiation.east.to_numpy(), HeatingCooling_noDR().AreaWindowEastWest / 2)
         Q_sol_south = np.outer(radiation.south.to_numpy(), HeatingCooling_noDR().AreaWindowSouth)
         Q_sol_west = np.outer(radiation.west.to_numpy(), HeatingCooling_noDR().AreaWindowEastWest / 2)
@@ -405,7 +405,7 @@ class no_DR:
         # calculate the heating anf cooling energy for all buildings in IDBuildingOption:
         initial_thermal_mass_temperature = self.calculate_initial_thermal_mass_temp()
         Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t_noDR = HeatingCooling_noDR().ref_HeatingCooling(
-            initial_thermal_mass_temp=initial_thermal_mass_temperature,
+            initial_thermal_mass_temp=15,
             T_air_min=T_indoorSetMin,
             T_air_max=T_indoorSetMax)
         # check if heating element has to be used for the HP:
@@ -642,18 +642,19 @@ class no_DR:
                                                  PV2Battery[:, Household.ID_Building - 1],  # PV 2 Battery
                                                  Electricity_surplus[:, Household.ID_Building - 1],  # PV2Grid
 
-                                                  PV2Battery[:, Household.ID_Building - 1],  # Battery charge
-                                                  PV2Battery[:, Household.ID_Building - 1] *
-                                                  Household.Battery.DischargeEfficiency *
-                                                  Household.Battery.ChargeEfficiency,  # Battery discharge,
-                                                  PV2Battery[:, Household.ID_Building - 1] *
-                                                  Household.Battery.DischargeEfficiency *
-                                                  Household.Battery.ChargeEfficiency,  # Battery 2 Load,
-                                                  BatterySOC[:, Household.ID_Building - 1],  # Battery SOC
+                                                 PV2Battery[:, Household.ID_Building - 1],  # Battery charge
+                                                 PV2Battery[:, Household.ID_Building - 1] *
+                                                 Household.Battery.DischargeEfficiency *
+                                                 Household.Battery.ChargeEfficiency,  # Battery discharge,
+                                                 PV2Battery[:, Household.ID_Building - 1] *
+                                                 Household.Battery.DischargeEfficiency *
+                                                 Household.Battery.ChargeEfficiency,  # Battery 2 Load,
+                                                 BatterySOC[:, Household.ID_Building - 1],  # Battery SOC
 
-                                                  Total_Load[:, Household.ID_Building - 1]  # kW
-                                                  ])
+                                                 Total_Load[:, Household.ID_Building - 1]  # kW
+                                                 ])
                                  )
+        pass
 
     def save_ReferenzeResults(self):
         DB().write_DataFrame(np.vstack(self.YearlyFrame), REG_Table().Res_Reference_HeatingCooling_Year,
