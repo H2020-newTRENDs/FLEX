@@ -216,7 +216,7 @@ class OperationOptimization:
         # ----------------------
 
         PhotovoltaicProfile = self.PhotovoltaicProfile.loc[
-            (self.PhotovoltaicProfile['ID_PVType'] == Environment["ID_PhotovoltaicProfileType"]) &
+            (self.PhotovoltaicProfile['ID_PVType'] == Household.PV.ID_PVType) &
             (self.PhotovoltaicProfile['ID_Country'] == "AT")]['PVPower'].to_numpy() * 1_000  # W TODO nuts ID statt ID Country!
 
         # ###############################
@@ -342,17 +342,32 @@ class OperationOptimization:
         m.Grid2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
 
         # PV
-        m.PV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
-        m.PV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
-        m.PV2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
+        if Household.PV.PVPower == 0:
+            m.PV2Load = pyo.Param(m.t, initialize=self.creat_Dict(np.zeros(shape=(self.OptimizationHourHorizon, ))))
+            m.PV2Bat = pyo.Param(m.t, initialize=self.creat_Dict(np.zeros(shape=(self.OptimizationHourHorizon, ))))
+            m.PV2Grid = pyo.Param(m.t, initialize=self.creat_Dict(np.zeros(shape=(self.OptimizationHourHorizon, ))))
+        else:
+            m.PV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
+            m.PV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
+            m.PV2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
+
         m.Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
         m.Feedin = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Building.MaximalGridPower * 1_000)))
 
         # Battery
-        m.BatSoC = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Battery.Capacity * 1_000)))
-        m.BatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Battery.MaxChargePower * 1_000)))
-        m.BatDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxDischargePower * 1_000))
-        m.Bat2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Battery.MaxDischargePower * 1_000)))  # battery can only discharge to load
+        if Household.Battery.Capacity == 0:
+            m.Bat2Load = pyo.Param(m.t, initialize=self.creat_Dict(np.zeros(shape=(self.OptimizationHourHorizon, ))))
+
+            m.BatSoC = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Battery.Capacity * 1_000)))
+            m.BatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                                  bounds=(0, float(Household.Battery.MaxChargePower * 1_000)))
+            m.BatDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals,
+                                     bounds=(0, Household.Battery.MaxDischargePower * 1_000))
+        else:
+            m.BatSoC = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Battery.Capacity * 1_000)))
+            m.BatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Battery.MaxChargePower * 1_000)))
+            m.BatDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.Battery.MaxDischargePower * 1_000))
+            m.Bat2Load = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, float(Household.Battery.MaxDischargePower * 1_000)))  # battery can only discharge to load
 
         # Smart Technologies
         if DishWasherSmartStatus == 1:
@@ -597,7 +612,19 @@ class OperationOptimization:
 
         def thermal_mass_temperature_rc(m, t):
             if t == 1:
-                return m.Tm_t[t] == Household.Building.BuildingMassTemperatureStartValue
+                # Equ. C.2
+                PHI_m = Am / Atot * (0.5 * Qi + m.Q_Solar[t])
+                # Equ. C.3
+                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_Solar[t])
+                # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
+                T_sup = m.T_outside[t]
+                # Equ. C.5
+                PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (
+                        ((PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / Hve) + T_sup)) / Htr_2
+                # Equ. C.4
+                return m.Tm_t[t] == (Household.Building.BuildingMassTemperatureStartValue *
+                                     ((Cm / 3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / (
+                            (Cm / 3600) + 0.5 * (Htr_3 + Htr_em))
 
             else:
                 # Equ. C.2
@@ -617,7 +644,18 @@ class OperationOptimization:
 
         def room_temperature_rc(m, t):
             if t == 1:
-                T_air = HeatingTargetTemperature[0]
+                # Equ. C.3
+                PHI_st = (1 - Am / Atot - Htr_w / 9.1 / Atot) * (0.5 * Qi + m.Q_Solar[t])
+                # Equ. C.9
+                T_m = (m.Tm_t[t] + Household.Building.BuildingMassTemperatureStartValue) / 2
+                T_sup = m.T_outside[t]
+                # Euq. C.10
+                T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (
+                        T_sup + (PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / Hve)) / (
+                              Htr_ms + Htr_w + Htr_1)
+                # Equ. C.11
+                T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / (Htr_is + Hve)
+                #T_air = HeatingTargetTemperature[0]
                 return m.T_room[t] == T_air
             else:
                 # Equ. C.3
@@ -655,7 +693,7 @@ class OperationOptimization:
         Opt.options["TimeLimit"] = 360
         results = Opt.solve(PyomoModelInstance, tee=False)
         # save log file
-        # PyomoModelInstance.display("./log.txt")
+        PyomoModelInstance.display("./log.txt")
         print('Total Operation Cost: ' + str(round(PyomoModelInstance.Objective(), 2)))
 
         time1 = time.time()
@@ -666,11 +704,11 @@ class OperationOptimization:
     def run(self):
         DC = DataCollector(self.Conn)
         runs = len(self.ID_Household)
-        for household_RowID in range(117, 118):
+        for household_RowID in range(11, 12):
             for environment_RowID in range(0, 1):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
-        # DC.save_OptimizationResult()
+        DC.save_OptimizationResult()
 
 
 if __name__ == "__main__":
