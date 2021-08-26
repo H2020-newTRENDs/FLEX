@@ -777,42 +777,51 @@ class Visualization:
                                   y_lim=(y1_lim_range, y2_lim_range))
 
     def plot_total_comparison(self, id_household, id_environment):
-        reference_results = self.ReferenceOperationYear.loc[:, ["ID_Household",
-                                                                "OperationCost",
-                                                                "Year_Q_HeatPump",
-                                                                "Year_E_HeatPump",
-                                                                "Year_Q_HeatingElement",
-                                                                "Year_Q_RoomCooling",
-                                                                "Year_E_PV2Load",
-                                                                "Year_E_PV2Grid",
-                                                                "Year_E_Load"
-                                                                ]]
-        reference_results.loc[:, "Optimization"] = "Reference"
+        # reference_results = self.ReferenceOperationYear.loc[:, ["ID_Household",
+        #                                                         "OperationCost",
+        #                                                         "Year_Q_HeatPump",
+        #                                                         "Year_E_HeatPump",
+        #                                                         "Year_Q_HeatingElement",
+        #                                                         "Year_Q_RoomCooling",
+        #                                                         "Year_E_PV2Load",
+        #                                                         "Year_E_PV2Grid",
+        #                                                         "Year_E_Load"
+        #                                                         ]]
+        # reference_results.loc[:, "Optimization"] = "Reference"
+        #
+        # optimization_results = self.SystemOperationYear.loc[:, ["ID_Household",
+        #                                                         "OperationCost",
+        #                                                         "Year_Q_HeatPump",
+        #                                                         "Year_E_HeatPump",
+        #                                                         "Year_Q_HeatingElement",
+        #                                                         "Year_Q_RoomCooling",
+        #                                                         "Year_E_PV2Load",
+        #                                                         "Year_E_PV2Grid",
+        #                                                         "Year_E_Load"
+        #                                                         ]]
 
-        optimization_results = self.SystemOperationYear.loc[:, ["ID_Household",
-                                                                "OperationCost",
-                                                                "Year_Q_HeatPump",
-                                                                "Year_E_HeatPump",
-                                                                "Year_Q_HeatingElement",
-                                                                "Year_Q_RoomCooling",
-                                                                "Year_E_PV2Load",
-                                                                "Year_E_PV2Grid",
-                                                                "Year_E_Load"
-                                                                ]]
-
-
+        reference_results = self.ReferenceOperationYear
+        optimization_results = self.SystemOperationYear
+        reference_results.loc[:, "Option"] = "Referenz"
         optimization_results.loc[:, "Option"] = "Optimization"
-        frame = pd.concat([reference_results, optimization_results], axis=0)
-        # TODO einfach die zwei frames concaten untereinander
+
+        frame = pd.concat([self.ReferenceOperationYear, self.SystemOperationYear], axis=0)
 
         fig, axes = plt.subplots(2, 2, sharey=True, figsize=[15, 10])
         axes = axes.flatten()
-        sns.violinplot(x="ID_Building", y="OperationCost", data=self.ReferenceOperationYear, ax=axes[0])
-        sns.violinplot(x="Household_PVPower", y="OperationCost", data=self.ReferenceOperationYear, ax=axes[1])
+        sns.violinplot(x="ID_Building", y="OperationCost", hue="Option", data=frame, ax=axes[0], split=True,
+                       inner="stick", palette="muted")
+        sns.violinplot(x="Household_PVPower", y="OperationCost", hue="Option", data=frame, ax=axes[1], split=True,
+                       inner="stick", palette="muted")
 
-        sns.violinplot(x="Household_TankSize", y="OperationCost", data=self.ReferenceOperationYear, ax=axes[2])
-        sns.violinplot(x="Household_BatteryCapacity", y="OperationCost", data=self.ReferenceOperationYear, ax=axes[3])
+        sns.violinplot(x="Household_TankSize", y="OperationCost", hue="Option", data=frame, ax=axes[2], split=True,
+                       inner="stick", palette="muted")
+        sns.violinplot(x="Household_BatteryCapacity", y="OperationCost", hue="Option", data=frame, ax=axes[3],
+                       split=True, inner="stick", palette="muted")
         plt.show()
+
+
+
 
 
         frame = pd.melt(frame=frame, id_vars=["Optimization", "ID_Household"])
@@ -823,7 +832,6 @@ class Visualization:
 
         plt.show()
 
-        x_achse = ["Cost", "Q_Heating", "E_heating", "PV_selfUse", "E_load"]
 
         pass
 
