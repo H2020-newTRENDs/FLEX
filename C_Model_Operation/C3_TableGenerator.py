@@ -420,7 +420,7 @@ class TableGenerator:
         for index in range(0, len(TargetTable_washmachine), 24):
             for column in range(2, TargetTable_washmachine.shape[1]):
                 if TargetTable_washmachine[index, column] == 1:
-                    HourOfTheDay = np.random.randint(low=6, high=20)-1  # weil bei 0 zu zählen anfängt (Hour of day 6 ist 7 uhr)
+                    HourOfTheDay = np.random.randint(low=6, high=21)-1  # weil bei 0 zu zählen anfängt (Hour of day 6 ist 7 uhr)
                     TargetTable_washmachine[index+HourOfTheDay:index+HourOfTheDay+WashingMachineDuration, column] = 1
                     TargetTable_washmachine[index:index+HourOfTheDay, column] = 0
                     TargetTable_washmachine[index+HourOfTheDay+WashingMachineDuration:index+24, column] = 0
@@ -438,7 +438,7 @@ class TableGenerator:
 
         # set values to 0 when it is before 6 am:
         TargetTable[:, 2:][TargetTable[:, 1] < 6] = 0
-        # set values to 0 when it is after 10 pm:
+        # set values to 0 when it is after 8 pm:
         TargetTable[:, 2:][TargetTable[:, 1] > 20] = 0
         # save starting days for optimization:
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_WashingMachineHours, TargetTable_columns.keys(),
@@ -861,8 +861,11 @@ if __name__ == "__main__":
     # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_Sce_AC_HourlyCOP()
 
-    A.gen_OBJ_ID_Building()   # create gen_obj_id_building
+    # A.gen_OBJ_ID_SpaceHeating()
+    # A.gen_OBJ_ID_Battery()
+    # A.gen_OBJ_ID_Building()   # create gen_obj_id_building
     A.gen_OBJ_ID_Household()
+
 
     NumberOfDishWasherProfiles = 10
     NumberOfWashingMachineProfiles = 10
