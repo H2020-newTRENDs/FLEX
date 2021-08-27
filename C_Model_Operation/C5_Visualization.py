@@ -53,9 +53,12 @@ class Visualization:
                           self.VAR.E_PV2Grid: self.COLOR.dark_green,
 
                           self.VAR.E_BatteryCharge: self.COLOR.green,
+                          self.VAR.E_BatteryCharge_Ref: self.COLOR.dark_green,
                           self.VAR.E_BatteryDischarge: self.COLOR.green,
                           self.VAR.E_Battery2Load: self.COLOR.red,
+                          self.VAR.E_Battery2Load_Ref: self.COLOR.dark_red,
                           self.VAR.BatteryStateOfCharge: self.COLOR.turquoise,
+                          self.VAR.BatteryStateOfCharge_Ref: self.COLOR.purple,
 
                           self.VAR.E_Load: self.COLOR.orange,
                           self.VAR.E_Load_Ref: self.COLOR.blue,
@@ -709,6 +712,7 @@ class Visualization:
                                      x_label_weekday=True,
                                      y_lim=(y1_lim_range, y2_lim_range))
 
+
     def visualize_comparison2Reference(self, id_household, id_environment, **kargs):
 
         HourStart = 1
@@ -776,29 +780,102 @@ class Visualization:
                                   x_label_weekday=True,
                                   y_lim=(y1_lim_range, y2_lim_range))
 
-    def plot_total_comparison(self, id_household, id_environment):
-        # reference_results = self.ReferenceOperationYear.loc[:, ["ID_Household",
-        #                                                         "OperationCost",
-        #                                                         "Year_Q_HeatPump",
-        #                                                         "Year_E_HeatPump",
-        #                                                         "Year_Q_HeatingElement",
-        #                                                         "Year_Q_RoomCooling",
-        #                                                         "Year_E_PV2Load",
-        #                                                         "Year_E_PV2Grid",
-        #                                                         "Year_E_Load"
-        #                                                         ]]
-        # reference_results.loc[:, "Optimization"] = "Reference"
-        #
-        # optimization_results = self.SystemOperationYear.loc[:, ["ID_Household",
-        #                                                         "OperationCost",
-        #                                                         "Year_Q_HeatPump",
-        #                                                         "Year_E_HeatPump",
-        #                                                         "Year_Q_HeatingElement",
-        #                                                         "Year_Q_RoomCooling",
-        #                                                         "Year_E_PV2Load",
-        #                                                         "Year_E_PV2Grid",
-        #                                                         "Year_E_Load"
-        #                                                         ]]
+        Battery_SOC_Ref = {"values": Reference_Results.BatteryStateOfCharge.to_numpy(),
+                                "label": "Battery_SOC_Ref",
+                                "color": self.VarColors[self.VAR.BatteryStateOfCharge_Ref]}
+
+        Battery2Load_Ref = {"values": Reference_Results.E_Battery2Load.to_numpy(),
+                                "label": "Battery2Load_Ref",
+                                "color": self.VarColors[self.VAR.E_Battery2Load_Ref]}
+
+        BatteryCharge_Ref = {"values": Reference_Results.E_BatteryCharge.to_numpy(),
+                                "label": "BatteryCharge_Ref",
+                                "color": self.VarColors[self.VAR.E_BatteryCharge_Ref]}
+
+        Battery_SOC = {"values": Optimization_Results.BatteryStateOfCharge.to_numpy(),
+                           "label": "Battery_SOC",
+                           "color": self.VarColors[self.VAR.BatteryStateOfCharge]}
+
+        Battery2Load = {"values": Optimization_Results.E_Battery2Load.to_numpy(),
+                            "label": "Battery2Load",
+                            "color": self.VarColors[self.VAR.E_Battery2Load]}
+
+        BatteryCharge = {"values": Optimization_Results.E_BatteryCharge.to_numpy(),
+                             "label": "BatteryCharge",
+                             "color": self.VarColors[self.VAR.E_BatteryCharge]}
+
+
+        self.plot_battery_comparison(id_household, id_environment, Horizon,
+                                     Battery_SOC_Ref,
+                                     Battery2Load_Ref,
+                                     BatteryCharge_Ref,
+                                     Battery_SOC,
+                                     Battery2Load,
+                                     BatteryCharge,
+                                     x_label_weekday=True,
+                                     y_lim=(y1_lim_range, y2_lim_range)
+                                     )
+
+
+        reference_results_year = self.ReferenceOperationYear
+        optimization_results_year = self.SystemOperationYear
+        reference_results_year.loc[:, "Option"] = "Referenz"
+        optimization_results_year.loc[:, "Option"] = "Optimization"
+
+        self.plot_agregated_results(optimization_results_year, reference_results_year)
+
+
+    def plot_agregated_results(self, Optimization_Results, Referenz_Results):
+        # find buildings with the same appliances etc.:
+        unique_PVPower = np.unique(Optimization_Results.loc[:, "Household_PVPower"])
+        unique_TankSize = np.unique(Optimization_Results.loc[:, "Household_TankSize"])
+        unique_BatteryCapacity = np.unique(Optimization_Results.loc[:, "Household_BatteryCapacity"])
+
+        number_of_configurations = len(unique_PVPower) * len(unique_TankSize) * len(unique_BatteryCapacity)
+        # create number of necessary variables:
+        config_ids_opt = {}
+        config_ids_ref = {}
+
+        i = 0
+        for PVPower in unique_PVPower:
+            for TankSize in unique_TankSize:
+                for BatteryCapacity in unique_BatteryCapacity:
+                    optim_ids = Optimization_Results.loc[
+                        (Optimization_Results.loc[:, "Household_PVPower"] == PVPower) &
+                        (Optimization_Results.loc[:, "Household_TankSize"] == TankSize) &
+                        (Optimization_Results.loc[:, "Household_BatteryCapacity"] == BatteryCapacity)]. \
+                        ID_Household.to_numpy()
+
+                    ref_ids = Referenz_Results.loc[(Referenz_Results.loc[:, "Household_PVPower"] == PVPower) &
+                                                   (Referenz_Results.loc[:, "Household_TankSize"] == TankSize) &
+                                                   (Referenz_Results.loc[:,
+                                                    "Household_BatteryCapacity"] == BatteryCapacity)]. \
+                        ID_Household.to_numpy()
+
+                    config_ids_opt["Config{0}".format(i)] = optim_ids
+                    config_ids_ref["Config{0}".format(i)] = ref_ids
+                    i += 1
+        # TODO create names for householdconfigurations zb PV10B5T0 (PV10kW, B 5kWh und Tank 0 liter)
+        # select the aggregation profiles from the hourly results frame
+        # add up E_grid:
+        summary_E_grid_ref = {}
+        for i, configuration in enumerate(config_ids_ref.keys()):
+            E_grid = np.zeros(shape=(8760,))
+            for house_id in config_ids_ref[configuration]:
+                E_grid = E_grid + self.ReferenceOperationHour.loc[
+                    self.ReferenceOperationHour.loc[:, "ID_Household"] == house_id].E_Grid.to_numpy()
+            summary_E_grid_ref["Configuration {0}".format(i)] = E_grid
+
+
+
+        a=1
+        pass
+
+
+
+
+
+    def plot_total_comparison(self):
 
         reference_results = self.ReferenceOperationYear
         optimization_results = self.SystemOperationYear
@@ -826,6 +903,8 @@ class Visualization:
 
         create_violin_plot(frame, "OperationCost", "Operation Costs")
         create_violin_plot(frame, "Year_E_Load", "total electricity consumption")
+        create_violin_plot(frame, "Year_PVSelfSufficiencyRate", "PV self sufficiency rate")
+
 
 
 
@@ -954,6 +1033,105 @@ class Visualization:
         plt.show()
         plt.close(figure)
 
+    def plot_battery_comparison(self, id_household, id_environment, horizon,
+                                battery_SOC_Ref,
+                                battery2Load_Ref,
+                                batteryCharge_Ref,
+                                battery_SOC,
+                                battery2Load,
+                                batteryCharge,
+                                **kwargs):
+
+        figure, (ax_1, ax_2) = plt.subplots(2, 1, figsize=(20, 8), dpi=200, frameon=False)
+        x_values = range(horizon[0], horizon[1] + 1)
+        alpha_value = 0.8
+        linewidth_value = 2
+
+        ax_1.bar(x_values,
+                 battery2Load_Ref["values"] * (-1),
+                 label=battery2Load_Ref["label"],
+                 alpha=alpha_value,
+                 color=battery2Load_Ref["color"],
+                 bottom=battery_SOC_Ref["values"] +  battery2Load_Ref["values"])
+
+        ax_1.bar(x_values,
+                 batteryCharge_Ref["values"],
+                 label=batteryCharge_Ref["label"],
+                 alpha=alpha_value,
+                 color=batteryCharge_Ref["color"],
+                 bottom=battery_SOC_Ref["values"] - batteryCharge_Ref["values"])
+
+        ax_2.bar(x_values,
+                 battery2Load["values"] * (-1),
+                 label=battery2Load["label"],
+                 alpha=alpha_value,
+                 color=battery2Load["color"],
+                 bottom=battery_SOC["values"] + battery2Load["values"])
+
+        ax_2.bar(x_values,
+                 batteryCharge["values"],
+                 label=batteryCharge["label"],
+                 alpha=alpha_value,
+                 color=batteryCharge["color"],
+                 bottom=battery_SOC["values"] - batteryCharge["values"])
+
+        # ax_2 = ax_1.twinx()
+
+        ax_1.plot(x_values,
+                  battery_SOC_Ref["values"],
+                  linewidth=linewidth_value,
+                  linestyle='-',
+                  label=battery_SOC_Ref["label"],
+                  color=battery_SOC_Ref["color"])
+
+        ax_2.plot(x_values,
+                  battery_SOC["values"],
+                  linewidth=linewidth_value,
+                  linestyle='-',
+                  label=battery_SOC["label"],
+                  color=battery_SOC["color"])
+
+        ax_1.grid(color='grey', linestyle='--', linewidth=1)
+        ax_2.grid(color='grey', linestyle='--', linewidth=1)
+        ax_1.xaxis.set_visible(False)
+        if "x_label_weekday" in kwargs:
+            tick_position = [horizon[0] + 11.5] + [horizon[0] + 11.5 + 24 * day for day in range(1, 7)]
+            x_ticks_label = ["Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun"]
+            ax_2.set_xticks(tick_position)
+            ax_2.set_xticklabels(x_ticks_label, fontsize=20)
+        else:
+            ax_1.set_xlabel("Hour of the Year", fontsize=20, labelpad=10)
+
+        ax_1.set_ylabel("Battery SOC \n reference (kWh)", fontsize=20, labelpad=10)
+        ax_2.set_ylabel("Battery SOC (kWh)", fontsize=20, labelpad=10)
+        if "y_lim" in kwargs:
+            ax_1.set_ylim(self.adjust_ylim(kwargs["y_lim"][0]))
+            ax_2.set_ylim(self.adjust_ylim(kwargs["y_lim"][1]))
+        figure.legend(fontsize=15, bbox_to_anchor=(0, 1.04, 1, 0.2), bbox_transform=ax_1.transAxes,
+                      loc=1, ncol=3, borderaxespad=0, mode='expand', frameon=True)
+
+        for tick in ax_2.xaxis.get_major_ticks():
+            tick.label1.set_fontsize(20)
+        for tick in ax_1.yaxis.get_major_ticks():
+            tick.label1.set_fontsize(20)
+        for tick in ax_2.yaxis.get_major_ticks():
+            tick.label2.set_fontsize(20)
+
+        fig_name ="Battery_SOC_Comparison_H" + str(id_household) + "_E" + str(id_environment) + \
+                   "_H" + str(horizon[0]) + "_" + str(horizon[1])
+        figure.savefig(CONS().FiguresPath + fig_name + ".png", dpi=200, format='PNG')
+        plt.show()
+        plt.close(figure)
+
+
+        pass
+
+
+    def plot_tank_comparison(self, id_household, id_environment, horizon):
+
+
+        pass
+
     def run(self):
         for household_id in range(3):
             for environment_id in range(1, 2):
@@ -963,7 +1141,7 @@ class Visualization:
 
 if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
-    Visualization(CONN).plot_total_comparison(1, 1)
+    # Visualization(CONN).plot_total_comparison()
     Visualization(CONN).visualize_comparison2Reference(1, 1, week=8)
 
-    Visualization(CONN).run()
+    # Visualization(CONN).run()
