@@ -294,6 +294,7 @@ class no_DR:
         BatterySOC = np.zeros(PV_profile_surplus.shape)
         Electricity_surplus = np.zeros(PV_profile_surplus.shape)
         Total_load_battery = np.copy(Total_Load_minusPV)
+        Battery2Load = np.zeros(PV_profile_surplus.shape)
 
         for index, row in enumerate(BatterySOC):
             for column, element in enumerate(row):
@@ -306,8 +307,7 @@ class no_DR:
                         # check if the battery can store the power or if its already fully charged:
                         if BatterySOC[index - 1, column] < Capacity:  # there is space to charge
 
-                            if PV_profile_surplus[
-                                index, column] <= MaxChargePower:  # maximum charging power is not exceeded
+                            if PV_profile_surplus[index, column] <= MaxChargePower:  # maximum charging power is not exceeded
                                 # determine how much capacity is available:
                                 capacity_left = Capacity - BatterySOC[index - 1, column]
                                 BatterySOC[index, column] = BatterySOC[index - 1, column] + PV_profile_surplus[
@@ -346,26 +346,30 @@ class no_DR:
                                 Total_load_battery[index, column] = 0
                                 BatterySOC[index, column] = BatterySOC[index - 1, column] - Total_Load_minusPV[
                                     index, column] / DischargeEfficiency
+                                Battery2Load[index, column] = Total_Load_minusPV[index, column] / DischargeEfficiency
                                 # check if maximum discharge power is exceeded:
                                 if Total_load_battery[index, column] / DischargeEfficiency > MaxDischargePower:
                                     Total_load_battery[index, column] = Total_Load_minusPV[
                                                                             index, column] - MaxDischargePower
                                     BatterySOC[index, column] = BatterySOC[
                                                                     index - 1, column] - MaxDischargePower / DischargeEfficiency
+                                    Battery2Load[index, column] = MaxDischargePower
 
                             # if the power in the battery is not enough to cover the whole electricity demand:
                             if BatterySOC[index - 1, column] <= Total_Load_minusPV[index, column] / DischargeEfficiency:
                                 Total_load_battery[index, column] = Total_Load_minusPV[index, column] - BatterySOC[
                                     index - 1, column] * DischargeEfficiency
-                                BatterySOC[index, 1] = 0
+                                BatterySOC[index, column] = 0
+                                Battery2Load[index, column] = BatterySOC[index - 1, column] * DischargeEfficiency
                                 # check if max discharge power is exceeded:
                                 if BatterySOC[index - 1, column] > MaxDischargePower:
                                     BatterySOC[index, column] = BatterySOC[
                                                                     index - 1, column] - MaxDischargePower / DischargeEfficiency
                                     Total_load_battery[index, column] = Total_Load_minusPV[
                                                                             index, column] - MaxDischargePower
+                                    Battery2Load[index, column] = MaxDischargePower
 
-        return Total_load_battery, Electricity_surplus, BatterySOC  # kW and kWh
+        return Total_load_battery, Electricity_surplus, BatterySOC, Battery2Load  # kW and kWh
 
     def calculate_noDR(self, household_RowID, environment_RowID):
         """
@@ -507,7 +511,7 @@ class no_DR:
         # Battery storage:
         # if battery is used:
         if float(Household.Battery.Capacity) > 0:
-            Total_load_battery, Electricity_surplus_Battery, BatterySOC = \
+            Total_load_battery, Electricity_surplus_Battery, BatterySOC, Battery2Load = \
                 self.calculate_battery_energy(final_Load, Electricity_surplus, Household)
             final_Load = Total_load_battery
             # amount of electricity from PV to Battery:
@@ -516,6 +520,7 @@ class no_DR:
         else:
             PV2Battery = np.zeros(Electricity_surplus.shape)
             BatterySOC = np.zeros(Electricity_surplus.shape)
+            Battery2Load = np.zeros(Electricity_surplus.shape)
 
         # When there is PV surplus energy it either goes to a storage or is sold to the grid:
         # Water Tank as storage:
@@ -579,9 +584,7 @@ class no_DR:
                                  PV2Battery.sum(axis=0)[Household.ID_Building - 1] *
                                  Household.Battery.DischargeEfficiency *
                                  Household.Battery.ChargeEfficiency,  # Battery discharge
-                                 PV2Battery.sum(axis=0)[Household.ID_Building - 1] *
-                                 Household.Battery.DischargeEfficiency *
-                                 Household.Battery.ChargeEfficiency,  # Battery 2 Load
+                                 Battery2Load.sum(axis=0)[Household.ID_Building - 1],  # Battery 2 Load
 
                                  Total_Load.sum(axis=0)[Household.ID_Building - 1],  # Yearly total load
                                  (PV_profile - PV_profile_surplus[:, Household.ID_Building - 1]).sum(),  # PV self use
@@ -646,9 +649,7 @@ class no_DR:
                                                  PV2Battery[:, Household.ID_Building - 1] *
                                                  Household.Battery.DischargeEfficiency *
                                                  Household.Battery.ChargeEfficiency,  # Battery discharge,
-                                                 PV2Battery[:, Household.ID_Building - 1] *
-                                                 Household.Battery.DischargeEfficiency *
-                                                 Household.Battery.ChargeEfficiency,  # Battery 2 Load,
+                                                 Battery2Load[:, Household.ID_Building - 1],  # Battery 2 Load,
                                                  BatterySOC[:, Household.ID_Building - 1],  # Battery SOC
 
                                                  Total_Load[:, Household.ID_Building - 1]  # kW
@@ -667,50 +668,6 @@ class no_DR:
 
 
 
-
-    # plotanfang = 4000
-    # plotende = 4050
-    # # check results
-    # x_achse = np.arange(plotanfang, plotende)
-
-    # fig = plt.figure()
-    # ax1 = plt.gca()
-    # ax1.plot(x_achse, Q_Heating_noDR[plotanfang:plotende, 1], label="Q_heating no Tank", alpha=0.8)
-    # ax1.plot(x_achse, Q_heating_withTank[plotanfang:plotende, 1], label="Q_heating with Tank", alpha=0.8)
-    #
-    # ax2 = ax1.twinx()
-    # ax1.plot(x_achse, PV_profile_surplus[plotanfang:plotende, 1], label="PV surplus", alpha=0.4, color="yellow")
-    #
-    # ax2.plot(x_achse, CurrentTankTemperature[plotanfang:plotende, 1], label="tank Temp", color="red", alpha=0.2)
-    # ax1.legend()
-    # plt.show()
-
-    # fig = plt.figure()
-    # ax1 = plt.gca()
-    #
-    # ax1.plot(x_achse, PV_profile[plotanfang:plotende], color="yellow", label="pv profile")
-    # ax1.plot(x_achse, Total_Load[plotanfang:plotende, 1], color="black", linewidth=0.2, label="total load")
-    # ax1.plot(x_achse, PV_profile_surplus[plotanfang:plotende, 1] / 1000, label="PV surplus", alpha=0.8,
-    #          color="orange")
-    # ax1.plot(x_achse, Total_Load_minusPV[plotanfang:plotende, 1], label="total load - PV", alpha=0.7, color="red")
-    #
-    # ax1.legend()
-    # plt.show()
-    #
-    # fig = plt.figure()
-    # ax1 = plt.gca()
-    # ax2 = ax1.twinx()
-    # ax1.plot(x_achse, Total_Load_minusPV[plotanfang:plotende, 1], label="total load - PV", alpha=0.7, color="red",
-    #          linewidth=0.2)
-    # plt.plot(x_achse, PV_profile[plotanfang:plotende], color="yellow", label="pv profile", alpha=0.8, linewidth=0.7)
-    # ax1.plot(x_achse, Total_Load[plotanfang:plotende, 1], color="black", linewidth=0.2, label="total load")
-    # ax1.plot(x_achse, Total_load_battery[plotanfang:plotende, 1], color="blue", linewidth=0.3,
-    #          label="load with battery")
-    #
-    # ax2.plot(x_achse, BatterySOC[plotanfang:plotende, 1], color="green", linewidth=0.3, alpha=0.7)
-    #
-    # ax1.legend()
-    # plt.show()
 
 
     def run(self):
