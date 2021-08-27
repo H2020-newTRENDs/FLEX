@@ -817,56 +817,72 @@ class Visualization:
                                      )
 
 
+    def plot_agregated_results(self):
         reference_results_year = self.ReferenceOperationYear
         optimization_results_year = self.SystemOperationYear
         reference_results_year.loc[:, "Option"] = "Referenz"
         optimization_results_year.loc[:, "Option"] = "Optimization"
-
-        self.plot_agregated_results(optimization_results_year, reference_results_year)
-
-
-    def plot_agregated_results(self, Optimization_Results, Referenz_Results):
         # find buildings with the same appliances etc.:
-        unique_PVPower = np.unique(Optimization_Results.loc[:, "Household_PVPower"])
-        unique_TankSize = np.unique(Optimization_Results.loc[:, "Household_TankSize"])
-        unique_BatteryCapacity = np.unique(Optimization_Results.loc[:, "Household_BatteryCapacity"])
+        unique_PVPower = np.unique(optimization_results_year.loc[:, "Household_PVPower"])
+        unique_TankSize = np.unique(optimization_results_year.loc[:, "Household_TankSize"])
+        unique_BatteryCapacity = np.unique(optimization_results_year.loc[:, "Household_BatteryCapacity"])
 
         number_of_configurations = len(unique_PVPower) * len(unique_TankSize) * len(unique_BatteryCapacity)
         # create number of necessary variables:
         config_ids_opt = {}
         config_ids_ref = {}
-
         i = 0
         for PVPower in unique_PVPower:
             for TankSize in unique_TankSize:
                 for BatteryCapacity in unique_BatteryCapacity:
-                    optim_ids = Optimization_Results.loc[
-                        (Optimization_Results.loc[:, "Household_PVPower"] == PVPower) &
-                        (Optimization_Results.loc[:, "Household_TankSize"] == TankSize) &
-                        (Optimization_Results.loc[:, "Household_BatteryCapacity"] == BatteryCapacity)]. \
+                    optim_ids = optimization_results_year.loc[
+                        (optimization_results_year.loc[:, "Household_PVPower"] == PVPower) &
+                        (optimization_results_year.loc[:, "Household_TankSize"] == TankSize) &
+                        (optimization_results_year.loc[:, "Household_BatteryCapacity"] == BatteryCapacity)]. \
                         ID_Household.to_numpy()
 
-                    ref_ids = Referenz_Results.loc[(Referenz_Results.loc[:, "Household_PVPower"] == PVPower) &
-                                                   (Referenz_Results.loc[:, "Household_TankSize"] == TankSize) &
-                                                   (Referenz_Results.loc[:,
+                    ref_ids = reference_results_year.loc[(reference_results_year.loc[:, "Household_PVPower"] == PVPower) &
+                                                   (reference_results_year.loc[:, "Household_TankSize"] == TankSize) &
+                                                   (reference_results_year.loc[:,
                                                     "Household_BatteryCapacity"] == BatteryCapacity)]. \
                         ID_Household.to_numpy()
 
-                    config_ids_opt["Config{0}".format(i)] = optim_ids
-                    config_ids_ref["Config{0}".format(i)] = ref_ids
+                    config_ids_opt["PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize)] = optim_ids
+                    config_ids_ref["PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize)] = ref_ids
                     i += 1
         # TODO create names for householdconfigurations zb PV10B5T0 (PV10kW, B 5kWh und Tank 0 liter)
         # select the aggregation profiles from the hourly results frame
         # add up E_grid:
         summary_E_grid_ref = {}
+        summary_E_grid_opt = {}
         for i, configuration in enumerate(config_ids_ref.keys()):
-            E_grid = np.zeros(shape=(8760,))
+            E_grid_ref = np.zeros(shape=(8760,))
+            E_grid_opt = np.zeros(shape=(8760,))
             for house_id in config_ids_ref[configuration]:
-                E_grid = E_grid + self.ReferenceOperationHour.loc[
+                E_grid_ref = E_grid_ref + self.ReferenceOperationHour.loc[
                     self.ReferenceOperationHour.loc[:, "ID_Household"] == house_id].E_Grid.to_numpy()
-            summary_E_grid_ref["Configuration {0}".format(i)] = E_grid
+                E_grid_opt = E_grid_opt + self.SystemOperationHour.loc[
+                    self.SystemOperationHour.loc[:, "ID_Household"] == house_id].E_Grid.to_numpy()
 
+            summary_E_grid_ref[configuration] = E_grid_ref
+            summary_E_grid_opt[configuration] = E_grid_opt
 
+        # plot all loads
+        horizon = np.arange(8760)
+        figure = plt.figure(figsize=(20, 8), dpi=200, frameon=False)
+        ax_1 = figure.add_axes([0.1, 0.1, 0.8, 0.75])
+        x_values = horizon  #range(horizon[0], horizon[1] + 1)
+        alpha_value = 0.8
+        linewidth_value = 1
+
+        for key, values in summary_E_grid_ref.items():
+            ax_1.plot(x_values, values,
+                      alpha=alpha_value,
+                      linewidth=linewidth_value,
+                      label=key)
+
+        plt.legend()
+        plt.show()
 
         a=1
         pass
@@ -1141,7 +1157,8 @@ class Visualization:
 
 if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
+    Visualization(CONN).plot_agregated_results()
     # Visualization(CONN).plot_total_comparison()
-    Visualization(CONN).visualize_comparison2Reference(1, 1, week=8)
+    # Visualization(CONN).visualize_comparison2Reference(1, 1, week=8)
 
     # Visualization(CONN).run()
