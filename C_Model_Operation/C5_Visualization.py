@@ -831,26 +831,69 @@ class Visualization:
         # create number of necessary variables:
         config_ids_opt = {}
         config_ids_ref = {}
+
+        config_frame_opt_year = {}
+        config_frame_ref_year = {}
         i = 0
         for PVPower in unique_PVPower:
             for TankSize in unique_TankSize:
                 for BatteryCapacity in unique_BatteryCapacity:
-                    optim_ids = optimization_results_year.loc[
+                    optim_year = optimization_results_year.loc[
                         (optimization_results_year.loc[:, "Household_PVPower"] == PVPower) &
                         (optimization_results_year.loc[:, "Household_TankSize"] == TankSize) &
-                        (optimization_results_year.loc[:, "Household_BatteryCapacity"] == BatteryCapacity)]. \
-                        ID_Household.to_numpy()
+                        (optimization_results_year.loc[:, "Household_BatteryCapacity"] == BatteryCapacity)]
 
-                    ref_ids = reference_results_year.loc[(reference_results_year.loc[:, "Household_PVPower"] == PVPower) &
+                    optim_ids = optim_year.ID_Household.to_numpy()
+
+                    ref_year = reference_results_year.loc[(reference_results_year.loc[:, "Household_PVPower"] == PVPower) &
                                                    (reference_results_year.loc[:, "Household_TankSize"] == TankSize) &
                                                    (reference_results_year.loc[:,
-                                                    "Household_BatteryCapacity"] == BatteryCapacity)]. \
-                        ID_Household.to_numpy()
+                                                    "Household_BatteryCapacity"] == BatteryCapacity)]
 
+                    ref_ids = ref_year.ID_Household.to_numpy()
+
+                    # save IDs to dict
                     config_ids_opt["PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize)] = optim_ids
                     config_ids_ref["PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize)] = ref_ids
+
+                    # save same household configuration total results to dict
+                    config_frame_opt_year["PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize)] = optim_year
+                    config_frame_ref_year["PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize)] = ref_year
                     i += 1
-        # TODO create names for householdconfigurations zb PV10B5T0 (PV10kW, B 5kWh und Tank 0 liter)
+
+        def plot_barplot(frame_opt, frame_ref, variable2plot):
+            # create barplot with total amounts:
+            figure = plt.figure()
+            figure.suptitle(variable2plot.replace("Year_", "") + " sum of different houses")
+            barplot_frame = pd.DataFrame(columns=["Configuration", variable2plot.replace("Year_", ""), "Option"])  # dataframe for seaborn:
+            for key in frame_opt.keys():
+                Sum_opt = frame_opt[key][variable2plot].sum()
+                Sum_ref = frame_ref[key][variable2plot].sum()
+
+                barplot_frame = barplot_frame.append({"Configuration": key,
+                                                      variable2plot.replace("Year_", ""): Sum_opt,
+                                                      "Option": "Optimization"}, ignore_index=True)
+                barplot_frame = barplot_frame.append({"Configuration": key,
+                                                      variable2plot.replace("Year_", ""): Sum_ref,
+                                                      "Option": "Referenz"}, ignore_index=True)
+
+            sns.barplot(data=barplot_frame,
+                        x="Configuration",
+                        y=variable2plot.replace("Year_", ""),
+                        hue="Option",
+                        palette="muted")
+            ax = plt.gca()
+            ax.tick_params(axis='x', labelrotation=45)
+            plt.tight_layout()
+            fig_name = "Aggregated_Boxplot " + variable2plot.replace("Year_", "")
+            figure.savefig(CONS().FiguresPath + "\\Aggregated_Results\\" + fig_name + ".png", dpi=200, format='PNG')
+            plt.show()
+
+        plot_barplot(config_frame_opt_year, config_frame_ref_year, "Year_E_Grid")
+        plot_barplot(config_frame_opt_year, config_frame_ref_year, "OperationCost")
+
+
+
         # select the aggregation profiles from the hourly results frame
         # add up E_grid:
         summary_E_grid_ref = {}
