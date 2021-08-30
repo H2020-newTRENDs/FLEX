@@ -887,47 +887,57 @@ class Visualization:
             plt.tight_layout()
             fig_name = "Aggregated_Boxplot " + variable2plot.replace("Year_", "")
             figure.savefig(CONS().FiguresPath + "\\Aggregated_Results\\" + fig_name + ".png", dpi=200, format='PNG')
-            plt.show()
+            # plt.show()
+            plt.close(figure)
 
         plot_barplot(config_frame_opt_year, config_frame_ref_year, "Year_E_Grid")
         plot_barplot(config_frame_opt_year, config_frame_ref_year, "OperationCost")
+        plot_barplot(config_frame_opt_year, config_frame_ref_year, "Year_E_RoomCooling")
+        plot_barplot(config_frame_opt_year, config_frame_ref_year, "Year_E_HeatPump")
+        plot_barplot(config_frame_opt_year, config_frame_ref_year, "Year_Q_HeatPump")
+        plot_barplot(config_frame_opt_year, config_frame_ref_year, "Year_E_PVSelfUse")
 
 
+        def get_hourly_aggregated_profile(configuration_IDs, variable):
+            # select the aggregation profiles from the hourly results frame
+            summary_profile_ref = {}
+            summary_profile_opt = {}
+            for i, configuration in enumerate(configuration_IDs.keys()):
+                Sum_ref = np.zeros(shape=(8760,))
+                Sum_opt = np.zeros(shape=(8760,))
+                for house_id in configuration_IDs[configuration]:
+                    Sum_ref = Sum_ref + self.ReferenceOperationHour.loc[
+                        self.ReferenceOperationHour.loc[:, "ID_Household"] == house_id][variable].to_numpy()
+                    Sum_opt = Sum_opt + self.SystemOperationHour.loc[
+                        self.SystemOperationHour.loc[:, "ID_Household"] == house_id][variable].to_numpy()
 
-        # select the aggregation profiles from the hourly results frame
-        # add up E_grid:
-        summary_E_grid_ref = {}
-        summary_E_grid_opt = {}
-        for i, configuration in enumerate(config_ids_ref.keys()):
-            E_grid_ref = np.zeros(shape=(8760,))
-            E_grid_opt = np.zeros(shape=(8760,))
-            for house_id in config_ids_ref[configuration]:
-                E_grid_ref = E_grid_ref + self.ReferenceOperationHour.loc[
-                    self.ReferenceOperationHour.loc[:, "ID_Household"] == house_id].E_Grid.to_numpy()
-                E_grid_opt = E_grid_opt + self.SystemOperationHour.loc[
-                    self.SystemOperationHour.loc[:, "ID_Household"] == house_id].E_Grid.to_numpy()
+                summary_profile_ref[configuration] = Sum_ref
+                summary_profile_opt[configuration] = Sum_opt
 
-            summary_E_grid_ref[configuration] = E_grid_ref
-            summary_E_grid_opt[configuration] = E_grid_opt
+            return summary_profile_ref, summary_profile_opt
 
-        # plot all loads
-        horizon = np.arange(8760)
-        figure = plt.figure(figsize=(20, 8), dpi=200, frameon=False)
-        ax_1 = figure.add_axes([0.1, 0.1, 0.8, 0.75])
-        x_values = horizon  #range(horizon[0], horizon[1] + 1)
-        alpha_value = 0.8
-        linewidth_value = 1
+        # electricity from grid
+        profile_ref_E_Grid, profile_opt_E_Grid = get_hourly_aggregated_profile(config_ids_opt, "E_Grid")
 
-        for key, values in summary_E_grid_ref.items():
-            ax_1.plot(x_values, values,
-                      alpha=alpha_value,
-                      linewidth=linewidth_value,
-                      label=key)
+        # heating
+        profile_ref_Q_HP, profile_opt_Q_HP = get_hourly_aggregated_profile(config_ids_opt, "Q_HeatPump")
+        profile_ref_E_HP, profile_opt_E_HP = get_hourly_aggregated_profile(config_ids_opt, "E_HeatPump")
 
-        plt.legend()
-        plt.show()
+        # cooling
+        profile_ref_Q_Cooling, profile_opt_Q_Cooling = get_hourly_aggregated_profile(config_ids_opt, "Q_RoomCooling")
+        profile_ref_E_Cooling, profile_opt_E_Cooling = get_hourly_aggregated_profile(config_ids_opt, "E_RoomCooling")
 
-        a=1
+        # electricity from grid big subplot
+        self.plot_aggregation_comparison_week(profile_opt_E_Grid, profile_ref_E_Grid, "E_Grid", week=32)
+
+        # heating big subplot
+        self.plot_aggregation_comparison_week(profile_ref_Q_HP, profile_opt_Q_HP, "Q_HeatPump", week=32)
+        self.plot_aggregation_comparison_week(profile_ref_E_HP, profile_opt_E_HP, "E_HeatPump", week=32)
+
+        # cooling big subplot
+        self.plot_aggregation_comparison_week(profile_ref_Q_Cooling, profile_opt_Q_Cooling, "Q_Cooling", week=32)
+        self.plot_aggregation_comparison_week(profile_ref_E_Cooling, profile_opt_E_Cooling, "E_Cooling", week=32)
+
         pass
 
 
@@ -1091,6 +1101,62 @@ class Visualization:
         figure.savefig(CONS().FiguresPath + fig_name + ".png", dpi=200, format='PNG')
         plt.show()
         plt.close(figure)
+
+
+    def plot_aggregation_comparison_week(self, optim_variable, ref_variable, variable_name, **kwargs):
+        HourStart = 1
+        HourEnd = 8760
+        if "horizon" in kwargs:
+            HourStart = kwargs["horizon"]
+            HourEnd = kwargs["horizon"]
+        else:
+            pass
+        if "week" in kwargs:
+            TimeStructure_select = self.TimeStructure.loc[self.TimeStructure["ID_Week"] == kwargs["week"]]
+            HourStart = TimeStructure_select.iloc[0]["ID_Hour"]
+            HourEnd = TimeStructure_select.iloc[-1]["ID_Hour"] + 1
+        else:
+            pass
+
+        number_of_subplots = len(optim_variable)
+        figure, axes = plt.subplots(number_of_subplots, 1, figsize=(20, 4*number_of_subplots), dpi=200, frameon=False)
+        # ax_1 = figure.add_axes([0.1, 0.1, 0.8, 0.75])
+        x_values = np.arange(HourStart, HourEnd)
+        alpha_value = 0.8
+        linewidth_value = 2
+
+        for index, (key, values) in enumerate(optim_variable.items()):
+            axes[index].plot(x_values, values[HourStart:HourEnd],
+                      alpha=alpha_value,
+                      linewidth=linewidth_value,
+                      label="Optimization")
+
+        for index, (key, values) in enumerate(ref_variable.items()):
+            axes[index].plot(x_values, values[HourStart:HourEnd],
+                      alpha=alpha_value,
+                      linewidth=linewidth_value,
+                      label="Reference")
+            tick_position = [HourStart + 11.5] + [HourStart + 11.5 + 24 * day for day in range(1, 7)]
+            x_ticks_label = ["Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun"]
+            axes[index].set_xticks(tick_position)
+            axes[index].set_xticklabels(x_ticks_label)
+            axes[index].tick_params(axis="both", labelsize=20)
+            for tick in axes[index].yaxis.get_major_ticks():
+                tick.label2.set_fontsize(20)
+
+            axes[index].set_title(key, fontsize=20)
+            axes[index].legend()
+        figure.suptitle(variable_name + " all variations", fontsize=30)
+        plt.grid()
+        plt.tight_layout()
+        if "week" in kwargs:
+            figure_name = "BigSubplots_" + variable_name + " week " + str(kwargs["week"])
+        else:
+            figure_name = "BigSubplots_" + variable_name
+        plt.savefig(CONS().FiguresPath + "\\Aggregated_Results\\" + figure_name + ".png")
+        # plt.show()
+        plt.close(figure)
+
 
     def plot_battery_comparison(self, id_household, id_environment, horizon,
                                 battery_SOC_Ref,
