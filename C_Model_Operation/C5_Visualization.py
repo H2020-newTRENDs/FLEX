@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from pathlib import Path
 
 from A_Infrastructure.A1_CONS import CONS
 from A_Infrastructure.A2_DB import DB
@@ -80,6 +81,20 @@ class Visualization:
         right = lim_array[1] + tiny
 
         return np.array((left, right))
+
+    def get_total_number_of_buildings(self):
+        path2buildingsnumber = CONS().ProjectPath / Path("_Philipp") / Path("inputdata") / Path("AUT") / Path("040_aut__2__BASE__1_zzz_short_bc_seg__b_building_segment_sh.csv")
+        number_of_buildings_frame = pd.read_csv(path2buildingsnumber, sep=";", encoding="ISO-8859-1", header=0)
+        number_of_buildings_frame = number_of_buildings_frame.iloc[4:, :]
+
+        buildings_frame = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.Conn)
+        invert_index = pd.to_numeric(buildings_frame.index_invert)
+        normal_index = pd.to_numeric(buildings_frame["index"])
+        number_of_buildings = {}
+        for i, index in enumerate(invert_index):
+            total_number_of_buildings = number_of_buildings_frame.loc[pd.to_numeric(number_of_buildings_frame.loc[:, "buildingclasscsvid"]) == index, :].number_of_buildings.sum()
+            number_of_buildings[normal_index[i]] = total_number_of_buildings
+        return number_of_buildings
 
     def plot_SystemLoad(self, id_household, id_environment, horizon,
                         base_load,
@@ -927,16 +942,18 @@ class Visualization:
         profile_ref_Q_Cooling, profile_opt_Q_Cooling = get_hourly_aggregated_profile(config_ids_opt, "Q_RoomCooling")
         profile_ref_E_Cooling, profile_opt_E_Cooling = get_hourly_aggregated_profile(config_ids_opt, "E_RoomCooling")
 
-        # electricity from grid big subplot
-        self.plot_aggregation_comparison_week(profile_opt_E_Grid, profile_ref_E_Grid, "E_Grid", week=32)
+        for week in [8, 32]:
+            # electricity from grid big subplot
+            self.plot_aggregation_comparison_week(profile_opt_E_Grid, profile_ref_E_Grid, "E_Grid", week=week)
 
-        # heating big subplot
-        self.plot_aggregation_comparison_week(profile_ref_Q_HP, profile_opt_Q_HP, "Q_HeatPump", week=32)
-        self.plot_aggregation_comparison_week(profile_ref_E_HP, profile_opt_E_HP, "E_HeatPump", week=32)
+            # heating big subplot
+            self.plot_aggregation_comparison_week(profile_ref_Q_HP, profile_opt_Q_HP, "Q_HeatPump", week=week)
+            self.plot_aggregation_comparison_week(profile_ref_E_HP, profile_opt_E_HP, "E_HeatPump", week=week)
 
-        # cooling big subplot
-        self.plot_aggregation_comparison_week(profile_ref_Q_Cooling, profile_opt_Q_Cooling, "Q_Cooling", week=32)
-        self.plot_aggregation_comparison_week(profile_ref_E_Cooling, profile_opt_E_Cooling, "E_Cooling", week=32)
+            # cooling big subplot
+            self.plot_aggregation_comparison_week(profile_ref_Q_Cooling, profile_opt_Q_Cooling, "Q_Cooling", week=week)
+            self.plot_aggregation_comparison_week(profile_ref_E_Cooling, profile_opt_E_Cooling, "E_Cooling", week=week)
+
 
         pass
 
@@ -968,12 +985,16 @@ class Visualization:
                            split=True, inner="stick", palette="muted")
             for i in range(axes.shape[0]):
                 axes[i].grid(axis="y")
-            plt.show()
+
+            figure_name = "ViolinPlot " + title
+            plt.savefig(CONS().FiguresPath + "\\Aggregated_Results\\" + figure_name + ".png", dpi=200, format='PNG')
+            plt.savefig(CONS().FiguresPath + "\\Aggregated_Results\\" + figure_name + ".svg")
+            # plt.show()
 
         create_violin_plot(frame, "OperationCost", "Operation Costs")
         create_violin_plot(frame, "Year_E_Load", "total electricity consumption")
         create_violin_plot(frame, "Year_PVSelfSufficiencyRate", "PV self sufficiency rate")
-
+        create_violin_plot(frame, "Year_E_Grid", "total electricity from the Grid")
 
 
 
@@ -992,8 +1013,8 @@ class Visualization:
 
         frame_for_violin = pd.concat([ref_list, opt_list], axis=0)
 
-        create_violin_plot(frame_for_violin, "OperationCost", "Costs of special buildings")
-        create_violin_plot(frame_for_violin, "Year_E_Load", "electricity consumption special buildings")
+        # create_violin_plot(frame_for_violin, "OperationCost", "Costs of special buildings")
+        # create_violin_plot(frame_for_violin, "Year_E_Load", "electricity consumption special buildings")
 
         house12_ref = self.ReferenceOperationHour.loc[self.ReferenceOperationHour["ID_Household"]==12, :]
         house12_opt = self.SystemOperationHour.loc[self.SystemOperationHour["ID_Household"] == 12, :]
@@ -1003,6 +1024,7 @@ class Visualization:
         heating_diff = house12_ref.loc[:, "Q_HeatPump"] - house12_opt.loc[:, "Q_HeatPump"]
 
         cooling_diff = house12_ref.loc[:, "Q_RoomCooling"] - house12_opt.loc[:, "Q_RoomCooling"]
+
 
 
 
@@ -1145,6 +1167,7 @@ class Visualization:
                 tick.label2.set_fontsize(20)
 
             axes[index].set_title(key, fontsize=20)
+            axes[index].grid(which="both", axis="y")
             axes[index].legend()
         figure.suptitle(variable_name + " all variations", fontsize=30)
         plt.grid()
@@ -1154,6 +1177,7 @@ class Visualization:
         else:
             figure_name = "BigSubplots_" + variable_name
         plt.savefig(CONS().FiguresPath + "\\Aggregated_Results\\" + figure_name + ".png")
+        plt.savefig(CONS().FiguresPath + "\\Aggregated_Results\\" + figure_name + ".svg")
         # plt.show()
         plt.close(figure)
 
@@ -1266,8 +1290,8 @@ class Visualization:
 
 if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
-    Visualization(CONN).plot_agregated_results()
-    # Visualization(CONN).plot_total_comparison()
+    # Visualization(CONN).plot_agregated_results()
+    Visualization(CONN).plot_total_comparison()
     # Visualization(CONN).visualize_comparison2Reference(1, 1, week=8)
 
     # Visualization(CONN).run()
