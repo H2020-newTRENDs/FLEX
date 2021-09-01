@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from pathlib import Path
+import re
 
 from A_Infrastructure.A1_CONS import CONS
 from A_Infrastructure.A2_DB import DB
@@ -844,8 +845,8 @@ class Visualization:
         unique_BatteryCapacity = np.unique(optimization_results_year.loc[:, "Household_BatteryCapacity"])
 
         number_of_configurations = len(unique_PVPower) * len(unique_TankSize) * len(unique_BatteryCapacity)
-        # number to normalize to a single household:
-        denominator2single_house = len(reference_results_year) / number_of_configurations
+        # number of profiles aggregated:
+        number_of_profiles_aggregated = len(reference_results_year) / number_of_configurations
         # create number of necessary variables:
         config_ids_opt = {}
         config_ids_ref = {}
@@ -885,8 +886,8 @@ class Visualization:
             figure.suptitle(variable2plot.replace("Year_", "") + " average difference between optimization and reference")
             barplot_frame = pd.DataFrame(columns=["Configuration", variable2plot.replace("Year_", ""), "Option"])  # dataframe for seaborn:
             for key in frame_opt.keys():
-                Sum_opt = frame_opt[key][variable2plot].sum() / denominator2single_house
-                Sum_ref = frame_ref[key][variable2plot].sum() / denominator2single_house
+                Sum_opt = frame_opt[key][variable2plot].sum() / number_of_profiles_aggregated
+                Sum_ref = frame_ref[key][variable2plot].sum() / number_of_profiles_aggregated
 
                 barplot_frame = barplot_frame.append({"Configuration": key,
                                                       variable2plot.replace("Year_", ""): Sum_opt,
@@ -950,15 +951,15 @@ class Visualization:
 
         for week in [8, 32]:
             # electricity from grid big subplot
-            self.plot_aggregation_comparison_week(profile_opt_E_Grid, profile_ref_E_Grid, "E_Grid", week=week)
+            self.plot_aggregation_comparison_week(profile_opt_E_Grid, profile_ref_E_Grid, "E_Grid", number_of_profiles_aggregated, week=week)
 
             # heating big subplot
-            self.plot_aggregation_comparison_week(profile_ref_Q_HP, profile_opt_Q_HP, "Q_HeatPump", week=week)
-            self.plot_aggregation_comparison_week(profile_ref_E_HP, profile_opt_E_HP, "E_HeatPump", week=week)
+            self.plot_aggregation_comparison_week(profile_ref_Q_HP, profile_opt_Q_HP, "Q_HeatPump", number_of_profiles_aggregated, week=week)
+            self.plot_aggregation_comparison_week(profile_ref_E_HP, profile_opt_E_HP, "E_HeatPump", number_of_profiles_aggregated, week=week)
 
             # cooling big subplot
-            self.plot_aggregation_comparison_week(profile_ref_Q_Cooling, profile_opt_Q_Cooling, "Q_Cooling", week=week)
-            self.plot_aggregation_comparison_week(profile_ref_E_Cooling, profile_opt_E_Cooling, "E_Cooling", week=week)
+            self.plot_aggregation_comparison_week(profile_ref_Q_Cooling, profile_opt_Q_Cooling, "Q_Cooling", number_of_profiles_aggregated, week=week)
+            self.plot_aggregation_comparison_week(profile_ref_E_Cooling, profile_opt_E_Cooling, "E_Cooling", number_of_profiles_aggregated, week=week)
 
 
         pass
@@ -991,7 +992,7 @@ class Visualization:
                            split=True, inner="stick", palette="muted")
             for i in range(axes.shape[0]):
                 axes[i].grid(axis="y")
-                if axes[i].get_ylim()[1] > 100:
+                if axes[i].get_ylim()[1] > 999:
                     axes[i].get_yaxis().set_major_formatter(
                         matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
 
@@ -1137,7 +1138,7 @@ class Visualization:
         plt.close(figure)
 
 
-    def plot_aggregation_comparison_week(self, optim_variable, ref_variable, variable_name, **kwargs):
+    def plot_aggregation_comparison_week(self, optim_variable, ref_variable, variable_name, number_of_profiles, **kwargs):
         HourStart = 1
         HourEnd = 8760
         if "horizon" in kwargs:
@@ -1160,13 +1161,13 @@ class Visualization:
         linewidth_value = 2
 
         for index, (key, values) in enumerate(optim_variable.items()):
-            axes[index].plot(x_values, values[HourStart:HourEnd],
+            axes[index].plot(x_values, values[HourStart:HourEnd] / number_of_profiles,
                       alpha=alpha_value,
                       linewidth=linewidth_value,
                       label="Optimization")
 
         for index, (key, values) in enumerate(ref_variable.items()):
-            axes[index].plot(x_values, values[HourStart:HourEnd],
+            axes[index].plot(x_values, values[HourStart:HourEnd] / number_of_profiles,
                       alpha=alpha_value,
                       linewidth=linewidth_value,
                       label="Reference")
@@ -1180,7 +1181,10 @@ class Visualization:
             for tick in axes[index].yaxis.get_major_ticks():
                 tick.label2.set_fontsize(20)
 
-            axes[index].set_title(key, fontsize=20)
+            split_title = re.split("(\d+)", key)
+            title = split_title[0] + ": " + split_title[1] + " kWp, " + split_title[2] + "attery: " + split_title[3] + \
+                    " kWh, " + split_title[4] + "ank size: " + split_title[5] + " l"
+            axes[index].set_title(title, fontsize=20)
             axes[index].grid(which="both", axis="y")
             axes[index].legend()
         figure.suptitle(variable_name + " all variations", fontsize=30)
@@ -1304,8 +1308,8 @@ class Visualization:
 
 if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
-    # Visualization(CONN).plot_agregated_results()
-    Visualization(CONN).plot_total_comparison()
+    Visualization(CONN).plot_agregated_results()
+    # Visualization(CONN).plot_total_comparison()
     # Visualization(CONN).visualize_comparison2Reference(1, 1, week=8)
 
     # Visualization(CONN).run()
