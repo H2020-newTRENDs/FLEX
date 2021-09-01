@@ -587,10 +587,10 @@ class no_DR:
                                  Battery2Load.sum(axis=0)[Household.ID_Building - 1],  # Battery 2 Load
 
                                  Total_Load.sum(axis=0)[Household.ID_Building - 1],  # Yearly total load
-                                 (PV_profile - PV_profile_surplus[:, Household.ID_Building - 1]).sum(),  # PV self use
-                                 (PV_profile - PV_profile_surplus[:, Household.ID_Building - 1]).sum() / PV_profile.sum(),
+                                 (PV_profile - Electricity_surplus[:, Household.ID_Building - 1]).sum(),  # PV self use
+                                 (PV_profile - Electricity_surplus[:, Household.ID_Building - 1]).sum() / PV_profile.sum(),
                                  # PV self consumption rate
-                                 (PV_profile - PV_profile_surplus[:, Household.ID_Building - 1]).sum() / Total_Load.sum(axis=0)[
+                                 (PV_profile - Electricity_surplus[:, Household.ID_Building - 1]).sum() / Total_Load.sum(axis=0)[
                                      Household.ID_Building - 1],  # PV self Sufficiency rate
 
                                  Household.Building.hwb_norm1,
