@@ -991,8 +991,12 @@ class Visualization:
                            split=True, inner="stick", palette="muted")
             for i in range(axes.shape[0]):
                 axes[i].grid(axis="y")
-                axes[i].get_yaxis().set_major_formatter(
-                    matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
+                if axes[i].get_ylim()[1] > 100:
+                    axes[i].get_yaxis().set_major_formatter(
+                        matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
+
+                axes[i].yaxis.set_tick_params(labelbottom=True)
+
 
             figure_name = "ViolinPlot " + title
             plt.savefig(CONS().FiguresPath + "\\Aggregated_Results\\" + figure_name + ".png", dpi=200, format='PNG')
@@ -1300,7 +1304,7 @@ class Visualization:
 
 if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
-    Visualization(CONN).plot_agregated_results()
+    # Visualization(CONN).plot_agregated_results()
     Visualization(CONN).plot_total_comparison()
     # Visualization(CONN).visualize_comparison2Reference(1, 1, week=8)
 
