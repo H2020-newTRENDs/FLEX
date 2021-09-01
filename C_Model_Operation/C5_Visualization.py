@@ -2,6 +2,7 @@
 __author__ = 'Songmin'
 
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -835,7 +836,7 @@ class Visualization:
     def plot_agregated_results(self):
         reference_results_year = self.ReferenceOperationYear
         optimization_results_year = self.SystemOperationYear
-        reference_results_year.loc[:, "Option"] = "Referenz"
+        reference_results_year.loc[:, "Option"] = "Reference"
         optimization_results_year.loc[:, "Option"] = "Optimization"
         # find buildings with the same appliances etc.:
         unique_PVPower = np.unique(optimization_results_year.loc[:, "Household_PVPower"])
@@ -843,6 +844,8 @@ class Visualization:
         unique_BatteryCapacity = np.unique(optimization_results_year.loc[:, "Household_BatteryCapacity"])
 
         number_of_configurations = len(unique_PVPower) * len(unique_TankSize) * len(unique_BatteryCapacity)
+        # number to normalize to a single household:
+        denominator2single_house = len(reference_results_year) / number_of_configurations
         # create number of necessary variables:
         config_ids_opt = {}
         config_ids_ref = {}
@@ -879,30 +882,33 @@ class Visualization:
         def plot_barplot(frame_opt, frame_ref, variable2plot):
             # create barplot with total amounts:
             figure = plt.figure()
-            figure.suptitle(variable2plot.replace("Year_", "") + " sum of different houses")
+            figure.suptitle(variable2plot.replace("Year_", "") + " average difference between optimization and reference")
             barplot_frame = pd.DataFrame(columns=["Configuration", variable2plot.replace("Year_", ""), "Option"])  # dataframe for seaborn:
             for key in frame_opt.keys():
-                Sum_opt = frame_opt[key][variable2plot].sum()
-                Sum_ref = frame_ref[key][variable2plot].sum()
+                Sum_opt = frame_opt[key][variable2plot].sum() / denominator2single_house
+                Sum_ref = frame_ref[key][variable2plot].sum() / denominator2single_house
 
                 barplot_frame = barplot_frame.append({"Configuration": key,
                                                       variable2plot.replace("Year_", ""): Sum_opt,
                                                       "Option": "Optimization"}, ignore_index=True)
                 barplot_frame = barplot_frame.append({"Configuration": key,
                                                       variable2plot.replace("Year_", ""): Sum_ref,
-                                                      "Option": "Referenz"}, ignore_index=True)
+                                                      "Option": "Reference"}, ignore_index=True)
 
             sns.barplot(data=barplot_frame,
                         x="Configuration",
                         y=variable2plot.replace("Year_", ""),
                         hue="Option",
                         palette="muted")
+
             ax = plt.gca()
+            ax.get_yaxis().set_major_formatter(
+                matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
             ax.tick_params(axis='x', labelrotation=45)
             plt.tight_layout()
-            fig_name = "Aggregated_Boxplot " + variable2plot.replace("Year_", "")
+            fig_name = "Aggregated_Barplot " + variable2plot.replace("Year_", "")
             figure.savefig(CONS().FiguresPath + "\\Aggregated_Results\\" + fig_name + ".png", dpi=200, format='PNG')
-            # plt.show()
+            plt.show()
             plt.close(figure)
 
         plot_barplot(config_frame_opt_year, config_frame_ref_year, "Year_E_Grid")
@@ -965,7 +971,7 @@ class Visualization:
 
         reference_results = self.ReferenceOperationYear
         optimization_results = self.SystemOperationYear
-        reference_results.loc[:, "Option"] = "Referenz"
+        reference_results.loc[:, "Option"] = "Reference"
         optimization_results.loc[:, "Option"] = "Optimization"
 
         frame = pd.concat([self.ReferenceOperationYear, self.SystemOperationYear], axis=0)
@@ -985,6 +991,8 @@ class Visualization:
                            split=True, inner="stick", palette="muted")
             for i in range(axes.shape[0]):
                 axes[i].grid(axis="y")
+                axes[i].get_yaxis().set_major_formatter(
+                    matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
 
             figure_name = "ViolinPlot " + title
             plt.savefig(CONS().FiguresPath + "\\Aggregated_Results\\" + figure_name + ".png", dpi=200, format='PNG')
@@ -1016,7 +1024,7 @@ class Visualization:
         # create_violin_plot(frame_for_violin, "OperationCost", "Costs of special buildings")
         # create_violin_plot(frame_for_violin, "Year_E_Load", "electricity consumption special buildings")
 
-        house12_ref = self.ReferenceOperationHour.loc[self.ReferenceOperationHour["ID_Household"]==12, :]
+        house12_ref = self.ReferenceOperationHour.loc[self.ReferenceOperationHour["ID_Household"] == 12, :]
         house12_opt = self.SystemOperationHour.loc[self.SystemOperationHour["ID_Household"] == 12, :]
 
         solar_diff = house12_ref.loc[:, "Q_SolarGain"]/1000 - house12_opt.loc[:, "Q_SolarGain"]
@@ -1025,7 +1033,7 @@ class Visualization:
 
         cooling_diff = house12_ref.loc[:, "Q_RoomCooling"] - house12_opt.loc[:, "Q_RoomCooling"]
 
-
+        number_of_buildings = self.get_total_number_of_buildings()
 
 
 
@@ -1163,6 +1171,8 @@ class Visualization:
             axes[index].set_xticks(tick_position)
             axes[index].set_xticklabels(x_ticks_label)
             axes[index].tick_params(axis="both", labelsize=20)
+            axes[index].get_yaxis().set_major_formatter(
+                matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
             for tick in axes[index].yaxis.get_major_ticks():
                 tick.label2.set_fontsize(20)
 
@@ -1290,7 +1300,7 @@ class Visualization:
 
 if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
-    # Visualization(CONN).plot_agregated_results()
+    Visualization(CONN).plot_agregated_results()
     Visualization(CONN).plot_total_comparison()
     # Visualization(CONN).visualize_comparison2Reference(1, 1, week=8)
 
