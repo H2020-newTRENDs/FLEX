@@ -321,64 +321,64 @@ class OperationOptimization:
         # -------------
 
         # price
-        m.ElectricityPrice = pyo.Param(m.t, mutable=True)#, initialize=self.creat_Dict(ElectricityPrice / 1_000))  # C/Wh
+        m.ElectricityPrice = pyo.Param(m.t, mutable=True, default=0.1)#, initialize=self.creat_Dict(ElectricityPrice / 1_000))  # C/Wh
         # Feed in Tariff of Photovoltaic
-        m.FiT = pyo.Param(m.t, mutable=True)#, initialize=self.creat_Dict(FeedinTariff / 1_000))  # C/Wh
+        m.FiT = pyo.Param(m.t, mutable=True, default=0.07)#, initialize=self.creat_Dict(FeedinTariff / 1_000))  # C/Wh
         # solar gains:
-        m.Q_Solar = pyo.Param(m.t, mutable=True)#, initialize=self.creat_Dict(Q_sol))  # W
+        m.Q_Solar = pyo.Param(m.t, mutable=True, default=0)#, initialize=self.creat_Dict(Q_sol))  # W
         # outside temperature
-        m.T_outside = pyo.Param(m.t, mutable=True)#, initialize=self.creat_Dict(self.Temperature["Temperature"].to_numpy()))  # °C
+        m.T_outside = pyo.Param(m.t, mutable=True, default=0)#, initialize=self.creat_Dict(self.Temperature["Temperature"].to_numpy()))  # °C
         # COP of heatpump
-        m.SpaceHeatingHourlyCOP = pyo.Param(m.t, mutable=True)#, initialize=self.creat_Dict(SpaceHeatingHourlyCOP))
+        m.SpaceHeatingHourlyCOP = pyo.Param(m.t, mutable=True, default=3)#, initialize=self.creat_Dict(SpaceHeatingHourlyCOP))
         # COP of cooling
-        m.CoolingCOP = pyo.Param(m.t, mutable=True)#, initialize=self.creat_Dict(ACHourlyCOP))
+        m.CoolingCOP = pyo.Param(m.t, mutable=True, default=3)#, initialize=self.creat_Dict(ACHourlyCOP))
         # electricity load profile
-        m.BaseLoadProfile = pyo.Param(m.t, mutable=True)#, initialize=self.creat_Dict(BaseLoadProfile))  # W
+        m.BaseLoadProfile = pyo.Param(m.t, mutable=True, default=300)#, initialize=self.creat_Dict(BaseLoadProfile))  # W
         # PV profile
-        m.PhotovoltaicProfile = pyo.Param(m.t, mutable=True)#, initialize=self.creat_Dict(PhotovoltaicProfile))  # W
+        m.PhotovoltaicProfile = pyo.Param(m.t, mutable=True, default=0)#, initialize=self.creat_Dict(PhotovoltaicProfile))  # W
         # HotWater
-        m.HWPart1 = pyo.Param(m.t, mutable=True)#, initialize=self.creat_Dict(HotWaterProfile1))
-        m.HWPart2 = pyo.Param(m.t, mutable=True)#, initialize=self.creat_Dict(HotWaterProfile2))
-        m.HotWaterHourlyCOP = pyo.Param(m.t, mutable=True)#, initialize=self.creat_Dict(HotWaterHourlyCOP))
+        m.HWPart1 = pyo.Param(m.t, mutable=True, default=100)#, initialize=self.creat_Dict(HotWaterProfile1))
+        m.HWPart2 = pyo.Param(m.t, mutable=True, default=100)#, initialize=self.creat_Dict(HotWaterProfile2))
+        m.HotWaterHourlyCOP = pyo.Param(m.t, mutable=True, default=3)#, initialize=self.creat_Dict(HotWaterHourlyCOP))
 
         # Smart Technologies
-        m.DayHour = pyo.Param(m.t, mutable=True)#, initialize=self.creat_Dict(self.TimeStructure["ID_DayHour"]))
+        m.DayHour = pyo.Param(m.t, mutable=True, default=2)#, initialize=self.creat_Dict(self.TimeStructure["ID_DayHour"]))
 
         # building data:
-        m.Am = pyo.Param(mutable=True)
-        m.Atot = pyo.Param(mutable=True)
-        m.Qi = pyo.Param(mutable=True)
-        m.Htr_w = pyo.Param(mutable=True)
-        m.Htr_em = pyo.Param(mutable=True)
-        m.Htr_3 = pyo.Param(mutable=True)
-        m.Htr_1 = pyo.Param(mutable=True)
-        m.Htr_2 = pyo.Param(mutable=True)
-        m.Hve = pyo.Param(mutable=True)
-        m.Htr_ms = pyo.Param(mutable=True)
-        m.Htr_is = pyo.Param(mutable=True)
-        m.PHI_ia = pyo.Param(mutable=True)
-        m.Cm = pyo.Param(mutable=True)
-        m.BuildingMassTemperatureStartValue = pyo.Param(mutable=True)
+        m.Am = pyo.Param(mutable=True, default=400)
+        m.Atot = pyo.Param(mutable=True, default=500)
+        m.Qi = pyo.Param(mutable=True, default=400)
+        m.Htr_w = pyo.Param(mutable=True, default=70)
+        m.Htr_em = pyo.Param(mutable=True, default=150)
+        m.Htr_3 = pyo.Param(mutable=True, default=100)
+        m.Htr_1 = pyo.Param(mutable=True, default=40)
+        m.Htr_2 = pyo.Param(mutable=True, default=100)
+        m.Hve = pyo.Param(mutable=True, default=40)
+        m.Htr_ms = pyo.Param(mutable=True, default=3_000)
+        m.Htr_is = pyo.Param(mutable=True, default=2_000)
+        m.PHI_ia = pyo.Param(mutable=True, default=200)
+        m.Cm = pyo.Param(mutable=True, default=20_000_000)
+        m.BuildingMassTemperatureStartValue = pyo.Param(mutable=True, default=15)
 
         # Tank data
         # Mass of water in tank
-        m.M_WaterTank = pyo.Param(mutable=True)
+        m.M_WaterTank = pyo.Param(mutable=True, default=1000)
         # Surface of Tank in m2
-        m.A_SurfaceTank = pyo.Param(mutable=True)
+        m.A_SurfaceTank = pyo.Param(mutable=True, default=5)
         # insulation of tank, for calc of losses
-        m.U_ValueTank = pyo.Param(mutable=True)
-        m.T_TankStart = pyo.Param(mutable=True)
+        m.U_ValueTank = pyo.Param(mutable=True, default=0.02)
+        m.T_TankStart = pyo.Param(mutable=True, default=40)
         # surrounding temp of tank
-        m.T_TankSurrounding = pyo.Param(mutable=True)
+        m.T_TankSurrounding = pyo.Param(mutable=True, default=20)
 
         # Appliances
-        m.DishWasherPower = pyo.Param(mutable=True)
-        m.WashingMachinePower = pyo.Param(mutable=True)
-        m.DryerPower = pyo.Param(mutable=True)
+        m.DishWasherPower = pyo.Param(mutable=True, default=300)
+        m.WashingMachinePower = pyo.Param(mutable=True, default=300)
+        m.DryerPower = pyo.Param(mutable=True, default=300)
 
         # Battery data
-        m.ChargeEfficiency = pyo.Param(mutable=True)
-        m.DischargeEfficiency = pyo.Param(mutable=True)
+        m.ChargeEfficiency = pyo.Param(mutable=True, default=0.95)
+        m.DischargeEfficiency = pyo.Param(mutable=True, default=0.95)
 
         # ----------------------------
         # 2. Variables and constraints
@@ -741,8 +741,8 @@ class OperationOptimization:
                             instance.Q_RoomHeating[t].setlb(0)
                             instance.Q_RoomHeating[t].setub(Household.SpaceHeating.HeatPumpMaximalThermalPower +
                                                             Household.SpaceHeating.HeatingElementPower)
-                            instance.tank_energy_rule.deactivate()
-                            instance.tank_energy_rule_noTank.activate()
+                        instance.tank_energy_rule.deactivate()
+                        instance.tank_energy_rule_noTank.activate()
                     else:
                         for t in range(1, self.OptimizationHourHorizon + 1):
                             instance.E_tank[t].setlb(
@@ -755,8 +755,8 @@ class OperationOptimization:
                                                                                              Household.SpaceHeating.TankMaximalTemperature)))
                             instance.Q_RoomHeating[t].setlb(0)
                             instance.Q_RoomHeating[t].setub(Household.SpaceHeating.MaximalPowerFloorHeating)
-                            instance.tank_energy_rule.activate()
-                            instance.tank_energy_rule_noTank.deactivate()
+                        instance.tank_energy_rule.activate()
+                        instance.tank_energy_rule_noTank.deactivate()
 
                     # Battery
                     if Household.Battery.Capacity == 0:
@@ -782,12 +782,12 @@ class OperationOptimization:
                             instance.BatCharge[t].setub(float(Household.Battery.MaxChargePower * 1_000))
                             instance.BatDischarge[t].setub(float(Household.Battery.MaxDischargePower * 1_000))
 
-                            instance.calc_BatCharge.activate()
-                            instance.calc_BatSoC.activate()
-                            instance.calc_BatDischarge.activate()
+                        instance.calc_BatCharge.activate()
+                        instance.calc_BatSoC.activate()
+                        instance.calc_BatDischarge.activate()
 
                     # PV
-                    if Household.PV.Power == 0:
+                    if Household.PV.PVPower == 0:
                         for t in range(1, self.OptimizationHourHorizon + 1):
                             instance.PV2Load[t].fix(0)
                             instance.PV2Bat[t].fix(0)
@@ -804,27 +804,27 @@ class OperationOptimization:
                     if int(Household.ApplianceGroup.DishWasherShifting) == 1:
                         for t in range(1, self.OptimizationHourHorizon + 1):
                             instance.DishWasherTheoreticalHours[t] = input_parameters["DishWasherHours"][t]
-                            instance.calc_DishWasherHours2.activate()
-                            instance.calc_DishWasherHours3.activate()
-                            instance.calc_DishWasherStartTime.activate()
+                        instance.calc_DishWasherHours2.activate()
+                        instance.calc_DishWasherHours3.activate()
+                        instance.calc_DishWasherStartTime.activate()
 
                     else:
                         for t in range(1, self.OptimizationHourHorizon + 1):
                             instance.DishWasher1[t] = input_parameters["DishWasherHours"][t]
                             instance.DishWasher2[t].fix(0)
                             instance.DishWasher3[t].fix(0)
-                            instance.calc_DishWasherHours2.deactivate()
-                            instance.calc_DishWasherHours3.deactivate()
-                            instance.calc_DishWasherStartTime.deactivate()
+                        instance.calc_DishWasherHours2.deactivate()
+                        instance.calc_DishWasherHours3.deactivate()
+                        instance.calc_DishWasherStartTime.deactivate()
 
                     # washingmachine
                     if int(Household.ApplianceGroup.WashingMachineShifting) == 1:
                         for t in range(1, self.OptimizationHourHorizon + 1):
                             instance.WashingMachineTheoreticalHours[t] = input_parameters["WashingMachineHours"][t]
-                            instance.calc_WashingMachineHours2.activate()
-                            instance.calc_WashingMachineHours3.activate()
-                            instance.calc_Dryer1.activate()
-                            instance.calc_Dryer2.activate()
+                        instance.calc_WashingMachineHours2.activate()
+                        instance.calc_WashingMachineHours3.activate()
+                        instance.calc_Dryer1.activate()
+                        instance.calc_Dryer2.activate()
                     else:
                         for t in range(1, self.OptimizationHourHorizon + 1):
                             instance.WashingMachine1[t] = input_parameters["WashingMachineHours"][t]
@@ -833,20 +833,20 @@ class OperationOptimization:
                             instance.Dryer1[t] = input_parameters["DryerHours"][t]
                             instance.Dryer2[t].fix(0)
 
-                            instance.calc_WashingMachineHours2.deactivate()
-                            instance.calc_WashingMachineHours3.deactivate()
-                            instance.calc_WashingMachineStartTime.deactivate()
+                        instance.calc_WashingMachineHours2.deactivate()
+                        instance.calc_WashingMachineHours3.deactivate()
+                        instance.calc_WashingMachineStartTime.deactivate()
 
-                            instance.calc_Dryer1.deactivate()
-                            instance.calc_Dryer2.deactivate()
+                        instance.calc_Dryer1.deactivate()
+                        instance.calc_Dryer2.deactivate()
 
                     # dryer
                     if int(Household.ApplianceGroup.DryerAdoption) == 0:
                         for t in range(1, self.OptimizationHourHorizon + 1):
                             instance.Dryer1[t].fix(0)
                             instance.Dryer2[t].fix(0)
-                            instance.calc_Dryer1.deactivate()
-                            instance.calc_Dryer2.deactivate()
+                        instance.calc_Dryer1.deactivate()
+                        instance.calc_Dryer2.deactivate()
                     else:
                         instance.calc_Dryer1.activate()
                         instance.calc_Dryer2.activate()
@@ -895,8 +895,8 @@ class OperationOptimization:
                             instance.Q_RoomHeating[t].setlb(0)
                             instance.Q_RoomHeating[t].setub(Household.SpaceHeating.HeatPumpMaximalThermalPower +
                                                             Household.SpaceHeating.HeatingElementPower)
-                            instance.tank_energy_rule.deactivate()
-                            instance.tank_energy_rule_noTank.activate()
+                        instance.tank_energy_rule.deactivate()
+                        instance.tank_energy_rule_noTank.activate()
                     else:
                         for t in range(1, self.OptimizationHourHorizon + 1):
                             instance.E_tank[t].setlb(self.CPWater*float(Household.SpaceHeating.TankSize)*(273.15 +
@@ -905,8 +905,8 @@ class OperationOptimization:
                                                                   float(Household.SpaceHeating.TankMaximalTemperature)))
                             instance.Q_RoomHeating[t].setlb(0)
                             instance.Q_RoomHeating[t].setub(Household.SpaceHeating.MaximalPowerFloorHeating)
-                            instance.tank_energy_rule.activate()
-                            instance.tank_energy_rule_noTank.deactivate()
+                        instance.tank_energy_rule.activate()
+                        instance.tank_energy_rule_noTank.deactivate()
 
                     # Battery
                     if Household.Battery.Capacity == 0:
@@ -934,12 +934,12 @@ class OperationOptimization:
                             instance.BatCharge[t].setub(float(Household.Battery.MaxChargePower * 1_000))
                             instance.BatDischarge[t].setub(float(Household.Battery.MaxDischargePower * 1_000))
 
-                            instance.calc_BatCharge.activate()
-                            instance.calc_BatSoC.activate()
-                            instance.calc_BatDischarge.activate()
+                        instance.calc_BatCharge.activate()
+                        instance.calc_BatSoC.activate()
+                        instance.calc_BatDischarge.activate()
 
-                            instance.calc_UseOfGrid_noBat.deactivate()
-                            instance.calc_UseOfGrid.activate()
+                        instance.calc_UseOfGrid_noBat.deactivate()
+                        instance.calc_UseOfGrid.activate()
 
                     # PV
                     if Household.PV.Power == 0:
@@ -958,27 +958,27 @@ class OperationOptimization:
                     if int(Household.ApplianceGroup.DishWasherShifting) == 1:
                         for t in range(1, self.OptimizationHourHorizon + 1):
                             instance.DishWasherTheoreticalHours[t] = input_parameters["DishWasherHours"][t]
-                            instance.calc_DishWasherHours2.activate()
-                            instance.calc_DishWasherHours3.activate()
-                            instance.calc_DishWasherStartTime.activate()
+                        instance.calc_DishWasherHours2.activate()
+                        instance.calc_DishWasherHours3.activate()
+                        instance.calc_DishWasherStartTime.activate()
 
                     else:
                         for t in range(1, self.OptimizationHourHorizon + 1):
                             instance.DishWasher1[t] = input_parameters["DishWasherHours"][t]
                             instance.DishWasher2[t].fix(0)
                             instance.DishWasher3[t].fix(0)
-                            instance.calc_DishWasherHours2.deactivate()
-                            instance.calc_DishWasherHours3.deactivate()
-                            instance.calc_DishWasherStartTime.deactivate()
+                        instance.calc_DishWasherHours2.deactivate()
+                        instance.calc_DishWasherHours3.deactivate()
+                        instance.calc_DishWasherStartTime.deactivate()
 
                     # washingmachine
                     if int(Household.ApplianceGroup.WashingMachineShifting) == 1:
                         for t in range(1, self.OptimizationHourHorizon + 1):
                             instance.WashingMachineTheoreticalHours[t] = input_parameters["WashingMachineHours"][t]
-                            instance.calc_WashingMachineHours2.activate()
-                            instance.calc_WashingMachineHours3.activate()
-                            instance.calc_Dryer1.activate()
-                            instance.calc_Dryer2.activate()
+                        instance.calc_WashingMachineHours2.activate()
+                        instance.calc_WashingMachineHours3.activate()
+                        instance.calc_Dryer1.activate()
+                        instance.calc_Dryer2.activate()
                     else:
                         for t in range(1, self.OptimizationHourHorizon + 1):
                             instance.WashingMachine1[t] = input_parameters["WashingMachineHours"][t]
@@ -987,20 +987,20 @@ class OperationOptimization:
                             instance.Dryer1[t] = input_parameters["DryerHours"][t]
                             instance.Dryer2[t].fix(0)
 
-                            instance.calc_WashingMachineHours2.deactivate()
-                            instance.calc_WashingMachineHours3.deactivate()
-                            instance.calc_WashingMachineStartTime.deactivate()
+                        instance.calc_WashingMachineHours2.deactivate()
+                        instance.calc_WashingMachineHours3.deactivate()
+                        instance.calc_WashingMachineStartTime.deactivate()
 
-                            instance.calc_Dryer1.deactivate()
-                            instance.calc_Dryer2.deactivate()
+                        instance.calc_Dryer1.deactivate()
+                        instance.calc_Dryer2.deactivate()
 
                     # dryer
                     if int(Household.ApplianceGroup.DryerAdoption) == 0:
                         for t in range(1, self.OptimizationHourHorizon + 1):
                             instance.Dryer1[t].fix(0)
                             instance.Dryer2[t].fix(0)
-                            instance.calc_Dryer1.deactivate()
-                            instance.calc_Dryer2.deactivate()
+                        instance.calc_Dryer1.deactivate()
+                        instance.calc_Dryer2.deactivate()
                     else:
                         instance.calc_Dryer1.activate()
                         instance.calc_Dryer2.activate()
@@ -1035,6 +1035,7 @@ class OperationOptimization:
                 i+=1
                 time1 = time.time()
                 print("time optimization:" + str(time1 - time0))
+                print('Total Operation Cost: ' + str(round(instance.Objective(), 2)))
 
 
         # PyomoModelInstance = m.create_instance(report_timing=False)
