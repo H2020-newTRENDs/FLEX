@@ -917,10 +917,11 @@ class OperationOptimization:
         Opt.options["TimeLimit"] = 180
 
         # Parallel(n_jobs=2)(delayed(self.iterate_through_households(Opt, household_RowID, environment_RowID, DC, i=0) for household_RowID in range(0, 12) for environment_RowID in range(0, 2)))
-
+        i = 0
         for household_RowID in range(0, runs):
             for environment_RowID in range(0, 2):
-                self.iterate_through_households(Opt, household_RowID, environment_RowID, DC, i=0)
+                self.iterate_through_households(Opt, household_RowID, environment_RowID, DC, i=i)
+                i += 1
         DC.save_OptimizationResult()
 
 
