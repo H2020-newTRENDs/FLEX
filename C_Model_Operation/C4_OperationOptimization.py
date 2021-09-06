@@ -7,7 +7,7 @@ import sys as sys
 
 from C_Model_Operation.C1_REG import REG_Table
 from A_Infrastructure.A2_DB import DB
-from C_Model_Operation.C2_DataCollector import DataCollector, DataCollector_withouth_SQlite_connection
+from C_Model_Operation.C2_DataCollector import DataCollector#, DataCollector_withouth_SQlite_connection
 from B_Classes.B1_Household import Household
 from A_Infrastructure.A1_CONS import CONS
 import time
@@ -702,7 +702,7 @@ class OperationOptimization:
         runs = len(self.ID_Household)
         environments = 2
 
-        DC_noSQlite = DataCollector_withouth_SQlite_connection()
+        DC_noSQlite = DataCollector(self.Conn)
         Opt = pyo.SolverFactory("gurobi")
         Opt.options["TimeLimit"] = 180
 
@@ -771,7 +771,7 @@ class OperationOptimization:
             instance = update_instance(Opt, instance, input_parameters, Household,
                                             HeatingTargetTemperature, CoolingTargetTemperature)
             # collect results:
-            DC_noSQlite.collect_OptimizationResult_without_CONN(Household, Environment, instance)
+            DC_noSQlite.collect_OptimizationResult(Household, Environment, instance)
             return
 
         # parallelize the shit out of the optimization:
