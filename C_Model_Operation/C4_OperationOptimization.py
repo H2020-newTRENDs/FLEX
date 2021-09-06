@@ -7,7 +7,7 @@ import sys as sys
 
 from C_Model_Operation.C1_REG import REG_Table
 from A_Infrastructure.A2_DB import DB
-from C_Model_Operation.C2_DataCollector import DataCollector#, DataCollector_withouth_SQlite_connection
+from C_Model_Operation.C2_DataCollector import DataCollector, DataCollector_noSQlite
 from B_Classes.B1_Household import Household
 from A_Infrastructure.A1_CONS import CONS
 import time
@@ -702,7 +702,7 @@ class OperationOptimization:
         runs = len(self.ID_Household)
         environments = 2
 
-        DC_noSQlite = DataCollector(self.Conn)
+        DC_noSQlite = DataCollector_noSQlite()
         Opt = pyo.SolverFactory("gurobi")
         Opt.options["TimeLimit"] = 180
 
