@@ -761,12 +761,12 @@ class OperationOptimization:
                                                                             "HeatingTargetTemperature": HeatingTargetTemperature, \
                                                                             "CoolingTargetTemperature": CoolingTargetTemperature}
 
-        def calculate_results(all_input_parameters, instance):
-            input_parameters = all_input_parameters["input_parameters"]
-            Household = all_input_parameters["Household"]
-            Environment = all_input_parameters["Environment"]
-            HeatingTargetTemperature = all_input_parameters["HeatingTargetTemperature"]
-            CoolingTargetTemperature = all_input_parameters["CoolingTargetTemperature"]
+        def calculate_results(input_parameters, instance):
+            input_parameters = input_parameters["input_parameters"]
+            Household = input_parameters["Household"]
+            Environment = input_parameters["Environment"]
+            HeatingTargetTemperature = input_parameters["HeatingTargetTemperature"]
+            CoolingTargetTemperature = input_parameters["CoolingTargetTemperature"]
             # update the instance and resolve in every run:
             instance = update_instance(Opt, instance, input_parameters, Household,
                                             HeatingTargetTemperature, CoolingTargetTemperature)
