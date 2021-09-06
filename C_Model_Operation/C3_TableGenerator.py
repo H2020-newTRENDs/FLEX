@@ -858,7 +858,7 @@ if __name__ == "__main__":
     # A.save_PV2Base(ID_COUNTRY)
 
     # A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
-    # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
+    A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_Sce_AC_HourlyCOP()
 
     # A.gen_OBJ_ID_SpaceHeating()
