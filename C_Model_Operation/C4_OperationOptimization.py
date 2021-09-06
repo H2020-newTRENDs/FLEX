@@ -716,8 +716,8 @@ class OperationOptimization:
 
         # get the whole input array into one dict as joblib can not pickle sqlite3.connection:
         all_input_parameters = {}
-        for household_RowID in range(0, 2):
-            for environment_RowID in range(0, 1):
+        for household_RowID in range(0, 24):
+            for environment_RowID in range(0, 2):
                 input_parameters, Household, Environment, HeatingTargetTemperature, CoolingTargetTemperature = \
                     self.get_input_data(household_RowID, environment_RowID)
 
@@ -775,8 +775,9 @@ class OperationOptimization:
             return
 
         # parallelize the shit out of the optimization:
-        a_pool = ProcessPool(2)  # provide number of cores i guess
-        a_pool.map(calculate_results, list(all_input_parameters.values()), [instance] * len(all_input_parameters))
+        pool = ProcessPool(number_of_cpus)  # provide number of cores i guess
+        pool.map(calculate_results, list(all_input_parameters.values()), [instance] * len(all_input_parameters))
+        pool.close()
 
 
         # save log file
