@@ -11,9 +11,7 @@ from C_Model_Operation.C2_DataCollector import DataCollector, DataCollector_with
 from B_Classes.B1_Household import Household
 from A_Infrastructure.A1_CONS import CONS
 import time
-from joblib import Parallel, delayed
 import multiprocessing
-import itertools
 from pathos.multiprocessing import ProcessPool
 
 
@@ -752,8 +750,8 @@ class OperationOptimization:
                                   "Battery_Capacity": Household.Battery.Capacity
                                  }
 
-                environment_dict = {"Environment_ID": Environment["ID"],
-                                    "Environment_ID_ElectricityPriceType": Environment["ID_ElectricityPriceType"]
+                environment_dict = {"ID": Environment["ID"],
+                                    "ID_ElectricityPriceType": Environment["ID_ElectricityPriceType"]
                                     }
 
 
@@ -769,22 +767,17 @@ class OperationOptimization:
             Environment = all_input_parameters["Environment"]
             HeatingTargetTemperature = all_input_parameters["HeatingTargetTemperature"]
             CoolingTargetTemperature = all_input_parameters["CoolingTargetTemperature"]
-            # update the instance and resolve in every run after the first one:
+            # update the instance and resolve in every run:
             instance = update_instance(Opt, instance, input_parameters, Household,
                                             HeatingTargetTemperature, CoolingTargetTemperature)
             # collect results:
             DC_noSQlite.collect_OptimizationResult_without_CONN(Household, Environment, instance)
             return
 
-        # parralelize the shit out of the optimization:
-        a_pool = ProcessPool(2)
-        # a_args = list(all_input_parameters.values())
-        # second_arg = instance
-        # argzip = zip(a_args, itertools.repeat(second_arg))
-
+        # parallelize the shit out of the optimization:
+        a_pool = ProcessPool(2)  # provide number of cores i guess
         a_pool.map(calculate_results, list(all_input_parameters.values()), [instance] * len(all_input_parameters))
-        # Parallel(n_jobs=2)(delayed(calculate_results)(all_input_parameters[key], instance)
-        #                    for key in all_input_parameters.keys())
+
 
         # save log file
         # instance.display("./log.txt")
