@@ -386,13 +386,16 @@ class OperationOptimization:
         m.DishWasherPower = pyo.Param(mutable=True)
         m.WashingMachinePower = pyo.Param(mutable=True)
         m.DryerPower = pyo.Param(mutable=True)
+        m.DishWasherTheoreticalHours = pyo.Param(m.t, within=pyo.Binary, mutable=True)
+        m.WashingMachineTheoreticalHours = pyo.Param(m.t, within=pyo.Binary, mutable=True)
 
         # Battery data
         m.ChargeEfficiency = pyo.Param(mutable=True)
         m.DischargeEfficiency = pyo.Param(mutable=True)
 
+
         # ----------------------------
-        # 2. Variables and constraints
+        # 2. Variables
         # ----------------------------
         # Variables SpaceHeating
         m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
@@ -400,26 +403,28 @@ class OperationOptimization:
         m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
-        # energy used for cooling
+        # Variable space cooling
         m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
+        # Temperatures (room and thermal mass)
         m.T_room = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Tm_t = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
-        # Grid, limit set by 21 kW
+        # Grid variables
         m.Grid = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Grid2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
-
+        # PV variables
         m.PV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.PV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.PV2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
+        # Electric Load and Electricity fed back to the grid
         m.Load = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Feedin = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
-
+        # Battery variables
         m.BatSoC = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.BatCharge = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.BatDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals)
@@ -430,22 +435,17 @@ class OperationOptimization:
         m.DishWasher2 = pyo.Var(m.t, within=pyo.Binary)
         m.DishWasher3 = pyo.Var(m.t, within=pyo.Binary)
         m.DishWasherStart = pyo.Var(m.t, within=pyo.Binary)
-        m.DishWasherTheoreticalHours = pyo.Param(m.t, within=pyo.Binary, mutable=True)
-
 
         m.WashingMachine1 = pyo.Var(m.t, within=pyo.Binary)
         m.WashingMachine2 = pyo.Var(m.t, within=pyo.Binary)
         m.WashingMachine3 = pyo.Var(m.t, within=pyo.Binary)
         m.WashingMachineStart = pyo.Var(m.t, within=pyo.Binary)
-        m.WashingMachineTheoreticalHours = pyo.Param(m.t, within=pyo.Binary, mutable=True)
 
         m.Dryer1 = pyo.Var(m.t, within=pyo.Binary)
         m.Dryer2 = pyo.Var(m.t, within=pyo.Binary)
 
-
-
         # -------------------------------------
-        # 3. State transition: Electricity flow
+        # 3. Constraints:
         # -------------------------------------
 
         # (1) Overall energy balance
@@ -456,7 +456,7 @@ class OperationOptimization:
 
         # (2) grid balance
         def calc_UseOfGrid(m, t):
-            return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t] #* Household.Battery.Grid2Battery
+            return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t]
 
         m.calc_UseOfGrid = pyo.Constraint(m.t, rule=calc_UseOfGrid)
 
@@ -466,7 +466,7 @@ class OperationOptimization:
 
         m.calc_UseOfPV = pyo.Constraint(m.t, rule=calc_UseOfPV)
 
-        # (4) Feen in
+        # (4) Feed in
         def calc_SumOfFeedin(m, t):
             return m.Feedin[t] == m.PV2Grid[t]
 
@@ -664,7 +664,6 @@ class OperationOptimization:
                               m.Htr_ms + m.Htr_w + m.Htr_1)
                 # Equ. C.11
                 T_air = (m.Htr_is * T_s + m.Hve * T_sup + m.PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / (m.Htr_is + m.Hve)
-                #T_air = HeatingTargetTemperature[0]
                 return m.T_room[t] == T_air
             else:
                 # Equ. C.3
@@ -678,7 +677,6 @@ class OperationOptimization:
                                   m.Htr_ms + m.Htr_w + m.Htr_1)
                 # Equ. C.11
                 T_air = (m.Htr_is * T_s + m.Hve * T_sup + m.PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / (m.Htr_is + m.Hve)
-                # T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_RoomHeating[t]) / (Htr_is + Hve)
                 return m.T_room[t] == T_air
 
         m.room_temperature_rule = pyo.Constraint(m.t, rule=room_temperature_rc)
@@ -698,14 +696,7 @@ class OperationOptimization:
 
 
 
-    def iterate_through_households(self, Opt, household_RowID, environment_RowID, DC, i=0):
-        input_parameters, Household, Environment, HeatingTargetTemperature, CoolingTargetTemperature = \
-            self.get_input_data(household_RowID, environment_RowID)
-        if i == 0:
-            # create the instance once:
-            timei = time.time()
-            instance = self.create_abstract_model(input_parameters)
-            print("time creating instance:" + str(time.time() - timei))
+    def update_instance(self, Opt, instance, input_parameters, Household, HeatingTargetTemperature, CoolingTargetTemperature):
         time0 = time.time()
         # update the instance
         for t in range(1, self.OptimizationHourHorizon + 1):
@@ -735,7 +726,6 @@ class OperationOptimization:
 
             instance.T_room[t].setlb(HeatingTargetTemperature[t - 1])
             instance.T_room[t].setub(CoolingTargetTemperature[t - 1])
-            instance.Tm_t[t].setlb(0)
             instance.Tm_t[t].setub(30)
 
             instance.Grid[t].setub(float(Household.Building.MaximalGridPower * 1_000))
@@ -757,6 +747,7 @@ class OperationOptimization:
             instance.tank_energy_rule.deactivate()
         else:
             for t in range(1, self.OptimizationHourHorizon + 1):
+                instance.E_tank[t].fixed = False
                 instance.E_tank[t].setlb(self.CPWater * float(Household.SpaceHeating.TankSize) * (273.15 +
                                                      float(Household.SpaceHeating.TankMinimalTemperature)))
                 instance.E_tank[t].setub(
@@ -773,14 +764,21 @@ class OperationOptimization:
         # Battery
         if Household.Battery.Capacity == 0:
             for t in range(1, self.OptimizationHourHorizon + 1):
+                # fix the parameters to 0
                 instance.Grid2Bat[t].fix(0)
-
                 instance.Bat2Load[t].fix(0)
                 instance.BatSoC[t].fix(0)
                 instance.BatCharge[t].fix(0)
                 instance.BatDischarge[t].fix(0)
         else:
             for t in range(1, self.OptimizationHourHorizon + 1):
+                # variables have to be unfixed in case they were fixed in a previous run
+                instance.Grid2Bat[t].fixed = False
+                instance.Bat2Load[t].fixed = False
+                instance.BatSoC[t].fixed = False
+                instance.BatCharge[t].fixed = False
+                instance.BatDischarge[t].fixed = False
+                # set upper bounds
                 instance.Grid2Bat[t].setub(float(Household.Building.MaximalGridPower * 1_000))
 
                 instance.Bat2Load[t].setub(float(Household.Battery.MaxDischargePower * 1_000))
@@ -797,6 +795,11 @@ class OperationOptimization:
 
         else:
             for t in range(1, self.OptimizationHourHorizon + 1):
+                # variables have to be unfixed in case they were fixed in a previous run
+                instance.PV2Load[t].fixed = False
+                instance.PV2Bat[t].fixed = False
+                instance.PV2Grid[t].fixed = False
+                # set upper bounds
                 instance.PV2Load[t].setub(float(Household.Building.MaximalGridPower * 1_000))
                 instance.PV2Bat[t].setub(float(Household.Building.MaximalGridPower * 1_000))
                 instance.PV2Grid[t].setub(float(Household.Building.MaximalGridPower * 1_000))
@@ -806,6 +809,8 @@ class OperationOptimization:
         if int(Household.ApplianceGroup.DishWasherShifting) == 1:
             for t in range(1, self.OptimizationHourHorizon + 1):
                 instance.DishWasherTheoreticalHours[t] = input_parameters[None]["DishWasherTheoreticalHours"][t]
+                instance.DishWasher2[t].fixed = False
+                instance.DishWasher3[t].fixed = False
             instance.calc_DishWasherHours2.activate()
             instance.calc_DishWasherHours3.activate()
             instance.calc_DishWasherStartTime.activate()
@@ -822,6 +827,9 @@ class OperationOptimization:
         if int(Household.ApplianceGroup.WashingMachineShifting) == 1:
             for t in range(1, self.OptimizationHourHorizon + 1):
                 instance.WashingMachineTheoreticalHours[t] = input_parameters[None]["WashingMachineTheoreticalHours"][t]
+                instance.WashingMachine2[t].fixed = False
+                instance.WashingMachine3[t].fixed = False
+                instance.Dryer2[t].fixed = False
             instance.calc_WashingMachineHours2.activate()
             instance.calc_WashingMachineHours3.activate()
             instance.calc_WashingMachineStartTime.activate()
@@ -850,6 +858,9 @@ class OperationOptimization:
             instance.calc_Dryer1.deactivate()
             instance.calc_Dryer2.deactivate()
         else:
+            for t in range(1, self.OptimizationHourHorizon + 1):
+                instance.Dryer1[t].fixed = False
+                instance.Dryer2[t].fixed = False
             instance.calc_Dryer1.activate()
             instance.calc_Dryer2.activate()
 
@@ -887,27 +898,17 @@ class OperationOptimization:
         print("time to update instance: " + str(time.time() - time0))
         time1 = time.time()
         result = Opt.solve(instance, tee=False)
-        instance.display("./log.txt")
-        DC.collect_OptimizationResult(Household, Environment, instance)
-        i += 1
+
         print("time optimization: " + str(time.time() - time1))
         print('Total Operation Cost: ' + str(round(instance.Objective(), 2)))
+        return instance
 
-
-
-        # PyomoModelInstance = m.create_instance(report_timing=False)
         # Opt = pyo.SolverFactory("gurobi")#, solver_io='python') schneller ohne solver_io=python um 10 sekunden
-        # Opt.options["TimeLimit"] = 360
-        # results = Opt.solve(PyomoModelInstance, tee=False)
-        # # save log file
-        # PyomoModelInstance.display("./log.txt")
-        # print('Total Operation Cost: ' + str(round(PyomoModelInstance.Objective(), 2)))
-        #
 
-        # return Household, Environment, PyomoModelInstance
-        # ---------
-        # 8. Solver
-        # ---------
+
+    # ---------
+    # 8. Solver
+    # ---------
     def solve_model(self):
         number_of_cpus = multiprocessing.cpu_count()
         runs = len(self.ID_Household)
@@ -919,10 +920,32 @@ class OperationOptimization:
         # Parallel(n_jobs=2)(delayed(self.iterate_through_households(Opt, household_RowID, environment_RowID, DC, i=0) for household_RowID in range(0, 12) for environment_RowID in range(0, 2)))
         i = 0
         for household_RowID in range(0, runs):
-            for environment_RowID in range(0, 2):
-                self.iterate_through_households(Opt, household_RowID, environment_RowID, DC, i=i)
+            for environment_RowID in range(0, 1):
+                # get all input parameters for the optimization:
+                input_parameters, Household, Environment, HeatingTargetTemperature, CoolingTargetTemperature = \
+                    self.get_input_data(household_RowID, environment_RowID)
+                # in the first run create the instance
+                if i == 0:
+                    # create the instance once:
+                    timei = time.time()
+                    instance = self.create_abstract_model(input_parameters)
+                    print("time creating instance:" + str(time.time() - timei))
+                    # update the instance and solve it:
+                    instance = self.update_instance(Opt, instance, input_parameters, Household,
+                                                    HeatingTargetTemperature, CoolingTargetTemperature)
+                    # collect results:
+                    DC.collect_OptimizationResult(Household, Environment, instance)
+                else:
+                    # update the instance and resolve in every run after the first one:
+                    instance = self.update_instance(Opt, instance, input_parameters, Household,
+                                                    HeatingTargetTemperature, CoolingTargetTemperature)
+                    # collect results:
+                    DC.collect_OptimizationResult(Household, Environment, instance)
+
+                # save log file
+                # instance.display("./log.txt")
                 i += 1
-        DC.save_OptimizationResult()
+        # DC.save_OptimizationResult()
 
 
     def run(self):
