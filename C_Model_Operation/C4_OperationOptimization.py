@@ -7,13 +7,13 @@ import sys as sys
 
 from C_Model_Operation.C1_REG import REG_Table
 from A_Infrastructure.A2_DB import DB
-from C_Model_Operation.C2_DataCollector import DataCollector, DataCollector_noSQlite
+from C_Model_Operation.C2_DataCollector import DataCollector
+from C_Model_Operation.C2_DataCollectorNoSQlite import DataCollector_noSQlite
 from B_Classes.B1_Household import Household
 from A_Infrastructure.A1_CONS import CONS
 import time
-import multiprocessing
-from pathos.multiprocessing import ProcessPool
-
+from pathos.multiprocessing import ProcessingPool
+from pathos.pools import ParallelPool
 
 
 
@@ -694,17 +694,7 @@ class OperationOptimization:
         instance = m.create_instance(data=input_parameters)
         return instance
 
-    # ---------
-    # 8. Solver
-    # ---------
-    def solve_model(self):
-        number_of_cpus = multiprocessing.cpu_count()
-        runs = len(self.ID_Household)
-        environments = 2
-
-        DC_noSQlite = DataCollector_noSQlite()
-        Opt = pyo.SolverFactory("gurobi")
-        Opt.options["TimeLimit"] = 180
+    def create_instance(self):
 
         # get all input parameters for the optimization for very first household:
         input_parameters, Household, Environment, HeatingTargetTemperature, CoolingTargetTemperature = \
@@ -713,15 +703,28 @@ class OperationOptimization:
         timei = time.time()
         instance = self.create_abstract_model(input_parameters)
         print("time creating instance:" + str(time.time() - timei))
+        return instance
+
+    # ---------
+    # 8. Solver
+    # ---------
+    def create_parallizable_data(self):
+        runs = len(self.ID_Household)
+        environments = 2
+
+        DC_noSQlite = DataCollector_noSQlite()
+        Opt = pyo.SolverFactory("gurobi")
+        Opt.options["TimeLimit"] = 180
+
 
         # get the whole input array into one dict as joblib can not pickle sqlite3.connection:
         all_input_parameters = {}
-        for household_RowID in range(0, 24):
-            for environment_RowID in range(0, 2):
+        for household_RowID in range(0, 3):
+            for environment_RowID in range(0, 1):
                 input_parameters, Household, Environment, HeatingTargetTemperature, CoolingTargetTemperature = \
                     self.get_input_data(household_RowID, environment_RowID)
 
-                # break up household and environment because they contain sqlite connection which can not be parralized:
+                # break up household and environment because they contain sqlite connection which can not be parallelized:
                 household_dict = {"SpaceHeating_HeatPumpMaximalThermalPower": Household.SpaceHeating.HeatPumpMaximalThermalPower,
                                   "SpaceHeating_HeatingElementPower": Household.SpaceHeating.HeatingElementPower,
                                   "SpaceCooling_SpaceCoolingPower": Household.SpaceCooling.SpaceCoolingPower,
@@ -760,30 +763,41 @@ class OperationOptimization:
                                                                             "Environment": environment_dict, \
                                                                             "HeatingTargetTemperature": HeatingTargetTemperature, \
                                                                             "CoolingTargetTemperature": CoolingTargetTemperature}
+        return all_input_parameters
 
-        def calculate_results(input_parameters, instance):
-            input_parameters = input_parameters["input_parameters"]
-            Household = input_parameters["Household"]
-            Environment = input_parameters["Environment"]
-            HeatingTargetTemperature = input_parameters["HeatingTargetTemperature"]
-            CoolingTargetTemperature = input_parameters["CoolingTargetTemperature"]
-            # update the instance and resolve in every run:
-            instance = update_instance(Opt, instance, input_parameters, Household,
-                                            HeatingTargetTemperature, CoolingTargetTemperature)
-            # collect results:
-            DC_noSQlite.collect_OptimizationResult(Household, Environment, instance)
-            return
-
-        # parallelize the shit out of the optimization:
-        pool = ProcessPool(number_of_cpus)  # provide number of cores i guess
-        pool.map(calculate_results, list(all_input_parameters.values()), [instance] * len(all_input_parameters))
-        pool.close()
+def calculate_multiprocess(all_input_parameters, instance):
+    # calculate_results(list(all_input_parameters.values())[0], instance)
+    # parallelize the shit out of the optimization:
+    # number_of_cpus = multiprocessing.cpu_count()
+    pool = ProcessingPool(4)
+    # Pool_parallel = ParallelPool(nodes=number_of_cpus)  # provide number of cores
+    pool.map(calculate_results, list(all_input_parameters.values()), [instance] * len(all_input_parameters))
+    pool.close()
 
 
-        # save log file
-        # instance.display("./log.txt")
+def calculate_results(Input_Parameters, instance):
+    DC_noSQlite = DataCollector_noSQlite()
+    Opt = pyo.SolverFactory("gurobi")
+    Opt.options["TimeLimit"] = 180
+    update_parameters = Input_Parameters["input_parameters"]
+    household = Input_Parameters["Household"]
+    environment = Input_Parameters["Environment"]
+    heating_target_temperature = Input_Parameters["HeatingTargetTemperature"]
+    cooling_target_temperature = Input_Parameters["CoolingTargetTemperature"]
+    # update the instance and resolve in every run:
+    instance_updated = update_instance(Opt, instance, update_parameters, household,
+                                    heating_target_temperature, cooling_target_temperature)
+    # collect results:
+    DC_noSQlite.collect_OptimizationResult_noSQlite(household, environment, instance_updated)
 
-        # DC.save_OptimizationResult()
+
+
+
+
+    # save log file
+    # instance.display("./log.txt")
+
+    # DC.save_OptimizationResult()
 
 
 def update_instance(Opt, instance, input_parameters, Household, HeatingTargetTemperature, CoolingTargetTemperature):
@@ -1013,8 +1027,17 @@ def update_instance(Opt, instance, input_parameters, Household, HeatingTargetTem
     #     # DC.save_OptimizationResult()
 
 
-if __name__ == "__main__":
+def run():
     Conn = DB().create_Connection(CONS().RootDB)
-    OperationOptimization(Conn).solve_model()
+
+    pyomo_instance = OperationOptimization(Conn).create_instance()
+    instance_inputs = OperationOptimization(Conn).create_parallizable_data()
+    calculate_multiprocess(instance_inputs, pyomo_instance)
+
+
+if __name__ == "__main__":
+    # Conn = DB().create_Connection(CONS().RootDB)
+    # OperationOptimization(Conn).solve_model()
+    run()
 
     # OperationOptimization(Conn).run()
