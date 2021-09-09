@@ -13,6 +13,12 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 - web-based frontend
 
 ### 2 Next steps
+- try out pandas.io.sql for faster data tranfer from sqlite databse (may not be better)
+- create the DHW profile in the C3_tablegenerator (currently the profile is importet (thomas profile))
+- find alternative profiles for DHW and electricity for single households (can profile generator generate many profiles 
+simultaneously)
+- integrate other heating systems (no HP) and get Water source Heat pump to work
+
 
 #### 2.1 Songmin
 
