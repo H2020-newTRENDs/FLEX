@@ -85,7 +85,8 @@ class Visualization:
         return np.array((left, right))
 
     def get_total_number_of_buildings(self):
-        path2buildingsnumber = CONS().ProjectPath / Path("_Philipp") / Path("inputdata") / Path("AUT") / Path("040_aut__2__BASE__1_zzz_short_bc_seg__b_building_segment_sh.csv")
+        path2buildingsnumber = CONS().ProjectPath / Path("_Philipp") / Path("inputdata") / Path("AUT") / Path(
+            "040_aut__2__BASE__1_zzz_short_bc_seg__b_building_segment_sh.csv")
         number_of_buildings_frame = pd.read_csv(path2buildingsnumber, sep=";", encoding="ISO-8859-1", header=0)
         number_of_buildings_frame = number_of_buildings_frame.iloc[4:, :]
 
@@ -94,7 +95,9 @@ class Visualization:
         normal_index = pd.to_numeric(buildings_frame["index"])
         number_of_buildings = {}
         for i, index in enumerate(invert_index):
-            total_number_of_buildings = number_of_buildings_frame.loc[pd.to_numeric(number_of_buildings_frame.loc[:, "buildingclasscsvid"]) == index, :].number_of_buildings.sum()
+            total_number_of_buildings = number_of_buildings_frame.loc[
+                                        pd.to_numeric(number_of_buildings_frame.loc[:, "buildingclasscsvid"]) == index,
+                                        :].number_of_buildings.sum()
             number_of_buildings[normal_index[i]] = total_number_of_buildings
         return number_of_buildings
 
@@ -729,7 +732,6 @@ class Visualization:
                                      x_label_weekday=True,
                                      y_lim=(y1_lim_range, y2_lim_range))
 
-
     def visualize_comparison2Reference(self, id_household, id_environment, **kargs):
 
         HourStart = 1
@@ -798,29 +800,28 @@ class Visualization:
                                   y_lim=(y1_lim_range, y2_lim_range))
 
         Battery_SOC_Ref = {"values": Reference_Results.BatteryStateOfCharge.to_numpy(),
-                                "label": "Battery_SOC_Ref",
-                                "color": self.VarColors[self.VAR.BatteryStateOfCharge_Ref]}
+                           "label": "Battery_SOC_Ref",
+                           "color": self.VarColors[self.VAR.BatteryStateOfCharge_Ref]}
 
         Battery2Load_Ref = {"values": Reference_Results.E_Battery2Load.to_numpy(),
-                                "label": "Battery2Load_Ref",
-                                "color": self.VarColors[self.VAR.E_Battery2Load_Ref]}
+                            "label": "Battery2Load_Ref",
+                            "color": self.VarColors[self.VAR.E_Battery2Load_Ref]}
 
         BatteryCharge_Ref = {"values": Reference_Results.E_BatteryCharge.to_numpy(),
-                                "label": "BatteryCharge_Ref",
-                                "color": self.VarColors[self.VAR.E_BatteryCharge_Ref]}
+                             "label": "BatteryCharge_Ref",
+                             "color": self.VarColors[self.VAR.E_BatteryCharge_Ref]}
 
         Battery_SOC = {"values": Optimization_Results.BatteryStateOfCharge.to_numpy(),
-                           "label": "Battery_SOC",
-                           "color": self.VarColors[self.VAR.BatteryStateOfCharge]}
+                       "label": "Battery_SOC",
+                       "color": self.VarColors[self.VAR.BatteryStateOfCharge]}
 
         Battery2Load = {"values": Optimization_Results.E_Battery2Load.to_numpy(),
-                            "label": "Battery2Load",
-                            "color": self.VarColors[self.VAR.E_Battery2Load]}
+                        "label": "Battery2Load",
+                        "color": self.VarColors[self.VAR.E_Battery2Load]}
 
         BatteryCharge = {"values": Optimization_Results.E_BatteryCharge.to_numpy(),
-                             "label": "BatteryCharge",
-                             "color": self.VarColors[self.VAR.E_BatteryCharge]}
-
+                         "label": "BatteryCharge",
+                         "color": self.VarColors[self.VAR.E_BatteryCharge]}
 
         self.plot_battery_comparison(id_household, id_environment, Horizon,
                                      Battery_SOC_Ref,
@@ -833,7 +834,6 @@ class Visualization:
                                      y_lim=(y1_lim_range, y2_lim_range)
                                      )
 
-
     def plot_average_results(self):
         reference_results_year = self.ReferenceOperationYear
         optimization_results_year = self.SystemOperationYear
@@ -843,6 +843,7 @@ class Visualization:
         unique_PVPower = np.unique(optimization_results_year.loc[:, "Household_PVPower"])
         unique_TankSize = np.unique(optimization_results_year.loc[:, "Household_TankSize"])
         unique_BatteryCapacity = np.unique(optimization_results_year.loc[:, "Household_BatteryCapacity"])
+        unique_Environment = np.unique(optimization_results_year.loc[:, "ID_Environment"])
 
         number_of_configurations = len(unique_PVPower) * len(unique_TankSize) * len(unique_BatteryCapacity)
         # number of profiles aggregated:
@@ -854,52 +855,68 @@ class Visualization:
         config_frame_opt_year = {}
         config_frame_ref_year = {}
         i = 0
-        for PVPower in unique_PVPower:
-            for TankSize in unique_TankSize:
-                for BatteryCapacity in unique_BatteryCapacity:
-                    optim_year = optimization_results_year.loc[
-                        (optimization_results_year.loc[:, "Household_PVPower"] == PVPower) &
-                        (optimization_results_year.loc[:, "Household_TankSize"] == TankSize) &
-                        (optimization_results_year.loc[:, "Household_BatteryCapacity"] == BatteryCapacity)]
+        for environment in unique_Environment:
+            for PVPower in unique_PVPower:
+                for TankSize in unique_TankSize:
+                    for BatteryCapacity in unique_BatteryCapacity:
+                        optim_year = optimization_results_year.loc[
+                            (optimization_results_year.loc[:, "Household_PVPower"] == PVPower) &
+                            (optimization_results_year.loc[:, "Household_TankSize"] == TankSize) &
+                            (optimization_results_year.loc[:, "Household_BatteryCapacity"] == BatteryCapacity) &
+                            (optimization_results_year.loc[:, "ID_Environment"] == environment)]
 
-                    optim_ids = optim_year.ID_Household.to_numpy()
+                        optim_ids = optim_year.ID_Household.to_numpy()
 
-                    ref_year = reference_results_year.loc[(reference_results_year.loc[:, "Household_PVPower"] == PVPower) &
-                                                   (reference_results_year.loc[:, "Household_TankSize"] == TankSize) &
-                                                   (reference_results_year.loc[:,
-                                                    "Household_BatteryCapacity"] == BatteryCapacity)]
+                        ref_year = reference_results_year.loc[
+                            (reference_results_year.loc[:, "Household_PVPower"] == PVPower) &
+                            (reference_results_year.loc[:, "Household_TankSize"] == TankSize) &
+                            (reference_results_year.loc[:, "Household_BatteryCapacity"] == BatteryCapacity) &
+                            (optimization_results_year.loc[:, "ID_Environment"] == environment)]
 
-                    ref_ids = ref_year.ID_Household.to_numpy()
+                        ref_ids = ref_year.ID_Household.to_numpy()
 
-                    # save IDs to dict
-                    config_ids_opt["PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize)] = optim_ids
-                    config_ids_ref["PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize)] = ref_ids
+                        # save IDs to dict
+                        config_ids_opt[("PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize),
+                                        "E{:n}".format(environment))] = optim_ids
+                        config_ids_ref[("PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize, environment),
+                                        "E{:n}".format(environment))] = ref_ids
 
-                    # save same household configuration total results to dict
-                    config_frame_opt_year["PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize)] = optim_year
-                    config_frame_ref_year["PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize)] = ref_year
-                    i += 1
+                        # save same household configuration total results to dict
+                        config_frame_opt_year[
+                            ("PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize),
+                             "E{:n}".format(environment))] = optim_year
+                        config_frame_ref_year[("PV{:n}B{:n}T{:n}".format(PVPower, BatteryCapacity, TankSize),
+                                              "E{:n}".format(environment))] = ref_year
+                        i += 1
 
         def plot_barplot(frame_opt, frame_ref, variable2plot):
             # create barplot with total amounts:
             figure = plt.figure()
-            figure.suptitle(variable2plot.replace("Year_", "") + " average difference between optimization and reference")
-            barplot_frame = pd.DataFrame(columns=["Configuration", variable2plot.replace("Year_", ""), "Option"])  # dataframe for seaborn:
+            figure.suptitle(
+                variable2plot.replace("Year_", "") + " average difference between optimization and reference \n for different electricity prices")
+            y_axis_title = variable2plot.replace("Year_", "") + "\n optimization - reference (kWh)"
+            barplot_frame = pd.DataFrame(
+                columns=["Configuration", y_axis_title, "Scenario"])  # dataframe for seaborn:
             for key in frame_opt.keys():
                 Sum_opt = frame_opt[key][variable2plot].sum() / number_of_profiles_aggregated
                 Sum_ref = frame_ref[key][variable2plot].sum() / number_of_profiles_aggregated
+                Differenz = Sum_opt - Sum_ref
 
-                barplot_frame = barplot_frame.append({"Configuration": key,
-                                                      variable2plot.replace("Year_", ""): Sum_opt,
-                                                      "Option": "Optimization"}, ignore_index=True)
-                barplot_frame = barplot_frame.append({"Configuration": key,
-                                                      variable2plot.replace("Year_", ""): Sum_ref,
-                                                      "Option": "Reference"}, ignore_index=True)
+                # check what the environment means:
+                if key[1] == "E1":
+                    scenarioname = "flat electricity price"
+                elif key[1] == "E2":
+                    scenarioname = "variable electricity price"
+                barplot_frame = barplot_frame.append({"Configuration": key[0],
+                                                      y_axis_title: Differenz,
+                                                      "Scenario": scenarioname},
+                                                     ignore_index=True)
+
 
             sns.barplot(data=barplot_frame,
                         x="Configuration",
-                        y=variable2plot.replace("Year_", ""),
-                        hue="Option",
+                        y=y_axis_title,
+                        hue="Scenario",
                         palette="muted")
 
             ax = plt.gca()
@@ -919,19 +936,21 @@ class Visualization:
         plot_barplot(config_frame_opt_year, config_frame_ref_year, "Year_Q_HeatPump")
         plot_barplot(config_frame_opt_year, config_frame_ref_year, "Year_E_PVSelfUse")
 
-
         def get_hourly_aggregated_profile(configuration_IDs, variable):
             # select the aggregation profiles from the hourly results frame
             summary_profile_ref = {}
             summary_profile_opt = {}
             for i, configuration in enumerate(configuration_IDs.keys()):
+                environment_id = int(re.sub("[^0-9]", "", configuration[1]))  # remove non numbers to get ID as number
                 Sum_ref = np.zeros(shape=(8760,))
                 Sum_opt = np.zeros(shape=(8760,))
                 for house_id in configuration_IDs[configuration]:
                     Sum_ref = Sum_ref + self.ReferenceOperationHour.loc[
-                        self.ReferenceOperationHour.loc[:, "ID_Household"] == house_id][variable].to_numpy()
+                        (self.ReferenceOperationHour.loc[:, "ID_Household"] == house_id) &
+                        (self.ReferenceOperationHour.loc[:, "ID_Environment"] == environment_id)][variable].to_numpy()
                     Sum_opt = Sum_opt + self.SystemOperationHour.loc[
-                        self.SystemOperationHour.loc[:, "ID_Household"] == house_id][variable].to_numpy()
+                        (self.SystemOperationHour.loc[:, "ID_Household"] == house_id) &
+                        (self.SystemOperationHour.loc[:, "ID_Environment"] == environment_id)][variable].to_numpy()
 
                 summary_profile_ref[configuration] = Sum_ref
                 summary_profile_opt[configuration] = Sum_opt
@@ -949,24 +968,33 @@ class Visualization:
         profile_ref_Q_Cooling, profile_opt_Q_Cooling = get_hourly_aggregated_profile(config_ids_opt, "Q_RoomCooling")
         profile_ref_E_Cooling, profile_opt_E_Cooling = get_hourly_aggregated_profile(config_ids_opt, "E_RoomCooling")
 
+        # appliances
+        profile_ref_E_SmartAppliance, profile_opt_E_SmartAppliance = get_hourly_aggregated_profile(config_ids_opt, "E_SmartAppliance")
+
         for week in [8, 32]:
             # electricity from grid big subplot
-            self.plot_aggregation_comparison_week(profile_opt_E_Grid, profile_ref_E_Grid, "E_Grid", number_of_profiles_aggregated, week=week)
+            self.plot_aggregation_comparison_week(profile_opt_E_Grid, profile_ref_E_Grid, "E_Grid",
+                                                  number_of_profiles_aggregated, week=week)
 
             # heating big subplot
-            self.plot_aggregation_comparison_week(profile_ref_Q_HP, profile_opt_Q_HP, "Q_HeatPump", number_of_profiles_aggregated, week=week)
-            self.plot_aggregation_comparison_week(profile_ref_E_HP, profile_opt_E_HP, "E_HeatPump", number_of_profiles_aggregated, week=week)
+            self.plot_aggregation_comparison_week(profile_ref_Q_HP, profile_opt_Q_HP, "Q_HeatPump",
+                                                  number_of_profiles_aggregated, week=week)
+            self.plot_aggregation_comparison_week(profile_ref_E_HP, profile_opt_E_HP, "E_HeatPump",
+                                                  number_of_profiles_aggregated, week=week)
 
             # cooling big subplot
-            self.plot_aggregation_comparison_week(profile_ref_Q_Cooling, profile_opt_Q_Cooling, "Q_Cooling", number_of_profiles_aggregated, week=week)
-            self.plot_aggregation_comparison_week(profile_ref_E_Cooling, profile_opt_E_Cooling, "E_Cooling", number_of_profiles_aggregated, week=week)
+            self.plot_aggregation_comparison_week(profile_ref_Q_Cooling, profile_opt_Q_Cooling, "Q_Cooling",
+                                                  number_of_profiles_aggregated, week=week)
+            self.plot_aggregation_comparison_week(profile_ref_E_Cooling, profile_opt_E_Cooling, "E_Cooling",
+                                                  number_of_profiles_aggregated, week=week)
+
+            # appliances big subplot
+            self.plot_aggregation_comparison_week(profile_ref_E_SmartAppliance, profile_opt_E_SmartAppliance,
+                                                  "E_Appliance", number_of_profiles_aggregated, week=week)
+
 
 
         pass
-
-
-
-
 
     def plot_total_comparison(self):
 
@@ -998,7 +1026,6 @@ class Visualization:
 
                 axes[i].yaxis.set_tick_params(labelbottom=True)
 
-
             figure_name = "ViolinPlot " + title
             plt.savefig(CONS().FiguresPath + "\\Aggregated_Results\\" + figure_name + ".png", dpi=200, format='PNG')
             plt.savefig(CONS().FiguresPath + "\\Aggregated_Results\\" + figure_name + ".svg")
@@ -1008,8 +1035,6 @@ class Visualization:
         create_violin_plot(frame, "Year_E_Load", "total electricity consumption")
         create_violin_plot(frame, "Year_PVSelfSufficiencyRate", "PV self sufficiency rate")
         create_violin_plot(frame, "Year_E_Grid", "total electricity from the Grid")
-
-
 
         ref_list = pd.DataFrame(columns=optimization_results.columns)
         opt_list = pd.DataFrame(columns=optimization_results.columns)
@@ -1023,7 +1048,6 @@ class Visualization:
                 ref_list = ref_list.append(reference_results.iloc[index, :], ignore_index=True)
                 opt_list = opt_list.append(optimization_results.iloc[index, :], ignore_index=True)
 
-
         frame_for_violin = pd.concat([ref_list, opt_list], axis=0)
 
         # create_violin_plot(frame_for_violin, "OperationCost", "Costs of special buildings")
@@ -1032,15 +1056,13 @@ class Visualization:
         house12_ref = self.ReferenceOperationHour.loc[self.ReferenceOperationHour["ID_Household"] == 12, :]
         house12_opt = self.SystemOperationHour.loc[self.SystemOperationHour["ID_Household"] == 12, :]
 
-        solar_diff = house12_ref.loc[:, "Q_SolarGain"]/1000 - house12_opt.loc[:, "Q_SolarGain"]
+        solar_diff = house12_ref.loc[:, "Q_SolarGain"] / 1000 - house12_opt.loc[:, "Q_SolarGain"]
 
         heating_diff = house12_ref.loc[:, "Q_HeatPump"] - house12_opt.loc[:, "Q_HeatPump"]
 
         cooling_diff = house12_ref.loc[:, "Q_RoomCooling"] - house12_opt.loc[:, "Q_RoomCooling"]
 
         number_of_buildings = self.get_total_number_of_buildings()
-
-
 
         pass
 
@@ -1137,8 +1159,8 @@ class Visualization:
         plt.show()
         plt.close(figure)
 
-
-    def plot_aggregation_comparison_week(self, optim_variable, ref_variable, variable_name, number_of_profiles, **kwargs):
+    def plot_aggregation_comparison_week(self, optim_variable, ref_variable, variable_name, number_of_profiles,
+                                         **kwargs):
         HourStart = 1
         HourEnd = 8760
         if "horizon" in kwargs:
@@ -1154,7 +1176,7 @@ class Visualization:
             pass
 
         number_of_subplots = len(optim_variable)
-        figure, axes = plt.subplots(number_of_subplots, 1, figsize=(20, 4*number_of_subplots), dpi=200, frameon=False)
+        figure, axes = plt.subplots(number_of_subplots, 1, figsize=(20, 4 * number_of_subplots), dpi=200, frameon=False)
         # ax_1 = figure.add_axes([0.1, 0.1, 0.8, 0.75])
         x_values = np.arange(HourStart, HourEnd)
         alpha_value = 0.8
@@ -1162,28 +1184,32 @@ class Visualization:
 
         for index, (key, values) in enumerate(optim_variable.items()):
             axes[index].plot(x_values, values[HourStart:HourEnd] / number_of_profiles,
-                      alpha=alpha_value,
-                      linewidth=linewidth_value,
-                      label="Optimization")
+                             alpha=alpha_value,
+                             linewidth=linewidth_value,
+                             label="Optimization")
 
         for index, (key, values) in enumerate(ref_variable.items()):
             axes[index].plot(x_values, values[HourStart:HourEnd] / number_of_profiles,
-                      alpha=alpha_value,
-                      linewidth=linewidth_value,
-                      label="Reference")
+                             alpha=alpha_value,
+                             linewidth=linewidth_value,
+                             label="Reference")
             tick_position = [HourStart + 11.5] + [HourStart + 11.5 + 24 * day for day in range(1, 7)]
             x_ticks_label = ["Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun"]
             axes[index].set_xticks(tick_position)
             axes[index].set_xticklabels(x_ticks_label)
             axes[index].tick_params(axis="both", labelsize=20)
-            axes[index].get_yaxis().set_major_formatter(
-                matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
+
             for tick in axes[index].yaxis.get_major_ticks():
                 tick.label2.set_fontsize(20)
 
-            split_title = re.split("(\d+)", key)
+            if key[1] == "E1":
+                price_type = "flat"
+            elif key[1] == "E2":
+                price_type = "variable"
+
+            split_title = re.split("(\d+)", key[0])
             title = split_title[0] + ": " + split_title[1] + " kWp, " + split_title[2] + "attery: " + split_title[3] + \
-                    " kWh, " + split_title[4] + "ank size: " + split_title[5] + " l"
+                    " kWh, " + split_title[4] + "ank size: " + split_title[5] + " l " + "price: " + price_type
             axes[index].set_title(title, fontsize=20)
             axes[index].grid(which="both", axis="y")
             axes[index].legend()
@@ -1198,7 +1224,6 @@ class Visualization:
         plt.savefig(CONS().FiguresPath + "\\Aggregated_Results\\" + figure_name + ".svg")
         # plt.show()
         plt.close(figure)
-
 
     def plot_battery_comparison(self, id_household, id_environment, horizon,
                                 battery_SOC_Ref,
@@ -1219,7 +1244,7 @@ class Visualization:
                  label=battery2Load_Ref["label"],
                  alpha=alpha_value,
                  color=battery2Load_Ref["color"],
-                 bottom=battery_SOC_Ref["values"] +  battery2Load_Ref["values"])
+                 bottom=battery_SOC_Ref["values"] + battery2Load_Ref["values"])
 
         ax_1.bar(x_values,
                  batteryCharge_Ref["values"],
@@ -1284,18 +1309,15 @@ class Visualization:
         for tick in ax_2.yaxis.get_major_ticks():
             tick.label2.set_fontsize(20)
 
-        fig_name ="Battery_SOC_Comparison_H" + str(id_household) + "_E" + str(id_environment) + \
+        fig_name = "Battery_SOC_Comparison_H" + str(id_household) + "_E" + str(id_environment) + \
                    "_H" + str(horizon[0]) + "_" + str(horizon[1])
         figure.savefig(CONS().FiguresPath + fig_name + ".png", dpi=200, format='PNG')
         plt.show()
         plt.close(figure)
 
-
         pass
 
-
     def plot_tank_comparison(self, id_household, id_environment, horizon):
-
 
         pass
 

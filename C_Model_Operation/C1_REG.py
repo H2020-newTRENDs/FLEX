@@ -186,9 +186,13 @@ class REG_Var:
         self.E_PV2Grid_Ref = self.EndEnergy + "PV2Grid_Ref"
 
         self.E_BatteryCharge = self.EndEnergy + "BatteryCharge"
+        self.E_BatteryCharge_Ref = self.EndEnergy + "BatteryCharge_Ref"
         self.E_BatteryDischarge = self.EndEnergy + "BatteryDischarge"
+        self.E_BatteryDischarge_Ref = self.EndEnergy + "BatteryDischarge_Ref"
         self.E_Battery2Load = self.EndEnergy + "Battery2Load"
+        self.E_Battery2Load_Ref = self.EndEnergy + "Battery2Load_Ref"
         self.BatteryStateOfCharge = "BatteryStateOfCharge"
+        self.BatteryStateOfCharge_Ref = "BatteryStateOfCharge_Ref"
 
         self.E_Load = self.EndEnergy + "Load"
         self.E_Load_Ref = self.EndEnergy + "Load_Ref"
