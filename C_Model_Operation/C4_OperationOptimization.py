@@ -774,6 +774,11 @@ def calculate_multiprocess(all_input_parameters, instance):
     pool.map(calculate_results, list(all_input_parameters.values()), [instance] * len(all_input_parameters))
     pool.close()
 
+def calculate_singleprocess(all_input_parameters, instance):
+    for key in all_input_parameters.keys():
+        calculate_results(all_input_parameters[key], instance)
+    pass
+
 
 def calculate_results(Input_Parameters, instance):
     DC_noSQlite = DataCollector_noSQlite()
@@ -1032,7 +1037,8 @@ def run():
 
     pyomo_instance = OperationOptimization(Conn).create_instance()
     instance_inputs = OperationOptimization(Conn).create_parallizable_data()
-    calculate_multiprocess(instance_inputs, pyomo_instance)
+    # calculate_multiprocess(instance_inputs, pyomo_instance)
+    calculate_singleprocess(instance_inputs, pyomo_instance)
 
 
 if __name__ == "__main__":

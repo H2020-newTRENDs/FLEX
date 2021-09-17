@@ -147,6 +147,13 @@ class TableGenerator:
         self.gen_OBJ_ID_Table_1To1(REG_Table().Gen_OBJ_ID_HotWater, HotWaterBoiler)
         return None
 
+    def gen_OBJ_DHW(self):
+        """"
+        This profile is taken from https://www.iea-ebc.org/projects/project?AnnexID=42
+        """
+        origin_data = pd.read_excel()
+
+
     def gen_OBJ_ID_PV(self, nuts_id):
         # TODO rewrite function in case of more nuts ids
         def get_JRC(lat, lon, startyear, endyear, peakpower):

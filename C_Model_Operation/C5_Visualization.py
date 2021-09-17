@@ -834,7 +834,7 @@ class Visualization:
                                      )
 
 
-    def plot_agregated_results(self):
+    def plot_average_results(self):
         reference_results_year = self.ReferenceOperationYear
         optimization_results_year = self.SystemOperationYear
         reference_results_year.loc[:, "Option"] = "Reference"
@@ -1308,7 +1308,7 @@ class Visualization:
 
 if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
-    Visualization(CONN).plot_agregated_results()
+    Visualization(CONN).plot_average_results()
     # Visualization(CONN).plot_total_comparison()
     # Visualization(CONN).visualize_comparison2Reference(1, 1, week=8)
 
