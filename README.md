@@ -18,6 +18,9 @@ Hey, check this out: [Prosumager](https://songminyu.github.io/Prosumager/).
 - find alternative profiles for DHW and electricity for single households (can profile generator generate many profiles 
 simultaneously)
 - integrate other heating systems (no HP) and get Water source Heat pump to work
+- implement vacation weeks with no one at home!
+- hot water could be drawn from tank in simplified way?
+- integrate a probability function for DHW consumption
 
 
 #### 2.1 Songmin
