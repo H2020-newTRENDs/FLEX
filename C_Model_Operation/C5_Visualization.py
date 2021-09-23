@@ -977,19 +977,19 @@ class Visualization:
                                                   number_of_profiles_aggregated, week=week)
 
             # heating big subplot
-            self.plot_aggregation_comparison_week(profile_ref_Q_HP, profile_opt_Q_HP, "Q_HeatPump",
+            self.plot_aggregation_comparison_week(profile_opt_Q_HP, profile_ref_Q_HP, "Q_HeatPump",
                                                   number_of_profiles_aggregated, week=week)
-            self.plot_aggregation_comparison_week(profile_ref_E_HP, profile_opt_E_HP, "E_HeatPump",
+            self.plot_aggregation_comparison_week(profile_opt_E_HP, profile_ref_E_HP, "E_HeatPump",
                                                   number_of_profiles_aggregated, week=week)
 
             # cooling big subplot
-            self.plot_aggregation_comparison_week(profile_ref_Q_Cooling, profile_opt_Q_Cooling, "Q_Cooling",
+            self.plot_aggregation_comparison_week(profile_opt_Q_Cooling, profile_ref_Q_Cooling, "Q_Cooling",
                                                   number_of_profiles_aggregated, week=week)
-            self.plot_aggregation_comparison_week(profile_ref_E_Cooling, profile_opt_E_Cooling, "E_Cooling",
+            self.plot_aggregation_comparison_week(profile_opt_E_Cooling, profile_ref_E_Cooling, "E_Cooling",
                                                   number_of_profiles_aggregated, week=week)
 
             # appliances big subplot
-            self.plot_aggregation_comparison_week(profile_ref_E_SmartAppliance, profile_opt_E_SmartAppliance,
+            self.plot_aggregation_comparison_week(profile_opt_E_SmartAppliance, profile_ref_E_SmartAppliance,
                                                   "E_Appliance", number_of_profiles_aggregated, week=week)
 
 
