@@ -7,7 +7,18 @@ from C_Model_Operation.C2_DataCollector import DataCollector
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from time import perf_counter
+from functools import wraps
 
+
+def performance_counter(func):
+    @wraps(func)
+    def wrapper():
+        t_start = perf_counter()
+        func()
+        t_end = perf_counter()
+        print("time for execution: {}".format(t_end - t_start))
+    return wrapper
 
 class no_DR:
 
@@ -667,9 +678,7 @@ class no_DR:
                              dtype=DataCollector(self.Conn).SystemOperationHour_Column)
 
 
-
-
-
+    @performance_counter
     def run(self):
         runs = len(self.ID_Household)
         for household_RowID in range(0, runs):
@@ -681,5 +690,6 @@ class no_DR:
 
 
 if __name__ == "__main__":
-    no_DR().run()
+    # no_DR().run()
     print("finished")
+
