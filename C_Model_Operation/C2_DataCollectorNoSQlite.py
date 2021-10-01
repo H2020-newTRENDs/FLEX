@@ -1,19 +1,13 @@
 # -*- coding: utf-8 -*-
-__author__ = 'Songmin'
+__author__ = 'Philipp'
 
 import numpy as np
-from A_Infrastructure.A1_CONS import CONS
-from C_Model_Operation.C1_REG import REG_Table
 from C_Model_Operation.C1_REG import REG_Var
-from A_Infrastructure.A2_DB import DB
 
 
-class DataCollector:
+class DataCollector_noSQlite:
 
-    def __init__(self, conn):
-        self.Conn = conn
-        self.TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
-        self.OptimizationHourHorizon = len(self.TimeStructure)
+    def __init__(self):
         self.VAR = REG_Var()
         self.SystemOperationHour_Column = {self.VAR.ID_Household: "INTEGER",
                                            self.VAR.ID_Building: "INTEGER",
@@ -118,7 +112,7 @@ class DataCollector:
         result_array = np.nan_to_num(np.array(list(result_DictValues.values()), dtype=np.float), nan=0)
         return result_array
 
-    def collect_OptimizationResult(self, Household, Environment, PyomoModelInstance):
+    def collect_OptimizationResult_noSQlite(self, Household, Environment, PyomoModelInstance):
 
         ElectricityPrice_array = self.extract_Result2Array(PyomoModelInstance.ElectricityPrice.extract_values()) * 1000  # Cent/kWh
         FeedinTariff_array = self.extract_Result2Array(PyomoModelInstance.FiT.extract_values()) * 1_000  # Cent/kWh
@@ -128,14 +122,14 @@ class DataCollector:
         Hour_DishWasher1_array = self.extract_Result2Array(PyomoModelInstance.DishWasher1.extract_values())
         Hour_DishWasher2_array = self.extract_Result2Array(PyomoModelInstance.DishWasher2.extract_values())
         Hour_DishWasher3_array = self.extract_Result2Array(PyomoModelInstance.DishWasher3.extract_values())
-        E_DishWasher_array = (Hour_DishWasher1_array + Hour_DishWasher2_array + Hour_DishWasher3_array) * Household.ApplianceGroup.DishWasherPower
+        E_DishWasher_array = (Hour_DishWasher1_array + Hour_DishWasher2_array + Hour_DishWasher3_array) * Household["ApplianceGroup_DishWasherPower"]
         Hour_WashingMachine1_array = self.extract_Result2Array(PyomoModelInstance.WashingMachine1.extract_values())
         Hour_WashingMachine2_array = self.extract_Result2Array(PyomoModelInstance.WashingMachine2.extract_values())
         Hour_WashingMachine3_array = self.extract_Result2Array(PyomoModelInstance.WashingMachine3.extract_values())
-        E_WashingMachine_array = (Hour_WashingMachine1_array + Hour_WashingMachine2_array + Hour_WashingMachine3_array) * Household.ApplianceGroup.WashingMachinePower
+        E_WashingMachine_array = (Hour_WashingMachine1_array + Hour_WashingMachine2_array + Hour_WashingMachine3_array) * Household["ApplianceGroup_WashingMachinePower"]
         Hour_Dryer1_array = self.extract_Result2Array(PyomoModelInstance.Dryer1.extract_values())
         Hour_Dryer2_array = self.extract_Result2Array(PyomoModelInstance.Dryer2.extract_values())
-        E_Dryer_array = (Hour_Dryer1_array + Hour_Dryer2_array) * Household.ApplianceGroup.DryerPower
+        E_Dryer_array = (Hour_Dryer1_array + Hour_Dryer2_array) * Household["ApplianceGroup_DryerPower"]
         E_SmartAppliances_array = E_DishWasher_array + E_WashingMachine_array + E_Dryer_array
 
         Q_TankHeatingHeatPump_array = self.extract_Result2Array(PyomoModelInstance.Q_TankHeating.extract_values()) / 1000  # kWh
@@ -178,10 +172,10 @@ class DataCollector:
 
         # self.SystemOperationHour_ValueList (column stack is 6 times faster than for loop)
         self.SystemOperationHour_ValueList.append(np.column_stack([
-            np.full((len(E_Load_array),), Household.ID),
-            np.full((len(E_Load_array),), Household.ID_Building),
+            np.full((len(E_Load_array),), Household["ID"]),
+            np.full((len(E_Load_array),), Household["ID_Building"]),
             np.full((len(E_Load_array),), Environment["ID"]),
-            np.arange(1, self.OptimizationHourHorizon+1),
+            np.arange(1, len(E_Load_array) + 1),
             ElectricityPrice_array,
             FeedinTariff_array,
             OutsideTemperature_array,
@@ -226,8 +220,8 @@ class DataCollector:
             E_Load_array])
         )
 
-        self.SystemOperationYear_ValueList.append([Household.ID,
-                                                   Household.ID_Building,
+        self.SystemOperationYear_ValueList.append([Household["ID"],
+                                                   Household["ID_Building"],
                                                    Environment["ID"],
                                                    PyomoModelInstance.Objective(),
 
@@ -265,20 +259,12 @@ class DataCollector:
                                                    (E_PV_array.sum() - E_PV2Grid_array.sum())/E_PV_array.sum(),
                                                    (E_PV_array.sum() - E_PV2Grid_array.sum())/E_Load_array.sum(),
 
-                                                   Household.Building.hwb_norm1,
-                                                   Household.ApplianceGroup.DishWasherShifting,
-                                                   Household.ApplianceGroup.WashingMachineShifting,
-                                                   Household.ApplianceGroup.DryerShifting,
-                                                   Household.SpaceHeating.TankSize,
-                                                   Household.SpaceCooling.AdoptionStatus,
-                                                   Household.PV.PVPower,
-                                                   Household.Battery.Capacity,
+                                                   Household["Building_hwb_norm1"],
+                                                   Household["ApplianceGroup_DishWasherShifting"],
+                                                   Household["ApplianceGroup_WashingMachineShifting"],
+                                                   Household["ApplianceGroup_DryerShifting"],
+                                                   Household["SpaceHeating_TankSize"],
+                                                   Household["SpaceCooling_AdoptionStatus"],
+                                                   Household["PV_PVPower"],
+                                                   Household["Battery_Capacity"],
                                                    Environment["ID_ElectricityPriceType"]])
-
-    def save_OptimizationResult(self):
-        DB().write_DataFrame(np.vstack(self.SystemOperationHour_ValueList), REG_Table().Res_SystemOperationHour,
-                             self.SystemOperationHour_Column.keys(), self.Conn, dtype=self.SystemOperationHour_Column)
-        DB().write_DataFrame(self.SystemOperationYear_ValueList, REG_Table().Res_SystemOperationYear,
-                             self.SystemOperationYear_Column.keys(), self.Conn, dtype=self.SystemOperationYear_Column)
-
-
