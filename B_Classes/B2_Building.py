@@ -1,6 +1,11 @@
 from A_Infrastructure.A1_CONS import CONS
 import numpy as np
 import pandas as pd
+import geopandas as gpd
+from pyproj import CRS, Transformer
+from A_Infrastructure.A2_DB import DB
+from C_Model_Operation.C1_REG import REG_Table
+
 
 
 class Building:
@@ -21,7 +26,7 @@ class Building:
         self.horizontal_shading_building = para_series['horizontal_shading_building']  #
         self.areawindows = para_series['areawindows']
         self.area_suitable_solar = para_series['area_suitable_solar']
-        self.ued_dhw = para_series['ued_dhw']
+        # self.ued_dhw = para_series['ued_dhw']
         self.average_effective_area_wind_west_east_red_cool \
             = para_series['average_effective_area_wind_west_east_red_cool']
         self.average_effective_area_wind_south_red_cool \
@@ -36,7 +41,7 @@ class Building:
         self.Hve = para_series['Hve']
         self.CM_factor = para_series['CM_factor']
         self.Am_factor = para_series['Am_factor']
-        self.hwb_norm1 = para_series['hwb_norm1']
+        self.hwb_norm1 = para_series['hwb_norm']
         self.country_ID = para_series['country_ID']
 
         self.MaximalGridPower = para_series['MaximalGridPower']
@@ -44,26 +49,27 @@ class Building:
         self.MaximalBuildingMassTemperature = para_series['MaximalBuildingMassTemperature']
 
 
-
-
-
 class HeatingCooling_noDR:
 
-    def __init__(self, ID_BuildingOption_dataframe):
-        try:
-            self.index = ID_BuildingOption_dataframe['index']
-            self.name = ID_BuildingOption_dataframe['name']
-            self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
-            self.number_of_dwellings_per_building = ID_BuildingOption_dataframe['number_of_dwellings_per_building']
-            self.areawindows =ID_BuildingOption_dataframe['areawindows']
-            self.area_suitable_solar =ID_BuildingOption_dataframe['area_suitable_solar']
-            self.ued_dhw = ID_BuildingOption_dataframe['ued_dhw']
-            self.AreaWindowEastWest = ID_BuildingOption_dataframe['average_effective_area_wind_west_east_red_cool'].to_numpy()
-            self.AreaWindowSouth = ID_BuildingOption_dataframe['average_effective_area_wind_south_red_cool'].to_numpy()
-            self.AreaWindowNorth = ID_BuildingOption_dataframe['average_effective_area_wind_north_red_cool'].to_numpy()
-            self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
-        except:
-            pass
+    def __init__(self):
+        conn = DB().create_Connection(CONS().RootDB)
+        self.Conn = conn
+        ID_BuildingOption_dataframe = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.Conn)
+        # try:
+        self.index = ID_BuildingOption_dataframe['index']
+        self.name = ID_BuildingOption_dataframe['name']
+        self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
+        self.number_of_dwellings_per_building = ID_BuildingOption_dataframe['number_of_dwellings_per_building']
+        self.areawindows = ID_BuildingOption_dataframe['areawindows']
+        self.area_suitable_solar = ID_BuildingOption_dataframe['area_suitable_solar']
+        # self.ued_dhw = ID_BuildingOption_dataframe['ued_dhw']
+        self.AreaWindowEastWest = ID_BuildingOption_dataframe[
+            'average_effective_area_wind_west_east_red_cool'].to_numpy()
+        self.AreaWindowSouth = ID_BuildingOption_dataframe['average_effective_area_wind_south_red_cool'].to_numpy()
+        self.AreaWindowNorth = ID_BuildingOption_dataframe['average_effective_area_wind_north_red_cool'].to_numpy()
+        self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
+        # except:
+        #     pass
         self.InternalGains = ID_BuildingOption_dataframe['spec_int_gains_cool_watt'].to_numpy()
         self.Hop = ID_BuildingOption_dataframe['Hop'].to_numpy()
         self.Htr_w = ID_BuildingOption_dataframe['Htr_w'].to_numpy()
@@ -76,31 +82,48 @@ class HeatingCooling_noDR:
         except:
             self.Af = ID_BuildingOption_dataframe["areafloor"].to_numpy()
 
-
-
-
-    def ref_HeatingCooling(self, T_outside, Q_solar=None,
-                           initial_thermal_mass_temp=20, T_air_min=20, T_air_max=26):
+    def ref_HeatingCooling(self, T_outside=None, Q_solar=None, initial_thermal_mass_temp=20, T_air_min=20, T_air_max=27,
+                           **kwargs):
         """
         This function calculates the heating and cooling demand as well as the indoor temperature for every building
         category based in the 5R1C model. The results are hourls vectors for one year. Q_solar is imported from a CSV
-        at the time!
+        at the time! Inputs for T_outside and Q_solar have to be numpy arrays, otherwise the temperature and radiation
+        is taken from the database.
         """
-        if type(T_outside) is np.ndarray:
-            pass
-        else:
-            T_outside = T_outside.loc[:, "Temperature"]
+        # ------------------------------------------------------------------------------------------
+        # this is for the purpose of using the function outside of the database with specific inputs
+        if "Buildings" in kwargs:
+            self.InternalGains = kwargs["Buildings"]['spec_int_gains_cool_watt'].to_numpy()
+            self.Hop = kwargs["Buildings"]['Hop'].to_numpy()
+            self.Htr_w = kwargs["Buildings"]['Htr_w'].to_numpy()
+            self.Hve = kwargs["Buildings"]['Hve'].to_numpy()
+            self.CM_factor = kwargs["Buildings"]['CM_factor'].to_numpy()
+            self.Am_factor = kwargs["Buildings"]['Am_factor'].to_numpy()
 
-        if Q_solar is None:
-            Q_sol_all = pd.read_csv(CONS().DatabasePath + "\\directRadiation_himmelsrichtung_GER.csv", sep=";")
-            Q_sol_north = np.outer(Q_sol_all.loc[:, "RadiationNorth"].to_numpy(), self.AreaWindowNorth)
-            Q_sol_south = np.outer(Q_sol_all.loc[:, "RadiationSouth"].to_numpy(), self.AreaWindowSouth)
-            Q_sol_east_west = np.outer((Q_sol_all.loc[:, "RadiationEast"].to_numpy() +
-                                        Q_sol_all.loc[:, "RadiationWest"].to_numpy()), self.AreaWindowEastWest)
-            Q_solar = Q_sol_north + Q_sol_south + Q_sol_east_west
-            print("Q_solar is calculated from csv file")
+        if isinstance(T_outside, np.ndarray):
+            pass
+        else:
+            # get outside temperature from database
+            T_outside = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()  # TODO careful when more outside temperatures in Database
+        if isinstance(T_air_min, int):
+            T_air_min = np.full((len(T_outside),), T_air_min)
+            T_air_max = np.full((len(T_outside),), T_air_max)
         else:
             pass
+        if isinstance(Q_solar, np.ndarray):
+            pass
+        else:
+            # calculate solar gains from database
+            # solar gains from different celestial directions
+            radiation = DB().read_DataFrame(REG_Table().Gen_Sce_Weather_Radiation_SkyDirections, self.Conn)
+            Q_sol_north = np.outer(radiation.north.to_numpy(), self.AreaWindowSouth)
+            Q_sol_east = np.outer(radiation.east.to_numpy(), self.AreaWindowEastWest / 2)
+            Q_sol_south = np.outer(radiation.south.to_numpy(), self.AreaWindowSouth)
+            Q_sol_west = np.outer(radiation.west.to_numpy(), self.AreaWindowEastWest / 2)
+
+            Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
+        # ------------------------------------------------------------------------------------------
+
         # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
         Atot = 4.5 * self.Af
         # Speicherkapazität J/K
@@ -134,18 +157,11 @@ class HeatingCooling_noDR:
         heating_power_10 = self.Af * 10
 
         for t in timesteps:  # t is the index for each timestep
-            # # Equ. C.2
-            # PHI_m = Am / Atot * (0.5 * Q_InternalGains + Q_solar[t, :])
-            # # Equ. C.3
-            # PHI_st = (1 - Am / Atot - self.Htr_w / 9.1 / Atot) * \
-            #          (0.5 * Q_InternalGains + Q_solar[t, :])
-
-            # For RefBuilding Thomas
             # Equ. C.2
-            PHI_m = Am / Atot * (0.5 * Q_InternalGains + Q_solar[t])
+            PHI_m = Am / Atot * (0.5 * Q_InternalGains + Q_solar[t, :])
             # Equ. C.3
             PHI_st = (1 - Am / Atot - self.Htr_w / 9.1 / Atot) * \
-                     (0.5 * Q_InternalGains + Q_solar[t])
+                     (0.5 * Q_InternalGains + Q_solar[t, :])
 
             # (T_sup = T_outside weil die Zuluft nicht vorgewärmt oder vorgekühlt wird)
             T_sup[t] = T_outside[t]
@@ -220,12 +236,12 @@ class HeatingCooling_noDR:
 
             for i in range(len(self.Hve)):
                 # Check if air temperature without heating is in between boundaries and calculate actual HC power:
-                if T_air_0[i] >= T_air_min and T_air_0[i] <= T_air_max:
+                if T_air_0[i] >= T_air_min[t] and T_air_0[i] <= T_air_max[t]:
                     Q_Heating_noDR[t, i] = 0
-                elif T_air_0[i] < T_air_min:  # heating is required
-                    Q_Heating_noDR[t, i] = heating_power_10[i] * (T_air_min - T_air_0[i]) / (T_air_10[i] - T_air_0[i])
-                elif T_air_0[i] > T_air_max:  # cooling is required
-                    Q_Cooling_noDR[t, i] = heating_power_10[i] * (T_air_max - T_air_0[i]) / (T_air_10_c[i] - T_air_0[i])
+                elif T_air_0[i] < T_air_min[t]:  # heating is required
+                    Q_Heating_noDR[t, i] = heating_power_10[i] * (T_air_min[t] - T_air_0[i]) / (T_air_10[i] - T_air_0[i])
+                elif T_air_0[i] > T_air_max[t]:  # cooling is required
+                    Q_Cooling_noDR[t, i] = heating_power_10[i] * (T_air_max[t] - T_air_0[i]) / (T_air_10_c[i] - T_air_0[i])
 
             # now calculate the actual temperature of thermal mass Tm_t with Q_HC_real:
             # Equ. C.5 with actual heating power
@@ -255,3 +271,14 @@ class HeatingCooling_noDR:
         Tm_t = np.nan_to_num(Tm_t, nan=0)
 
         return Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t
+
+
+
+
+
+
+if __name__ == "__main__":
+    A = HeatingCooling_noDR()
+    A.ref_HeatingCooling()
+
+    pass

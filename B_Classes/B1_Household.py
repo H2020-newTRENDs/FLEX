@@ -17,6 +17,7 @@ class Household:
         self.Conn = conn
         self.ID = para_series['ID']
         self.ID_Country = para_series["ID_Country"]
+        self.ID_Building = para_series["ID_Building"]
         self.ID_HouseholdType = para_series["ID_HouseholdType"]
         self.AveragePersons = para_series["AveragePersons"]
         self.EquivalentPersons = para_series["EquivalentPersons"]
@@ -29,8 +30,3 @@ class Household:
         self.HotWater = HotWater(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_HotWater, (para_series["ID_HotWater"] - 1), self.Conn))
         self.PV = PV(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_PV, (para_series["ID_PV"] - 1), self.Conn))
         self.Battery = Battery(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_Battery, (para_series["ID_Battery"] - 1), self.Conn))
-        self.ElectricVehicle = ElectricVehicle(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_ElectricVehicle, (para_series["ID_ElectricVehicle"] - 1), self.Conn))
-
-
-
-
