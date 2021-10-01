@@ -42,12 +42,15 @@ def update_instance(pyomo_dictionary, instance):
     # update instance
     for t in range(1, 4):
         instance.x[t] = pyomo_dictionary[None]["x"][t]
-
+        instance.z[t].setub(3)
+        instance.z[t].setlb(1)
+        instance.y[t].setub(3)
+        instance.y[t].setlb(1)
     # solve instance
     Opt = pyo.SolverFactory("gurobi")
     result = Opt.solve(instance, tee=True)
     print("update instance done")
-    return result
+    return instance
 
 
 
@@ -66,8 +69,7 @@ def multi_proces():
     instance_list = [instance_empty] * len(input_parameter_list)
     fette_liste = [input_parameter_list, instance_list]
 
-    # test_liste = [input_parameter_list[0], instance_list[0]]
-    # update_instance(test_liste)
+    result = update_instance(input_parameter_list[0], instance_list[0])
     # pool_multi = Pool(processes=2)
     # result = pool_multi.map(update_instance, fette_liste)
 
