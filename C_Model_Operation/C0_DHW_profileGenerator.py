@@ -102,7 +102,7 @@ class DHW_probility():
     def create_random_starting_times(self, probability_function):
         # plot the probability function
         plt.plot(np.arange(24), probability_function.values())
-        plt.title("probability function throughout the day for bathing")
+        plt.title("probability function throughout the day for ...")
         plt.grid()
         plt.show()
 

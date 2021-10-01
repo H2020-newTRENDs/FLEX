@@ -17,7 +17,7 @@ def performance_counter(func):
         t_start = perf_counter()
         func()
         t_end = perf_counter()
-        print("time for execution: {}".format(t_end - t_start))
+        print("function >>{}<< time for execution: {}".format(func.__name__, t_end - t_start))
     return wrapper
 
 class no_DR:
