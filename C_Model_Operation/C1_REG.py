@@ -66,7 +66,7 @@ class REG_Table:
         self.Sce_ID_FeedinTariffType = self.Scenario + self.ID + "FeedinTariffType"
         self.Sce_ID_HotWaterProfileType = self.Scenario + self.ID + 'HotWaterProfileType'
         self.Sce_ID_PhotovoltaicProfileType = self.Scenario + self.ID + 'PhotovoltaicProfileType'
-        self.Sce_ID_EnergyCostType = self.Scenario + self.ID + 'EnergyCostType'
+        self.Sce_ID_EnergyCostType = self.Scenario+ self.ID + 'EnergyCostType'
 
         self.Sce_Weather_Radiation = self.Scenario + "Weather_Radiation" # from helioclim dataset for year 2010
         self.Sce_Weather_Temperature = self.Scenario + "Weather_Temperature" # from MERRA2 dataset for year 2010
@@ -89,21 +89,14 @@ class REG_Table:
         self.Gen_Sce_ID_Environment = self.GeneratedData + self.Scenario + self.ID + "Environment"
 
         self.Gen_Sce_DishWasherHours = self.GeneratedData + self.Scenario + "DishWasherHours"
-        self.Gen_Sce_DishWasherStartingHours = self.GeneratedData + self.Scenario + "DishWasherStartingHours"
         self.Gen_Sce_WashingMachineHours = self.GeneratedData + self.Scenario + "WashingMachineHours"
-        self.Gen_Sce_WashingMachineStartingHours = self.GeneratedData + self.Scenario + "WashingMachineStartingHours"
-        self.Gen_Sce_DryerStartingHours = self.GeneratedData + self.Scenario + "DryerStartingHours"
-
         self.Gen_Sce_CarAtHomeHours = self.GeneratedData + self.Scenario + 'CarAtHomeHours'
 
-        self.Gen_Sce_Technology_HeatPumpCOP = self.GeneratedData + self.Scenario + "Technology_HeatPumpCOP"
-        self.Gen_Sce_HotWaterProfile = self.GeneratedData + self.Scenario + 'HotWaterProfile'
-        self.Gen_Sce_PhotovoltaicProfile = self.GeneratedData + self.Scenario + 'PhotovoltaicProfile'  # based on 1kWp
-        self.Gen_Sce_Weather_Radiation_SkyDirections = self.GeneratedData + self.Scenario + 'Weather_Radiation_SkyDirections'
-        self.Gen_Sce_HeatPump_HourlyCOP = self.GeneratedData + self.Scenario + "HeatPump_HourlyCOP"
-        self.Gen_Sce_AC_HourlyCOP = self.GeneratedData + self.Scenario + "AC_HourlyCOP"
-        self.Gen_Sce_TargetTemperature = self.GeneratedData + self.Scenario + "TargetTemperature"
-
+        self.Gen_Sce_Technology_HeatPumpCOP = self.GeneratedData +self.Scenario + "Technology_HeatPumpCOP"
+        self.Gen_Sce_HotWaterProfile = self.GeneratedData +self.Scenario + 'HotWaterProfile'
+        self.Gen_Sce_PhotovoltaicProfile = self.GeneratedData +self.Scenario + 'PhotovoltaicProfile'  # based on 1kWp
+        self.Gen_Sce_Weather_Radiation_SkyDirections = self.GeneratedData +self.Scenario + 'Weather_Radiation_SkyDirections'  # Philipp
+        self.Gen_Sce_HeatPump_HourlyCOP = self.GeneratedData +self.Scenario + "HeatPump_HourlyCOP"
 
         # Gen_Sce_SolarRadiationDirections...
 
@@ -115,7 +108,6 @@ class REG_Table:
         self.Res_SystemOperationYear = self.Result + "SystemOperationYear"  # 3: col: IDHH, col IDEnvi, col: cost
 
         self.Res_Reference_HeatingCooling = self.Result + 'Reference_HeatingCooling'
-        self.Res_Reference_HeatingCooling_Year = self.Result + 'Reference_HeatingCooling_Year'
 
 
 
@@ -135,7 +127,6 @@ class REG_Var:
         self.ID_Household = self.ID + "Household"
         self.ID_Environment = self.ID + "Environment"
         self.ID_Hour = self.ID + "Hour"
-        self.ID_Building = self.ID + "Building"
 
         self.ElectricityPrice = "ElectricityPrice"
         self.FeedinTariff = "FeedinTariff"
@@ -149,53 +140,46 @@ class REG_Var:
         self.E_SmartAppliance = self.EndEnergy + "SmartAppliance"
 
         self.Q_HeatPump = self.UsefulEnergy + "HeatPump"
-        self.Q_HeatPump_Ref = self.UsefulEnergy + "HeatPump_Ref"
         self.HeatPumpPerformanceFactor = "HeatPumpPerformanceFactor"
         self.E_HeatPump = self.EndEnergy + "HeatPump"
-        self.E_HeatPump_Ref = self.EndEnergy + "HeatPump_Ref"
         self.E_AmbientHeat = self.EndEnergy + "AmbientHeat"
         self.Q_HeatingElement = self.UsefulEnergy + "HeatingElement"
-        self.Q_HeatingElement_Ref = self.UsefulEnergy + "HeatingElement_Ref"
         self.Q_RoomHeating = self.UsefulEnergy + "RoomHeating"
 
         self.RoomTemperature = "RoomTemperature"
-        self.RoomTemperature_Ref = "RoomTemperature_Ref"
         self.BuildingMassTemperature = "BuildingMassTemperature"
-        self.BuildingMassTemperature_Ref = "BuildingMassTemperature_Ref"
         self.Q_SolarGain = self.UsefulEnergy + "SolarGain"
 
         self.Q_RoomCooling = self.UsefulEnergy + "RoomCooling"
-        self.Q_RoomCooling_Ref = self.UsefulEnergy + "RoomCooling_Ref"
         self.E_RoomCooling = self.EndEnergy + "RoomCooling"
-        self.E_RoomCooling_Ref = self.EndEnergy + "RoomCooling_Ref"
 
         self.Q_HotWater = self.UsefulEnergy + "HotWater"
         self.E_HotWater = self.EndEnergy + "HotWater"
 
         self.E_Grid = self.EndEnergy + "Grid"
-        self.E_Grid_Ref = self.EndEnergy + "Grid_Ref"
         self.E_Grid2Load = self.EndEnergy + "Grid2Load"
         self.E_Grid2Battery = self.EndEnergy + "Grid2Battery"
+        self.E_Grid2EV = self.EndEnergy + "Grid2EV"
 
         self.E_PV = self.EndEnergy + "PV"
         self.E_PV2Load = self.EndEnergy + "PV2Load"
-        self.E_PV2Load_Ref = self.EndEnergy + "PV2Load_Ref"
         self.E_PV2Battery = self.EndEnergy + "PV2Battery"
-        self.E_PV2Battery_Ref = self.EndEnergy + "PV2Battery_Ref"
+        self.E_PV2EV = self.EndEnergy + "PV2EV"
         self.E_PV2Grid = self.EndEnergy + "PV2Grid"
-        self.E_PV2Grid_Ref = self.EndEnergy + "PV2Grid_Ref"
 
         self.E_BatteryCharge = self.EndEnergy + "BatteryCharge"
-        self.E_BatteryCharge_Ref = self.EndEnergy + "BatteryCharge_Ref"
         self.E_BatteryDischarge = self.EndEnergy + "BatteryDischarge"
-        self.E_BatteryDischarge_Ref = self.EndEnergy + "BatteryDischarge_Ref"
         self.E_Battery2Load = self.EndEnergy + "Battery2Load"
-        self.E_Battery2Load_Ref = self.EndEnergy + "Battery2Load_Ref"
+        self.E_Battery2EV = self.EndEnergy + "Battery2EV"
         self.BatteryStateOfCharge = "BatteryStateOfCharge"
-        self.BatteryStateOfCharge_Ref = "BatteryStateOfCharge_Ref"
+
+        self.E_EVCharge = self.EndEnergy + "EVCharge"
+        self.E_EVDischarge = self.EndEnergy + "EV2Discharge"
+        self.E_EV2Load = self.EndEnergy + "EV2Load"
+        self.E_EV2Battery = self.EndEnergy + "EV2Battery"
+        self.EVStateOfCharge = "EVStateOfCharge"
 
         self.E_Load = self.EndEnergy + "Load"
-        self.E_Load_Ref = self.EndEnergy + "Load_Ref"
 
         # SystemOperationYear
         self.OperationCost = "OperationCost"
@@ -218,15 +202,23 @@ class REG_Var:
         self.Year_E_Grid = self.Year + self.E_Grid
         self.Year_E_Grid2Load = self.Year + self.E_Grid2Load
         self.Year_E_Grid2Battery = self.Year + self.E_Grid2Battery
+        self.Year_E_Grid2EV = self.Year + self.E_Grid2EV
 
         self.Year_E_PV = self.Year + self.E_PV
         self.Year_E_PV2Load = self.Year + self.E_PV2Load
         self.Year_E_PV2Battery = self.Year + self.E_PV2Battery
+        self.Year_E_PV2EV = self.Year + self.E_PV2EV
         self.Year_E_PV2Grid = self.Year + self.E_PV2Grid
 
         self.Year_E_BatteryCharge = self.Year + self.E_BatteryCharge
         self.Year_E_BatteryDischarge = self.Year + self.E_BatteryDischarge
         self.Year_E_Battery2Load = self.Year + self.E_Battery2Load
+        self.Year_E_Battery2EV = self.Year + self.E_Battery2EV
+
+        self.Year_E_EVCharge = self.Year + self.E_EVCharge
+        self.Year_E_EVDischarge = self.Year + self.E_EVDischarge
+        self.Year_E_EV2Load = self.Year + self.E_EV2Load
+        self.Year_E_EV2Battery = self.Year + self.E_EV2Battery
 
         self.Year_E_Load = self.Year + self.E_Load
         self.Year_E_ElectricityDemand = self.Year + self.EndEnergy + "TotalElectricityDemand"
@@ -242,6 +234,7 @@ class REG_Var:
         self.Household_CoolingAdoption = "Household_CoolingAdoption"
         self.Household_PVPower = "Household_PVPower"
         self.Household_BatteryCapacity = "Household_BatteryCapacity"
+        self.Household_EVBatterySize = "Household_EVBatterySize"
         self.Environment_ElectricityPriceType = "Environment_ElectricityPriceType"
 
 
