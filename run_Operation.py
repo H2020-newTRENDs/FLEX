@@ -22,6 +22,5 @@ if __name__ == "__main__":
     Visualization(CONN).run()
 
 
-# test
 
 
