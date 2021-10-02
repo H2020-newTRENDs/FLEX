@@ -6,7 +6,8 @@ from A_Infrastructure.A2_DB import DB
 from C_Model_Operation.C1_REG import REG_Table
 from A_Infrastructure.A1_CONS import CONS
 
-def calculate_angels_of_sun(latitude, longitude, timearray, E_dir_horizontal):
+
+def calculate_angels_of_sun(latitude, longitude, timearray, E_dir_horizontal, E_dir_diffuse):
     #  Der Azimutwinkel stellt den Horizontalwinkel der Sonne dar und beschreibt ihre Position in horizontaler Richtung
     #  durch die Abweichung von der Himmelsrichtung Süd.
     # Der Höhenwinkel (altitude) beschreibt die Höhedes Sonnenstandes und wird von der Horizontalebene aus in
@@ -55,29 +56,29 @@ def calculate_angels_of_sun(latitude, longitude, timearray, E_dir_horizontal):
 
 
     # Direkt radiation:
-    E_dir_sued = np.nan_to_num(E_dir_horizontal * cos_theta_sued, nan=0) #/ np.sin(np.deg2rad(altitude_sun))
-    E_dir_west = np.nan_to_num(E_dir_horizontal * cos_theta_west, nan=0) #/ np.sin(np.deg2rad(altitude_sun))
-    E_dir_ost = np.nan_to_num(E_dir_horizontal * cos_theta_ost, nan=0) #/ np.sin(np.deg2rad(altitude_sun))
-    E_dir_nord = np.nan_to_num(E_dir_horizontal * cos_theta_nord, nan=0) #/ np.sin(np.deg2rad(altitude_sun))
+    E_dir_sued = np.nan_to_num(E_dir_horizontal * cos_theta_sued, nan=0) / np.sin(np.deg2rad(altitude_sun))
+    E_dir_west = np.nan_to_num(E_dir_horizontal * cos_theta_west, nan=0) / np.sin(np.deg2rad(altitude_sun))
+    E_dir_ost = np.nan_to_num(E_dir_horizontal * cos_theta_ost, nan=0) / np.sin(np.deg2rad(altitude_sun))
+    E_dir_nord = np.nan_to_num(E_dir_horizontal * cos_theta_nord, nan=0) / np.sin(np.deg2rad(altitude_sun))
+
 
     # diffuse Strahlung:
-    E_diff_ost = E_dir_horizontal * (1 + np.cos(np.deg2rad(azimuth_ost))) / 2
-    E_diff_west = E_dir_horizontal * (1 + np.cos(np.deg2rad(azimuth_west))) / 2
-    E_diff_sued = E_dir_horizontal * (1 + np.cos(np.deg2rad(azimuth_sued))) / 2
-    E_diff_nord = E_dir_horizontal * (1 + np.cos(np.deg2rad(azimuth_nord))) / 2
+    E_diff_ost = E_dir_diffuse * (1 + np.cos(np.deg2rad(azimuth_ost))) / 2
+    E_diff_west = E_dir_diffuse * (1 + np.cos(np.deg2rad(azimuth_west))) / 2
+    E_diff_sued = E_dir_diffuse * (1 + np.cos(np.deg2rad(azimuth_sued))) / 2
+    E_diff_nord = E_dir_diffuse * (1 + np.cos(np.deg2rad(azimuth_nord))) / 2
+    E_nord = E_dir_nord + E_diff_nord
+    E_sued = E_dir_sued + E_diff_sued
+    E_ost = E_dir_ost + E_diff_ost
+    E_west = E_dir_west + E_diff_west
 
-    # reflektierte strahlung wird vernachlässigt
-    E_nord = E_dir_nord #+ E_diff_nord
-    E_sued = E_dir_sued #+ E_diff_sued
-    E_ost = E_dir_ost #+ E_diff_ost
-    E_west = E_dir_west #+ E_diff_west
 
     E_sued = E_sued.clip(min=0)
     E_west = E_west.clip(min=0)
     E_ost = E_ost.clip(min=0)
     E_nord = E_nord.clip(min=0)
 
-    return azimuth_sun, altitude_sun, E_nord, E_sued, E_ost, E_west, E_dir_horizontal
+    return azimuth_sun, altitude_sun, E_nord, E_sued, E_ost, E_west
 
 
 
@@ -98,10 +99,19 @@ if __name__ == "__main__":
     timearray = pd.date_range("01-01-2010 00:00:00", "01-01-2011 00:00:00", freq="H", closed="left",
                               tz=datetime.timezone.utc)
 
-    data = DB().read_DataFrame(REG_Table().Sce_Weather_Radiation, conn=DB().create_Connection(CONS().RootDB), ID_Country=5)
-    E_dir = data.loc[:, "Radiation"].to_numpy()
-
-    azimuth_sun, altitude_sun, E_nord, E_sued, E_ost, E_west, E_dir = calculate_angels_of_sun(latitude, longitude, timearray, E_dir)
+    # data = DB().read_DataFrame(REG_Table().Sce_Weather_Radiation, conn=DB().create_Connection(CONS().RootDB), ID_Country=5)
+    # E_dir = data.loc[:, "Radiation"].to_numpy()
+    E = pd.read_csv("inputdata/Timeseries_49.793_9.936_SA_v0deg_2010_2010.csv", sep=",", header=None, names=range(20)
+                    ).dropna(how="all", axis=1)
+    # drop rows with nan:
+    E = E.dropna().reset_index(drop=True)
+    # set header to first column
+    header = E.iloc[0]
+    E = E.iloc[1:, :]
+    E.columns = header
+    E_dir = E.loc[:, "Gb(i)"].to_numpy().astype(float)
+    E_diff = E.loc[:, "Gd(i)"].to_numpy().astype(float)
+    azimuth_sun, altitude_sun, E_nord, E_sued, E_ost, E_west = calculate_angels_of_sun(latitude, longitude, timearray, E_dir, E_diff)
 
     # create excel
     solar_power = pd.DataFrame(columns=["RadiationNorth", "RadiationEast", "RadiationSouth", "RadiationWest"])
@@ -111,10 +121,10 @@ if __name__ == "__main__":
     solar_power["RadiationWest"] = E_west
     solar_power = solar_power.fillna(0)
     # solar_power.to_sql("Sce_Weather_Radiation", con=DB().create_Connection(CONS().RootDB), index=False, if_exists='append', chunksize=1000)
-    solar_power.to_csv("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Prosumager\\_Philipp\\inputdata\\directRadiation_himmelsrichtung_GER.csv", sep=";")
+    solar_power.to_csv("C:\\Users\\mascherbauer\\PycharmProjects\\NewTrends\\Prosumager\\_Philipp\\inputdata\\directRadiation_himmelsrichtung_GERmitPVGIS.csv", sep=";")
 
     plt_anfang = 0
-    plt_ende = 8760
+    plt_ende = 24
     x_achse = np.arange(plt_ende-plt_anfang)
     plt.plot(x_achse, E_sued[plt_anfang:plt_ende], "o", label="sued")
     plt.plot(x_achse, E_west[plt_anfang:plt_ende], "x", label="west")
