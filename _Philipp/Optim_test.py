@@ -310,7 +310,7 @@ temp_outside = temperature
 tank_starting_temp = 50
 thermal_mass_starting_temp = 16
 
-# basics:
+# _Infrastructure:
 # water mass in storage
 m_water = 10_000  # l
 # thermal capacity water
