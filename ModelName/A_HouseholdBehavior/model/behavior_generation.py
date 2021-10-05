@@ -3,7 +3,7 @@ from ..classes.person import Person
 from ..classes.household import Household
 from ..classes.environment import Environment
 
-class Generator:
+class BehaviorGeneration:
 
     def __init__(self, environment: Environment, household: Household):
 

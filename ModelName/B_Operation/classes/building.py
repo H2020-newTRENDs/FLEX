@@ -50,7 +50,9 @@ class Building:
         # self.pv_generation = 0
         pass
 
-
+    def calc_heating_cooling_useful_energy_demand_without_optimization(self):
+        # hourly resolution with 5R1C model
+        pass
 
 
 
