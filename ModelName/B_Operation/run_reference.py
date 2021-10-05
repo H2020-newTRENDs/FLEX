@@ -1,10 +1,10 @@
 
-from ..classes.environment import Environment
-from ..classes.household import Household
-from ..classes.building import Building
-from .optimizer import Optimizer
+from ModelName.B_Operation.classes.environment import Environment
+from ModelName.B_Operation.classes.household import Household
+from ModelName.B_Operation.classes.building import Building
+from ModelName.B_Operation.model.operation_optimization import OperationOptimization
 
-class Run:
+class RunReference:
 
     def __init__(self, id_household, id_building_class, id_building_technology, id_environment):
 
@@ -23,7 +23,7 @@ class Run:
 
     def run(self):
 
-        # result = Optimizer(self.household, self.building, self.environment).run_optimization()
+        # result = OperationOptimization(self.household, self.building, self.environment).run_optimization()
         # save result
 
         pass
