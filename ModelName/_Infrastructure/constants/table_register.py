@@ -1,6 +1,6 @@
 
-class HouseholdBehaviorTables:
-
+class TableRegister:
+    # put the IO tables here --- tables that links different modules
     def __init__(self):
 
         # Prefix
