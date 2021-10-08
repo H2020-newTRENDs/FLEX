@@ -10,15 +10,27 @@ class CONS:
         # Model Paths
         # -----------
         self.ProjectPath = Path(os.path.dirname(__file__)).parent
-        self.FiguresPath = str(self.ProjectPath) + "\_Figures\\"
-        #self.DatabasePath = "C:\\Users\yus\Dropbox\Academic\Models\ProsumagerDatabase\\"
-        #self.Name = "_Songmin"
-        self.DatabasePath = "C:\\Users\\mascherbauer\\Dropbox\\ProsumagerDatabase\\"
-        self.Name = "_Philipp"
-        # self.DatabasePath = "C:\\Users\\thoma\Dropbox\ProsumagerDatabase\\"
-        # self.Name = "_Thomas"
-        self.RootDB = "ProsumagerUpdated" + self.Name
-        # self.RootDB = "ProsumagerUpdated"
+        self.FiguresPath = self.ProjectPath / Path("\_Figures")
+
+        # Songmin
+        # self.DatabasePath = Path("C:/Users/yus/Dropbox/Academic/Models/ProsumagerDatabase")
+        # self.Name = "_Songmin.sqlite"
+
+        # Philipp
+        # self.DatabasePath = Path("C:/Users/mascherbauer/Dropbox/ProsumagerDatabase")
+        # self.Name = "_Philipp.sqlite"
+        # self.RootDB = Path("ProsumagerUpdated" + self.Name)
+
+        # Thomas
+        # self.DatabasePath = Path("C:/Users/thoma/Dropbox/ProsumagerDatabase")
+        # self.Name = "_Thomas.sqlite"
+        # self.RootDB = Path("ProsumagerUpdated" + self.Name)
+        # self.RootDB = Path("ProsumagerUpdated")
+
+        # Root for TU Server:
+        self.DatabasePath = Path("/home/users/pmascherbauer/projects2/NewTrends_PM")
+        self.Name = "_Philipp.sqlite"
+        self.RootDB = Path("ProsumagerUpdated" + self.Name)
 
         # -----
         # Color
