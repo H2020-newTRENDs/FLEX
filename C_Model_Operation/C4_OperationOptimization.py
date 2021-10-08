@@ -13,8 +13,20 @@ from B_Classes.B1_Household import Household
 from A_Infrastructure.A1_CONS import CONS
 import time
 from pathos.multiprocessing import ProcessingPool, cpu_count
+from functools import wraps
 from pathos.pools import ParallelPool
 import multiprocessing
+
+
+def performance_counter(func):
+    @wraps(func)
+    def wrapper(*args):
+        t_start = time.perf_counter()
+        result = func(*args)
+        t_end = time.perf_counter()
+        print("function >>{}<< time for execution: {}".format(func.__name__, t_end - t_start))
+        return result
+    return wrapper
 
 
 class DataSetUp:
@@ -71,6 +83,7 @@ class DataSetUp:
         for index, value in enumerate(value_list, start=1):
             Dictionary[index] = value
         return Dictionary
+
 
     def get_input_data(self, household_RowID, environment_RowID):  # TODO achtung mit water-water HP gehts nicht!
         time_start = time.time()
@@ -326,6 +339,7 @@ class DataSetUp:
 
         return pyomo_dict, Household, Environment, HeatingTargetTemperature, CoolingTargetTemperature
 
+    @performance_counter
     def create_parallizable_data(self):
         runs = len(self.ID_Household)
         environments = 2
@@ -336,7 +350,7 @@ class DataSetUp:
 
         # get the whole input array into one dict as joblib can not pickle sqlite3.connection:
         all_input_parameters = {}
-        for household_RowID in range(0, 4):
+        for household_RowID in range(0, 2):
             for environment_RowID in range(0, 1):
                 input_parameters, Household, Environment, HeatingTargetTemperature, CoolingTargetTemperature = \
                     self.get_input_data(household_RowID, environment_RowID)
@@ -368,8 +382,7 @@ class DataSetUp:
                     "ApplianceGroup_DryerAdoption": int(Household.ApplianceGroup.DryerAdoption),
                     "SpaceHeating_TankSize": float(Household.SpaceHeating.TankSize),
                     "SpaceCooling_AdoptionStatus": int(Household.SpaceCooling.AdoptionStatus),
-                    "PV_PVPower": float(Household.PV.PVPower),
-                    "Battery_Capacity": float(Household.Battery.Capacity)
+                    "PV_PVPower": float(Household.PV.PVPower)
                 }
 
                 environment_dict = {"ID": Environment["ID"],
@@ -387,6 +400,7 @@ class DataSetUp:
 # ###############################################
 # Part III. Pyomo Optimization: cost minimization
 # ###############################################
+@performance_counter
 def create_abstract_model():
     CPWater = 4200 / 3600
     m = pyo.AbstractModel()
@@ -759,17 +773,15 @@ def create_abstract_model():
     return m
 
 
+@performance_counter
 def create_instance(input_parameters):
     # create the instance once:
-    timei = time.time()
     model = create_abstract_model()
-    print("time creating model:" + str(time.time() - timei))
     instance = model.create_instance(data=input_parameters)
-    print("time creating instance:" + str(time.time() - timei))
     return instance
 
 
-def update_instance(Opt, total_input, instance):
+def update_instance(total_input, instance):
     """
     Function takes the instance and updates its parameters as well as fixes various parameters to 0 if they are
     not used because there is no storage available for example. Solves the instance and returns the solved instance.
@@ -978,11 +990,6 @@ def update_instance(Opt, total_input, instance):
     instance.DryerPower = input_parameters[None]["DryerPower"][None]
     instance.WashingMachinePower = input_parameters[None]["WashingMachinePower"][None]
     instance.DishWasherPower = input_parameters[None]["DishWasherPower"][None]
-
-    # solve the instance:
-
-    result = Opt.solve(instance, tee=False)
-    print('Total Operation Cost: ' + str(round(instance.Objective(), 2)))
     return instance
 
     # def run(self):
@@ -1002,9 +1009,9 @@ def calculate_multiprocess(all_input_parameters, instance):
     # parallelize the shit out of the optimization:
     # number_of_cpus = multiprocessing.cpu_count()  # not pathos
     number_of_cpus = cpu_count() - 1
-    pool = ProcessingPool(4)
+    pool = ProcessingPool(number_of_cpus)
     # Pool_parallel = ParallelPool(nodes=number_of_cpus)  # provide number of cores
-    instances = pool.amap(update_instance, [Opt] * len(all_input_parameters),
+    instances = pool.map(update_instance, [Opt] * len(all_input_parameters),
                          list(all_input_parameters.values()),
                          [instance] * len(all_input_parameters))
     pool.close()
@@ -1012,68 +1019,78 @@ def calculate_multiprocess(all_input_parameters, instance):
     # collect results:
     # DC_noSQlite.collect_OptimizationResult_noSQlite(household, environment, instance_updated)
 
+@performance_counter
+def create_instances2solve(all_input_parameters, instance):
+    ergebnisse2 = []
 
-
-
-
-
-def calculate_singleprocess(all_input_parameters, instance):
-    ergebnisse2 = {}
-    Opt = pyo.SolverFactory("gurobi")
-    Opt.options["TimeLimit"] = 180
     for key in all_input_parameters.keys():
-        ergebnis = update_instance(Opt, all_input_parameters[key], instance)
-        ergebnisse2[key] = ergebnis
-
+        instance2calculate = update_instance(all_input_parameters[key], instance)
+        ergebnisse2.append(instance2calculate)
     return ergebnisse2
 
+def solve_instance(instance2solve):
+    import pyomo.environ as pyo
+    Opt = pyo.SolverFactory("gurobi")
+    Opt.options["TimeLimit"] = 180
+    # solve the instance:
+    result = Opt.solve(instance2solve, tee=False)
+    print('Total Operation Cost: ' + str(round(instance2solve.Objective(), 2)))
+    return instance2solve
 
 def run():
-    Conn = DB().create_Connection(CONS().RootDB)
+    # Conn = DB().create_Connection(CONS().RootDB)
     # DataGettingMachine = DataSetUp()
     # model input data
     input_data = DataSetUp().create_parallizable_data()
     initial_parameters = input_data[0, 0]["input_parameters"]
     pyomo_instance = create_instance(initial_parameters)
-
-    ergebnisse = calculate_multiprocess(input_data, pyomo_instance)
-    for ergebnis in ergebnisse:
-        print(ergebnis.Objective())
+    instances2solve = create_instances2solve(input_data, pyomo_instance)
+    instances_solved = []
+    for instance in instances2solve:
+        instances_solved.append(solve_instance(instance))
         # DC = DataCollector()
         # DC.collect_OptimizationResult(, , ergebnis)
 
-    return ergebnisse
+    return instances_solved
 
 def run2():
-    Conn = DB().create_Connection(CONS().RootDB)
+    # Conn = DB().create_Connection(CONS().RootDB)
     # DataGettingMachine = DataSetUp()
     # model input data
     input_data = DataSetUp().create_parallizable_data()
     initial_parameters = input_data[0, 0]["input_parameters"]
     pyomo_instance = create_instance(initial_parameters)
-    ergebnisse = calculate_singleprocess(input_data, pyomo_instance)
-    for ergebnis in ergebnisse:
-        print(ergebnis.Objective())
-    return ergebnisse
+
+    number_of_cpus = cpu_count() - 1
+    pool = ProcessingPool(number_of_cpus)
+    instances2solve = create_instances2solve(input_data, pyomo_instance)
+    instances_solved = pool.map(solve_instance, instances2solve)
+    pool.close()
+    return instances_solved
+
+
+
+    # liste_fertige_modelle = pool.map(create_list, calculate_singleprocess(input_data, pyomo_instance))
+
 
 if __name__ == "__main__":
     # Conn = DB().create_Connection(CONS().RootDB)
     # OperationOptimization(Conn).solve_model()
     starttime1 = time.time()
-    # result_parallel = run()
+    result_parallel = run2()
     endtime1 = time.time()
 
 
     starttime2 = time.time()
-    result_serial = run2()
+    result_serial = run()
     endtime2 = time.time()
     print("time for execution parallel:" + str(endtime1 - starttime1))
     print("time for execution serial:" + str(endtime2 - starttime2))
 
-    for i, serial in enumerate(result_serial):
-        for j, parallel in enumerate(result_parallel):
-            if i == j:
-                print("Results: \n Parallel: " + str(parallel.Objective()) +
-                      "\n Serial: " + str(serial.Objective()))
+    # for i, serial in enumerate(result_serial):
+    #     for j, parallel in enumerate(result_parallel):
+    #         if i == j:
+    #             print("Results: \n Parallel: " + str(parallel.Objective()) +
+    #                   "\n Serial: " + str(serial.Objective()))
 
     # OperationOptimization(Conn).run()
