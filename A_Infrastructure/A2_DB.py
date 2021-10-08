@@ -7,7 +7,7 @@ from A_Infrastructure.A1_CONS import CONS
 class DB:
 
     def create_Connection(self, database_name):
-        conn = sqlite3.connect(CONS().DatabasePath + database_name + ".sqlite")
+        conn = sqlite3.connect(CONS().DatabasePath / database_name)
         return conn
 
     def read_DataFrame(self, table_name, conn, **kwargs):
