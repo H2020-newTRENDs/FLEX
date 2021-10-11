@@ -1,4 +1,3 @@
-
 import sqlite3
 import pandas as pd
 from A_Infrastructure.A1_CONS import CONS
@@ -10,16 +9,24 @@ class DB:
         conn = sqlite3.connect(CONS().DatabasePath / database_name)
         return conn
 
-    def read_DataFrame(self, table_name, conn, **kwargs):
-
-        if len(kwargs) > 0:
-            condition_temp = " where "
-            for key, value in kwargs.items():
-                condition_temp = condition_temp + key + " == '" + str(value) + "' and "
-            condition = condition_temp[0:-5]
-            DataFrame = pd.read_sql('select * from ' + table_name + condition, con=conn)
+    def read_DataFrame(self, table_name, conn, *column_names, **kwargs):
+        if len(column_names) > 0:
+            columns2extract = ""
+            for name in column_names:
+                columns2extract += name + ','
+            columns2extract = columns2extract[:-1]  # delete last ","
         else:
-            DataFrame = pd.read_sql('select * from ' + table_name, con=conn)
+            columns2extract = "*"  # select all columns
+        if len(kwargs) > 0:
+            condition_temp = ""
+            for key, value in kwargs.items():
+                condition_temp += key + " == '" + str(value) + "' and "
+            condition = " where " + condition_temp
+            condition = condition[0:-5]  # deleting last "and"
+        else:
+            condition = ''
+
+        DataFrame = pd.read_sql('select ' + columns2extract + ' from ' + table_name + condition, con=conn)
         return DataFrame
 
     def read_DataFrameRow(self, table_name, row_id, conn):
@@ -36,6 +43,10 @@ class DB:
             table_DataFrame.to_sql(table_name, conn, index=False, if_exists='replace', chunksize=1000)
         return None
 
+    def add_to_dataframe(self, row, table_name, column_names, conn):
+
+        pass
+
     def revise_DataType(self, table_name, data_type, conn):
         table_DataFrame = self.read_DataFrame(table_name, conn)
         table_DataFrame.to_sql(table_name, conn, index=False, if_exists='replace', chunksize=1000,
@@ -45,7 +56,3 @@ class DB:
         table = self.read_DataFrame(table_name_from, conn_from)
         table.to_sql(table_name_to, conn_to, index=False, if_exists='replace', chunksize=1000)
         return None
-
-
-
-
