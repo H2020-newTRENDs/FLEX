@@ -118,70 +118,75 @@ class DataCollector:
         result_array = np.nan_to_num(np.array(list(result_DictValues.values()), dtype=np.float), nan=0)
         return result_array
 
-    def collect_OptimizationResult(self, Household, Environment, PyomoModelInstance):
+    def collect_OptimizationResult(self, household, environment, instance):
+        ElectricityPrice_array = self.extract_Result2Array(
+            instance.ElectricityPrice.extract_values()) * 1000  # Cent/kWh
+        FeedinTariff_array = self.extract_Result2Array(instance.FiT.extract_values()) * 1_000  # Cent/kWh
+        OutsideTemperature_array = self.extract_Result2Array(instance.T_outside.extract_values())
 
-        ElectricityPrice_array = self.extract_Result2Array(PyomoModelInstance.ElectricityPrice.extract_values()) * 1000  # Cent/kWh
-        FeedinTariff_array = self.extract_Result2Array(PyomoModelInstance.FiT.extract_values()) * 1_000  # Cent/kWh
-        OutsideTemperature_array = self.extract_Result2Array(PyomoModelInstance.T_outside.extract_values())
-
-        E_BaseLoad_array = self.extract_Result2Array(PyomoModelInstance.BaseLoadProfile.extract_values()) / 1000  # kW
-        Hour_DishWasher1_array = self.extract_Result2Array(PyomoModelInstance.DishWasher1.extract_values())
-        Hour_DishWasher2_array = self.extract_Result2Array(PyomoModelInstance.DishWasher2.extract_values())
-        Hour_DishWasher3_array = self.extract_Result2Array(PyomoModelInstance.DishWasher3.extract_values())
-        E_DishWasher_array = (Hour_DishWasher1_array + Hour_DishWasher2_array + Hour_DishWasher3_array) * Household.ApplianceGroup.DishWasherPower
-        Hour_WashingMachine1_array = self.extract_Result2Array(PyomoModelInstance.WashingMachine1.extract_values())
-        Hour_WashingMachine2_array = self.extract_Result2Array(PyomoModelInstance.WashingMachine2.extract_values())
-        Hour_WashingMachine3_array = self.extract_Result2Array(PyomoModelInstance.WashingMachine3.extract_values())
-        E_WashingMachine_array = (Hour_WashingMachine1_array + Hour_WashingMachine2_array + Hour_WashingMachine3_array) * Household.ApplianceGroup.WashingMachinePower
-        Hour_Dryer1_array = self.extract_Result2Array(PyomoModelInstance.Dryer1.extract_values())
-        Hour_Dryer2_array = self.extract_Result2Array(PyomoModelInstance.Dryer2.extract_values())
-        E_Dryer_array = (Hour_Dryer1_array + Hour_Dryer2_array) * Household.ApplianceGroup.DryerPower
+        E_BaseLoad_array = self.extract_Result2Array(instance.BaseLoadProfile.extract_values()) / 1000  # kW
+        Hour_DishWasher1_array = self.extract_Result2Array(instance.DishWasher1.extract_values())
+        Hour_DishWasher2_array = self.extract_Result2Array(instance.DishWasher2.extract_values())
+        Hour_DishWasher3_array = self.extract_Result2Array(instance.DishWasher3.extract_values())
+        E_DishWasher_array = (Hour_DishWasher1_array + Hour_DishWasher2_array + Hour_DishWasher3_array) * household[
+            "ApplianceGroup_DishWasherPower"]
+        Hour_WashingMachine1_array = self.extract_Result2Array(instance.WashingMachine1.extract_values())
+        Hour_WashingMachine2_array = self.extract_Result2Array(instance.WashingMachine2.extract_values())
+        Hour_WashingMachine3_array = self.extract_Result2Array(instance.WashingMachine3.extract_values())
+        E_WashingMachine_array = (
+                                             Hour_WashingMachine1_array + Hour_WashingMachine2_array + Hour_WashingMachine3_array) * \
+                                 household["ApplianceGroup_WashingMachinePower"]
+        Hour_Dryer1_array = self.extract_Result2Array(instance.Dryer1.extract_values())
+        Hour_Dryer2_array = self.extract_Result2Array(instance.Dryer2.extract_values())
+        E_Dryer_array = (Hour_Dryer1_array + Hour_Dryer2_array) * household["ApplianceGroup_DryerPower"]
         E_SmartAppliances_array = E_DishWasher_array + E_WashingMachine_array + E_Dryer_array
 
-        Q_TankHeatingHeatPump_array = self.extract_Result2Array(PyomoModelInstance.Q_TankHeating.extract_values()) / 1000  # kWh
-        SpaceHeatingHourlyCOP_array = self.extract_Result2Array(PyomoModelInstance.SpaceHeatingHourlyCOP.extract_values())
+        Q_TankHeatingHeatPump_array = self.extract_Result2Array(instance.Q_TankHeating.extract_values()) / 1000  # kWh
+        SpaceHeatingHourlyCOP_array = self.extract_Result2Array(instance.SpaceHeatingHourlyCOP.extract_values())
         E_TankHeatingHeatPump_array = Q_TankHeatingHeatPump_array / SpaceHeatingHourlyCOP_array
-        Q_TankHeatingHeatingElement_array = self.extract_Result2Array(PyomoModelInstance.Q_HeatingElement.extract_values()) / 1000  # kWh
-        Q_RoomHeating_array = self.extract_Result2Array(PyomoModelInstance.Q_RoomHeating.extract_values()) / 1000  # kWh
+        Q_TankHeatingHeatingElement_array = self.extract_Result2Array(
+            instance.Q_HeatingElement.extract_values()) / 1000  # kWh
+        Q_RoomHeating_array = self.extract_Result2Array(instance.Q_RoomHeating.extract_values()) / 1000  # kWh
 
-        RoomTemperature_array = self.extract_Result2Array(PyomoModelInstance.T_room.extract_values())
-        BuildingMassTemperature_array = self.extract_Result2Array(PyomoModelInstance.Tm_t.extract_values())
-        SolarGain_array = self.extract_Result2Array(PyomoModelInstance.Q_Solar.extract_values()) / 1000  # kW
+        RoomTemperature_array = self.extract_Result2Array(instance.T_room.extract_values())
+        BuildingMassTemperature_array = self.extract_Result2Array(instance.Tm_t.extract_values())
+        SolarGain_array = self.extract_Result2Array(instance.Q_Solar.extract_values()) / 1000  # kW
 
-        Q_RoomCooling_array = self.extract_Result2Array(PyomoModelInstance.Q_RoomCooling.extract_values()) / 1000  # kWh
-        CoolingHourlyCOP = self.extract_Result2Array(PyomoModelInstance.CoolingCOP.extract_values())
+        Q_RoomCooling_array = self.extract_Result2Array(instance.Q_RoomCooling.extract_values()) / 1000  # kWh
+        CoolingHourlyCOP = self.extract_Result2Array(instance.CoolingCOP.extract_values())
         E_RoomCooling_array = Q_RoomCooling_array / CoolingHourlyCOP
 
-        Q_HW1_array = self.extract_Result2Array(PyomoModelInstance.HWPart1.extract_values()) / 1000
+        Q_HW1_array = self.extract_Result2Array(instance.HWPart1.extract_values()) / 1000
         E_HW1_array = Q_HW1_array / SpaceHeatingHourlyCOP_array
-        Q_HW2_array = self.extract_Result2Array(PyomoModelInstance.HWPart2.extract_values()) / 1000
-        HotWaterHourlyCOP_array = self.extract_Result2Array(PyomoModelInstance.HotWaterHourlyCOP.extract_values())
+        Q_HW2_array = self.extract_Result2Array(instance.HWPart2.extract_values()) / 1000
+        HotWaterHourlyCOP_array = self.extract_Result2Array(instance.HotWaterHourlyCOP.extract_values())
         E_HW2_array = Q_HW2_array / HotWaterHourlyCOP_array
         Q_HotWater_array = Q_HW1_array + Q_HW2_array
         E_HotWater_array = E_HW1_array + E_HW2_array
 
-        E_Grid_array = self.extract_Result2Array(PyomoModelInstance.Grid.extract_values()) / 1000
-        E_Grid2Load_array = self.extract_Result2Array(PyomoModelInstance.Grid2Load.extract_values()) / 1000
-        E_Grid2Bat_array = self.extract_Result2Array(PyomoModelInstance.Grid2Bat.extract_values()) / 1000
+        E_Grid_array = self.extract_Result2Array(instance.Grid.extract_values()) / 1000
+        E_Grid2Load_array = self.extract_Result2Array(instance.Grid2Load.extract_values()) / 1000
+        E_Grid2Bat_array = self.extract_Result2Array(instance.Grid2Bat.extract_values()) / 1000
 
-        E_PV_array = self.extract_Result2Array(PyomoModelInstance.PhotovoltaicProfile.extract_values()) / 1000
-        E_PV2Load_array = self.extract_Result2Array(PyomoModelInstance.PV2Load.extract_values()) / 1000
-        E_PV2Bat_array = self.extract_Result2Array(PyomoModelInstance.PV2Bat.extract_values()) / 1000
-        E_PV2Grid_array = self.extract_Result2Array(PyomoModelInstance.PV2Grid.extract_values()) / 1000
+        E_PV_array = self.extract_Result2Array(instance.PhotovoltaicProfile.extract_values()) / 1000
+        E_PV2Load_array = self.extract_Result2Array(instance.PV2Load.extract_values()) / 1000
+        E_PV2Bat_array = self.extract_Result2Array(instance.PV2Bat.extract_values()) / 1000
+        E_PV2Grid_array = self.extract_Result2Array(instance.PV2Grid.extract_values()) / 1000
 
-        E_BatCharge_array = self.extract_Result2Array(PyomoModelInstance.BatCharge.extract_values()) / 1000
-        E_BatDischarge_array = self.extract_Result2Array(PyomoModelInstance.BatDischarge.extract_values()) / 1000
-        E_Bat2Load_array = self.extract_Result2Array(PyomoModelInstance.Bat2Load.extract_values()) / 1000
-        E_BatSoC_array = self.extract_Result2Array(PyomoModelInstance.BatSoC.extract_values()) / 1000
+        E_BatCharge_array = self.extract_Result2Array(instance.BatCharge.extract_values()) / 1000
+        E_BatDischarge_array = self.extract_Result2Array(instance.BatDischarge.extract_values()) / 1000
+        E_Bat2Load_array = self.extract_Result2Array(instance.Bat2Load.extract_values()) / 1000
+        E_BatSoC_array = self.extract_Result2Array(instance.BatSoC.extract_values()) / 1000
 
-        E_Load_array = self.extract_Result2Array(PyomoModelInstance.Load.extract_values()) / 1000
+        E_Load_array = self.extract_Result2Array(instance.Load.extract_values()) / 1000
 
-        # self.SystemOperationHour_ValueList (column stack is 6 times faster than for loop)
-        self.SystemOperationHour_ValueList.append(np.column_stack([
-            np.full((len(E_Load_array),), Household.ID),
-            np.full((len(E_Load_array),), Household.ID_Building),
-            np.full((len(E_Load_array),), Environment["ID"]),
-            np.arange(1, self.OptimizationHourHorizon+1),
+
+        # (column stack is 6 times faster than for loop)
+        hourly_value_list = np.column_stack([
+            np.full((len(E_Load_array),), household["ID"]),
+            np.full((len(E_Load_array),), household["ID_Building"]),
+            np.full((len(E_Load_array),), environment["ID"]),
+            np.arange(1, self.OptimizationHourHorizon + 1),
             ElectricityPrice_array,
             FeedinTariff_array,
             OutsideTemperature_array,
@@ -224,61 +229,79 @@ class DataCollector:
             E_BatSoC_array,
 
             E_Load_array])
-        )
 
-        self.SystemOperationYear_ValueList.append([Household.ID,
-                                                   Household.ID_Building,
-                                                   Environment["ID"],
-                                                   PyomoModelInstance.Objective(),
+        yearly_value_list=[household["ID"],
+                           household["ID_Building"],
+                           environment["ID"],
+                           instance.Objective(),
 
-                                                   E_BaseLoad_array.sum(),
-                                                   E_SmartAppliances_array.sum(),
+                           E_BaseLoad_array.sum(),
+                           E_SmartAppliances_array.sum(),
 
-                                                   Q_TankHeatingHeatPump_array.sum(),
-                                                   E_TankHeatingHeatPump_array.sum(),
-                                                   Q_TankHeatingHeatPump_array.sum()/E_TankHeatingHeatPump_array.sum(),
-                                                   (Q_TankHeatingHeatPump_array - E_TankHeatingHeatPump_array).sum(),
-                                                   Q_TankHeatingHeatingElement_array.sum(),
-                                                   Q_RoomHeating_array.sum(),
+                           Q_TankHeatingHeatPump_array.sum(),
+                           E_TankHeatingHeatPump_array.sum(),
+                           Q_TankHeatingHeatPump_array.sum() / E_TankHeatingHeatPump_array.sum(),
+                           (Q_TankHeatingHeatPump_array - E_TankHeatingHeatPump_array).sum(),
+                           Q_TankHeatingHeatingElement_array.sum(),
+                           Q_RoomHeating_array.sum(),
 
-                                                   Q_RoomCooling_array.sum(),
-                                                   E_RoomCooling_array.sum(),
+                           Q_RoomCooling_array.sum(),
+                           E_RoomCooling_array.sum(),
 
-                                                   Q_HotWater_array.sum(),
-                                                   E_HotWater_array.sum(),
+                           Q_HotWater_array.sum(),
+                           E_HotWater_array.sum(),
 
-                                                   E_Grid_array.sum(),
-                                                   E_Grid2Load_array.sum(),
-                                                   E_Grid2Bat_array.sum(),
+                           E_Grid_array.sum(),
+                           E_Grid2Load_array.sum(),
+                           E_Grid2Bat_array.sum(),
 
-                                                   E_PV_array.sum(),
-                                                   E_PV2Load_array.sum(),
-                                                   E_PV2Bat_array.sum(),
-                                                   E_PV2Grid_array.sum(),
+                           E_PV_array.sum(),
+                           E_PV2Load_array.sum(),
+                           E_PV2Bat_array.sum(),
+                           E_PV2Grid_array.sum(),
 
-                                                   E_BatCharge_array.sum(),
-                                                   E_BatDischarge_array.sum(),
-                                                   E_Bat2Load_array.sum(),
+                           E_BatCharge_array.sum(),
+                           E_BatDischarge_array.sum(),
+                           E_Bat2Load_array.sum(),
 
-                                                   E_Load_array.sum(),
-                                                   E_PV_array.sum() - E_PV2Grid_array.sum(),
-                                                   (E_PV_array.sum() - E_PV2Grid_array.sum())/E_PV_array.sum(),
-                                                   (E_PV_array.sum() - E_PV2Grid_array.sum())/E_Load_array.sum(),
+                           E_Load_array.sum(),
+                           E_PV_array.sum() - E_PV2Grid_array.sum(),
+                           (E_PV_array.sum() - E_PV2Grid_array.sum()) / E_PV_array.sum(),
+                           (E_PV_array.sum() - E_PV2Grid_array.sum()) / E_Load_array.sum(),
 
-                                                   Household.Building.hwb_norm1,
-                                                   Household.ApplianceGroup.DishWasherShifting,
-                                                   Household.ApplianceGroup.WashingMachineShifting,
-                                                   Household.ApplianceGroup.DryerShifting,
-                                                   Household.SpaceHeating.TankSize,
-                                                   Household.SpaceCooling.AdoptionStatus,
-                                                   Household.PV.PVPower,
-                                                   Household.Battery.Capacity,
-                                                   Environment["ID_ElectricityPriceType"]])
+                           household["Building_hwb_norm1"],
+                           household["ApplianceGroup_DishWasherShifting"],
+                           household["ApplianceGroup_WashingMachineShifting"],
+                           household["ApplianceGroup_DryerShifting"],
+                           household["SpaceHeating_TankSize"],
+                           household["SpaceCooling_AdoptionStatus"],
+                           household["PV_PVPower"],
+                           household["Battery_Capacity"],
+                           environment["ID_ElectricityPriceType"]]
+
+        # old code (stack it up in RAM)
+        # self.SystemOperationHour_ValueList.append(hourly_value_list)
+        # self.SystemOperationYear_ValueList.append(yearly_value_list)
+
+        # new approach (save it directly to SQLite) may be impossible with multiprocessing
+        # Hourly:
+        DB().add_DataFrame(table=hourly_value_list,
+                           table_name=REG_Table().Res_SystemOperationHour,
+                           column_names=self.SystemOperationHour_Column.keys(),
+                           conn=self.Conn,
+                           dtype=self.SystemOperationHour_Column)
+        # Year:
+        DB().add_DataFrame(table=yearly_value_list,
+                           table_name=REG_Table().Res_SystemOperationYear,
+                           column_names=self.SystemOperationYear_Column.keys(),
+                           conn=self.Conn,
+                           dtype=self.SystemOperationYear_Column)
 
     def save_OptimizationResult(self):
         DB().write_DataFrame(np.vstack(self.SystemOperationHour_ValueList), REG_Table().Res_SystemOperationHour,
                              self.SystemOperationHour_Column.keys(), self.Conn, dtype=self.SystemOperationHour_Column)
         DB().write_DataFrame(self.SystemOperationYear_ValueList, REG_Table().Res_SystemOperationYear,
                              self.SystemOperationYear_Column.keys(), self.Conn, dtype=self.SystemOperationYear_Column)
+
 
 
