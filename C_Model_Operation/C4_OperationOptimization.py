@@ -1022,7 +1022,6 @@ def calculate_multiprocess(all_input_parameters, instance):
 @performance_counter
 def create_instances2solve(all_input_parameters, instance):
     ergebnisse2 = []
-
     for key in all_input_parameters.keys():
         instance2calculate = update_instance(all_input_parameters[key], instance)
         ergebnisse2.append(instance2calculate)
@@ -1044,14 +1043,12 @@ def run():
     input_data = DataSetUp().create_parallizable_data()
     initial_parameters = input_data[0, 0]["input_parameters"]
     pyomo_instance = create_instance(initial_parameters)
-    instances2solve = create_instances2solve(input_data, pyomo_instance)
-    instances_solved = []
-    for instance in instances2solve:
-        instances_solved.append(solve_instance(instance))
-        # DC = DataCollector()
-        # DC.collect_OptimizationResult(, , ergebnis)
-
-    return instances_solved
+    for key in input_data.keys():
+        instance2calculate = update_instance(input_data[key], pyomo_instance)
+        instance_solved = solve_instance(instance2calculate)
+        print(instance_solved.Objective())
+        DC = DataCollector()
+        DC.collect_OptimizationResult(input_data[key]["Household"], input_data[key]["Environment"], instance_solved)
 
 def run2():
     # Conn = DB().create_Connection(CONS().RootDB)
@@ -1063,7 +1060,7 @@ def run2():
 
     number_of_cpus = cpu_count() - 1
     pool = ProcessingPool(number_of_cpus)
-    instances2solve = create_instances2solve(input_data, pyomo_instance)
+    instances2solve = create_instances2solve(input_data, pyomo_instance)  #funktioniert nicht (haut immer dasselbe raus)
     instances_solved = pool.map(solve_instance, instances2solve)
     pool.close()
     return instances_solved
@@ -1077,7 +1074,7 @@ if __name__ == "__main__":
     # Conn = DB().create_Connection(CONS().RootDB)
     # OperationOptimization(Conn).solve_model()
     starttime1 = time.time()
-    result_parallel = run2()
+    # result_parallel = run2()
     endtime1 = time.time()
 
 

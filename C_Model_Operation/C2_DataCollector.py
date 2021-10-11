@@ -10,7 +10,7 @@ from A_Infrastructure.A2_DB import DB
 
 class DataCollector:
 
-    def __init__(self, conn):
+    def __init__(self, conn=DB().create_Connection(CONS().RootDB)):
         self.Conn = conn
         self.TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
         self.OptimizationHourHorizon = len(self.TimeStructure)
@@ -291,7 +291,7 @@ class DataCollector:
                            conn=self.Conn,
                            dtype=self.SystemOperationHour_Column)
         # Year:
-        DB().add_DataFrame(table=yearly_value_list,
+        DB().add_DataFrame(table=np.array(yearly_value_list).reshape(1, -1),
                            table_name=REG_Table().Res_SystemOperationYear,
                            column_names=self.SystemOperationYear_Column.keys(),
                            conn=self.Conn,

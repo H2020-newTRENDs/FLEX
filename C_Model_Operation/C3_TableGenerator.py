@@ -155,7 +155,7 @@ class TableGenerator:
 
 
     def gen_OBJ_ID_PV(self, nuts_id):
-        # TODO rewrite function in case of more nuts ids
+        # TODO rewrite function for NUTS1 and weight it with population!
         def get_JRC(lat, lon, startyear, endyear, peakpower):
             # % JRC data
             # possible years are 2005 to 2017
