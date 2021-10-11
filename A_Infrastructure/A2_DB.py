@@ -1,4 +1,6 @@
 import sqlite3
+
+import numpy as np
 import pandas as pd
 import pandas.io.sql
 
@@ -46,20 +48,20 @@ class DB:
         return None
 
     def add_DataFrame(self, table, table_name, column_names, conn, **kwargs):
-        table_DataFrame = pd.DataFrame(table, columns=column_names)
+        table_DataFrame = pd.DataFrame(data=table, columns=column_names)
         # check if table exists (1=yes, 0=no):
         exists = pd.read_sql("SELECT count(*) FROM sqlite_master WHERE type='table' AND NAME ='{}'".format(table_name),
                              con=conn)
-        if exists == 1:
-            sql_column_names = pd.read_sql("select * from " + table_name + " ORDER BY ROWID ASC LIMIT 1", con=conn)
-            column_names_sql = sql_column_names.columns
-            if len(column_names_sql) != len(table.columns):
-                raise Exception("number of parameters provided don't match column number of table")
-            for i in range(len(column_names)):
-                if column_names[i] != column_names_sql[i]:
-                    raise Exception("column names are not the same")
+        if exists.iloc[0].iloc[0] == 1:
+            # sql_column_names = pd.read_sql("select * from " + table_name + " ORDER BY ROWID ASC LIMIT 1", con=conn)
+            # column_names_sql = sql_column_names.columns
+            # if len(column_names_sql) != len(table):
+            #     raise Exception("number of parameters provided don't match column number of table")
+            # for i in range(len(column_names)):
+            #     if column_names[i] != column_names_sql[i]:
+            #         raise Exception("column names are not the same")
             append_or_replace = "append"
-        elif exists == 0:  # if table does not exist jet, it is being created
+        elif exists.iloc[0].iloc[0] == 0:  # if table does not exist jet, it is being created
             append_or_replace = "replace"
 
         if "dtype" in kwargs:
@@ -78,6 +80,6 @@ class DB:
         table.to_sql(table_name_to, conn_to, index=False, if_exists='replace', chunksize=1000)
         return None
 
-if __name__=="__main__":
 
-    DB().add_DataFrame(table, table_name, column_names, conn)
+if __name__ == "__main__":
+    pass
