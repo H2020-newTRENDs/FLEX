@@ -1,3 +1,5 @@
+import urllib.error
+
 from C_Model_Operation.C1_REG import REG_Table
 from A_Infrastructure.A2_DB import DB
 import numpy as np
@@ -154,74 +156,6 @@ class TableGenerator:
         origin_data = pd.read_excel()
 
 
-    def gen_OBJ_ID_PV(self, nuts_id):
-        # TODO rewrite function for NUTS1 and weight it with population!
-        def get_JRC(lat, lon, startyear, endyear, peakpower):
-            # % JRC data
-            # possible years are 2005 to 2017
-            pvCalculation = 1  # 0 for no and 1 for yes
-            peakPower = peakpower  # kWp
-            pvLoss = 14  # system losses in %
-            pvTechChoice = "crystSi"  # Choices are: "crystSi", "CIS", "CdTe" and "Unknown".
-            trackingtype = 0  # Type of suntracking used, 0=fixed, 1=single horizontal axis aligned north-south,
-            # 2=two-axis tracking, 3=vertical axis tracking, 4=single horizontal axis aligned east-west,
-            # 5=single inclined axis aligned north-south.
-            optimalInclination = 1  # Calculate the optimum inclination angle. Value of 1 for "yes".
-            # All other values (or no value) mean "no". Not relevant for 2-axis tracking.
-            optimalAngles = 1  # Calculate the optimum inclination AND orientation angles. Value of 1 for "yes".
-            # All other values (or no value) mean "no". Not relevant for tracking planes.
-
-            req = f"https://re.jrc.ec.europa.eu/api/seriescalc?lat={lat}&" \
-                  f"lon={lon}&" \
-                  f"startyear={startyear}&" \
-                  f"endyear={endyear}&" \
-                  f"pvcalculation={pvCalculation}&" \
-                  f"peakpower={peakPower}&" \
-                  f"loss={pvLoss}&" \
-                  f"pvtechchoice={pvTechChoice}&" \
-                  f"components={1}&" \
-                  f"trackingtype={trackingtype}&" \
-                  f"optimalinclination={optimalInclination}&" \
-                  f"optimalangles={optimalAngles}"
-
-            # read the csv from api and set column names to list of 20 because depending on input parameters the number
-            # of rows will vary. This way all parameters are included for sure, empty rows are dropped afterwards:
-            df = pd.read_csv(req, sep=",", header=None, names=range(20)).dropna(how="all", axis=1)
-            # drop rows with nan:
-            df = df.dropna().reset_index(drop=True)
-            # set header to first column
-            header = df.iloc[0]
-            df = df.iloc[1:, :]
-            df.columns = header
-            df = df.reset_index(drop=True)
-            PV_Profile = pd.to_numeric(df["P"]).to_numpy() / 1_000  # kW
-            return PV_Profile
-
-        startyear = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn).ID_Year.iloc[0]
-        endyear = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn).ID_Year.iloc[-1]
-        lat, lon = self.getNutsCenter(nuts_id)
-        ID_Hour = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn).ID_Hour.to_numpy()
-
-        PV_options = DB().read_DataFrame(REG_Table().ID_PVType, self.Conn)
-        columnNames = {"ID_Country": "INTEGER",
-                       "ID_PVType": "INTEGER",
-                       "ID_Hour": "INTEGER",
-                       "PVPower": "REAL",
-                       "Unit": "TEXT"}
-        TargetTable = np.zeros((1, len(columnNames)))
-        id_country = np.full((len(ID_Hour),), nuts_id)
-        unit = np.full((len(ID_Hour),), "kW")
-        for index, peakPower in enumerate(PV_options.PVPower):
-            # for peakpower = 0 exception:
-            if peakPower == 0:
-                PVProfile = np.full((len(ID_Hour),), 0)
-            else:
-                PVProfile = get_JRC(lat, lon, startyear, endyear, peakPower)
-
-            pv_type = np.full((len(PVProfile),), int(PV_options.ID_PVType[index]))
-            table = np.column_stack([id_country, pv_type, PVProfile])
-            self.PVPowerList.append(table)
-
     def save_PV2Base(self, id_country):
         # table = np.column_stack([id_country, id_pv_type, ID_Hour, PVProfile, unit])
         # TargetTable = np.vstack([TargetTable, table])
@@ -230,17 +164,16 @@ class TableGenerator:
         unique_regions = np.unique(PVTable[:, 0])
         unique_PVPower = np.unique(PVTable[:, 1]).astype(float)
 
-
         targetFrame = []
         for power in unique_PVPower:
             sumFrame = np.zeros(shape=(8760, 1))
             for region in unique_regions:
-
-                powerTable = PVTable[np.where(PVTable[:, 0]==region), 1:].astype(float).squeeze()
-                sumFrame = sumFrame + powerTable[np.where(powerTable[:, 0]==power), 1].T
+                powerTable = PVTable[np.where(PVTable[:, 0] == region), 1:].astype(float).squeeze()
+                sumFrame = sumFrame + powerTable[np.where(powerTable[:, 0] == power), 1].T
 
             MeanFrame = sumFrame / len(unique_regions)
-            targetFrame.append(np.column_stack([np.full((8760, ), ID_COUNTRY), np.full((8760, ), power),  MeanFrame, np.full((8760, ), "kW")]))
+            targetFrame.append(np.column_stack(
+                [np.full((8760,), ID_COUNTRY), np.full((8760,), power), MeanFrame, np.full((8760,), "kW")]))
         targetFrame = np.vstack(targetFrame)
 
         columnNames = {"ID_Country": "INTEGER",
@@ -251,12 +184,10 @@ class TableGenerator:
         DB().write_DataFrame(targetFrame, REG_Table().Gen_Sce_PhotovoltaicProfile, columnNames.keys(),
                              self.Conn, dtype=columnNames)
 
-
     def gen_OBJ_ID_Battery(self):
         Battery = DB().read_DataFrame(REG_Table().ID_BatteryType, self.Conn)
         self.gen_OBJ_ID_Table_1To1(REG_Table().Gen_OBJ_ID_Battery, Battery)
         return None
-
 
     def gen_OBJ_ID_Household(self):
         """
@@ -295,27 +226,28 @@ class TableGenerator:
                                     for row8 in range(0, len(HotWater)):
                                         for row9 in range(0, len(PV)):
                                             for row10 in range(0, len(Battery)):
-                                                    TargetTable_list.append([ID] +
-                                                                            list(Country.iloc[row1].values) +
-                                                                            list(HouseholdType.iloc[row2].values) +
-                                                                            list(AgeGroup.iloc[row3].values) +
-                                                                            [Building.iloc[row4]["ID"]] +
-                                                                            [ApplianceGroup.iloc[row5]["ID"]] +
-                                                                            [SpaceHeating.iloc[row6]["ID"]] +
-                                                                            [SpaceCooling.iloc[row7]["ID"]] +
-                                                                            [HotWater.iloc[row8]["ID"]] +
-                                                                            [PV.iloc[row9]["ID"]] +
-                                                                            [Battery.iloc[row10]["ID"]]
-                                                                            )
-                                                    print("Round: " + str(ID) + "/" + str(TotalRounds))
-                                                    ID += 1
+                                                TargetTable_list.append([ID] +
+                                                                        list(Country.iloc[row1].values) +
+                                                                        list(HouseholdType.iloc[row2].values) +
+                                                                        list(AgeGroup.iloc[row3].values) +
+                                                                        [Building.iloc[row4]["ID"]] +
+                                                                        [ApplianceGroup.iloc[row5]["ID"]] +
+                                                                        [SpaceHeating.iloc[row6]["ID"]] +
+                                                                        [SpaceCooling.iloc[row7]["ID"]] +
+                                                                        [HotWater.iloc[row8]["ID"]] +
+                                                                        [PV.iloc[row9]["ID"]] +
+                                                                        [Battery.iloc[row10]["ID"]]
+                                                                        )
+                                                print("Round: " + str(ID) + "/" + str(TotalRounds))
+                                                ID += 1
         DB().write_DataFrame(TargetTable_list, REG_Table().Gen_OBJ_ID_Household, TargetTable_columns, self.Conn)
 
     # ------------------------------
     # 3 Generate the scenario tables
     # ------------------------------
 
-    def gen_Sce_Demand_DishWasherHours(self, NumberOfDishWasherProfiles):  # TODO if more than 1 dishwasher type is implemented, rewrite the function
+    def gen_Sce_Demand_DishWasherHours(self,
+                                       NumberOfDishWasherProfiles):  # TODO if more than 1 dishwasher type is implemented, rewrite the function
         """
         creates Dish washer days where the dishwasher can be used on a random basis. Hours of the days where
         the Dishwasher has to be used are index = 1 and hours of days where the dishwasher is not used are indexed = 0.
@@ -344,7 +276,7 @@ class TableGenerator:
         TargetTable = np.column_stack([TargetTable, TimeStructure.ID_DayHour.to_numpy()])
         TargetTable_columns = {"ID_Hour": "INTEGER",
                                "ID_DayHour": "INTEGER"}
-        for i in range(NumberOfDishWasherProfiles+1):
+        for i in range(NumberOfDishWasherProfiles + 1):
             TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
             TargetTable_columns["DishWasherHours " + str(i)] = "INTEGER"
 
@@ -356,9 +288,9 @@ class TableGenerator:
             for column in range(2, TargetTable2.shape[1]):
                 if TargetTable2[index, column] == 1:
                     HourOfTheDay = np.random.randint(low=6, high=22) - 1
-                    TargetTable2[index+HourOfTheDay:index+HourOfTheDay+DishWasherDuration, column] = 1
-                    TargetTable2[index:index+HourOfTheDay, column] = 0
-                    TargetTable2[index+HourOfTheDay+DishWasherDuration:index+24, column] = 0
+                    TargetTable2[index + HourOfTheDay:index + HourOfTheDay + DishWasherDuration, column] = 1
+                    TargetTable2[index:index + HourOfTheDay, column] = 0
+                    TargetTable2[index + HourOfTheDay + DishWasherDuration:index + 24, column] = 0
         # write dataframe with starting hours to database:
         DB().write_DataFrame(TargetTable2, REG_Table().Gen_Sce_DishWasherStartingHours, TargetTable_columns.keys(),
                              self.Conn, dtype=TargetTable_columns)
@@ -371,7 +303,6 @@ class TableGenerator:
         # save arrays to database:
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_DishWasherHours, TargetTable_columns.keys(),
                              self.Conn, dtype=TargetTable_columns)
-
 
     def gen_Sce_Demand_WashingMachineHours(self, NumberOfWashingMachineProfiles):
         """
@@ -405,7 +336,7 @@ class TableGenerator:
                                "ID_DayHour": "INTEGER"}
         Dryer_columns = {"ID_Hour": "INTEGER",
                          "ID_DayHour": "INTEGER"}
-        for i in range(NumberOfWashingMachineProfiles+1):
+        for i in range(NumberOfWashingMachineProfiles + 1):
             TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
             TargetTable_columns["WashingMachineHours " + str(i)] = "INTEGER"
             Dryer_columns["DryerHours " + str(i)] = "INTEGER"
@@ -413,7 +344,7 @@ class TableGenerator:
         # append the last day to the target table:
         lastDay_hours = TimeStructure.ID_Hour.to_numpy()[-24:]
         lastDay_IDHours = TimeStructure.ID_DayHour.to_numpy()[-24:]
-        lastDay_zeros = np.zeros((len(lastDay_IDHours), TargetTable.shape[1]-2))
+        lastDay_zeros = np.zeros((len(lastDay_IDHours), TargetTable.shape[1] - 2))
         lastDay = np.column_stack([lastDay_hours, lastDay_IDHours, lastDay_zeros])
 
         # merge last day to target table:
@@ -427,18 +358,24 @@ class TableGenerator:
         for index in range(0, len(TargetTable_washmachine), 24):
             for column in range(2, TargetTable_washmachine.shape[1]):
                 if TargetTable_washmachine[index, column] == 1:
-                    HourOfTheDay = np.random.randint(low=6, high=21)-1  # weil bei 0 zu zählen anfängt (Hour of day 6 ist 7 uhr)
-                    TargetTable_washmachine[index+HourOfTheDay:index+HourOfTheDay+WashingMachineDuration, column] = 1
-                    TargetTable_washmachine[index:index+HourOfTheDay, column] = 0
-                    TargetTable_washmachine[index+HourOfTheDay+WashingMachineDuration:index+24, column] = 0
+                    HourOfTheDay = np.random.randint(low=6,
+                                                     high=21) - 1  # weil bei 0 zu zählen anfängt (Hour of day 6 ist 7 uhr)
+                    TargetTable_washmachine[index + HourOfTheDay:index + HourOfTheDay + WashingMachineDuration,
+                    column] = 1
+                    TargetTable_washmachine[index:index + HourOfTheDay, column] = 0
+                    TargetTable_washmachine[index + HourOfTheDay + WashingMachineDuration:index + 24, column] = 0
 
                     # Dryer always starts 1 hour after the washing machine:
-                    TargetTable_dryer[index+HourOfTheDay+WashingMachineDuration+1:index+HourOfTheDay+WashingMachineDuration+1+DryerDuration, column] = 1
-                    TargetTable_dryer[index:index+HourOfTheDay+WashingMachineDuration+1, column] = 0
-                    TargetTable_dryer[index+HourOfTheDay+WashingMachineDuration+1+DryerDuration:index + 24, column] = 0
+                    TargetTable_dryer[
+                    index + HourOfTheDay + WashingMachineDuration + 1:index + HourOfTheDay + WashingMachineDuration + 1 + DryerDuration,
+                    column] = 1
+                    TargetTable_dryer[index:index + HourOfTheDay + WashingMachineDuration + 1, column] = 0
+                    TargetTable_dryer[index + HourOfTheDay + WashingMachineDuration + 1 + DryerDuration:index + 24,
+                    column] = 0
 
         # write dataframe with starting hours to database:
-        DB().write_DataFrame(TargetTable_washmachine, REG_Table().Gen_Sce_WashingMachineStartingHours, TargetTable_columns.keys(),
+        DB().write_DataFrame(TargetTable_washmachine, REG_Table().Gen_Sce_WashingMachineStartingHours,
+                             TargetTable_columns.keys(),
                              self.Conn, dtype=TargetTable_columns)
         DB().write_DataFrame(TargetTable_dryer, REG_Table().Gen_Sce_DryerStartingHours, Dryer_columns.keys(),
                              self.Conn, dtype=Dryer_columns)
@@ -450,7 +387,6 @@ class TableGenerator:
         # save starting days for optimization:
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_WashingMachineHours, TargetTable_columns.keys(),
                              self.Conn, dtype=TargetTable_columns)
-
 
     def gen_Sce_ID_Environment(self):
 
@@ -566,8 +502,7 @@ class TableGenerator:
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_HeatPump_HourlyCOP, TargetTable_columns.keys(),
                              self.Conn, dtype=TargetTable_columns)
 
-
-    def getNutsCenter(self, nuts_id,
+    def getNutsCenter(self, region_id,
                       url_nuts0_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_0.geojson",
                       url_nuts1_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_1.geojson",
                       url_nuts2_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_2.geojson",
@@ -575,23 +510,23 @@ class TableGenerator:
         """
         This function returns the latitude and longitude of the center of a NUTS region.
         """
-        nuts_id = nuts_id.strip()
-        if len(nuts_id) == 2:
+        region_id = region_id.strip()
+        if len(region_id) == 2:
             url = url_nuts0_poly
-        elif len(nuts_id) == 3:
+        elif len(region_id) == 3:
             url = url_nuts1_poly
-        elif len(nuts_id) == 4:
+        elif len(region_id) == 4:
             url = url_nuts2_poly
-        elif len(nuts_id) > 4:
+        elif len(region_id) > 4:
             url = url_nuts3_poly
         else:
-            assert False, f"Error could not identify nuts level for {nuts_id}"
+            assert False, f"Error could not identify nuts level for {region_id}"
         nuts = gpd.read_file(url)
         transformer = Transformer.from_crs(CRS("EPSG:3035"), CRS("EPSG:4326"))
-        point = nuts[nuts.NUTS_ID == nuts_id].centroid.values[0]
+        point = nuts[nuts.NUTS_ID == region_id].centroid.values[0]
         return transformer.transform(point.y, point.x)  # returns lat, lon
 
-    def gen_SolarRadiation_windows_and_outsideTemperature(self, nuts_id):  # TODO write for loop for multiple nuts IDs!
+    def get_PVGIS_data(self):
         """
         This function gets the solar radiation for every cilestial direction (North, East, West, South) on a vertical
         plane. This radiation will later be multiplied with the respective window areas to calculate the radiation
@@ -608,9 +543,79 @@ class TableGenerator:
                 #  WS10m: 10-m total wind speed (m/s)
                 #  Int: 1 means solar radiation values are reconstructed
 
-        The output is Sce_Weather_Temperature and Gen_Sce_Weather_Radiation_SkyDirections in the SQLite Database.
+        In addition the temperatur for different nuts_ids is saved as well as the produced PV profile for a certain PV
+        peak power.
+        The output is NUTS2_PV_Data, NUTS2_Radiation_Data and NUTS2_Temperature_Data in the SQLite Database.
         """
-        def get_JRC(lat, lon, aspect, startyear, endyear):
+        nuts_id_europe = DB().read_DataFrame("NUTS_IDs", conn=self.Conn)
+        table_name_temperature = "NUTS2_Temperature_Data"
+        table_name_radiation = "NUTS2_Radiation_Data"
+        table_name_PV = "NUTS2_PV_Data"
+        nuts = [nuts_id_europe.loc[:, "Code_2021"][i] for i in range(len(nuts_id_europe)) if
+                 len(nuts_id_europe.loc[:, "Code_2021"][i]) == 4]
+        # NUTS2[128] muss noch gemacht werden! (funktioniert nicht für PV Power 10 kW
+
+        # nuts3 for austria:
+        # nuts = ["AT111", "AT112", "AT113",
+        #             "AT121", "AT122", "AT123", "AT124", "AT125", "AT126", "AT127",
+        #             "AT130",
+        #             "AT211", "AT212", "AT213",
+        #             "AT221", "AT222", "AT223", "AT225", "AT226",
+        #             "AT311", "AT312", "AT313", "AT314", "AT315",
+        #             "AT321", "AT322", "AT323",
+        #             "AT331", "AT332", "AT333", "AT334", "AT335",
+        #             "AT341", "AT342"]
+        # table_name_temperature = "NUTS2_Temperature_Data_AT"
+        # table_name_radiation = "NUTS2_Radiation_Data_AT"
+        # table_name_PV = "NUTS2_PV_Data_AT"
+
+        def get_JRC_PV(lat, lon, startyear, endyear, peakpower, nuts_id):
+            # % JRC data
+            # possible years are 2005 to 2017
+            pvCalculation = 1  # 0 for no and 1 for yes
+            peakPower = peakpower  # kWp
+            pvLoss = 14  # system losses in %
+            pvTechChoice = "crystSi"  # Choices are: "crystSi", "CIS", "CdTe" and "Unknown".
+            trackingtype = 0  # Type of suntracking used, 0=fixed, 1=single horizontal axis aligned north-south,
+            # 2=two-axis tracking, 3=vertical axis tracking, 4=single horizontal axis aligned east-west,
+            # 5=single inclined axis aligned north-south.
+            optimalInclination = 1  # Calculate the optimum inclination angle. Value of 1 for "yes".
+            # All other values (or no value) mean "no". Not relevant for 2-axis tracking.
+            optimalAngles = 1  # Calculate the optimum inclination AND orientation angles. Value of 1 for "yes".
+            # All other values (or no value) mean "no". Not relevant for tracking planes.
+
+            req = f"https://re.jrc.ec.europa.eu/api/seriescalc?lat={lat}&" \
+                  f"lon={lon}&" \
+                  f"startyear={startyear}&" \
+                  f"endyear={endyear}&" \
+                  f"pvcalculation={pvCalculation}&" \
+                  f"peakpower={peakPower}&" \
+                  f"loss={pvLoss}&" \
+                  f"pvtechchoice={pvTechChoice}&" \
+                  f"components={1}&" \
+                  f"trackingtype={trackingtype}&" \
+                  f"optimalinclination={optimalInclination}&" \
+                  f"optimalangles={optimalAngles}"
+
+            try:
+                # read the csv from api and set column names to list of 20 because depending on input parameters the number
+                # of rows will vary. This way all parameters are included for sure, empty rows are dropped afterwards:
+                df = pd.read_csv(req, sep=",", header=None, names=range(20)).dropna(how="all", axis=1)
+                # drop rows with nan:
+                df = df.dropna().reset_index(drop=True)
+                # set header to first column
+                header = df.iloc[0]
+                df = df.iloc[1:, :]
+                df.columns = header
+                df = df.reset_index(drop=True)
+                PV_Profile = pd.to_numeric(df["P"]).to_numpy() / 1_000  # kW
+                return PV_Profile
+            except urllib.error.HTTPError:  # Error when nuts center is somewhere where there is no PVGIS data
+                PV_Profile = None
+                print("PV Data is not available for this location {}".format(nuts_id))
+                return PV_Profile
+
+        def get_JRC(lat, lon, aspect, startyear, endyear, nuts_id):
             # % JRC data
             # possible years are 2005 to 2017
             pvCalculation = 0  # 0 for no and 1 for yes
@@ -644,55 +649,117 @@ class TableGenerator:
 
             # read the csv from api and set column names to list of 20 because depending on input parameters the number
             # of rows will vary. This way all parameters are included for sure, empty rows are dropped afterwards:
-            df = pd.read_csv(req, sep=",", header=None, names=range(20)).dropna(how="all", axis=1)
-            # drop rows with nan:
-            df = df.dropna().reset_index(drop=True)
-            # set header to first column
-            header = df.iloc[0]
-            df = df.iloc[1:, :]
-            df.columns = header
-            return df
+            nuts_not_working = []
+            try:
+                df = pd.read_csv(req, sep=",", header=None, names=range(20)).dropna(how="all", axis=1)
+                # drop rows with nan:
+                df = df.dropna().reset_index(drop=True)
+                # set header to first column
+                header = df.iloc[0]
+                df = df.iloc[1:, :]
+                df.columns = header
+                return df
+            except urllib.error.HTTPError:  # Error when nuts center is somewhere where there is no PVGIS data
+                nuts_not_working.append(nuts_id)
+                print("{} does not have a valid location for PV-GIS".format(nuts_id))
+                print(nuts_not_working)
+                df = None
+                return df
 
         startyear = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn).ID_Year.iloc[0]
         endyear = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn).ID_Year.iloc[-1]
-        lat, lon = self.getNutsCenter(nuts_id)
-        # CelestialDirections are "north", "south", "east", "west":
-        # Orientation (azimuth) angle of the (fixed) plane, 0=south, 90=west, -90=east. Not relevant for tracking planes
-        for CelestialDirection in ["south", "east", "west", "north"]:
-            if CelestialDirection == "south":
-                aspect = 0
-                df_south = get_JRC(lat, lon, aspect, startyear, endyear)
-                south_radiation = pd.to_numeric(df_south["Gb(i)"]) + pd.to_numeric(df_south["Gd(i)"])
-            elif CelestialDirection == "east":
-                aspect = -90
-                df_east = get_JRC(lat, lon, aspect, startyear, endyear)
-                east_radiation = pd.to_numeric(df_east["Gb(i)"]) + pd.to_numeric(df_east["Gd(i)"])
-            elif CelestialDirection == "west":
-                aspect = 90
-                df_west = get_JRC(lat, lon, aspect, startyear, endyear)
-                west_radiation = pd.to_numeric(df_west["Gb(i)"]) + pd.to_numeric(df_west["Gd(i)"])
-            elif CelestialDirection == "north":
-                aspect = -180
-                df_north = get_JRC(lat, lon, aspect, startyear, endyear)
-                north_radiation = pd.to_numeric(df_north["Gb(i)"]) + pd.to_numeric(df_north["Gd(i)"])
-
         ID_Timestructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
         ID_Hour = ID_Timestructure.ID_Hour
-        ID_Country = pd.Series([nuts_id] * len(ID_Hour),
-                               name="ID_Country")  # TODO maybe change to corresponding number??
-        self.SolarRadiationList.append(np.column_stack([ID_Country.to_numpy(),
-                                                       ID_Hour.to_numpy(),
-                                                       south_radiation.reset_index(drop=True).to_numpy(),
-                                                       east_radiation.reset_index(drop=True).to_numpy(),
-                                                       west_radiation.reset_index(drop=True).to_numpy(),
-                                                       north_radiation.reset_index(drop=True).to_numpy()])
-                                       )
+        for nuts_id in nuts:
+            lat, lon = self.getNutsCenter(nuts_id)
+            # CelestialDirections are "north", "south", "east", "west":
+            # Orientation (azimuth) angle of the (fixed) plane, 0=south, 90=west, -90=east. Not relevant for tracking planes
+            valid_nuts_id = True
+            for CelestialDirection in ["south", "east", "west", "north"]:
+                if CelestialDirection == "south":
+                    aspect = 0
+                    df_south = get_JRC(lat, lon, aspect, startyear, endyear, nuts_id)
+                    if df_south is None:
+                        valid_nuts_id = False
+                        break
+                    south_radiation = pd.to_numeric(df_south["Gb(i)"]) + pd.to_numeric(df_south["Gd(i)"])
+                elif CelestialDirection == "east":
+                    aspect = -90
+                    df_east = get_JRC(lat, lon, aspect, startyear, endyear, nuts_id)
+                    east_radiation = pd.to_numeric(df_east["Gb(i)"]) + pd.to_numeric(df_east["Gd(i)"])
+                elif CelestialDirection == "west":
+                    aspect = 90
+                    df_west = get_JRC(lat, lon, aspect, startyear, endyear, nuts_id)
+                    west_radiation = pd.to_numeric(df_west["Gb(i)"]) + pd.to_numeric(df_west["Gd(i)"])
+                elif CelestialDirection == "north":
+                    aspect = -180
+                    df_north = get_JRC(lat, lon, aspect, startyear, endyear, nuts_id)
+                    north_radiation = pd.to_numeric(df_north["Gb(i)"]) + pd.to_numeric(df_north["Gd(i)"])
+            if not valid_nuts_id:
+                continue
+            ID_Country = pd.Series([nuts_id] * len(ID_Hour), name="ID_Country").to_numpy()
+            SolarRadiationList = np.column_stack([ID_Country,
+                                                  ID_Hour.to_numpy(),
+                                                  south_radiation.reset_index(drop=True).to_numpy(),
+                                                  east_radiation.reset_index(drop=True).to_numpy(),
+                                                  west_radiation.reset_index(drop=True).to_numpy(),
+                                                  north_radiation.reset_index(drop=True).to_numpy()])
+            # save solar radiation
+            columns = {"ID_Country": "INTEGER",
+                       "ID_Hour": "INTEGER",
+                       "south": "REAL",
+                       "east": "REAL",
+                       "west": "REAL",
+                       "north": "REAL"}
+            DB().add_DataFrame(table=SolarRadiationList,
+                               table_name=table_name_radiation,
+                               column_names=columns.keys(),
+                               conn=self.Conn,
+                               dtype=columns)
 
-        ## write table for outside temperature:
-        outsideTemperature = pd.to_numeric(df_south["T2m"].reset_index(drop=True).rename("Temperature"))
-        self.TemperatureList.append(np.column_stack([ID_Country.to_numpy(), outsideTemperature.to_numpy()]))
+            dtypes = {"ID_Country": "TEXT",
+                      "ID_Hour": "INTEGER",
+                      "Temperature": "REAL"}
+            # write table for outside temperature:
+            outsideTemperature = pd.to_numeric(df_south["T2m"].reset_index(drop=True).rename("Temperature"))
+            TemperatureList = np.column_stack([ID_Country,
+                                               ID_Hour,
+                                               outsideTemperature.to_numpy()])
+            DB().add_DataFrame(table=TemperatureList,
+                               table_name=table_name_temperature,
+                               column_names=dtypes.keys(),
+                               conn=self.Conn,
+                               dtype=dtypes)
+
+            # PV profiles:
+            PV_options = DB().read_DataFrame(REG_Table().ID_PVType, self.Conn)
+            columnNames = {"ID_Country": "INTEGER",
+                           "ID_PVType": "INTEGER",
+                           "ID_Hour": "INTEGER",
+                           "PVPower": "REAL",
+                           "Unit": "TEXT"}
+            unit = np.full((len(ID_Hour),), "kW")
+            for index, peakPower in enumerate(PV_options.PVPower):
+                # for peakpower = 0 exception:
+                if peakPower == 0:
+                    continue  # 0-profile will not be saved
+                else:
+                    PVProfile = get_JRC_PV(lat, lon, startyear, endyear, peakPower, nuts_id)
+
+                pv_type = np.full((len(PVProfile),), int(PV_options.ID_PVType[index]))
+                PVPowerList = np.column_stack([ID_Country, pv_type, ID_Hour, PVProfile, unit])
+
+                DB().add_DataFrame(table=PVPowerList,
+                                   table_name=table_name_PV,
+                                   column_names=columnNames.keys(),
+                                   conn=self.Conn,
+                                   dtype=columnNames)
+
+            print("{} saved".format(nuts_id))
 
     def save_temp_and_radiation(self, id_country):
+        # calculate mean temperature over country:
+
         solarRadiationFrame = np.vstack(self.SolarRadiationList)
         temperatureFrame = np.vstack(self.TemperatureList)
         unique_regions = np.unique(solarRadiationFrame[:, 0])
@@ -709,7 +776,7 @@ class TableGenerator:
         MeanFrame_temperature = AdditionsFrame_temperature / len(unique_regions)
 
         ID_Timestructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
-        ID_Country = np.full((len(ID_Timestructure), ), id_country)
+        ID_Country = np.full((len(ID_Timestructure),), id_country)
         # save solar radiation
         columns = {"ID_Country": "INTEGER",
                    "ID_Hour": "INTEGER",
@@ -717,13 +784,15 @@ class TableGenerator:
                    "east": "REAL",
                    "west": "REAL",
                    "north": "REAL"}
-        RadiationFrame = np.column_stack([ID_Country, ID_Timestructure.ID_Hour.to_numpy(), MeanFrame_radiation.squeeze()])
+        RadiationFrame = np.column_stack(
+            [ID_Country, ID_Timestructure.ID_Hour.to_numpy(), MeanFrame_radiation.squeeze()])
         # write radiation data to database
         DB().write_DataFrame(RadiationFrame, REG_Table().Gen_Sce_Weather_Radiation_SkyDirections,
                              columns.keys(), self.Conn, dtype=columns)
 
         # save tempearture data
-        TemperatureFrame = np.column_stack([ID_Country, ID_Timestructure.ID_Hour.to_numpy(), MeanFrame_temperature.squeeze()])
+        TemperatureFrame = np.column_stack(
+            [ID_Country, ID_Timestructure.ID_Hour.to_numpy(), MeanFrame_temperature.squeeze()])
 
         dtypes = {"ID_Country": "TEXT",
                   "ID_Hour": "INTEGER",
@@ -731,7 +800,6 @@ class TableGenerator:
         # write temperature data to database  TODO write so many temperature profiles are saved depending on region
         DB().write_DataFrame(TemperatureFrame, REG_Table().Sce_Weather_Temperature, dtypes.keys(),
                              self.Conn, dtype=dtypes)
-
 
     def gen_sce_indoor_temperature(self):
         outsideTemperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()
@@ -752,15 +820,14 @@ class TableGenerator:
         T_min_old_nightReduction = np.array([])
         for hour in ID_DayHour:
             if hour <= 6:
-                T_min_young_nightReduction = np.append(T_min_young_nightReduction, (float(T_min_young)-2))
+                T_min_young_nightReduction = np.append(T_min_young_nightReduction, (float(T_min_young) - 2))
                 T_min_old_nightReduction = np.append(T_min_old_nightReduction, (float(T_min_old) - 2))
             elif hour >= 22:
-                T_min_young_nightReduction = np.append(T_min_young_nightReduction, (float(T_min_young)-2))
+                T_min_young_nightReduction = np.append(T_min_young_nightReduction, (float(T_min_young) - 2))
                 T_min_old_nightReduction = np.append(T_min_old_nightReduction, (float(T_min_old) - 2))
             else:
                 T_min_young_nightReduction = np.append(T_min_young_nightReduction, float(T_min_young))
                 T_min_old_nightReduction = np.append(T_min_old_nightReduction, float(T_min_old))
-
 
         # set temperature with smart system that adapts according to outside temperatuer to save energy:
         # the heating temperature will be calculated by a function, if the heating temperature is above 21°C,
@@ -802,7 +869,6 @@ class TableGenerator:
         DB().write_DataFrame(TargetFrame, REG_Table().Gen_Sce_TargetTemperature, column_names.keys(),
                              self.Conn, dtype=column_names)
 
-
     def gen_Sce_AC_HourlyCOP(self):
         TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
         ID_Hour = TimeStructure.ID_Hour.to_numpy()
@@ -814,7 +880,6 @@ class TableGenerator:
         columns = {"ID_Hour": "INTEGER",
                    "ACHourlyCOP": "REAL"}
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_AC_HourlyCOP, columns.keys(), self.Conn, dtype=columns)
-
 
     def run(self):
         # these have to be run before ID Household
@@ -855,24 +920,23 @@ if __name__ == "__main__":
                 "AT321", "AT322", "AT323",
                 "AT331", "AT332", "AT333", "AT334", "AT335",
                 "AT341", "AT342"]
-    for NUTS_ID in NUTS_IDs:
-        # A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
-        # A.gen_OBJ_ID_PV(NUTS_ID)
-        pass
-
+    # for NUTS_ID in NUTS_IDs:
+    #     # A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
+    #     # A.gen_OBJ_ID_PV(NUTS_ID)
+    #     pass
+    A.get_PVGIS_data()
     ID_COUNTRY = "AT"
     # A.save_temp_and_radiation(ID_COUNTRY)
     # A.save_PV2Base(ID_COUNTRY)
 
     # A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
-    A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
+    # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_Sce_AC_HourlyCOP()
 
     # A.gen_OBJ_ID_SpaceHeating()
     # A.gen_OBJ_ID_Battery()
     # A.gen_OBJ_ID_Building()   # create gen_obj_id_building
-    A.gen_OBJ_ID_Household()
-
+    # A.gen_OBJ_ID_Household()
 
     NumberOfDishWasherProfiles = 10
     NumberOfWashingMachineProfiles = 10
