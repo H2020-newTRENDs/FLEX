@@ -28,6 +28,22 @@ def performance_counter(func):
         return result
     return wrapper
 
+def COP_HP(outside_temperature, water_temperature, source):
+    """
+    calculates the COP based on a performance factor and the massflow temperatures
+    """
+    if source == "air":
+        efficiency = 0.39
+        COP = np.array([efficiency * (water_temperature + 273.15) / (water_temperature - temp) for temp in
+                        outside_temperature])
+    elif source == "ground":
+        efficiency = 0.35  # for the ground source heat pump the temperature of the source is 10°C
+        COP = np.array([efficiency * (water_temperature + 273.15) / (water_temperature - 10) for temp in
+                        outside_temperature])
+    else:
+        assert "only >>air<< and >>ground<< are valid arguments"
+
+    return COP
 
 class DataSetUp:
 
@@ -211,9 +227,16 @@ class DataSetUp:
         Q_sol = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
 
         # (3.4) Selection of heat pump COP
-        SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[
-            self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==
-            Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP'].to_numpy()
+        if Household.SpaceHeating.ID_SpaceHeatingBoilerType == 1:
+            source = "air"
+        elif Household.SpaceHeating.ID_SpaceHeatingBoilerType == 2:
+            source = "ground"
+        space_heating_supply_temperature = 35  # TODO implement this info in Household
+        hot_water_supply_temperature = 55  # TODO implement this info in Household
+        SpaceHeatingHourlyCOP = COP_HP(outside_temperature=self.Temperature["Temperature"].to_numpy(),
+                                       water_temperature=space_heating_supply_temperature,
+                                       source=source)
+
 
         # Selection of AC COP
         ACHourlyCOP = self.AC_HourlyCOP.ACHourlyCOP.to_numpy()
