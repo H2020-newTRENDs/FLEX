@@ -154,7 +154,7 @@ class TableGenerator:
         This profile is taken from https://www.iea-ebc.org/projects/project?AnnexID=42
         """
         origin_data = pd.read_excel()
-
+        pass
 
     def save_PV2Base(self, id_country):
         # table = np.column_stack([id_country, id_pv_type, ID_Hour, PVProfile, unit])
@@ -442,6 +442,9 @@ class TableGenerator:
         """
         # calculate COP of HP for heating and DHW:
         outsideTemperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()
+        # calculate hourly COP for certain temperatures [30 to 65]:
+        hot_water_temperatures = np.arange(30, 70, 5)
+
         HeatPump_COP = DB().read_DataFrame(REG_Table().Sce_HeatPump_COPCurve, self.Conn)
         HeatPump_COP_Water = HeatPump_COP.loc[
             HeatPump_COP['ID_SpaceHeatingBoilerType'] == 2]  # outside heat changer to water
@@ -547,27 +550,27 @@ class TableGenerator:
         peak power.
         The output is NUTS2_PV_Data, NUTS2_Radiation_Data and NUTS2_Temperature_Data in the SQLite Database.
         """
-        nuts_id_europe = DB().read_DataFrame("NUTS_IDs", conn=self.Conn)
-        table_name_temperature = "NUTS2_Temperature_Data"
-        table_name_radiation = "NUTS2_Radiation_Data"
-        table_name_PV = "NUTS2_PV_Data"
-        nuts = [nuts_id_europe.loc[:, "Code_2021"][i] for i in range(len(nuts_id_europe)) if
-                 len(nuts_id_europe.loc[:, "Code_2021"][i]) == 4]
+        # nuts_id_europe = DB().read_DataFrame("NUTS_IDs", conn=self.Conn)
+        # table_name_temperature = "NUTS2_Temperature_Data"
+        # table_name_radiation = "NUTS2_Radiation_Data"
+        # table_name_PV = "NUTS2_PV_Data"
+        # nuts = [nuts_id_europe.loc[:, "Code_2021"][i] for i in range(len(nuts_id_europe)) if
+        #          len(nuts_id_europe.loc[:, "Code_2021"][i]) == 4]
         # NUTS2[128] muss noch gemacht werden! (funktioniert nicht für PV Power 10 kW
 
         # nuts3 for austria:
-        # nuts = ["AT111", "AT112", "AT113",
-        #             "AT121", "AT122", "AT123", "AT124", "AT125", "AT126", "AT127",
-        #             "AT130",
-        #             "AT211", "AT212", "AT213",
-        #             "AT221", "AT222", "AT223", "AT225", "AT226",
-        #             "AT311", "AT312", "AT313", "AT314", "AT315",
-        #             "AT321", "AT322", "AT323",
-        #             "AT331", "AT332", "AT333", "AT334", "AT335",
-        #             "AT341", "AT342"]
-        # table_name_temperature = "NUTS2_Temperature_Data_AT"
-        # table_name_radiation = "NUTS2_Radiation_Data_AT"
-        # table_name_PV = "NUTS2_PV_Data_AT"
+        nuts = ["AT111", "AT112", "AT113",
+                "AT121", "AT122", "AT123", "AT124", "AT125", "AT126", "AT127",
+                "AT130",
+                "AT211", "AT212", "AT213",
+                "AT221", "AT222", "AT223", "AT224", "AT225", "AT226",
+                "AT311", "AT312", "AT313", "AT314", "AT315",
+                "AT321", "AT322", "AT323",
+                "AT331", "AT332", "AT333", "AT334", "AT335",
+                "AT341", "AT342"]
+        table_name_temperature = "NUTS3_Temperature_Data_AT"
+        table_name_radiation = "NUTS3_Radiation_Data_AT"
+        table_name_PV = "NUTS3_PV_Data_AT"
 
         def get_JRC_PV(lat, lon, startyear, endyear, peakpower, nuts_id):
             # % JRC data
@@ -757,49 +760,102 @@ class TableGenerator:
 
             print("{} saved".format(nuts_id))
 
-    def save_temp_and_radiation(self, id_country):
-        # calculate mean temperature over country:
+    def country_mean_PV_GIS(self, id_country):
+        # weighted average over heat demand from hotmaps TODO get Hotmaps data through API
+        heat_demand_AT = pd.read_excel(
+            "C:/Users/mascherbauer/PycharmProjects/NewTrends/Prosumager/_Philipp/inputdata/AUT/AT_Heat_demand_total_NUTS3.xlsx",
+            engine="openpyxl")
+        total_heat_demand = heat_demand_AT.loc[:, "sum"].sum()
+        # create numpy arrays that will be filled inside the loop:
+        temperature_weighted_sum = np.zeros((8760, 1))
+        radiation_weighted_sum = np.zeros((8760, 4))
+        # get different PV id types:
+        unique_PV_id_types = np.unique(DB().read_DataFrame("NUTS3_PV_Data_AT", self.Conn, "ID_PVType").to_numpy())
+        # dictionary for different PV types
+        PV_weighted_sum = {id_pv: np.zeros((8760, 1)) for id_pv in unique_PV_id_types}
+        for index, row in heat_demand_AT.iterrows():
+            nuts_id = row["nuts_id"]
+            heat_demand_of_specific_region = row["sum"]
+            # Temperature
+            temperature_profile = DB().read_DataFrame("NUTS3_Temperature_Data_AT",
+                                                      self.Conn,
+                                                      "Temperature",
+                                                      ID_Country=nuts_id).to_numpy()
+            temperature_weighted_sum += temperature_profile * heat_demand_of_specific_region / total_heat_demand
 
-        solarRadiationFrame = np.vstack(self.SolarRadiationList)
-        temperatureFrame = np.vstack(self.TemperatureList)
-        unique_regions = np.unique(solarRadiationFrame[:, 0])
-        AdditionsFrame_radiation = np.zeros(shape=(8760, 4))
-        AdditionsFrame_temperature = np.zeros(shape=(1, 8760))
-        for region in unique_regions:
-            AdditionsFrame_radiation = AdditionsFrame_radiation + \
-                                       solarRadiationFrame[np.where(solarRadiationFrame[:, 0] == region), 2:]
-            AdditionsFrame_temperature = AdditionsFrame_temperature + \
-                                         temperatureFrame[np.where(temperatureFrame[:, 0] == region), 1]
+            # Solar radiation
+            radiation_profile = DB().read_DataFrame("NUTS3_Radiation_Data_AT",
+                                                    self.Conn,
+                                                    "south", "east", "west", "north",  # *columns
+                                                    ID_Country=nuts_id).to_numpy()  # **kwargs
+            radiation_weighted_sum += radiation_profile * heat_demand_of_specific_region / total_heat_demand
 
-        # Mittelwert:
-        MeanFrame_radiation = AdditionsFrame_radiation / len(unique_regions)
-        MeanFrame_temperature = AdditionsFrame_temperature / len(unique_regions)
+            # PV
+            # iterate through different PV types and add each weighted profiles to corresponding dictionary index
+            for id_pv in unique_PV_id_types:
+                PV_profile = DB().read_DataFrame("NUTS3_PV_Data_AT",
+                                                 self.Conn,
+                                                 "PVPower",  # *columns
+                                                 ID_Country=nuts_id, ID_PVType=id_pv).to_numpy()  # **kwargs
+                PV_weighted_sum[id_pv] += PV_profile * heat_demand_of_specific_region / total_heat_demand
 
-        ID_Timestructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
-        ID_Country = np.full((len(ID_Timestructure),), id_country)
-        # save solar radiation
-        columns = {"ID_Country": "INTEGER",
-                   "ID_Hour": "INTEGER",
-                   "south": "REAL",
-                   "east": "REAL",
-                   "west": "REAL",
-                   "north": "REAL"}
-        RadiationFrame = np.column_stack(
-            [ID_Country, ID_Timestructure.ID_Hour.to_numpy(), MeanFrame_radiation.squeeze()])
-        # write radiation data to database
-        DB().write_DataFrame(RadiationFrame, REG_Table().Gen_Sce_Weather_Radiation_SkyDirections,
-                             columns.keys(), self.Conn, dtype=columns)
+        # create table for saving to DB:
+        # Temperature
+        temperature_table = np.column_stack([np.full((8760, 1), id_country),
+                                             np.arange(8760),
+                                             temperature_weighted_sum])
+        temperature_columns = {"ID_Country": "TEXT",
+                               "ID_Hour": "INTEGER",
+                               "Temperature": "REAL"}
+        # save weighted temperature average profile to database:
+        DB().write_DataFrame(table=temperature_table,
+                             table_name="Sce_Weather_Temperature",
+                             column_names=temperature_columns.keys(),
+                             conn=self.Conn,
+                             dtype=temperature_columns)
 
-        # save tempearture data
-        TemperatureFrame = np.column_stack(
-            [ID_Country, ID_Timestructure.ID_Hour.to_numpy(), MeanFrame_temperature.squeeze()])
+        # Radiation
+        radiation_table = np.column_stack([np.full((8760, 1), id_country),
+                                           np.arange(8760),
+                                           radiation_weighted_sum])
+        radiation_columns = {"ID_Country": "TEXT",
+                             "ID_Hour": "INTEGER",
+                             "south": "REAL", "east": "REAL", "west": "REAL", "north": "REAL"}
+        # save to sql database:
+        DB().write_DataFrame(table=radiation_table,
+                             table_name="Gen_Sce_Weather_Radiation_SkyDirections",
+                             column_names=radiation_columns.keys(),
+                             conn=self.Conn,
+                             dtype=radiation_columns)
 
-        dtypes = {"ID_Country": "TEXT",
-                  "ID_Hour": "INTEGER",
-                  "Temperature": "REAL"}
-        # write temperature data to database  TODO write so many temperature profiles are saved depending on region
-        DB().write_DataFrame(TemperatureFrame, REG_Table().Sce_Weather_Temperature, dtypes.keys(),
-                             self.Conn, dtype=dtypes)
+        # PV
+        pv_columns = {"ID_Country": "TEXT",
+                      "ID_PVType": "INTEGER",
+                      "ID_Hour": "INTEGER",
+                      "PVPower": "REAL",
+                      "Unit": "TEXT"}
+        # create single row on which tables are stacked up
+        pv_table = np.zeros((1, len(pv_columns)))
+        for key, values in PV_weighted_sum.items():
+            # create the table for each pv type
+            single_pv_table = np.column_stack([np.full((8760, 1), id_country),
+                                               np.full((8760, 1), key),
+                                               np.arange(8760),
+                                               values,
+                                               np.full((8760, 1), "kW")])
+            # stack the tables from dictionary to one large table
+            pv_table = np.vstack([pv_table, single_pv_table])
+
+        # remove the first row (zeros) from the pv_table
+        pv_table = pv_table[1:]
+        # save to sql database:
+        DB().write_DataFrame(table=pv_table,
+                             table_name="Gen_Sce_PhotovoltaicProfile",
+                             column_names=pv_columns.keys(),
+                             conn=self.Conn,
+                             dtype=pv_columns)
+
+        print("mean tables for country {} have been saved".format(id_country))
 
     def gen_sce_indoor_temperature(self):
         outsideTemperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()
@@ -911,25 +967,12 @@ if __name__ == "__main__":
     CONN = DB().create_Connection(CONS().RootDB)
     A = TableGenerator(CONN)
 
-    NUTS_IDs = ["AT111", "AT112", "AT113",
-                "AT121", "AT122", "AT123", "AT124", "AT125", "AT126", "AT127",
-                "AT130",
-                "AT211", "AT212", "AT213",
-                "AT221", "AT222", "AT223", "AT225", "AT226",
-                "AT311", "AT312", "AT313", "AT314", "AT315",
-                "AT321", "AT322", "AT323",
-                "AT331", "AT332", "AT333", "AT334", "AT335",
-                "AT341", "AT342"]
-    # for NUTS_ID in NUTS_IDs:
-    #     # A.gen_SolarRadiation_windows_and_outsideTemperature(nuts_id=NUTS_ID)
-    #     # A.gen_OBJ_ID_PV(NUTS_ID)
-    #     pass
-    A.get_PVGIS_data()
+    # A.get_PVGIS_data()   # currently gets the data for Europe on NUTS 2 level
     ID_COUNTRY = "AT"
-    # A.save_temp_and_radiation(ID_COUNTRY)
+    # A.country_mean_PV_GIS(ID_COUNTRY)  # creates mean table (only for austria right now, not for all countries)
+
     # A.save_PV2Base(ID_COUNTRY)
 
-    # A.gen_Sce_HeatPump_HourlyCOP()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_Sce_AC_HourlyCOP()
 
