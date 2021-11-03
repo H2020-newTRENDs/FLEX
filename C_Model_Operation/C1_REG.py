@@ -40,6 +40,7 @@ class REG_Table:
         self.ID_ElectricVehicleType = self.ID + "ElectricVehicleType"
         self.ID_GridInfrastructure = self.ID + "GridInfrastructure"
         self.ID_BuildingMassTemperature = self.ID + "BuildingMassTemperature"
+        self.ID_ElectricityPrice = self.ID + "ElectricityPrice"
 
         # 1.2 Generated tables: objects
         self.Gen_OBJ_ID_Household = self.GeneratedData + self.Object + self.ID + "Household"
