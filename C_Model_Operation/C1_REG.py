@@ -105,6 +105,8 @@ class REG_Table:
         self.Gen_Sce_AC_HourlyCOP = self.GeneratedData + self.Scenario + "AC_HourlyCOP"
         self.Gen_Sce_TargetTemperature = self.GeneratedData + self.Scenario + "TargetTemperature"
 
+        self.Gen_Sce_ElectricityProfile = self.GeneratedData + self.Scenario + "ElectricityProfile"
+
 
         # Gen_Sce_SolarRadiationDirections...
 

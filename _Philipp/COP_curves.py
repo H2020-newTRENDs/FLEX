@@ -11,9 +11,9 @@ def COP_air_HP_Thomas(outside_temperature, water_temperature):
     """
     calculates the COP based on a performance factor and the massflow temperatures
     """
-    efficiency_air = 0.39
+    efficiency_air = 0.4
     efficiency_water = 0.35
-    COP = [efficiency_air * (water_temperature+273.15) / (water_temperature-temp) for temp in outside_temperature]
+    COP = [efficiency_air * (water_temperature + 273.15) / (water_temperature - temp) for temp in outside_temperature]
     return COP
 
 
@@ -164,21 +164,21 @@ def main():
     plt.show()
 
     l1 = sns.catplot(data=df_melted,
-                x="Außentemperatur",
-                y="COP",
-                hue="Warmwassertemperatur",
-                palette="CMRmap_r",
-                kind="bar")
+                     x="Außentemperatur",
+                     y="COP",
+                     hue="Warmwassertemperatur",
+                     palette="CMRmap_r",
+                     kind="bar")
     plt.show()
 
-    number_of_rows = int(np.ceil(len(COP_computed)/3))
+    number_of_rows = int(np.ceil(len(COP_computed) / 3))
     fig, axes = plt.subplots(number_of_rows, 3, figsize=(15, 15))
     i = 0
     j = 0
     for key in COP_computed.keys():
         axes[j, i].plot(np.arange(-10, 15), COP_computed[key], label="COP fitted")
-        axes[j, i].scatter(df_melted.loc[df_melted["Warmwassertemperatur"]==key]["Außentemperatur"],
-                           df_melted.loc[df_melted["Warmwassertemperatur"]==key]["COP"],
+        axes[j, i].scatter(df_melted.loc[df_melted["Warmwassertemperatur"] == key]["Außentemperatur"],
+                           df_melted.loc[df_melted["Warmwassertemperatur"] == key]["COP"],
                            label="manufacturer data",
                            marker="x",
                            color="r")
@@ -200,7 +200,23 @@ def main():
     plt.tight_layout()
 
     plt.show()
-    pass
+
+    data_boxplot = data2plot.loc[data2plot["Warmwassertemperatur"] == 35].drop(columns=["Warmwassertemperatur"]).set_index("Außentemperatur", drop=True).to_numpy()
+    x_axis = outside_temperature[3:8].to_numpy()
+    boxplot_list = [i[~np.isnan(i)] for i in data_boxplot]
+    fig_35 = plt.figure()
+    ax = plt.gca()
+    ax.plot(np.array([10, 7, 2, -7, -10]), COP_air_HP_Thomas([10, 7, 2, -7, -10], 35), label="COP fitted")
+
+    locs, labels = plt.xticks()
+    ax.boxplot(boxplot_list, positions=x_axis)
+    ax.set_xticklabels(x_axis)
+
+    ax.set_xlabel("Temperature in °C")
+    ax.set_ylabel("COP")
+    ax.set_title("COP curve for 35°C heating temperature")
+    plt.legend()
+    plt.show()
 
 
 if __name__ == "__main__":
