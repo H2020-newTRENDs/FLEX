@@ -24,10 +24,10 @@ class DataCollector:
                                            self.VAR.OutsideTemperature: "REAL",
 
                                            self.VAR.E_BaseElectricityLoad: "REAL",
-                                           self.VAR.E_DishWasher: "REAL",
-                                           self.VAR.E_WashingMachine: "REAL",
-                                           self.VAR.E_Dryer: "REAL",
-                                           self.VAR.E_SmartAppliance: "REAL",
+                                           # self.VAR.E_DishWasher: "REAL",
+                                           # self.VAR.E_WashingMachine: "REAL",
+                                           # self.VAR.E_Dryer: "REAL",
+                                           # self.VAR.E_SmartAppliance: "REAL",
 
                                            self.VAR.Q_HeatPump: "REAL",
                                            self.VAR.HeatPumpPerformanceFactor: "REAL",
@@ -69,7 +69,7 @@ class DataCollector:
                                            self.VAR.OperationCost: "REAL",
 
                                            self.VAR.Year_E_BaseElectricityLoad: "REAL",
-                                           self.VAR.Year_E_SmartAppliance: "REAL",
+                                           # self.VAR.Year_E_SmartAppliance: "REAL",
                                            self.VAR.Year_Q_HeatPump: "REAL",
                                            self.VAR.Year_E_HeatPump: "REAL",
                                            self.VAR.Year_HeatPumpPerformanceFactor: "REAL",
@@ -102,9 +102,9 @@ class DataCollector:
                                            self.VAR.Year_PVSelfSufficiencyRate: "REAL",
 
                                            self.VAR.Building_hwbnorm: "REAL",
-                                           self.VAR.Household_DishWasherShifting: "REAL",
-                                           self.VAR.Household_WashingMachineShifting: "REAL",
-                                           self.VAR.Household_DryerShifting: "REAL",
+                                           # self.VAR.Household_DishWasherShifting: "REAL",
+                                           # self.VAR.Household_WashingMachineShifting: "REAL",
+                                           # self.VAR.Household_DryerShifting: "REAL",
                                            self.VAR.Household_TankSize: "REAL",
                                            self.VAR.Household_CoolingAdoption: "REAL",
                                            self.VAR.Household_PVPower: "REAL",

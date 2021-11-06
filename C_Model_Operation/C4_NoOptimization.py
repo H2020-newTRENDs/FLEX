@@ -33,17 +33,33 @@ class no_DR:
         self.outsideTemperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature
         self.Buildings = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.Conn)
         self.IndoorSetTemperatures = DB().read_DataFrame(REG_Table().Gen_Sce_TargetTemperature, self.Conn)
-        self.ElectricityPrice = DB().read_DataFrame(REG_Table().Sce_Price_HourlyElectricityPrice, self.Conn)
+        self.ElectricityPrice = DB().read_DataFrame(REG_Table().Gen_Sce_ElectricityProfile, self.Conn)
         self.FeedinTariff = DB().read_DataFrame(REG_Table().Sce_Price_HourlyFeedinTariff, self.Conn)
         self.Battery = DB().read_DataFrame(REG_Table().ID_BatteryType, self.Conn)
         self.HotWaterTank = DB().read_DataFrame(REG_Table().ID_SpaceHeatingTankType, self.Conn)
-        self.AppliancePower = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_ApplianceGroup, self.Conn)
-        self.HeatPump_HourlyCOP = DB().read_DataFrame(REG_Table().Gen_Sce_HeatPump_HourlyCOP, self.Conn)
+        self.PV_production = DB().read_DataFrame(REG_Table().Gen_Sce_PhotovoltaicProfile, self.Conn)
+        # self.AppliancePower = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_ApplianceGroup, self.Conn)
+        # self.HeatPump_HourlyCOP = DB().read_DataFrame(REG_Table().Gen_Sce_HeatPump_HourlyCOP, self.Conn)
 
         self.CPWater = 4200 / 3600
 
         self.HourlyFrame = []
         self.YearlyFrame = []
+
+    def COP_HP(self, outside_temperature, supply_temperature, efficiency, source):
+        """
+        calculates the COP based on a performance factor and the massflow temperatures
+        """
+        if source == "Air_HP":
+            COP = np.array([efficiency * (supply_temperature + 273.15) / (supply_temperature - temp) for temp in
+                            outside_temperature])
+        elif source == "Water_HP":
+             # for the ground source heat pump the temperature of the source is 10°C
+            COP = np.array([efficiency * (supply_temperature + 273.15) / (supply_temperature - 10) for temp in
+                            outside_temperature])
+        else:
+            assert "only >>air<< and >>ground<< are valid arguments"
+        return COP
 
     def gen_Household(self, row_id):
         ParaSeries = self.ID_Household.iloc[row_id]
@@ -104,9 +120,9 @@ class no_DR:
         TankLoss = float(Household.SpaceHeating.TankLoss)
         TankSurroundingTemperature = float(Household.SpaceHeating.TankSurroundingTemperature)
         TankStartTemperature = float(Household.SpaceHeating.TankStartTemperature)
-        COP_SpaceHeating = self.HeatPump_HourlyCOP.loc[
-            self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==
-            Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP'].to_numpy()
+        COP_SpaceHeating = self.COP_HP(self.outsideTemperature, 35,
+                                       Household.SpaceHeating.CarnotEfficiencyFactor,
+                                       Household.SpaceHeating.Name_SpaceHeatingPumpType)  # 35 °C supply temperature
 
         # Assumption: Tank is always kept at minimum temperature except when it is charged with surplus energy:
         # Note: I completely neglect Hot Water here (but its also neglected in the optimization)
@@ -399,12 +415,14 @@ class no_DR:
         # ID_PVType
         # HeatPumpType
         # TODO specify how to use different set temperatures for different scenarios!
-        if Household.Name_AgeGroup == "Young":
-            T_indoorSetMin = self.IndoorSetTemperatures.HeatingTargetTemperatureYoung.to_numpy()
+        if Household.Name_AgeGroup == "Conventional":
+            T_indoorSetMin = self.IndoorSetTemperatures.HeatingTargetTemperatureYoungNightReduction.to_numpy()
             T_indoorSetMax = self.IndoorSetTemperatures.CoolingTargetTemperatureYoung.to_numpy()
         elif Household.Name_AgeGroup == "SmartHome":
             T_indoorSetMin = self.IndoorSetTemperatures.HeatingTargetTemperatureSmartHome.to_numpy()
             T_indoorSetMax = self.IndoorSetTemperatures.CoolingTargetTemperatureSmartHome.to_numpy()
+        else:
+            assert "no valid option for indoor set temperature"
 
         # calculate solar gains from database
         # solar gains from different celestial directions
@@ -417,7 +435,7 @@ class no_DR:
 
         Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
 
-        # calculate the heating anf cooling energy for all buildings in IDBuildingOption:
+        # calculate the heating and cooling energy for all buildings in IDBuildingOption:
         initial_thermal_mass_temperature = self.calculate_initial_thermal_mass_temp()
         Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t_noDR = HeatingCooling_noDR().ref_HeatingCooling(
             initial_thermal_mass_temp=15,
@@ -437,43 +455,44 @@ class no_DR:
         HeatingElement = HeatingElement / 1_000
 
         # PV production profile:
-        PV_production = DB().read_DataFrame(REG_Table().Gen_Sce_PhotovoltaicProfile, self.Conn)
-        PV_profile = pd.to_numeric(PV_production.loc[PV_production["ID_PVType"] == Household.PV.ID_PVType, :].PVPower).to_numpy()
+        if Household.PV.ID_PVType in self.PV_production["ID_PVType"].to_numpy():
+            PV_profile = pd.to_numeric(self.PV_production.loc[self.PV_production["ID_PVType"] == Household.PV.ID_PVType, :].PVPower).to_numpy()
+        else:
+            PV_profile = np.full((8760,), 0)
 
         # Dishwasher Profile
         # TODO select one of the random profiles (now i only use number 1)
         RandomProfileNumber = 0
         # Dish Washer Profile
-        DishWasherStartingHours = DB().read_DataFrame(REG_Table().Gen_Sce_DishWasherStartingHours, self.Conn)[
-            "DishWasherHours " + str(RandomProfileNumber)].to_numpy()
-        DishWasherPower = float(self.AppliancePower.DishWasherPower)
-        DishWasherProfile = DishWasherStartingHours * DishWasherPower
+        # DishWasherStartingHours = DB().read_DataFrame(REG_Table().Gen_Sce_DishWasherStartingHours, self.Conn)[
+        #     "DishWasherHours " + str(RandomProfileNumber)].to_numpy()
+        # DishWasherPower = float(self.AppliancePower.DishWasherPower)
+        # DishWasherProfile = DishWasherStartingHours * DishWasherPower
 
         # Washing Machine Profile
-        WashingMachineStartingHours = DB().read_DataFrame(REG_Table().Gen_Sce_WashingMachineStartingHours, self.Conn)[
-            "WashingMachineHours " + str(RandomProfileNumber)].to_numpy()
-        WashingMachinePower = float(self.AppliancePower.WashingMachinePower)
-        WashingMachineProfile = WashingMachineStartingHours * WashingMachinePower
+        # WashingMachineStartingHours = DB().read_DataFrame(REG_Table().Gen_Sce_WashingMachineStartingHours, self.Conn)[
+        #     "WashingMachineHours " + str(RandomProfileNumber)].to_numpy()
+        # WashingMachinePower = float(self.AppliancePower.WashingMachinePower)
+        # WashingMachineProfile = WashingMachineStartingHours * WashingMachinePower
 
         # Dryer Profile
-        DryerStartingHours = DB().read_DataFrame(REG_Table().Gen_Sce_DryerStartingHours, self.Conn)[
-            "DryerHours " + str(RandomProfileNumber)].to_numpy()
-        DryerPower = float(self.AppliancePower.DryerPower)
-        DryerProfile = DryerStartingHours * DryerPower
+        # DryerStartingHours = DB().read_DataFrame(REG_Table().Gen_Sce_DryerStartingHours, self.Conn)[
+        #     "DryerHours " + str(RandomProfileNumber)].to_numpy()
+        # DryerPower = float(self.AppliancePower.DryerPower)
+        # DryerProfile = DryerStartingHours * DryerPower
 
         # electricity for DHW:
-        COP_SpaceHeating = self.HeatPump_HourlyCOP.loc[
-            self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==
-            Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP'].to_numpy()
+        COP_SpaceHeating = self.COP_HP(self.outsideTemperature, 35,
+                                       Household.SpaceHeating.CarnotEfficiencyFactor,
+                                       Household.SpaceHeating.Name_SpaceHeatingPumpType)  # 35 °C supply temperature
 
-        COP_HotWater = self.HeatPump_HourlyCOP.loc[
-            self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==
-            Household.SpaceHeating.ID_SpaceHeatingBoilerType].HotWaterHourlyCOP.to_numpy()
 
-        Q_HotWater = self.HotWaterProfile.HotWaterPart1.to_numpy() + self.HotWaterProfile.HotWaterPart2.to_numpy()
+        COP_HotWater = self.COP_HP(self.outsideTemperature, 55,
+                                       Household.SpaceHeating.CarnotEfficiencyFactor,
+                                       Household.SpaceHeating.Name_SpaceHeatingPumpType)  # 55 °C supply temperature
 
-        DHWProfile = self.HotWaterProfile.HotWaterPart1.to_numpy() / COP_SpaceHeating + \
-                     self.HotWaterProfile.HotWaterPart2.to_numpy() / COP_HotWater
+        Q_HotWater = self.HotWaterProfile.HotWater.to_numpy()
+        DHWProfile = Q_HotWater / COP_HotWater
 
         # electricity for heating:
         HeatingProfile = np.zeros(Q_Heating_noDR.shape)
@@ -491,15 +510,15 @@ class no_DR:
         for column in range(Q_Heating_noDR.shape[1]):
             Total_Load[:, column] = self.BaseLoadProfile + \
                                     DHWProfile + \
-                                    DryerProfile + \
-                                    WashingMachineProfile + \
-                                    DishWasherProfile + \
                                     HeatingProfile[:, column] + \
                                     CoolingProfile[:, column] + \
-                                    HeatingElement[:, column]
+                                    HeatingElement[:, column] #+ \
+                                    # DryerProfile + \
+                                    # WashingMachineProfile + \
+                                    # DishWasherProfile
 
         # only load of electric appliances:
-        Load_Appliances = DryerProfile + WashingMachineProfile + DishWasherProfile
+        # Load_Appliances = DryerProfile + WashingMachineProfile + DishWasherProfile
 
         # The PV profile is substracted from the total load
         Total_Load_minusPV = np.zeros(Total_Load.shape)
@@ -544,13 +563,10 @@ class no_DR:
             Q_Heating_noDR = Q_heating_withTank
 
         # calculate the electricity cost:
-        PriceHourly = self.ElectricityPrice.loc[
-            (self.ElectricityPrice['ID_ElectricityPriceType'] == Environment["ID_ElectricityPriceType"]) &
-            (self.ElectricityPrice['ID_Country'] == Household.ID_Country)]['HourlyElectricityPrice'].to_numpy()
+        PriceHourly = self.ElectricityPrice.loc[self.ElectricityPrice['ID_PriceType'] == Environment["ID_ElectricityPriceType"]]["ElectricityPrice"].to_numpy()/100
 
-        FIT = self.FeedinTariff.loc[(self.FeedinTariff['ID_FeedinTariffType'] == Environment["ID_FeedinTariffType"]) &
-                                    (self.ElectricityPrice['ID_Country'] == Household.ID_Country)][
-            'HourlyFeedinTariff'].to_numpy()
+        FIT = self.FeedinTariff.loc[(self.FeedinTariff['ID_FeedinTariffType'] == Environment["ID_FeedinTariffType"])]["HourlyFeedinTariff"].to_numpy()   #\&
+                                    # (self.ElectricityPrice['ID_Country'] == Household.ID_Country)]['HourlyFeedinTariff'].to_numpy()
 
         total_elec_cost = np.zeros(final_Load.shape)
         for column in range(final_Load.shape[1]):
@@ -558,13 +574,13 @@ class no_DR:
 
         print("Total Operation Cost: " + str(round(total_elec_cost.sum(axis=0)[Household.ID_Building - 1])))
         # Dataframe for yearly values:
-        self.YearlyFrame.append([Household.ID,
+        YearlyFrame = [Household.ID,
                                  Household.ID_Building,
                                  Environment.ID,
                                  total_elec_cost.sum(axis=0)[Household.ID_Building - 1],
 
                                  self.BaseLoadProfile.sum(),  # Base electricity load
-                                 Load_Appliances.sum(axis=0),
+                                 # Load_Appliances.sum(axis=0),
                                  Q_Heating_noDR.sum(axis=0)[Household.ID_Building - 1],
                                  # Note that Roomheating and Tankheating are the same
                                  HeatingProfile.sum(axis=0)[Household.ID_Building - 1],  # electricity for heating
@@ -605,18 +621,18 @@ class no_DR:
                                      Household.ID_Building - 1],  # PV self Sufficiency rate
 
                                  Household.Building.hwb_norm1,
-                                 Household.ApplianceGroup.DishWasherShifting,
-                                 Household.ApplianceGroup.WashingMachineShifting,
-                                 Household.ApplianceGroup.DryerShifting,
+                                 # Household.ApplianceGroup.DishWasherShifting,
+                                 # Household.ApplianceGroup.WashingMachineShifting,
+                                 # Household.ApplianceGroup.DryerShifting,
                                  Household.SpaceHeating.TankSize,
                                  Household.SpaceCooling.AdoptionStatus,
                                  Household.PV.PVPower,
                                  Household.Battery.Capacity,
                                  Environment["ID_ElectricityPriceType"]
-                                 ])
+                                 ]
 
         # hourly values:
-        self.HourlyFrame.append(np.column_stack([np.full((len(Total_Load), ), Household.ID),  # household ID
+        HourlyFrame = np.column_stack([np.full((len(Total_Load), ), Household.ID),  # household ID
                                                  np.full((len(Total_Load),), Household.ID_Building),
                                                  np.full((len(Total_Load), ), Environment.ID),  # environment ID
                                                  np.arange(1, len(Total_Load) + 1),   # Hours ID
@@ -626,10 +642,10 @@ class no_DR:
                                                  # change when more temperature profiles are being saved!
 
                                                  self.BaseLoadProfile,   # base load
-                                                 DishWasherProfile,   # E dish washer
-                                                 WashingMachineProfile,  # E washing machine
-                                                 DryerProfile,  # E dryer
-                                                 Load_Appliances,  # E all 3 appliances
+                                                 # DishWasherProfile,   # E dish washer
+                                                 # WashingMachineProfile,  # E washing machine
+                                                 # DryerProfile,  # E dryer
+                                                 # Load_Appliances,  # E all 3 appliances
 
                                                  Q_Heating_noDR[:, Household.ID_Building - 1],   # Q Heat pump (tank heating)
                                                  COP_SpaceHeating,  # Hourly COP of HP
@@ -665,31 +681,31 @@ class no_DR:
 
                                                  Total_Load[:, Household.ID_Building - 1]  # kW
                                                  ])
-                                 )
-        pass
 
-    def save_ReferenzeResults(self):
-        DB().write_DataFrame(np.vstack(self.YearlyFrame), REG_Table().Res_Reference_HeatingCooling_Year,
-                             DataCollector(self.Conn).SystemOperationYear_Column.keys(), self.Conn,
-                             dtype=DataCollector(self.Conn).SystemOperationYear_Column)
+        DB().add_DataFrame(table=HourlyFrame,
+                           table_name=REG_Table().Res_Reference_HeatingCooling,
+                           column_names=DataCollector(self.Conn).SystemOperationHour_Column.keys(),
+                           conn=self.Conn,
+                           dtype=DataCollector(self.Conn).SystemOperationHour_Column)
+        # Year:
+        DB().add_DataFrame(table=np.array(YearlyFrame).reshape(1, -1),
+                           table_name=REG_Table().Res_Reference_HeatingCooling_Year,
+                           column_names=DataCollector(self.Conn).SystemOperationYear_Column.keys(),
+                           conn=self.Conn,
+                           dtype=DataCollector(self.Conn).SystemOperationYear_Column)
 
-        DB().write_DataFrame(np.vstack(self.HourlyFrame), REG_Table().Res_Reference_HeatingCooling,
-                             DataCollector(self.Conn).SystemOperationHour_Column.keys(), self.Conn,
-                             dtype=DataCollector(self.Conn).SystemOperationHour_Column)
 
-
-    @performance_counter
+    # @performance_counter
     def run(self):
         runs = len(self.ID_Household)
         for household_RowID in range(0, runs):
-            for environment_RowID in range(0, 1):
+            for environment_RowID in range(0, 2):
                 print("Houshold ID: " + str(household_RowID+1))
                 print("Environment ID: " + str(environment_RowID+1))
                 self.calculate_noDR(household_RowID, environment_RowID)
-        self.save_ReferenzeResults()
 
 
 if __name__ == "__main__":
-    # no_DR().run()
+    no_DR().run()
     print("finished")
 
