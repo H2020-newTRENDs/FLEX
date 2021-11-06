@@ -2,11 +2,11 @@ class SpaceHeating:
 
     def __init__(self, para_series):
 
-        self.ID_SpaceHeatingBoilerType = para_series["ID_SpaceHeatingBoilerType"]
-        self.Name_SpaceHeatingBoilerType = para_series['Name_SpaceHeatingBoilerType']
-        self.ID_EnergyCarrier = para_series["ID_EnergyCarrier"]
+        # self.ID_SpaceHeatingBoilerType = para_series["ID_SpaceHeatingBoilerType"]
+        self.Name_SpaceHeatingPumpType = para_series['Name_SpaceHeatingPumpType']
+        # self.ID_EnergyCarrier = para_series["ID_EnergyCarrier"]
         self.HeatPumpMaximalThermalPower = para_series["HeatPumpMaximalThermalPower"]
-        self.SpaceHeatingBoilerEfficiency = para_series['SpaceHeatingBoilerEfficiency']
+        self.CarnotEfficiencyFactor = para_series['CarnotEfficiencyFactor']
         self.HeatingElementPower = para_series['HeatingElementPower']
 
         self.ID_SpaceHeatingTankType = para_series["ID_SpaceHeatingTankType"]
@@ -20,8 +20,8 @@ class SpaceHeating:
         self.TankSurroundingTemperature = para_series["TankSurroundingTemperature"]
 
         self.ID_SpaceHeatingPumpType = para_series["ID_SpaceHeatingPumpType"]
-        self.PumpConsumptionRate = para_series["PumpConsumptionRate"]
-        self.MaximalPowerFloorHeating = para_series["MaximalPowerFloorHeating"]
+        # self.PumpConsumptionRate = para_series["PumpConsumptionRate"]
+        # self.MaximalPowerFloorHeating = para_series["MaximalPowerFloorHeating"]
 
 
 
