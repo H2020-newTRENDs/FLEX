@@ -788,7 +788,7 @@ def run():
     input_data_initial = DataSetUp().get_input_data(0, 0)
     initial_parameters = input_data_initial["input_parameters"]
     pyomo_instance = create_instance(initial_parameters)
-    for household_RowID in range(70, 80):
+    for household_RowID in range(0, runs):
         for environment_RowID in range(0, 2):
             # print("Houshold ID: " + str(household_RowID + 1))
             # print("Environment ID: " + str(environment_RowID + 1))
