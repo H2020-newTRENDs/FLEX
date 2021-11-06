@@ -641,11 +641,8 @@ def update_instance(total_input, instance):
         instance.Q_TankHeating[t].setub(household["SpaceHeating_HeatPumpMaximalThermalPower"])
         instance.Q_HeatingElement[t].setub(household["SpaceHeating_HeatingElementPower"])
         # room heating is handled in if cases
-        # Cooling
-        instance.Q_RoomCooling[t].setub(household["SpaceCooling_SpaceCoolingPower"])
         # Temperatures for RC model
         instance.T_room[t].setlb(HeatingTargetTemperature[t - 1])
-        instance.T_room[t].setub(CoolingTargetTemperature[t - 1])
         instance.Tm_t[t].setub(30)
         # maximum Grid load
         instance.Grid[t].setub(household["Building_MaximalGridPower"])
@@ -655,6 +652,16 @@ def update_instance(total_input, instance):
         instance.Feedin[t].setub(household["Building_MaximalGridPower"])
 
     # special cases:
+    # Room Cooling:
+    if household["SpaceCooling_AdoptionStatus"] == 0:
+        instance.Q_RoomCooling[t].fix(0)
+        for t in range(1, len(HeatingTargetTemperature) + 1):
+            instance.T_room[t].setub(50)  # max 50°C so it wont be infeasable
+    else:
+        for t in range(1, len(HeatingTargetTemperature) + 1):
+            instance.Q_RoomCooling[t].fixed = False
+            instance.T_room[t].setub(CoolingTargetTemperature[t - 1])
+            instance.Q_RoomCooling[t].setub(household["SpaceCooling_SpaceCoolingPower"])
     # Thermal storage
     if household["SpaceHeating_TankSize"] == 0:
         for t in range(1, len(HeatingTargetTemperature) + 1):
@@ -781,7 +788,7 @@ def run():
     input_data_initial = DataSetUp().get_input_data(0, 0)
     initial_parameters = input_data_initial["input_parameters"]
     pyomo_instance = create_instance(initial_parameters)
-    for household_RowID in range(0, 3):
+    for household_RowID in range(70, 80):
         for environment_RowID in range(0, 2):
             # print("Houshold ID: " + str(household_RowID + 1))
             # print("Environment ID: " + str(environment_RowID + 1))
