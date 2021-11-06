@@ -16,7 +16,7 @@ class Building:
         # self.FloorArea = para_series["FloorArea"]
 
         self.ID = para_series['ID']
-        self.f1 = para_series['f1']
+        # self.f1 = para_series['f1']
         self.index = para_series['index']
         self.name = para_series['name']
         self.construction_period_start = para_series['construction_period_start']
@@ -42,7 +42,7 @@ class Building:
         self.CM_factor = para_series['CM_factor']
         self.Am_factor = para_series['Am_factor']
         self.hwb_norm1 = para_series['hwb_norm']
-        self.country_ID = para_series['country_ID']
+        # self.country_ID = para_series['country_ID']
 
         self.MaximalGridPower = para_series['MaximalGridPower']
         self.BuildingMassTemperatureStartValue = para_series['BuildingMassTemperatureStartValue']
