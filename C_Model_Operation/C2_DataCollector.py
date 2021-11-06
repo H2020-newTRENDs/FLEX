@@ -125,21 +125,21 @@ class DataCollector:
         OutsideTemperature_array = self.extract_Result2Array(instance.T_outside.extract_values())
 
         E_BaseLoad_array = self.extract_Result2Array(instance.BaseLoadProfile.extract_values()) / 1000  # kW
-        Hour_DishWasher1_array = self.extract_Result2Array(instance.DishWasher1.extract_values())
-        Hour_DishWasher2_array = self.extract_Result2Array(instance.DishWasher2.extract_values())
-        Hour_DishWasher3_array = self.extract_Result2Array(instance.DishWasher3.extract_values())
-        E_DishWasher_array = (Hour_DishWasher1_array + Hour_DishWasher2_array + Hour_DishWasher3_array) * household[
-            "ApplianceGroup_DishWasherPower"]
-        Hour_WashingMachine1_array = self.extract_Result2Array(instance.WashingMachine1.extract_values())
-        Hour_WashingMachine2_array = self.extract_Result2Array(instance.WashingMachine2.extract_values())
-        Hour_WashingMachine3_array = self.extract_Result2Array(instance.WashingMachine3.extract_values())
-        E_WashingMachine_array = (
-                                             Hour_WashingMachine1_array + Hour_WashingMachine2_array + Hour_WashingMachine3_array) * \
-                                 household["ApplianceGroup_WashingMachinePower"]
-        Hour_Dryer1_array = self.extract_Result2Array(instance.Dryer1.extract_values())
-        Hour_Dryer2_array = self.extract_Result2Array(instance.Dryer2.extract_values())
-        E_Dryer_array = (Hour_Dryer1_array + Hour_Dryer2_array) * household["ApplianceGroup_DryerPower"]
-        E_SmartAppliances_array = E_DishWasher_array + E_WashingMachine_array + E_Dryer_array
+        # Hour_DishWasher1_array = self.extract_Result2Array(instance.DishWasher1.extract_values())
+        # Hour_DishWasher2_array = self.extract_Result2Array(instance.DishWasher2.extract_values())
+        # Hour_DishWasher3_array = self.extract_Result2Array(instance.DishWasher3.extract_values())
+        # E_DishWasher_array = (Hour_DishWasher1_array + Hour_DishWasher2_array + Hour_DishWasher3_array) * household[
+        #     "ApplianceGroup_DishWasherPower"]
+        # Hour_WashingMachine1_array = self.extract_Result2Array(instance.WashingMachine1.extract_values())
+        # Hour_WashingMachine2_array = self.extract_Result2Array(instance.WashingMachine2.extract_values())
+        # Hour_WashingMachine3_array = self.extract_Result2Array(instance.WashingMachine3.extract_values())
+        # E_WashingMachine_array = (
+        #                                      Hour_WashingMachine1_array + Hour_WashingMachine2_array + Hour_WashingMachine3_array) * \
+        #                          household["ApplianceGroup_WashingMachinePower"]
+        # Hour_Dryer1_array = self.extract_Result2Array(instance.Dryer1.extract_values())
+        # Hour_Dryer2_array = self.extract_Result2Array(instance.Dryer2.extract_values())
+        # E_Dryer_array = (Hour_Dryer1_array + Hour_Dryer2_array) * household["ApplianceGroup_DryerPower"]
+        # E_SmartAppliances_array = E_DishWasher_array + E_WashingMachine_array + E_Dryer_array
 
         Q_TankHeatingHeatPump_array = self.extract_Result2Array(instance.Q_TankHeating.extract_values()) / 1000  # kWh
         SpaceHeatingHourlyCOP_array = self.extract_Result2Array(instance.SpaceHeatingHourlyCOP.extract_values())
@@ -156,13 +156,9 @@ class DataCollector:
         CoolingHourlyCOP = self.extract_Result2Array(instance.CoolingCOP.extract_values())
         E_RoomCooling_array = Q_RoomCooling_array / CoolingHourlyCOP
 
-        Q_HW1_array = self.extract_Result2Array(instance.HWPart1.extract_values()) / 1000
-        E_HW1_array = Q_HW1_array / SpaceHeatingHourlyCOP_array
-        Q_HW2_array = self.extract_Result2Array(instance.HWPart2.extract_values()) / 1000
+        Q_HotWater_array = self.extract_Result2Array(instance.HotWater.extract_values()) / 1000
         HotWaterHourlyCOP_array = self.extract_Result2Array(instance.HotWaterHourlyCOP.extract_values())
-        E_HW2_array = Q_HW2_array / HotWaterHourlyCOP_array
-        Q_HotWater_array = Q_HW1_array + Q_HW2_array
-        E_HotWater_array = E_HW1_array + E_HW2_array
+        E_HotWater_array = Q_HotWater_array / HotWaterHourlyCOP_array
 
         E_Grid_array = self.extract_Result2Array(instance.Grid.extract_values()) / 1000
         E_Grid2Load_array = self.extract_Result2Array(instance.Grid2Load.extract_values()) / 1000
@@ -192,10 +188,10 @@ class DataCollector:
             OutsideTemperature_array,
 
             E_BaseLoad_array,
-            E_DishWasher_array,
-            E_WashingMachine_array,
-            E_Dryer_array,
-            E_SmartAppliances_array,
+            # E_DishWasher_array,
+            # E_WashingMachine_array,
+            # E_Dryer_array,
+            # E_SmartAppliances_array,
 
             Q_TankHeatingHeatPump_array,
             SpaceHeatingHourlyCOP_array,
@@ -236,7 +232,7 @@ class DataCollector:
                            instance.Objective(),
 
                            E_BaseLoad_array.sum(),
-                           E_SmartAppliances_array.sum(),
+                           # E_SmartAppliances_array.sum(),
 
                            Q_TankHeatingHeatPump_array.sum(),
                            E_TankHeatingHeatPump_array.sum(),
@@ -270,9 +266,9 @@ class DataCollector:
                            (E_PV_array.sum() - E_PV2Grid_array.sum()) / E_Load_array.sum(),
 
                            household["Building_hwb_norm1"],
-                           household["ApplianceGroup_DishWasherShifting"],
-                           household["ApplianceGroup_WashingMachineShifting"],
-                           household["ApplianceGroup_DryerShifting"],
+                           # household["ApplianceGroup_DishWasherShifting"],
+                           # household["ApplianceGroup_WashingMachineShifting"],
+                           # household["ApplianceGroup_DryerShifting"],
                            household["SpaceHeating_TankSize"],
                            household["SpaceCooling_AdoptionStatus"],
                            household["PV_PVPower"],
