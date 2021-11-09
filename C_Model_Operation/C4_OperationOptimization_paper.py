@@ -310,7 +310,9 @@ class DataSetUp:
             "Building_hwb_norm1": float(Household.Building.hwb_norm1),
             "SpaceHeating_TankSize": float(Household.SpaceHeating.TankSize),
             "SpaceCooling_AdoptionStatus": int(Household.SpaceCooling.AdoptionStatus),
-            "PV_PVPower": float(Household.PV.PVPower)
+            "PV_PVPower": float(Household.PV.PVPower),
+            "Name_SpaceHeatingPumpType": Household.SpaceHeating.Name_SpaceHeatingPumpType,
+            "ID_AgeGroup": int(Household.ID_AgeGroup)
         }
 
         environment_dict = {"ID": Environment["ID"],

@@ -21,6 +21,8 @@ class DataCollector:
                                            self.VAR.ID_Hour: "INTEGER",
                                            self.VAR.ElectricityPrice: "REAL",
                                            self.VAR.FeedinTariff: "REAL",
+                                           self.VAR.ID_AgeGroup: "REAL",
+                                           self.VAR.ID_SpaceHeating: "TEXT",
                                            self.VAR.OutsideTemperature: "REAL",
 
                                            self.VAR.E_BaseElectricityLoad: "REAL",
@@ -109,6 +111,8 @@ class DataCollector:
                                            self.VAR.Household_CoolingAdoption: "REAL",
                                            self.VAR.Household_PVPower: "REAL",
                                            self.VAR.Household_BatteryCapacity: "REAL",
+                                           self.VAR.ID_AgeGroup: "REAL",
+                                           self.VAR.ID_SpaceHeating: "TEXT",
                                            self.VAR.Environment_ElectricityPriceType: "REAL"
                                            }
         self.SystemOperationYear_ValueList = []
@@ -185,6 +189,8 @@ class DataCollector:
             np.arange(1, self.OptimizationHourHorizon + 1),
             ElectricityPrice_array,
             FeedinTariff_array,
+            np.full((len(E_Load_array),), household["ID_AgeGroup"]),
+            np.full((len(E_Load_array),), household["Name_SpaceHeatingPumpType"]),
             OutsideTemperature_array,
 
             E_BaseLoad_array,
@@ -273,6 +279,8 @@ class DataCollector:
                            household["SpaceCooling_AdoptionStatus"],
                            household["PV_PVPower"],
                            household["Battery_Capacity"],
+                           household["ID_AgeGroup"],
+                           household["Name_SpaceHeatingPumpType"],
                            environment["ID_ElectricityPriceType"]]
 
         # old code (stack it up in RAM)
@@ -282,13 +290,13 @@ class DataCollector:
         # new approach (save it directly to SQLite) may be impossible with multiprocessing
         # Hourly:
         DB().add_DataFrame(table=hourly_value_list,
-                           table_name=REG_Table().Res_SystemOperationHour,
+                           table_name="Res_SystemOperationHour_new",
                            column_names=self.SystemOperationHour_Column.keys(),
                            conn=self.Conn,
                            dtype=self.SystemOperationHour_Column)
         # Year:
         DB().add_DataFrame(table=np.array(yearly_value_list).reshape(1, -1),
-                           table_name=REG_Table().Res_SystemOperationYear,
+                           table_name="Res_SystemOperationYear_new",
                            column_names=self.SystemOperationYear_Column.keys(),
                            conn=self.Conn,
                            dtype=self.SystemOperationYear_Column)
