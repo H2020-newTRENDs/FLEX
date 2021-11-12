@@ -439,7 +439,11 @@ class no_DR:
         Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
 
         # calculate the heating and cooling energy for all buildings in IDBuildingOption:
-        initial_thermal_mass_temperature = self.calculate_initial_thermal_mass_temp()
+        # initial_thermal_mass_temperature = self.calculate_initial_thermal_mass_temp()
+
+        # if no cooling is adopted --> raise max air temperature to 100 so it will never cool:
+        if Household.SpaceCooling.AdoptionStatus == 0:
+            T_indoorSetMax = np.full((8760, ), 100)
         Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t_noDR = HeatingCooling_noDR().ref_HeatingCooling(
             initial_thermal_mass_temp=15,
             T_air_min=T_indoorSetMin,
