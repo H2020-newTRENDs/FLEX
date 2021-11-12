@@ -308,7 +308,6 @@ class DataSetUp:
             "ID": int(Household.ID),
             "ID_Building": int(Household.ID_Building),
             "Building_hwb_norm1": float(Household.Building.hwb_norm1),
-            "SpaceHeating_TankSize": float(Household.SpaceHeating.TankSize),
             "SpaceCooling_AdoptionStatus": int(Household.SpaceCooling.AdoptionStatus),
             "PV_PVPower": float(Household.PV.PVPower),
             "Name_SpaceHeatingPumpType": Household.SpaceHeating.Name_SpaceHeatingPumpType,
@@ -464,14 +463,22 @@ def create_abstract_model():
     m.calc_SupplyOfLoads = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
 
     # (6) Sum of Loads
-    def calc_SumOfLoads(m, t):
+    def calc_SumOfLoads_with_cooling(m, t):
         return m.Load[t] == m.BaseLoadProfile[t] \
                + m.Q_TankHeating[t] / m.SpaceHeatingHourlyCOP[t] \
                + m.Q_HeatingElement[t] \
                + m.Q_RoomCooling[t] / m.CoolingCOP[t] \
                + m.HotWater[t] / m.HotWaterHourlyCOP[t]
 
-    m.calc_SumOfLoads = pyo.Constraint(m.t, rule=calc_SumOfLoads)
+    m.calc_SumOfLoads_with_cooling = pyo.Constraint(m.t, rule=calc_SumOfLoads_with_cooling)
+
+    def calc_SumOfLoads_without_cooling(m, t):
+        return m.Load[t] == m.BaseLoadProfile[t] \
+               + m.Q_TankHeating[t] / m.SpaceHeatingHourlyCOP[t] \
+               + m.Q_HeatingElement[t] \
+               + m.HotWater[t] / m.HotWaterHourlyCOP[t]
+
+    m.calc_SumOfLoads_without_cooling = pyo.Constraint(m.t, rule=calc_SumOfLoads_without_cooling)
 
     # (7) Battery discharge
     def calc_BatDischarge(m, t):
@@ -645,7 +652,8 @@ def update_instance(total_input, instance):
         # room heating is handled in if cases
         # Temperatures for RC model
         instance.T_room[t].setlb(HeatingTargetTemperature[t - 1])
-        instance.Tm_t[t].setub(30)
+
+        instance.Tm_t[t].setub(100)  # so it wont be infeasabe when no cooling
         # maximum Grid load
         instance.Grid[t].setub(household["Building_MaximalGridPower"])
         instance.Grid2Load[t].setub(household["Building_MaximalGridPower"])
@@ -656,14 +664,19 @@ def update_instance(total_input, instance):
     # special cases:
     # Room Cooling:
     if household["SpaceCooling_AdoptionStatus"] == 0:
-        instance.Q_RoomCooling[t].fix(0)
         for t in range(1, len(HeatingTargetTemperature) + 1):
-            instance.T_room[t].setub(50)  # max 50°C so it wont be infeasable
+            instance.Q_RoomCooling[t].setub(0)
+            instance.T_room[t].setub(100)
+        instance.calc_SumOfLoads_without_cooling.activate()
+        instance.calc_SumOfLoads_with_cooling.deactivate()
+
     else:
         for t in range(1, len(HeatingTargetTemperature) + 1):
             instance.Q_RoomCooling[t].fixed = False
-            instance.T_room[t].setub(CoolingTargetTemperature[t - 1])
             instance.Q_RoomCooling[t].setub(household["SpaceCooling_SpaceCoolingPower"])
+            instance.T_room[t].setub(CoolingTargetTemperature[t - 1])
+        instance.calc_SumOfLoads_without_cooling.deactivate()
+        instance.calc_SumOfLoads_with_cooling.activate()
     # Thermal storage
     if household["SpaceHeating_TankSize"] == 0:
         for t in range(1, len(HeatingTargetTemperature) + 1):
@@ -815,3 +828,8 @@ if __name__ == "__main__":
     result_serial = run()
     endtime2 = time.time()
     print("time for execution serial:" + str(endtime2 - starttime2))
+
+
+# import matplotlib.pyplot as plt
+# plt.plot(np.arange(8760), (instance2solve.Q_RoomCooling.extract_values().values()))
+# plt.show()
