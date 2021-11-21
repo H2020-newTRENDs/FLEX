@@ -965,7 +965,7 @@ class Visualization:
 
 class UpScalingToBuildingStock:
 
-    def __init__(self, percentage_optimized_buildings):
+    def __init__(self):
         self.Conn = DB().create_Connection(CONS().RootDB)
         self.SystemOperationYear = DB().read_DataFrame(REG_Table().Res_SystemOperationYear, self.Conn)
         self.ReferenceOperationYear = DB().read_DataFrame(REG_Table().Res_Reference_HeatingCooling_Year, self.Conn)
@@ -976,7 +976,6 @@ class UpScalingToBuildingStock:
         self.number_of_buildings_frame = number_of_buildings_frame.iloc[4:, :]
         self.path_2_output = CONS().ProjectPath / Path("_Philipp/outputdata")
         # percentage of HP buildings that are going to be optimized
-        self.percentage_optimized_buildings = percentage_optimized_buildings
 
         # 30% of Households with PV have battery storage!
         self.percentage_battery_storage = 0.3
@@ -987,6 +986,7 @@ class UpScalingToBuildingStock:
         # percentage of households that have only PV and no other appliance:
         self.percentage_PV_nothing_else = 1 - self.percentage_tank_battery - self.percentage_tank_storage - self.percentage_battery_storage
         self.environment = [1, 2]
+        self.optimized_percentag = [0.1, 0.3, 0.8]
         # 50% of households with HP and without PV adopt a thermal storage:
         self.percentage_tank_no_PV = 0.3
         self.configurations = {"PV0B0T0": {"PVPower": 0, "TankSize": 0, "BatteryCapacity": 0},
@@ -1118,23 +1118,27 @@ class UpScalingToBuildingStock:
         fig = plt.figure(figsize=(9, 6))
         # fig.suptitle("number of different buildings in the stock")
         ax = plt.gca()
-        colors = [CONS().dark_blue, CONS().dark_red, CONS().dark_green]
+        colors = [CONS().turquoise, CONS().dark_red, CONS().green]
         xticks = np.arange(10)
         plt.xticks(xticks, labels=list(scenarios[0].keys()))
         spaces = [-0.2, 0, 0.2]
-        for color_id, scenario in enumerate(scenarios):
+        for scneario_nr, scenario in enumerate(scenarios):
             # calculate the grid electricity consumption for the different buildings
             for i, (key, number) in enumerate(scenario.items()):
-                ax.bar(xticks[i] + spaces[color_id], sum(number.values()), color=colors[color_id], width=0.2)
+                ax.bar(xticks[i] + spaces[scneario_nr], sum(number.values()), color=colors[scneario_nr], width=0.2,
+                       edgecolor="black")
+                ax.bar(xticks[i] + spaces[scneario_nr], sum(number.values()) * self.optimized_percentag[scneario_nr],
+                       color=colors[scneario_nr], width=0.2, hatch="////", edgecolor="black")
 
         ax.set_xticklabels(list(scenarios[0].keys()), minor=True)
         plt.xticks(rotation=45)
         ax.get_yaxis().set_major_formatter(
             matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
         red_patch = matplotlib.patches.Patch(color=CONS().dark_red, label='Medium')
-        blue_patch = matplotlib.patches.Patch(color=CONS().dark_blue, label='Conservative')
-        green_patch = matplotlib.patches.Patch(color=CONS().dark_green, label='Ambitious')
-        plt.legend(handles=[red_patch, blue_patch, green_patch])
+        blue_patch = matplotlib.patches.Patch(color=CONS().turquoise, label='Conservative')
+        green_patch = matplotlib.patches.Patch(color=CONS().green, label='Ambitious')
+
+        plt.legend(handles=[red_patch, blue_patch, green_patch], ncol=1)
         plt.ylabel("Number of buildings")
         plt.xlabel("configurations")
         plt.tight_layout()
@@ -1168,7 +1172,7 @@ class UpScalingToBuildingStock:
         return {index: value * percentage for index, value in total_numbers_dict.items()}
 
     def select_grid_electricity_consumption(self, buildings_dict: dict, PVPower, TankSize, BatteryCapacity,
-                                            environment) -> (dict, dict):
+                                            environment, percentag_optimized_buildings: float, variable: str) -> (dict, dict):
         """returns the annual grid electricity consumption for the households in the dict for reference and
         optimization. NO COOLING, fixed indoor temp, 20% ground source HP"""
         cooling_adoption = 0
@@ -1189,17 +1193,16 @@ class UpScalingToBuildingStock:
         ref = select_results(results_ref)
 
         # multiply grid electricity with number of buildings
-        def calculate_total_elec(frame) -> dict:
-            perc = self.percentage_optimized_buildings
+        def calculate_total_elec(frame, variable) -> dict:
             return {i: (
                                frame.loc[(frame.loc[:, "ID_Building"] == i + 1) &
-                                         (frame.loc[:, "ID_SpaceHeating"] == "Air_HP")].Year_E_Grid.to_numpy() +
+                                         (frame.loc[:, "ID_SpaceHeating"] == "Air_HP")][variable].to_numpy() +
                                frame.loc[(frame.loc[:, "ID_Building"] == i + 1) &
-                                         (frame.loc[:, "ID_SpaceHeating"] == "Water_HP")].Year_E_Grid.to_numpy()
-                       ) * round(nr * perc) for i, nr in buildings_dict.items()}
+                                         (frame.loc[:, "ID_SpaceHeating"] == "Water_HP")][variable].to_numpy()
+                       ) * round(nr * percentag_optimized_buildings) for i, nr in buildings_dict.items()}
 
-        opt_elec_grid = calculate_total_elec(opt)
-        ref_elec_grid = calculate_total_elec(ref)
+        opt_elec_grid = calculate_total_elec(opt, variable)
+        ref_elec_grid = calculate_total_elec(ref, variable)
         return opt_elec_grid, ref_elec_grid
 
 
@@ -1243,42 +1246,113 @@ class UpScalingToBuildingStock:
                                  "PV10B7T1500": number_buildings_tank_battery_10kWp}
         return configuration_numbers
 
-    def plot_grid_electricity_difference_on_national_level(self, configuration_numbers):
+    def plot_difference_on_national_level(self, scenarios: list, variable2plot: str) -> None:
         """plots change in elec consumption for a scenario as bar chart divided into the different
          household equipments"""
-        fig = plt.figure(figsize=(9, 6))
-        fig.suptitle(f"Annual electricity demand change \n {int(100*self.percentage_optimized_buildings)}% "
-                     f"of buildings with HP are optimized")
-        ax = plt.gca()
-        for env in self.environment:
-            total_change = 0
+        if variable2plot == "Year_E_Grid":
+            ylabel = "Electricity demand from the grid (MWh/year)"
+        elif variable2plot == "OperationCost":
+            ylabel = "Operation cost"
+        else:
+            ylabel = variable2plot
+        #second figure for the total impact:
+        fig2 = plt.figure(figsize=(9, 6))
+        ax2 = fig2.gca()
+        xticks2 = np.arange(2)
+        ax2.set_xticks(xticks2)
+        for env_nr, env in enumerate(self.environment):
+            fig = plt.figure(figsize=(9, 6))
             if env == 1:
-                color = CONS().dark_red
-            else:
-                color = CONS().dark_blue
-            # calculate the grid electricity consumption for the different buildings
-            for config, config_dict in self.configurations.items():
-                opt_elec_grid, ref_elec_grid = self.select_grid_electricity_consumption(
-                    configuration_numbers[config],
-                    PVPower=config_dict["PVPower"],
-                    TankSize=config_dict["TankSize"],
-                    BatteryCapacity=config_dict["BatteryCapacity"],
-                    environment=env
-                )
-                total_change += (sum(opt_elec_grid.values()) - sum(ref_elec_grid.values())) / 1_000
-                ax.bar(config, (sum(opt_elec_grid.values()) - sum(ref_elec_grid.values())) / 1_000, color=color)  # MWh
-                ax.text(config, 0, str(round(sum(configuration_numbers[config].values()))), ha="center")
-            print(f"total change in demand for env {env}: {total_change}")
-        ax.get_yaxis().set_major_formatter(
+                fig.suptitle("Variable electricity price")
+            elif env == 2:
+                fig.suptitle("Flat electricity price")
+            ax = fig.gca()
+            xticks = np.arange(10)
+            ax.set_xticks(xticks)
+            spaces = [-0.2, 0, 0.2]
+            colors = [CONS().turquoise, CONS().red, CONS().green]
+            dark_colors = [CONS().dark_blue, CONS().dark_red, CONS().dark_green]
+            for i, scenario in enumerate(scenarios):
+                # for total plot:
+                sum_opt = []
+                sum_ref = []
+                sum_ref_all = []
+                # calculate the consumption for the different buildings
+                for tick_index, (config, config_dict) in enumerate(self.configurations.items()):
+                    opt, ref = self.select_grid_electricity_consumption(
+                        scenario[config],
+                        PVPower=config_dict["PVPower"],
+                        TankSize=config_dict["TankSize"],
+                        BatteryCapacity=config_dict["BatteryCapacity"],
+                        environment=env,
+                        percentag_optimized_buildings=self.optimized_percentag[i],
+                        variable=variable2plot
+                    )
+                    sum_opt.append(sum(opt.values()))
+                    sum_ref.append(sum(ref.values()))
+                    no_use_, ref_all = self.select_grid_electricity_consumption(
+                        scenario[config],
+                        PVPower=config_dict["PVPower"],
+                        TankSize=config_dict["TankSize"],
+                        BatteryCapacity=config_dict["BatteryCapacity"],
+                        environment=env,
+                        percentag_optimized_buildings=1,
+                        variable=variable2plot
+                    )
+                    sum_ref_all.append(sum(ref_all.values()))
+
+                    ax.bar(xticks[tick_index]+spaces[i], sum(ref_all.values()) / 1_000,
+                           color=colors[i], width=0.2, edgecolor="black")
+
+                    # check if energy demand is reduced or raised:
+                    if sum(opt.values()) - sum(ref.values()) > 0:
+                        ax.bar(xticks[tick_index]+spaces[i],
+                               sum(opt.values()) / 1_000 - sum(ref.values()) / 1_000,
+                               color=dark_colors[i], width=0.2,
+                               bottom=sum(ref_all.values())/1_000, hatch="///", edgecolor="black")
+                    else:
+                        ax.bar(xticks[tick_index] + spaces[i],
+                               sum(opt.values()) / 1_000 - sum(ref.values()) / 1_000,
+                               color=CONS().grey, width=0.2,
+                               bottom=sum(ref_all.values()) / 1_000, hatch="///", edgecolor="black")
+
+                # plot fig 2:
+                ax2.bar(xticks2[env_nr]+spaces[i], sum(sum_ref_all)/1_000,
+                        color=colors[i], width=0.2, edgecolor="black")
+                if sum(sum_opt)-sum(sum_ref) > 0:
+                    ax2.bar(xticks2[env_nr]+spaces[i], (sum(sum_opt)-sum(sum_ref)) / 1_000,
+                            color=dark_colors[i], width=0.2,
+                            bottom=sum(sum_ref_all) / 1_000, hatch="///", edgecolor="black")
+                else:
+                    ax2.bar(xticks2[env_nr]+spaces[i], (sum(sum_opt) - sum(sum_ref)) / 1_000,
+                            color=CONS().grey, width=0.2,
+                            bottom=sum(sum_ref_all) / 1_000, hatch="///", edgecolor="black")
+
+            ax.set_xticklabels(list(scenarios[0].keys()), rotation=45)
+            # plt.xticks()
+            ax.get_yaxis().set_major_formatter(
+                matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
+            red_patch = matplotlib.patches.Patch(color=CONS().red, label='Medium')
+            blue_patch = matplotlib.patches.Patch(color=CONS().turquoise, label='Conservative')
+            green_patch = matplotlib.patches.Patch(color=CONS().green, label='Ambitious')
+            grey_patch = matplotlib.patches.Patch(color=CONS().grey, label='reduction')
+            ax.legend(handles=[blue_patch, red_patch, green_patch, grey_patch])
+            ax.set_ylabel(ylabel)
+            ax.set_xlabel("configurations")
+            plt.tight_layout()
+            fig.savefig(self.figure_path / Path(f"Aggregated_Results//change_{variable2plot}_env{env}_scenarios.png"))
+            fig.savefig(self.figure_path / Path(f"Aggregated_Results//change_{variable2plot}_env{env}_scenarios.svg"))
+
+        ax2.set_ylabel(ylabel)
+        ax2.set_xticklabels(["variable price", "flat price"])
+        ax2.legend(handles=[blue_patch, red_patch, green_patch, grey_patch], loc="lower center")
+        ax2.get_yaxis().set_major_formatter(
             matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
-        red_patch = matplotlib.patches.Patch(color=CONS().dark_red, label='variable price')
-        blue_patch = matplotlib.patches.Patch(color=CONS().dark_blue, label='flat price')
-        plt.legend(handles=[red_patch, blue_patch])
-        plt.ylabel("Grid demand (MWh/year)")
-        plt.xlabel("configurations")
-        plt.xticks(rotation=45)
         plt.tight_layout()
-        plt.show()
+        fig2.savefig(self.figure_path / Path(f"Aggregated_Results//total_change_{variable2plot}_scenarios.png"))
+        fig2.savefig(self.figure_path / Path(f"Aggregated_Results//total_change_{variable2plot}_scenarios.svg"))
+        fig.show()
+        fig2.show()
 
 
     def define_scenarios_for_upscaling(self):
@@ -1292,8 +1366,13 @@ class UpScalingToBuildingStock:
         for i in np.arange(3):
             scenario_numbers.append(self.calculate_scenario_numbers(percentage_5kW[i], percentage_10kW[i]))
 
-        self.visualize_number_of_buildings_scenario(scenario_numbers)
-        # self.plot_grid_electricity_difference_on_national_level(configuration_numbers)
+        # self.visualize_number_of_buildings_scenario(scenario_numbers)
+
+        self.plot_difference_on_national_level(scenario_numbers, "Year_E_Grid")
+        self.plot_difference_on_national_level(scenario_numbers, "OperationCost")
+
+
+
 
     def run(self):
         for household_id in range(3):
@@ -1318,6 +1397,5 @@ if __name__ == "__main__":
     # Visualization(CONN).plot_energy_consumption()
     # Visualization(CONN).calculate_key_numbers()
     # Visualization(CONN).plot_households_without_storages()
-    percentage_optimized_buildings = 0.3
-    Teil2Paper = UpScalingToBuildingStock(percentage_optimized_buildings)
+    Teil2Paper = UpScalingToBuildingStock()
     Teil2Paper.define_scenarios_for_upscaling()
