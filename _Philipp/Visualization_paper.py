@@ -613,17 +613,16 @@ class Visualization:
             plt.savefig(CONS().FiguresPath / Path("Aggregated_Results") / Path(figure_name + ".svg"))
             plt.show()
 
-
         def calculate_most_optim_impact(df: pd.DataFrame, variable: str) -> None:
             """calculated difference between reference and optimization with percentage impact and puts
             it in excel writer"""
             # sort frame:
             df = df.sort_values(["ID_Household", "ID_Environment"]).reset_index(drop=True)
             difference = df.loc[
-                   (df.loc[:, "Option"] == "Reference")
-                   ][variable].to_numpy() - df.loc[
-                   (df.loc[:, "Option"] == "Optimization")
-                   ][variable].to_numpy()
+                             (df.loc[:, "Option"] == "Reference")
+                         ][variable].to_numpy() - df.loc[
+                             (df.loc[:, "Option"] == "Optimization")
+                         ][variable].to_numpy()
 
             House = df.iloc[np.where(difference == difference.max())[0].item() * 2, :]
             House_min = df.iloc[np.where(difference == difference.min())[0][0] * 2, :]
@@ -634,7 +633,6 @@ class Visualization:
             House.loc["Goal"] = variable
             House_min.loc["Goal"] = variable
             return pd.concat([pd.DataFrame(House).T, pd.DataFrame(House_min).T])
-
 
         frame = frame.loc[frame["ID_Building"] < 12]
 
@@ -647,7 +645,6 @@ class Visualization:
             # calculate the maximum cost savings, reference - optimization
             save_frame = save_frame.append(calculate_most_optim_impact(price_type_frame, "OperationCost"))
             save_frame = save_frame.append(calculate_most_optim_impact(price_type_frame, "Year_E_Grid"))
-
 
             create_violin_plot_overview(price_type_frame, "OperationCost",
                                         f"{value} price")
@@ -1031,7 +1028,7 @@ class UpScalingToBuildingStock:
         # percentage of households that have only PV and no other appliance:
         self.percentage_PV_nothing_else = 1 - self.percentage_tank_battery - self.percentage_tank_storage - self.percentage_battery_storage
         self.environment = [1, 2]
-        self.optimized_percentag = [0.1, 0.5, 1]
+        self.optimized_percentage = 1
         # 50% of households with HP and without PV adopt a thermal storage:
         self.percentage_tank_no_PV = 0.6
         self.configurations = {"PV0B0T0": {"PVPower": 0, "TankSize": 0, "BatteryCapacity": 0},
@@ -1122,7 +1119,7 @@ class UpScalingToBuildingStock:
         #     ].number_of_buildings.sum()
         return total_number_of_buildings, number_of_buildings_with_HP
 
-    def visualize_total_number_of_buildings(self) -> None:
+    def visualize_total_number_of_buildings(self) -> dict:
         """creates plot that shows how many buildings exist and how many buildings have heat pumps
         in each building category"""
         buildings_frame = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.Conn)
@@ -1132,12 +1129,15 @@ class UpScalingToBuildingStock:
         fig = plt.figure(figsize=(9, 6))
         ax = plt.gca()
         all_buildings = 0
+        all_HP_buildings = {}
         for i, index in enumerate(invert_index):
             total_number, HP_number = self.get_total_number_of_building(index)
             all_buildings += total_number
+            all_HP_buildings[i] = HP_number
             ax.bar(i + 1, total_number, color=CONS().dark_blue)
             ax.bar(i + 1, HP_number, color=CONS().green)
         print(f"total number of buildings considered in this study: {all_buildings}")
+        print(f"total number of HP buildings considered in this study: {sum(all_HP_buildings.values())}")
         plt.xlabel("Building ID")
         plt.ylabel("number of buildings")
         ax.get_yaxis().set_major_formatter(
@@ -1157,35 +1157,31 @@ class UpScalingToBuildingStock:
                     format='PNG')
         plt.savefig(figure_path_svg)
         plt.show()
+        return all_HP_buildings
 
-    def visualize_number_of_buildings_scenario(self, scenarios) -> None:
+    def visualize_number_of_buildings_scenario(self, scenario) -> None:
         """shows the number of buildings with different technological apliances for each scenario"""
         fig = plt.figure(figsize=(9, 6))
         # fig.suptitle("number of different buildings in the stock")
         ax = plt.gca()
-        colors = [CONS().turquoise, CONS().dark_red, CONS().green]
+        cmap = plt.get_cmap("tab10")
         xticks = np.arange(10)
-        plt.xticks(xticks, labels=list(scenarios[0].keys()))
-        spaces = [-0.2, 0, 0.2]
-        for scneario_nr, scenario in enumerate(scenarios):
-            # calculate the grid electricity consumption for the different buildings
-            for i, (key, number) in enumerate(scenario.items()):
-                ax.bar(xticks[i] + spaces[scneario_nr], sum(number.values()), color=colors[scneario_nr], width=0.2,
-                       edgecolor="black")
-                ax.bar(xticks[i] + spaces[scneario_nr], sum(number.values()) * self.optimized_percentag[scneario_nr],
-                       color=colors[scneario_nr], width=0.2, hatch="////", edgecolor="black")
-                ax.text(xticks[i], sum(number.values()), f"{round(sum(number.values()))}",
-                        ha="center")
+        plt.xticks(xticks, labels=list(scenario.keys()))
+        width = 1
+        # calculate the grid electricity consumption for the different buildings
+        for i, (key, number) in enumerate(scenario.items()):
+            ax.bar(xticks[i], sum(number.values()), width=width,
+                   edgecolor="black", color=cmap.colors[i])
+            ax.bar(xticks[i], sum(number.values()) * self.optimized_percentage,
+                   width=width, hatch="////", edgecolor="black", color=cmap.colors[i])
+            ax.text(xticks[i], sum(number.values()), f"{round(sum(number.values()))}",
+                    ha="center")
 
-        ax.set_xticklabels(list(scenarios[0].keys()), minor=True)
+        ax.set_xticklabels(list(scenario.keys()), minor=True)
         plt.xticks(rotation=45)
         ax.get_yaxis().set_major_formatter(
             matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
-        red_patch = matplotlib.patches.Patch(color=CONS().dark_red, label='Medium')
-        blue_patch = matplotlib.patches.Patch(color=CONS().turquoise, label='Conservative')
-        green_patch = matplotlib.patches.Patch(color=CONS().green, label='Ambitious')
-
-        plt.legend(handles=[blue_patch, red_patch, green_patch], ncol=1)
+        ax.set_yscale('log')
         plt.ylabel("Number of buildings")
         plt.xlabel("configurations")
         plt.tight_layout()
@@ -1253,53 +1249,72 @@ class UpScalingToBuildingStock:
         ref_elec_grid = calculate_total_elec(ref, variable)
         return opt_elec_grid, ref_elec_grid
 
-    def calculate_scenario_numbers(self, percentage_5kW, percentage_10kW):
+    def calculate_scenario_numbers(self, percentage_5kW, percentage_10kW, HP_buildings):
         """calculate all nessecary numbers for each scenario"""
         # calculate the number of hp buildings that have PV for certain scenario
-        number_buildings_5kWp = self.calculate_HP_PV_numbers(percentage_5kW)
-        number_buildings_10kWp = self.calculate_HP_PV_numbers(percentage_10kW)
+        total_number_buildings_5kWp = {key: percentage_5kW * number for key, number in HP_buildings.items()}
+        total_number_buildings_10kWp = {key: percentage_10kW * number for key, number in HP_buildings.items()}
+        # calculate number of buildings that have no PV
+        total_number_buildings_NO_PV = {
+            key: number - total_number_buildings_5kWp[key] - total_number_buildings_10kWp[key]
+            for key, number in HP_buildings.items()}
+        # number of buildings wihtout PV but with thermal storage:
+        number_buildings_tank_NO_PV = {key: number * self.percentage_tank_storage
+                                       for key, number in total_number_buildings_NO_PV.items()}
+        number_buildings_NO_tank_NO_PV = {key: number * (1 - self.percentage_tank_storage)
+                                          for key, number in total_number_buildings_NO_PV.items()}
 
-        number_buildings_battery_5kWp = self.calculate_percentage_numbers(self.percentage_battery_storage,
-                                                                          number_buildings_5kWp)
-        number_buildings_battery_10kWp = self.calculate_percentage_numbers(self.percentage_battery_storage,
-                                                                           number_buildings_10kWp)
+        # BATTERY
+        # calculate the number of buildings with a battery storage
+        total_number_buildings_battery_5kWp = {key: self.percentage_battery_storage * number
+                                               for key, number in total_number_buildings_5kWp.items()}
+        total_number_buildings_battery_10kWp = {key: self.percentage_battery_storage * number
+                                                for key, number in total_number_buildings_10kWp.items()}
 
-        number_buildings_tank_5kWp = self.calculate_percentage_numbers(self.percentage_tank_storage,
-                                                                       number_buildings_5kWp)
-        number_buildings_tank_10kWp = self.calculate_percentage_numbers(self.percentage_tank_storage,
-                                                                        number_buildings_10kWp)
+        # number of buildings with battery AND tank:
+        number_buildings_battery_tank_5kWp = {key: number * self.percentage_tank_storage
+                                              for key, number in total_number_buildings_battery_5kWp.items()}
+        number_buildings_battery_tank_10kWp = {key: number * self.percentage_tank_storage
+                                               for key, number in total_number_buildings_battery_10kWp.items()}
+        # number of buildings ONLY with battery:
+        number_buildings_battery_NO_tank_5kWp = {key: number * (1 - self.percentage_tank_storage)
+                                                 for key, number in total_number_buildings_battery_5kWp.items()}
+        number_buildings_battery_NO_tank_10kWp = {key: number * (1 - self.percentage_tank_storage)
+                                                  for key, number in total_number_buildings_battery_10kWp.items()}
+        # TANK
+        # total number of PV buildings without battery (substract all battery buildings from total):
+        total_number_buildings_NO_battery_5kWp = {key: total_number_buildings_5kWp[key] - number
+                                                  for key, number in total_number_buildings_battery_5kWp.items()}
+        total_number_buildings_NO_battery_10kWp = {key: total_number_buildings_10kWp[key] - number
+                                                   for key, number in total_number_buildings_battery_10kWp.items()}
+        # number of buildings without battery and with tank
+        number_buildings_NO_battery_tank_5kWp = {key: number * self.percentage_tank_storage
+                                                 for key, number in total_number_buildings_NO_battery_5kWp.items()}
+        number_buildings_NO_battery_tank_10kWp = {key: number * self.percentage_tank_storage
+                                                  for key, number in total_number_buildings_NO_battery_10kWp.items()}
+        # number of buildings without battery and without tank
+        number_buildings_NO_battery_NO_tank_5kWp = {key: number * (1 - self.percentage_tank_storage)
+                                                    for key, number in total_number_buildings_NO_battery_5kWp.items()}
+        number_buildings_NO_battery_NO_tank_10kWp = {key: number * (1 - self.percentage_tank_storage)
+                                                     for key, number in total_number_buildings_NO_battery_10kWp.items()}
 
-        number_buildings_tank_battery_5kWp = self.calculate_percentage_numbers(self.percentage_tank_battery,
-                                                                               number_buildings_5kWp)
-        number_buildings_tank_battery_10kWp = self.calculate_percentage_numbers(self.percentage_tank_battery,
-                                                                                number_buildings_10kWp)
-
-        number_buildings_only_5kWp = self.calculate_percentage_numbers(self.percentage_PV_nothing_else,
-                                                                       number_buildings_5kWp)
-        number_buildings_only_10kWp = self.calculate_percentage_numbers(self.percentage_PV_nothing_else,
-                                                                        number_buildings_10kWp)
-
-        number_buildings_no_PV = self.calculate_HP_PV_numbers(1 - percentage_10kW - percentage_5kW)
-        number_buildings_tank_no_PV = self.calculate_percentage_numbers(self.percentage_tank_no_PV,
-                                                                        number_buildings_no_PV)
-        number_buildings_no_tank_no_PV = self.calculate_percentage_numbers((1 - self.percentage_tank_no_PV),
-                                                                           number_buildings_no_PV)
-        configuration_numbers = {"PV0B0T0": number_buildings_no_tank_no_PV,
-                                 "PV0B0T1500": number_buildings_tank_no_PV,
-                                 "PV5B0T0": number_buildings_only_5kWp,
-                                 "PV5B7T0": number_buildings_battery_5kWp,
-                                 "PV5B0T1500": number_buildings_tank_5kWp,
-                                 "PV5B7T1500": number_buildings_tank_battery_5kWp,
-                                 "PV10B0T0": number_buildings_only_10kWp,
-                                 "PV10B7T0": number_buildings_battery_10kWp,
-                                 "PV10B0T1500": number_buildings_tank_10kWp,
-                                 "PV10B7T1500": number_buildings_tank_battery_10kWp}
+        configuration_numbers = {"PV0B0T0": number_buildings_NO_tank_NO_PV,
+                                 "PV0B0T1500": number_buildings_tank_NO_PV,
+                                 "PV5B0T0": number_buildings_NO_battery_NO_tank_5kWp,
+                                 "PV5B7T0": number_buildings_battery_NO_tank_5kWp,
+                                 "PV5B0T1500": number_buildings_NO_battery_tank_5kWp,
+                                 "PV5B7T1500": number_buildings_battery_tank_5kWp,
+                                 "PV10B0T0": number_buildings_NO_battery_NO_tank_10kWp,
+                                 "PV10B7T0": number_buildings_battery_NO_tank_10kWp,
+                                 "PV10B0T1500": number_buildings_NO_battery_tank_10kWp,
+                                 "PV10B7T1500": number_buildings_battery_tank_10kWp}
         return configuration_numbers
 
-    def plot_difference_on_national_level(self, scenarios: list, variable2plot: str) -> None:
+    def plot_difference_on_national_level(self, scenario: list, variable2plot: str) -> None:
         """plots change in elec consumption for a scenario as bar chart divided into the different
          household equipments"""
         matplotlib.rc("font", size=14)
+        cmap = plt.get_cmap("tab10")
         if variable2plot == "Year_E_Grid":
             ylabel = "Electricity demand from the grid (MWh/year)"
             ylim_zoom = 1000
@@ -1333,90 +1348,94 @@ class UpScalingToBuildingStock:
             spaces = [-0.2, 0, 0.2]
             colors = [CONS().turquoise, CONS().red, CONS().green]
             dark_colors = [CONS().dark_blue, CONS().dark_red, CONS().dark_green]
-            for i, scenario in enumerate(scenarios):
-                # for total plot:
-                sum_opt = []
-                sum_ref = []
-                sum_ref_all = []
-                # calculate the consumption for the different buildings
-                for tick_index, (config, config_dict) in enumerate(self.configurations.items()):
-                    opt, ref = self.select_grid_electricity_consumption(
-                        scenario[config],
-                        PVPower=config_dict["PVPower"],
-                        TankSize=config_dict["TankSize"],
-                        BatteryCapacity=config_dict["BatteryCapacity"],
-                        environment=env,
-                        percentag_optimized_buildings=self.optimized_percentag[i],
-                        variable=variable2plot
-                    )
-                    sum_opt.append(sum(opt.values()))
-                    sum_ref.append(sum(ref.values()))
-                    no_use_, ref_all = self.select_grid_electricity_consumption(
-                        scenario[config],
-                        PVPower=config_dict["PVPower"],
-                        TankSize=config_dict["TankSize"],
-                        BatteryCapacity=config_dict["BatteryCapacity"],
-                        environment=env,
-                        percentag_optimized_buildings=1,
-                        variable=variable2plot
-                    )
-                    sum_ref_all.append(sum(ref_all.values()))
+            width = 1
 
-                    ax.bar(xticks[tick_index] + spaces[i], sum(ref_all.values()) / kW2MW,
-                           color=colors[i], width=0.2, edgecolor="black")
-                    ax2.bar(xticks[tick_index] + spaces[i], sum(ref_all.values()) / kW2MW,
-                            color=colors[i], width=0.2, edgecolor="black")
+            # for total plot:
+            sum_opt = []
+            sum_ref = []
+            sum_ref_all = []
+            # calculate the consumption for the different buildings
+            for tick_index, (config, config_dict) in enumerate(self.configurations.items()):
+                opt, ref = self.select_grid_electricity_consumption(
+                    scenario[config],
+                    PVPower=config_dict["PVPower"],
+                    TankSize=config_dict["TankSize"],
+                    BatteryCapacity=config_dict["BatteryCapacity"],
+                    environment=env,
+                    percentag_optimized_buildings=self.optimized_percentage,
+                    variable=variable2plot
+                )
+                sum_opt.append(sum(opt.values()))
+                sum_ref.append(sum(ref.values()))
+                no_use_, ref_all = self.select_grid_electricity_consumption(
+                    scenario[config],
+                    PVPower=config_dict["PVPower"],
+                    TankSize=config_dict["TankSize"],
+                    BatteryCapacity=config_dict["BatteryCapacity"],
+                    environment=env,
+                    percentag_optimized_buildings=1,
+                    variable=variable2plot
+                )
+                sum_ref_all.append(sum(ref_all.values()))
 
-                    # check if energy demand is reduced or raised:
-                    if sum(opt.values()) - sum(ref.values()) > 0:
-                        ax.bar(xticks[tick_index] + spaces[i],
-                               sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW,
-                               color=dark_colors[i], width=0.2,
-                               bottom=sum(ref_all.values()) / kW2MW, hatch="///", edgecolor="black")
-                        ax.text(xticks[tick_index] + spaces[i], sum(opt.values()) / kW2MW,
-                                str(round((sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW).item())), rotation=90)
-                        ax2.bar(xticks[tick_index] + spaces[i],
-                                sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW,
-                                color=dark_colors[i], width=0.2,
-                                bottom=sum(ref_all.values()) / kW2MW, hatch="///", edgecolor="black")
-                    else:
-                        ax.bar(xticks[tick_index] + spaces[i],
-                               sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW,
-                               color=CONS().grey, width=0.2,
-                               bottom=sum(ref_all.values()) / kW2MW, hatch="///", edgecolor="black")
-                        ax.text(xticks[tick_index] + spaces[i], sum(ref_all.values()) / kW2MW,
-                                str(round((sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW).item())), rotation=90)
-                        ax2.bar(xticks[tick_index] + spaces[i],
-                                sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW,
-                                color=CONS().grey, width=0.2,
-                                bottom=sum(ref_all.values()) / kW2MW, hatch="///", edgecolor="black")
+                ax.bar(xticks[tick_index], sum(ref_all.values()) / kW2MW,
+                       width=width, edgecolor="black", color=cmap.colors[tick_index])
+                ax2.bar(xticks[tick_index], sum(ref_all.values()) / kW2MW,
+                        width=width, edgecolor="black", color=cmap.colors[tick_index])
+
+                # check if energy demand is reduced or raised:
+                if sum(opt.values()) - sum(ref.values()) > 0:
+                    ax.bar(xticks[tick_index],
+                           sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW,
+                           width=width, color=cmap.colors[tick_index],
+                           bottom=sum(ref_all.values()) / kW2MW, hatch="///", edgecolor="black")
+                    ax.text(xticks[tick_index], sum(opt.values()) / kW2MW,
+                            str(round((sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW).item())),
+                            rotation=0, ha="center")
+                    ax2.bar(xticks[tick_index],
+                            sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW,
+                            width=width, color=cmap.colors[tick_index],
+                            bottom=sum(ref_all.values()) / kW2MW, hatch="///", edgecolor="black")
+                else:
+                    ax.bar(xticks[tick_index],
+                           sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW,
+                           color=CONS().grey, width=width,
+                           bottom=sum(ref_all.values()) / kW2MW, hatch="///", edgecolor="black")
+                    ax.text(xticks[tick_index], sum(ref_all.values()) / kW2MW,
+                            str(round((sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW).item())),
+                            rotation=0, ha="center")
+                    ax2.bar(xticks[tick_index],
+                            sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW,
+                            color=CONS().grey, width=width,
+                            bottom=sum(ref_all.values()) / kW2MW, hatch="///", edgecolor="black")
 
                 # plot fig 2:
-                ax3.bar(xticks2[env_nr] + spaces[i], sum(sum_ref_all) / kW2MW,
-                        color=colors[i], width=0.2, edgecolor="black")
+                ax3.bar(xticks2[env_nr], sum(sum_ref_all) / kW2MW,
+                        width=width, edgecolor="black", color=cmap.colors[tick_index])
                 if sum(sum_opt) - sum(sum_ref) > 0:
-                    ax3.bar(xticks2[env_nr] + spaces[i], (sum(sum_opt) - sum(sum_ref)) / kW2MW,
-                            color=dark_colors[i], width=0.2,
+                    ax3.bar(xticks2[env_nr], (sum(sum_opt) - sum(sum_ref)) / kW2MW,
+                            width=width, color=cmap.colors[tick_index],
                             bottom=sum(sum_ref_all) / kW2MW, hatch="///", edgecolor="black")
-                    ax3.text(xticks2[env_nr] + spaces[i], sum(sum_ref_all) / kW2MW,
-                            str(round(((sum(sum_opt) - sum(sum_ref)) / kW2MW).item())), rotation=90)
+                    ax3.text(xticks2[env_nr], sum(sum_ref_all) / kW2MW,
+                             str(round(((sum(sum_opt) - sum(sum_ref)) / kW2MW).item())), rotation=90, ha="center")
                     print(
-                        f"increase {variable2plot} scenario {i} env {env} \n"
+                        f"increase {variable2plot} env {env} \n"
                         f"{(sum(sum_opt) - sum(sum_ref)) / sum(sum_ref_all) * 100} %")
 
                 else:
-                    ax3.bar(xticks2[env_nr] + spaces[i], (sum(sum_opt) - sum(sum_ref)) / kW2MW,
-                            color=CONS().grey, width=0.2,
+                    ax3.bar(xticks2[env_nr], (sum(sum_opt) - sum(sum_ref)) / kW2MW,
+                            color=CONS().grey, width=width,
                             bottom=sum(sum_ref_all) / kW2MW, hatch="///", edgecolor="black")
-                    ax3.text(xticks2[env_nr] + spaces[i], sum(sum_ref_all) / kW2MW,
-                            str(round(((sum(sum_opt) - sum(sum_ref)) / kW2MW).item())), rotation=90)
+                    ax3.text(xticks2[env_nr], sum(sum_ref_all) / kW2MW,
+                             str(round(((sum(sum_opt) - sum(sum_ref)) / kW2MW).item())), rotation=90, ha="center")
                     print(
-                        f"decrease {variable2plot} scenario{i} env {env} \n"
+                        f"decrease {variable2plot} env {env} \n"
                         f"{(sum(sum_opt) - sum(sum_ref)) / sum(sum_ref_all) * 100} %")
 
             # mange labels etc.
-            ax.set_xticklabels(list(scenarios[0].keys()), rotation=45)
-            ax2.set_xticklabels(list(scenarios[0].keys()), rotation=45)
+            ax.set_xticklabels(list(scenario.keys()), rotation=45)
+            ax.set_yscale('log')
+            ax2.set_xticklabels(list(scenario.keys()), rotation=45)
             # zoom in in fig 2:
             ax2.set_ylim(0, ylim_zoom)
             ax.get_yaxis().set_major_formatter(
@@ -1427,7 +1446,7 @@ class UpScalingToBuildingStock:
             blue_patch = matplotlib.patches.Patch(color=CONS().turquoise, label='Conservative')
             green_patch = matplotlib.patches.Patch(color=CONS().green, label='Ambitious')
             grey_patch = matplotlib.patches.Patch(color=CONS().grey, label='reduction')
-            ax.legend(handles=[blue_patch, red_patch, green_patch, grey_patch])
+            ax.legend(handles=[grey_patch])
             ax.set_ylabel(ylabel)
             ax2.set_ylabel(ylabel)
             ax.set_xlabel("configurations")
@@ -1441,7 +1460,7 @@ class UpScalingToBuildingStock:
 
         ax3.set_ylabel(ylabel)
         ax3.set_xticklabels(["variable price", "flat price"])
-        ax3.legend(handles=[blue_patch, red_patch, green_patch, grey_patch], loc="lower center")
+        ax3.legend(handles=[grey_patch], loc="lower center")
         ax3.get_yaxis().set_major_formatter(
             matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
         plt.tight_layout()
@@ -1455,14 +1474,12 @@ class UpScalingToBuildingStock:
         """3 scenarios for up scaling to national level are created for austria"""
         # conservative
         # percentage of the buildings with HP who also have PV adopted
-        percentage_10kW = [0.014] * 3  # 1.4% in 3 scenarios
-        percentage_5kW = [0.176] * 3  # 17.6%
-        self.visualize_total_number_of_buildings()
-        scenario_numbers = []
-        for i in np.arange(3):
-            scenario_numbers.append(self.calculate_scenario_numbers(percentage_5kW[i], percentage_10kW[i]))
+        percentage_10kW = 0.014  # 1.4% in 3 scenarios
+        percentage_5kW = 0.176  # 17.6%
+        all_HP_buildings = self.visualize_total_number_of_buildings()
+        scenario_numbers = self.calculate_scenario_numbers(percentage_5kW, percentage_10kW, all_HP_buildings)
 
-        # self.visualize_number_of_buildings_scenario(scenario_numbers)
+        self.visualize_number_of_buildings_scenario(scenario_numbers)
 
         self.plot_difference_on_national_level(scenario_numbers, "Year_E_Grid")
         self.plot_difference_on_national_level(scenario_numbers, "OperationCost")
