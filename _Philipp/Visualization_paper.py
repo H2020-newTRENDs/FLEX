@@ -518,6 +518,7 @@ class Visualization:
         reference_results.loc[:, "Option"] = "Reference"
         optimization_results.loc[:, "Option"] = "Optimization"
         frame = pd.concat([reference_results, optimization_results], axis=0)
+        save_frame = pd.DataFrame(columns=list(frame.columns) + ["percentage difference", "percentage min", "Goal"])
 
         def create_single_violin_plot(Frame, y_achse, title, *args, **kwargs):
             assert "x" in kwargs and "hue" in kwargs
@@ -561,6 +562,7 @@ class Visualization:
         #                               house_type, x="ID_Building", hue="Option")
 
         def create_violin_plot_overview(Frame, y_achse, title):
+            matplotlib.rc("font", size=14)
             fig, axes = plt.subplots(2, 3, sharey=True, figsize=[15, 10])
             fig.suptitle(title)
             axes = axes.flatten()
@@ -571,17 +573,17 @@ class Visualization:
 
             sns.violinplot(x="Household_PVPower", y=y_achse, hue="Option", data=Frame, ax=axes[1], split=True,
                            inner="stick", palette="muted")
-            axes[1].set_xlabel("PV Power")
+            axes[1].set_xlabel("PV Power in kWp")
             axes[1].set_ylabel(self.determine_ylabel(y_achse))
 
             sns.violinplot(x="Household_TankSize", y=y_achse, hue="Option", data=Frame, ax=axes[2], split=True,
                            inner="stick", palette="muted")
-            axes[2].set_xlabel("TankSize")
+            axes[2].set_xlabel("TankSize in l")
             axes[2].set_ylabel(self.determine_ylabel(y_achse))
 
             sns.violinplot(x="Household_BatteryCapacity", y=y_achse, hue="Option", data=Frame, ax=axes[3],
                            split=True, inner="stick", palette="muted")
-            axes[3].set_xlabel("Battery")
+            axes[3].set_xlabel("Battery Capacity in Wh")
             axes[3].set_ylabel(self.determine_ylabel(y_achse))
 
             sns.violinplot(x="ID_AgeGroup", y=y_achse, hue="Option", data=Frame, ax=axes[4],
@@ -594,7 +596,7 @@ class Visualization:
             axes[5].set_xlabel("HP type")
             axes[5].set_ylabel(self.determine_ylabel(y_achse))
             axes[5].set_xticklabels([str(tick.get_text()).replace("Air_HP", "Air HP").replace("Water_HP", "Ground HP")
-                                    for tick in axes[5].get_xticklabels()])
+                                     for tick in axes[5].get_xticklabels()])
 
             for i in range(axes.shape[0]):
                 axes[i].grid(axis="y")
@@ -604,38 +606,72 @@ class Visualization:
 
                 axes[i].yaxis.set_tick_params(labelbottom=True)
 
-            figure_name = "ViolinPlot " + title
+            figure_name = f"ViolinPlot Overview {y_achse} with " + title
             plt.tight_layout()
             plt.savefig(CONS().FiguresPath / Path("Aggregated_Results") / Path(figure_name + ".png"), dpi=200,
                         format='PNG')
             plt.savefig(CONS().FiguresPath / Path("Aggregated_Results") / Path(figure_name + ".svg"))
             plt.show()
 
+
+        def calculate_most_optim_impact(df: pd.DataFrame, variable: str) -> None:
+            """calculated difference between reference and optimization with percentage impact and puts
+            it in excel writer"""
+            # sort frame:
+            df = df.sort_values(["ID_Household", "ID_Environment"]).reset_index(drop=True)
+            difference = df.loc[
+                   (df.loc[:, "Option"] == "Reference")
+                   ][variable].to_numpy() - df.loc[
+                   (df.loc[:, "Option"] == "Optimization")
+                   ][variable].to_numpy()
+
+            House = df.iloc[np.where(difference == difference.max())[0].item() * 2, :]
+            House_min = df.iloc[np.where(difference == difference.min())[0][0] * 2, :]
+            percentage_impact = difference.max() / House.loc[variable]
+            percentage_min = difference.min() / House.loc[variable]
+            House.loc["percentage difference"] = percentage_impact
+            House_min.loc["percentage min"] = percentage_min
+            House.loc["Goal"] = variable
+            House_min.loc["Goal"] = variable
+            return pd.concat([pd.DataFrame(House).T, pd.DataFrame(House_min).T])
+
+
         frame = frame.loc[frame["ID_Building"] < 12]
+
+        calculate_most_optim_impact.counter = 0
         for key, value in {1: "variable", 2: "flat"}.items():
             price_type_frame = frame.loc[frame["Environment_ElectricityPriceType"] == key]
-            create_violin_plot_overview(price_type_frame, "OperationCost",
-                                        f"Operation Costs Overview with {value} price")
-            create_violin_plot_overview(price_type_frame, "Year_E_Load",
-                                        f"total electricity consumption Overview with {value} price")
-            create_violin_plot_overview(price_type_frame, "Year_PVSelfSufficiencyRate",
-                                        f"PV self sufficiency rate Overview with {value} price")
-            create_violin_plot_overview(price_type_frame, "Year_E_Grid",
-                                        f"total electricity from the Grid Overview with {value} price")
+            # create excel writer:
+            highest_impact_writer = pd.ExcelWriter(self.figure_path_aggregated / Path("highest_impact.xlsx"),
+                                                   engine="xlsxwriter")
+            # calculate the maximum cost savings, reference - optimization
+            save_frame = save_frame.append(calculate_most_optim_impact(price_type_frame, "OperationCost"))
+            save_frame = save_frame.append(calculate_most_optim_impact(price_type_frame, "Year_E_Grid"))
 
+
+            create_violin_plot_overview(price_type_frame, "OperationCost",
+                                        f"{value} price")
+            create_violin_plot_overview(price_type_frame, "Year_E_Load",
+                                        f"{value} price")
+            create_violin_plot_overview(price_type_frame, "Year_PVSelfSufficiencyRate",
+                                        f"{value} price")
+            create_violin_plot_overview(price_type_frame, "Year_E_Grid",
+                                        f"{value} price")
+
+        save_frame.to_excel(self.figure_path_aggregated / Path("highest_impact.xlsx"), engine="xlsxwriter")
         ref_list = pd.DataFrame(columns=optimization_results.columns)
         opt_list = pd.DataFrame(columns=optimization_results.columns)
-        for index in range(optimization_results.shape[0]):
-            if reference_results.loc[index, "OperationCost"] < optimization_results.loc[index, "OperationCost"]:
-                print("Household ID: " + str(self.SystemOperationYear.loc[index, "ID_Household"]))
-                print("Battery: " + str(reference_results.loc[index, "Household_BatteryCapacity"]))
-                print("PV Peak: " + str(reference_results.loc[index, "Household_PVPower"]))
-                print("Tank: " + str(reference_results.loc[index, "Household_TankSize"]))
-
-                ref_list = ref_list.append(reference_results.iloc[index, :], ignore_index=True)
-                opt_list = opt_list.append(optimization_results.iloc[index, :], ignore_index=True)
-
-        frame_for_violin = pd.concat([ref_list, opt_list], axis=0)
+        # for index in range(optimization_results.shape[0]):
+        #     if reference_results.loc[index, "OperationCost"] < optimization_results.loc[index, "OperationCost"]:
+        #         print("Household ID: " + str(self.SystemOperationYear.loc[index, "ID_Household"]))
+        #         print("Battery: " + str(reference_results.loc[index, "Household_BatteryCapacity"]))
+        #         print("PV Peak: " + str(reference_results.loc[index, "Household_PVPower"]))
+        #         print("Tank: " + str(reference_results.loc[index, "Household_TankSize"]))
+        #
+        #         ref_list = ref_list.append(reference_results.iloc[index, :], ignore_index=True)
+        #         opt_list = opt_list.append(optimization_results.iloc[index, :], ignore_index=True)
+        #
+        # frame_for_violin = pd.concat([ref_list, opt_list], axis=0)
 
         # create_violin_plot(frame_for_violin, "OperationCost", "Costs of special buildings")
         # create_violin_plot(frame_for_violin, "Year_E_Load", "electricity consumption special buildings")
@@ -719,8 +755,6 @@ class Visualization:
         # plt.show()
         plt.close(figure)
 
-
-
     def plot_energy_consumption(self) -> None:
         """visualization of the enrgy consumption of the households in dependence of the different parameters
         that influence the optimization"""
@@ -799,7 +833,7 @@ class Visualization:
                     patches.append(matplotlib.patches.Patch(color=colors[i],
                                                             label=parameter.replace("Household_", "").
                                                             replace("ID_", "") +
-                                                            " " + str(option_name).replace("Air_HP", "Air HP").
+                                                                  " " + str(option_name).replace("Air_HP", "Air HP").
                                                             replace("Water_HP", "Ground HP") + str(option_unit)))
                     i += 1
                     space_tick += 1
@@ -840,30 +874,39 @@ class Visualization:
 
         def check_why_elec_increases_flat_price():
             # get profiles from database
+            environment = 2
             ref_profiles = DB().read_DataFrame("Res_Reference_HeatingCooling_Year", conn=self.Conn,
-                                ID_Environment=2,
-                                ID_Spaceheating="Air_HP",
-                                Household_BatteryCapacity=0,
-                                Household_PVPower=0,
-                                Household_TankSize=0,
-                                Household_CoolingAdoption=1,
-                                ID_AgeGroup=1)
-            ref_profiles = ref_profiles.loc[ref_profiles.loc[:, "ID_Building"]<12]
+                                               ID_Environment=environment,
+                                               ID_Spaceheating="Water_HP",
+                                               Household_BatteryCapacity=0,
+                                               Household_PVPower=0,
+                                               Household_TankSize=0,
+                                               Household_CoolingAdoption=1,
+                                               ID_AgeGroup=1)
+            ref_profiles = ref_profiles.loc[ref_profiles.loc[:, "ID_Building"] < 12]
             household_IDs_ref = ref_profiles.ID_Household
+
+            # show price difference:
+            for id in household_IDs_ref:
+                costs_ref = DB().read_DataFrame("Res_Reference_HeatingCooling_Year", conn=self.Conn,
+                                                ID_Household=id, ID_Environment=environment).OperationCost.to_numpy()
+                costs_opt = DB().read_DataFrame("Res_SystemOperationYear", conn=self.Conn,
+                                                ID_Household=id, ID_Environment=environment).OperationCost.to_numpy()
+                print(f"cost reduction: {costs_opt - costs_ref} for id {id}")
 
             # get hourly data:
             # for id in household_IDs_ref:
-            id = household_IDs_ref[0]
-            axis = np.arange(1820, 1880)
-            number_of_subplots = 5
+            id = household_IDs_ref[2]
+            axis = np.arange(0, 8760)
+            number_of_subplots = 7
             fig, axes = plt.subplots(number_of_subplots, 1, figsize=(20, 4 * number_of_subplots))
             # ax = plt.gca()
             ref_hour = DB().read_DataFrame("Res_Reference_HeatingCooling", conn=self.Conn,
-                                            ID_Household=id, ID_Environment=2)
+                                           ID_Household=id, ID_Environment=2)
             opt_hour = DB().read_DataFrame("Res_SystemOperationHour", conn=self.Conn,
-                                            ID_Household=id, ID_Environment=2)
-            axes[0].plot(axis, ref_hour.E_Load.to_numpy()[axis], color=CONS().green, linewidth=0.2)
-            axes[0].plot(axis, opt_hour.E_Load.to_numpy()[axis], color=CONS().red, linewidth=0.2)
+                                           ID_Household=id, ID_Environment=2)
+            axes[0].plot(axis, ref_hour.E_Load.to_numpy()[axis], color=CONS().green, linewidth=1)
+            axes[0].plot(axis, opt_hour.E_Load.to_numpy()[axis], color=CONS().red, linewidth=1)
             axes[0].set_ylabel("E_Load")
             # ax.plot(np.arange(8760), opt_hour.E_Grid2Load.to_numpy()[:8760]-ref_hour.E_Grid2Load.to_numpy()[1800:2000], color=CONS().red, linewidth=1)
 
@@ -883,13 +926,16 @@ class Visualization:
             axes[4].plot(axis, opt_hour.E_Battery2Load.to_numpy()[axis], color=CONS().red)
             axes[4].set_ylabel("E_Battery2Load")
 
+            axes[5].plot(axis, ref_hour.HeatPumpPerformanceFactor.to_numpy()[axis], color=CONS().green)
+            axes[5].plot(axis, opt_hour.HeatPumpPerformanceFactor.to_numpy()[axis], color=CONS().red)
+            axes[5].set_ylabel("HeatPumpPerformanceFactor")
+
+            axes[6].plot(axis, ref_hour.OutsideTemperature.to_numpy()[axis], color=CONS().green)
+            axes[6].plot(axis, opt_hour.OutsideTemperature.to_numpy()[axis], color=CONS().red)
+            axes[6].set_ylabel("OutsideTemperature")
+
             plt.savefig(self.figure_path_aggregated / Path(f"checking_for_mistakes_{id}.png"))
             plt.show()
-
-
-
-
-
 
         check_why_elec_increases_flat_price()
 
@@ -897,12 +943,13 @@ class Visualization:
         """this function calculates important values for the paper and is here to play around"""
         # sum of electricity from grid
         elec_grid_opt = DB().read_DataFrame(REG_Table().Res_SystemOperationYear, self.Conn,
-                                                   "Year_E_Grid")
+                                            "Year_E_Grid")
 
         elec_grid_ref = DB().read_DataFrame(REG_Table().Res_Reference_HeatingCooling_Year, self.Conn,
-                                                   "Year_E_Grid")
+                                            "Year_E_Grid")
         percentage_increase_opt2ref = (elec_grid_opt.sum() - elec_grid_ref.sum()) / elec_grid_ref.sum()
-        print(f"percentage increase in grid consumption thorugh optimization on all results: {percentage_increase_opt2ref*100}")
+        print(
+            f"percentage increase in grid consumption thorugh optimization on all results: {percentage_increase_opt2ref * 100}")
 
         # maximum reached self sufficiency in the optimization
         self_sufficiency_opt = DB().read_DataFrame(REG_Table().Res_SystemOperationYear, self.Conn,
@@ -940,8 +987,6 @@ class Visualization:
         plt.savefig(self.figure_path_aggregated / Path("temperature.svg"))
         plt.show()
 
-
-
         elec_price = DB().read_DataFrame(REG_Table().Gen_Sce_ElectricityProfile, self.Conn)
         var_price = elec_price.loc[elec_price.loc[:, "ID_PriceType"] == 1].ElectricityPrice.to_numpy()
         mean_price = elec_price.loc[elec_price.loc[:, "ID_PriceType"] == 2].ElectricityPrice.to_numpy()
@@ -978,34 +1023,33 @@ class UpScalingToBuildingStock:
         # percentage of HP buildings that are going to be optimized
 
         # 30% of Households with PV have battery storage!
-        self.percentage_battery_storage = 0.3
+        self.percentage_battery_storage = 0.02
         # 50% of Households with PV have a thermal storage:
-        self.percentage_tank_storage = 0.5
-        # 10% if Households with PV have Battery and thermal storage:
-        self.percentage_tank_battery = 0.1
+        self.percentage_tank_storage = 0.6
+        # 10% of Households with PV have Battery and thermal storage:
+        self.percentage_tank_battery = self.percentage_battery_storage * self.percentage_tank_storage
         # percentage of households that have only PV and no other appliance:
         self.percentage_PV_nothing_else = 1 - self.percentage_tank_battery - self.percentage_tank_storage - self.percentage_battery_storage
         self.environment = [1, 2]
-        self.optimized_percentag = [0.1, 0.3, 0.8]
+        self.optimized_percentag = [0.1, 0.5, 1]
         # 50% of households with HP and without PV adopt a thermal storage:
-        self.percentage_tank_no_PV = 0.3
+        self.percentage_tank_no_PV = 0.6
         self.configurations = {"PV0B0T0": {"PVPower": 0, "TankSize": 0, "BatteryCapacity": 0},
-                          "PV0B0T1500": {"PVPower": 0, "TankSize": 1500, "BatteryCapacity": 0},
-                          "PV5B0T0": {"PVPower": 5, "TankSize": 0, "BatteryCapacity": 0},
-                          "PV5B7T0": {"PVPower": 5, "TankSize": 0, "BatteryCapacity": 7000},
-                          "PV5B0T1500": {"PVPower": 5, "TankSize": 1500, "BatteryCapacity": 0},
-                          "PV5B7T1500": {"PVPower": 5, "TankSize": 1500, "BatteryCapacity": 7000},
-                          "PV10B0T0": {"PVPower": 10, "TankSize": 0, "BatteryCapacity": 0},
-                          "PV10B7T0": {"PVPower": 10, "TankSize": 0, "BatteryCapacity": 7000},
-                          "PV10B0T1500": {"PVPower": 10, "TankSize": 1500, "BatteryCapacity": 0},
-                          "PV10B7T1500": {"PVPower": 10, "TankSize": 1500, "BatteryCapacity": 7000}
-                          }
+                               "PV0B0T1500": {"PVPower": 0, "TankSize": 1500, "BatteryCapacity": 0},
+                               "PV5B0T0": {"PVPower": 5, "TankSize": 0, "BatteryCapacity": 0},
+                               "PV5B7T0": {"PVPower": 5, "TankSize": 0, "BatteryCapacity": 7000},
+                               "PV5B0T1500": {"PVPower": 5, "TankSize": 1500, "BatteryCapacity": 0},
+                               "PV5B7T1500": {"PVPower": 5, "TankSize": 1500, "BatteryCapacity": 7000},
+                               "PV10B0T0": {"PVPower": 10, "TankSize": 0, "BatteryCapacity": 0},
+                               "PV10B7T0": {"PVPower": 10, "TankSize": 0, "BatteryCapacity": 7000},
+                               "PV10B0T1500": {"PVPower": 10, "TankSize": 1500, "BatteryCapacity": 0},
+                               "PV10B7T1500": {"PVPower": 10, "TankSize": 1500, "BatteryCapacity": 7000}
+                               }
 
     def read_h5(self):
         """reads hdf5 file and returns the dataframe of building segments"""
         hdf_filename = "001_buildings.hdf5"
         hdf_path = CONS().ProjectPath / Path("_Philipp/inputdata/AUT/" + hdf_filename)
-
 
         hdf5_f = h5py.File(hdf_path, 'r')
 
@@ -1045,7 +1089,6 @@ class UpScalingToBuildingStock:
 
         hdf5_f.close()
         return df_bssh
-
 
     def get_total_number_of_building(self, building_index: int) -> (float, float):
         """takes the invert building index and returns the number of buildings
@@ -1088,17 +1131,19 @@ class UpScalingToBuildingStock:
         matplotlib.rc("font", size=14)
         fig = plt.figure(figsize=(9, 6))
         ax = plt.gca()
+        all_buildings = 0
         for i, index in enumerate(invert_index):
             total_number, HP_number = self.get_total_number_of_building(index)
+            all_buildings += total_number
             ax.bar(i + 1, total_number, color=CONS().dark_blue)
             ax.bar(i + 1, HP_number, color=CONS().green)
-
+        print(f"total number of buildings considered in this study: {all_buildings}")
         plt.xlabel("Building ID")
         plt.ylabel("number of buildings")
         ax.get_yaxis().set_major_formatter(
             matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
         # create legend
-        blue_patch = matplotlib.patches.Patch(color=CONS().dark_blue, label='total number of buildings')
+        blue_patch = matplotlib.patches.Patch(color=CONS().dark_blue, label='number of buildings \n without heat pump')
         gree_path = matplotlib.patches.Patch(color=CONS().green, label='number of buildings \n with heat pump')
         plt.legend(handles=[blue_patch, gree_path])
         plt.grid(axis="y")
@@ -1129,6 +1174,8 @@ class UpScalingToBuildingStock:
                        edgecolor="black")
                 ax.bar(xticks[i] + spaces[scneario_nr], sum(number.values()) * self.optimized_percentag[scneario_nr],
                        color=colors[scneario_nr], width=0.2, hatch="////", edgecolor="black")
+                ax.text(xticks[i], sum(number.values()), f"{round(sum(number.values()))}",
+                        ha="center")
 
         ax.set_xticklabels(list(scenarios[0].keys()), minor=True)
         plt.xticks(rotation=45)
@@ -1138,7 +1185,7 @@ class UpScalingToBuildingStock:
         blue_patch = matplotlib.patches.Patch(color=CONS().turquoise, label='Conservative')
         green_patch = matplotlib.patches.Patch(color=CONS().green, label='Ambitious')
 
-        plt.legend(handles=[red_patch, blue_patch, green_patch], ncol=1)
+        plt.legend(handles=[blue_patch, red_patch, green_patch], ncol=1)
         plt.ylabel("Number of buildings")
         plt.xlabel("configurations")
         plt.tight_layout()
@@ -1172,7 +1219,8 @@ class UpScalingToBuildingStock:
         return {index: value * percentage for index, value in total_numbers_dict.items()}
 
     def select_grid_electricity_consumption(self, buildings_dict: dict, PVPower, TankSize, BatteryCapacity,
-                                            environment, percentag_optimized_buildings: float, variable: str) -> (dict, dict):
+                                            environment, percentag_optimized_buildings: float, variable: str) -> (
+            dict, dict):
         """returns the annual grid electricity consumption for the households in the dict for reference and
         optimization. NO COOLING, fixed indoor temp, 20% ground source HP"""
         cooling_adoption = 0
@@ -1205,23 +1253,24 @@ class UpScalingToBuildingStock:
         ref_elec_grid = calculate_total_elec(ref, variable)
         return opt_elec_grid, ref_elec_grid
 
-
     def calculate_scenario_numbers(self, percentage_5kW, percentage_10kW):
         """calculate all nessecary numbers for each scenario"""
         # calculate the number of hp buildings that have PV for certain scenario
         number_buildings_5kWp = self.calculate_HP_PV_numbers(percentage_5kW)
         number_buildings_10kWp = self.calculate_HP_PV_numbers(percentage_10kW)
 
-        number_buildings_battery_5kWp = self.calculate_percentage_numbers(self.percentage_battery_storage, number_buildings_5kWp)
+        number_buildings_battery_5kWp = self.calculate_percentage_numbers(self.percentage_battery_storage,
+                                                                          number_buildings_5kWp)
         number_buildings_battery_10kWp = self.calculate_percentage_numbers(self.percentage_battery_storage,
                                                                            number_buildings_10kWp)
 
-        number_buildings_tank_5kWp = self.calculate_percentage_numbers(self.percentage_tank_storage, number_buildings_5kWp)
+        number_buildings_tank_5kWp = self.calculate_percentage_numbers(self.percentage_tank_storage,
+                                                                       number_buildings_5kWp)
         number_buildings_tank_10kWp = self.calculate_percentage_numbers(self.percentage_tank_storage,
                                                                         number_buildings_10kWp)
 
-
-        number_buildings_tank_battery_5kWp = self.calculate_percentage_numbers(self.percentage_tank_battery, number_buildings_5kWp)
+        number_buildings_tank_battery_5kWp = self.calculate_percentage_numbers(self.percentage_tank_battery,
+                                                                               number_buildings_5kWp)
         number_buildings_tank_battery_10kWp = self.calculate_percentage_numbers(self.percentage_tank_battery,
                                                                                 number_buildings_10kWp)
 
@@ -1231,7 +1280,8 @@ class UpScalingToBuildingStock:
                                                                         number_buildings_10kWp)
 
         number_buildings_no_PV = self.calculate_HP_PV_numbers(1 - percentage_10kW - percentage_5kW)
-        number_buildings_tank_no_PV = self.calculate_percentage_numbers(self.percentage_tank_no_PV, number_buildings_no_PV)
+        number_buildings_tank_no_PV = self.calculate_percentage_numbers(self.percentage_tank_no_PV,
+                                                                        number_buildings_no_PV)
         number_buildings_no_tank_no_PV = self.calculate_percentage_numbers((1 - self.percentage_tank_no_PV),
                                                                            number_buildings_no_PV)
         configuration_numbers = {"PV0B0T0": number_buildings_no_tank_no_PV,
@@ -1249,26 +1299,37 @@ class UpScalingToBuildingStock:
     def plot_difference_on_national_level(self, scenarios: list, variable2plot: str) -> None:
         """plots change in elec consumption for a scenario as bar chart divided into the different
          household equipments"""
+        matplotlib.rc("font", size=14)
         if variable2plot == "Year_E_Grid":
             ylabel = "Electricity demand from the grid (MWh/year)"
+            ylim_zoom = 1000
+            kW2MW = 1_000  # change from kW to MW
         elif variable2plot == "OperationCost":
             ylabel = "Operation cost"
+            ylim_zoom = 5000
+            kW2MW = 1
         else:
             ylabel = variable2plot
-        #second figure for the total impact:
-        fig2 = plt.figure(figsize=(9, 6))
-        ax2 = fig2.gca()
+        # third figure for the total impact:
+        fig3 = plt.figure(figsize=(9, 6))
+        ax3 = fig3.gca()
         xticks2 = np.arange(2)
-        ax2.set_xticks(xticks2)
+        ax3.set_xticks(xticks2)
         for env_nr, env in enumerate(self.environment):
-            fig = plt.figure(figsize=(9, 6))
+            fig1 = plt.figure(figsize=(9, 6))
+            # second figure to zoom in:
+            fig2 = plt.figure(figsize=(9, 6))
             if env == 1:
-                fig.suptitle("Variable electricity price")
+                fig1.suptitle("Variable electricity price")
+                fig2.suptitle("Variable electricity price")
             elif env == 2:
-                fig.suptitle("Flat electricity price")
-            ax = fig.gca()
+                fig1.suptitle("Flat electricity price")
+                fig2.suptitle("Flat electricity price")
+            ax = fig1.gca()
+            ax2 = fig2.gca()
             xticks = np.arange(10)
             ax.set_xticks(xticks)
+            ax2.set_xticks(xticks)
             spaces = [-0.2, 0, 0.2]
             colors = [CONS().turquoise, CONS().red, CONS().green]
             dark_colors = [CONS().dark_blue, CONS().dark_red, CONS().dark_green]
@@ -1301,36 +1362,66 @@ class UpScalingToBuildingStock:
                     )
                     sum_ref_all.append(sum(ref_all.values()))
 
-                    ax.bar(xticks[tick_index]+spaces[i], sum(ref_all.values()) / 1_000,
+                    ax.bar(xticks[tick_index] + spaces[i], sum(ref_all.values()) / kW2MW,
                            color=colors[i], width=0.2, edgecolor="black")
+                    ax2.bar(xticks[tick_index] + spaces[i], sum(ref_all.values()) / kW2MW,
+                            color=colors[i], width=0.2, edgecolor="black")
 
                     # check if energy demand is reduced or raised:
                     if sum(opt.values()) - sum(ref.values()) > 0:
-                        ax.bar(xticks[tick_index]+spaces[i],
-                               sum(opt.values()) / 1_000 - sum(ref.values()) / 1_000,
+                        ax.bar(xticks[tick_index] + spaces[i],
+                               sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW,
                                color=dark_colors[i], width=0.2,
-                               bottom=sum(ref_all.values())/1_000, hatch="///", edgecolor="black")
+                               bottom=sum(ref_all.values()) / kW2MW, hatch="///", edgecolor="black")
+                        ax.text(xticks[tick_index] + spaces[i], sum(opt.values()) / kW2MW,
+                                str(round((sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW).item())), rotation=90)
+                        ax2.bar(xticks[tick_index] + spaces[i],
+                                sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW,
+                                color=dark_colors[i], width=0.2,
+                                bottom=sum(ref_all.values()) / kW2MW, hatch="///", edgecolor="black")
                     else:
                         ax.bar(xticks[tick_index] + spaces[i],
-                               sum(opt.values()) / 1_000 - sum(ref.values()) / 1_000,
+                               sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW,
                                color=CONS().grey, width=0.2,
-                               bottom=sum(ref_all.values()) / 1_000, hatch="///", edgecolor="black")
+                               bottom=sum(ref_all.values()) / kW2MW, hatch="///", edgecolor="black")
+                        ax.text(xticks[tick_index] + spaces[i], sum(ref_all.values()) / kW2MW,
+                                str(round((sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW).item())), rotation=90)
+                        ax2.bar(xticks[tick_index] + spaces[i],
+                                sum(opt.values()) / kW2MW - sum(ref.values()) / kW2MW,
+                                color=CONS().grey, width=0.2,
+                                bottom=sum(ref_all.values()) / kW2MW, hatch="///", edgecolor="black")
 
                 # plot fig 2:
-                ax2.bar(xticks2[env_nr]+spaces[i], sum(sum_ref_all)/1_000,
+                ax3.bar(xticks2[env_nr] + spaces[i], sum(sum_ref_all) / kW2MW,
                         color=colors[i], width=0.2, edgecolor="black")
-                if sum(sum_opt)-sum(sum_ref) > 0:
-                    ax2.bar(xticks2[env_nr]+spaces[i], (sum(sum_opt)-sum(sum_ref)) / 1_000,
+                if sum(sum_opt) - sum(sum_ref) > 0:
+                    ax3.bar(xticks2[env_nr] + spaces[i], (sum(sum_opt) - sum(sum_ref)) / kW2MW,
                             color=dark_colors[i], width=0.2,
-                            bottom=sum(sum_ref_all) / 1_000, hatch="///", edgecolor="black")
-                else:
-                    ax2.bar(xticks2[env_nr]+spaces[i], (sum(sum_opt) - sum(sum_ref)) / 1_000,
-                            color=CONS().grey, width=0.2,
-                            bottom=sum(sum_ref_all) / 1_000, hatch="///", edgecolor="black")
+                            bottom=sum(sum_ref_all) / kW2MW, hatch="///", edgecolor="black")
+                    ax3.text(xticks2[env_nr] + spaces[i], sum(sum_ref_all) / kW2MW,
+                            str(round(((sum(sum_opt) - sum(sum_ref)) / kW2MW).item())), rotation=90)
+                    print(
+                        f"increase {variable2plot} scenario {i} env {env} \n"
+                        f"{(sum(sum_opt) - sum(sum_ref)) / sum(sum_ref_all) * 100} %")
 
+                else:
+                    ax3.bar(xticks2[env_nr] + spaces[i], (sum(sum_opt) - sum(sum_ref)) / kW2MW,
+                            color=CONS().grey, width=0.2,
+                            bottom=sum(sum_ref_all) / kW2MW, hatch="///", edgecolor="black")
+                    ax3.text(xticks2[env_nr] + spaces[i], sum(sum_ref_all) / kW2MW,
+                            str(round(((sum(sum_opt) - sum(sum_ref)) / kW2MW).item())), rotation=90)
+                    print(
+                        f"decrease {variable2plot} scenario{i} env {env} \n"
+                        f"{(sum(sum_opt) - sum(sum_ref)) / sum(sum_ref_all) * 100} %")
+
+            # mange labels etc.
             ax.set_xticklabels(list(scenarios[0].keys()), rotation=45)
-            # plt.xticks()
+            ax2.set_xticklabels(list(scenarios[0].keys()), rotation=45)
+            # zoom in in fig 2:
+            ax2.set_ylim(0, ylim_zoom)
             ax.get_yaxis().set_major_formatter(
+                matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
+            ax2.get_yaxis().set_major_formatter(
                 matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
             red_patch = matplotlib.patches.Patch(color=CONS().red, label='Medium')
             blue_patch = matplotlib.patches.Patch(color=CONS().turquoise, label='Conservative')
@@ -1338,29 +1429,34 @@ class UpScalingToBuildingStock:
             grey_patch = matplotlib.patches.Patch(color=CONS().grey, label='reduction')
             ax.legend(handles=[blue_patch, red_patch, green_patch, grey_patch])
             ax.set_ylabel(ylabel)
+            ax2.set_ylabel(ylabel)
             ax.set_xlabel("configurations")
             plt.tight_layout()
-            fig.savefig(self.figure_path / Path(f"Aggregated_Results//change_{variable2plot}_env{env}_scenarios.png"))
-            fig.savefig(self.figure_path / Path(f"Aggregated_Results//change_{variable2plot}_env{env}_scenarios.svg"))
+            fig1.savefig(self.figure_path / Path(f"Aggregated_Results//change_{variable2plot}_env{env}_scenarios.png"))
+            fig1.savefig(self.figure_path / Path(f"Aggregated_Results//change_{variable2plot}_env{env}_scenarios.svg"))
+            fig2.savefig(
+                self.figure_path / Path(f"Aggregated_Results//change_{variable2plot}_env{env}_scenarios_ZOOM.png"))
+            fig2.savefig(
+                self.figure_path / Path(f"Aggregated_Results//change_{variable2plot}_env{env}_scenarios_ZOOM.svg"))
 
-        ax2.set_ylabel(ylabel)
-        ax2.set_xticklabels(["variable price", "flat price"])
-        ax2.legend(handles=[blue_patch, red_patch, green_patch, grey_patch], loc="lower center")
-        ax2.get_yaxis().set_major_formatter(
+        ax3.set_ylabel(ylabel)
+        ax3.set_xticklabels(["variable price", "flat price"])
+        ax3.legend(handles=[blue_patch, red_patch, green_patch, grey_patch], loc="lower center")
+        ax3.get_yaxis().set_major_formatter(
             matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
         plt.tight_layout()
-        fig2.savefig(self.figure_path / Path(f"Aggregated_Results//total_change_{variable2plot}_scenarios.png"))
-        fig2.savefig(self.figure_path / Path(f"Aggregated_Results//total_change_{variable2plot}_scenarios.svg"))
-        fig.show()
+        fig3.savefig(self.figure_path / Path(f"Aggregated_Results//total_change_{variable2plot}_scenarios.png"))
+        fig3.savefig(self.figure_path / Path(f"Aggregated_Results//total_change_{variable2plot}_scenarios.svg"))
+        fig1.show()
         fig2.show()
-
+        fig3.show()
 
     def define_scenarios_for_upscaling(self):
         """3 scenarios for up scaling to national level are created for austria"""
         # conservative
         # percentage of the buildings with HP who also have PV adopted
-        percentage_10kW = [0, 0.1, 0.4]
-        percentage_5kW = [0.05, 0.3, 0.5]
+        percentage_10kW = [0.014] * 3  # 1.4% in 3 scenarios
+        percentage_5kW = [0.176] * 3  # 17.6%
         self.visualize_total_number_of_buildings()
         scenario_numbers = []
         for i in np.arange(3):
@@ -1371,16 +1467,11 @@ class UpScalingToBuildingStock:
         self.plot_difference_on_national_level(scenario_numbers, "Year_E_Grid")
         self.plot_difference_on_national_level(scenario_numbers, "OperationCost")
 
-
-
-
     def run(self):
         for household_id in range(3):
             for environment_id in range(1, 2):
                 self.visualization_SystemOperation(household_id + 1, environment_id, week=8)
                 self.visualization_SystemOperation(household_id + 1, environment_id, week=34)
-
-
 
 
 if __name__ == "__main__":
