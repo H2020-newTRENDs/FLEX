@@ -70,6 +70,12 @@ class DB:
         else:
             table_DataFrame.to_sql(table_name, conn, index=False, if_exists=append_or_replace, chunksize=1000)
 
+    def write_DataFrame2Excel(self, table: np.array, path: str, column_names: list, **kwargs):
+        """writes the dataframe to an excel spreadsheet"""
+        frame = pd.DataFrame(table, columns=column_names)
+        frame.to_excel(path, engine="openpyxl")
+
+
     def revise_DataType(self, table_name, data_type, conn):
         table_DataFrame = self.read_DataFrame(table_name, conn)
         table_DataFrame.to_sql(table_name, conn, index=False, if_exists='replace', chunksize=1000,
