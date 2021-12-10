@@ -218,13 +218,13 @@ class DataSetUp:
         # --------------------
         ElectricityPrice = \
         self.ElectricityPrice.loc[self.ElectricityPrice['ID_PriceType'] == Environment["ID_ElectricityPriceType"]][
-            "ElectricityPrice"].to_numpy() / 100
+            "ElectricityPrice"].to_numpy() / 1000  # Cent/Wh
         # -----------------
         # 2. Feed-in tariff
         # -----------------
         FeedinTariff = self.FeedinTariff.loc[(self.FeedinTariff['ID_FeedinTariffType'] ==
                                               Environment["ID_FeedinTariffType"])][
-            "HourlyFeedinTariff"].to_numpy()  # Cent/kWh
+            "HourlyFeedinTariff"].to_numpy() / 1000  # Cent/Wh
 
         # ---------------------
         # 3. Target temperature
@@ -257,8 +257,8 @@ class DataSetUp:
             CoolingTargetTemperature = np.full((8760,), 60)  # delete limit for cooling, if no Cooling is available
 
         pyomo_dict = {None: {"t": {None: np.arange(1, self.OptimizationHourHorizon + 1)},
-                             "ElectricityPrice": self.creat_Dict(ElectricityPrice / 1_000),  # C/Wh
-                             "FiT": self.creat_Dict(FeedinTariff / 1_000),  # C/Wh
+                             "ElectricityPrice": self.creat_Dict(ElectricityPrice),  # C/Wh
+                             "FiT": self.creat_Dict(FeedinTariff),  # C/Wh
                              "Q_Solar": self.creat_Dict(Q_sol),  # W
                              "PhotovoltaicProfile": self.creat_Dict(PhotovoltaicProfile),
                              "T_outside": self.creat_Dict(self.Temperature["Temperature"].to_numpy()),  # °C
@@ -602,17 +602,9 @@ def create_abstract_model():
         rule = sum(m.Grid[t] * m.ElectricityPrice[t] - m.Feedin[t] * m.FiT[t] for t in m.t)
         return rule
 
-    m.Objective = pyo.Objective(rule=minimize_cost)
+    m.Objective = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
     # return the abstract model
     return m
-
-
-@performance_counter
-def create_instance(input_parameters):
-    # create the instance once:
-    model = create_abstract_model()
-    instance = model.create_instance(data=input_parameters)
-    return instance
 
 
 @performance_counter
@@ -653,7 +645,7 @@ def update_instance(total_input, instance):
         # Temperatures for RC model
         instance.T_room[t].setlb(HeatingTargetTemperature[t - 1])
 
-        instance.Tm_t[t].setub(100)  # so it wont be infeasabe when no cooling
+        instance.Tm_t[t].setub(100)  # so it wont be infeasible when no cooling
         # maximum Grid load
         instance.Grid[t].setub(household["Building_MaximalGridPower"])
         instance.Grid2Load[t].setub(household["Building_MaximalGridPower"])
@@ -798,13 +790,15 @@ def run():
     # model input data
     DC = DataCollector()
     Opt = pyo.SolverFactory("gurobi")
-    Opt.options["TimeLimit"] = 180
+    # Opt.options["TimeLimit"] = 180
     runs = len(DataSetUp().ID_Household)
     input_data_initial = DataSetUp().get_input_data(0, 0)
     initial_parameters = input_data_initial["input_parameters"]
-    pyomo_instance = create_instance(initial_parameters)
-    for household_RowID in range(0, runs):
-        for environment_RowID in range(0, 2):
+    # create the instance once:
+    model = create_abstract_model()
+    pyomo_instance = model.create_instance(data=initial_parameters)
+    for household_RowID in range(0, runs):  # 117 fehlt mit range 1,2 (also elec price 2)!
+        for environment_RowID in range(1, 2):
             # print("Houshold ID: " + str(household_RowID + 1))
             # print("Environment ID: " + str(environment_RowID + 1))
 
