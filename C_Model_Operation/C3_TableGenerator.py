@@ -213,33 +213,32 @@ class TableGenerator:
         TotalRounds = len(Country) * len(HouseholdType) * len(AgeGroup) * len(Building) * len(SpaceHeating) * \
                       len(SpaceCooling) * \
                       len(PV) * len(Battery)  # * len(HotWater)
-                      # len(ApplianceGroup)
-
+        # len(ApplianceGroup)
 
         for row1 in range(0, len(Country)):
             for row2 in range(0, len(HouseholdType)):
                 for row3 in range(0, len(AgeGroup)):
                     for row4 in range(0, len(Building)):
                         # for row5 in range(0, len(ApplianceGroup)):
-                            for row6 in range(0, len(SpaceHeating)):
-                                for row7 in range(0, len(SpaceCooling)):
-                                    # for row8 in range(0, len(HotWater)):
-                                    for row9 in range(0, len(PV)):
-                                        for row10 in range(0, len(Battery)):
-                                            TargetTable_list.append([ID] +
-                                                                    list(Country.iloc[row1].values) +
-                                                                    list(HouseholdType.iloc[row2].values) +
-                                                                    list(AgeGroup.iloc[row3].values) +
-                                                                    [Building.iloc[row4]["ID"]] +
-                                                                    # [ApplianceGroup.iloc[row5]["ID"]] +
-                                                                    [SpaceHeating.iloc[row6]["ID"]] +
-                                                                    [SpaceCooling.iloc[row7]["ID"]] +
-                                                                    # [HotWater.iloc[row8]["ID"]] +
-                                                                    [PV.iloc[row9]["ID"]] +
-                                                                    [Battery.iloc[row10]["ID"]]
-                                                                    )
-                                            print("Round: " + str(ID) + "/" + str(TotalRounds))
-                                            ID += 1
+                        for row6 in range(0, len(SpaceHeating)):
+                            for row7 in range(0, len(SpaceCooling)):
+                                # for row8 in range(0, len(HotWater)):
+                                for row9 in range(0, len(PV)):
+                                    for row10 in range(0, len(Battery)):
+                                        TargetTable_list.append([ID] +
+                                                                list(Country.iloc[row1].values) +
+                                                                list(HouseholdType.iloc[row2].values) +
+                                                                list(AgeGroup.iloc[row3].values) +
+                                                                [Building.iloc[row4]["ID"]] +
+                                                                # [ApplianceGroup.iloc[row5]["ID"]] +
+                                                                [SpaceHeating.iloc[row6]["ID"]] +
+                                                                [SpaceCooling.iloc[row7]["ID"]] +
+                                                                # [HotWater.iloc[row8]["ID"]] +
+                                                                [PV.iloc[row9]["ID"]] +
+                                                                [Battery.iloc[row10]["ID"]]
+                                                                )
+                                        print("Round: " + str(ID) + "/" + str(TotalRounds))
+                                        ID += 1
         DB().write_DataFrame(TargetTable_list, REG_Table().Gen_OBJ_ID_Household, TargetTable_columns, self.Conn)
 
     # ------------------------------
@@ -411,25 +410,25 @@ class TableGenerator:
 
         for row1 in range(0, len(ElectricityPriceType)):
             # for row2 in range(0, len(TargetTemperatureType)):
-                for row3 in range(0, len(FeedinTariffType)):
-                    # for row4 in range(0, len(HotWaterProfileType)):
-                    #     for row5 in range(0, len(PhotovoltaicProfileType)):
-                    #         for row6 in range(0, len(BaseElectricityProfileType)):
-                    #             for row7 in range(0, len(EnergyCostType)):
-                                    TargetTable_list.append([ID] +
-                                                            [ElectricityPriceType.iloc[row1][
-                                                                 "ID_ElectricityPriceType"]] +
-                                                            # [TargetTemperatureType.iloc[row2][
-                                                            #      "ID_TargetTemperatureType"]] +
-                                                            [FeedinTariffType.iloc[row3]["ID_FeedinTariffType"]]) #+
-                                                            # [HotWaterProfileType.iloc[row4]["ID_HotWaterProfileType"]] +
-                                                            # [PhotovoltaicProfileType.iloc[row5][
-                                                            #      "ID_PhotovoltaicProfile"]] +
-                                                            # [BaseElectricityProfileType.iloc[row6][
-                                                            #      "ID_BaseElectricityProfileType"]] +
-                                                            # [EnergyCostType.iloc[row6]["ID_EnergyCostType"]]
+            for row3 in range(0, len(FeedinTariffType)):
+                # for row4 in range(0, len(HotWaterProfileType)):
+                #     for row5 in range(0, len(PhotovoltaicProfileType)):
+                #         for row6 in range(0, len(BaseElectricityProfileType)):
+                #             for row7 in range(0, len(EnergyCostType)):
+                TargetTable_list.append([ID] +
+                                        [ElectricityPriceType.iloc[row1][
+                                             "ID_ElectricityPriceType"]] +
+                                        # [TargetTemperatureType.iloc[row2][
+                                        #      "ID_TargetTemperatureType"]] +
+                                        [FeedinTariffType.iloc[row3]["ID_FeedinTariffType"]])  # +
+                # [HotWaterProfileType.iloc[row4]["ID_HotWaterProfileType"]] +
+                # [PhotovoltaicProfileType.iloc[row5][
+                #      "ID_PhotovoltaicProfile"]] +
+                # [BaseElectricityProfileType.iloc[row6][
+                #      "ID_BaseElectricityProfileType"]] +
+                # [EnergyCostType.iloc[row6]["ID_EnergyCostType"]]
 
-                                    ID += 1
+                ID += 1
 
         DB().write_DataFrame(TargetTable_list, REG_Table().Gen_Sce_ID_Environment, TargetTable_columns, self.Conn)
 
@@ -941,7 +940,7 @@ class TableGenerator:
     def gen_Sce_electricity_price(self):
         elec_price = pd.read_excel(
             "C:/Users/mascherbauer/PycharmProjects/NewTrends/Prosumager/_Philipp/inputdata/Elec_price_per_hour.xlsx",
-            engine="openpyxl").to_numpy()  # cent/kWh
+            engine="openpyxl").to_numpy() / 10 + 15  # cent/kWh
         mean_price = elec_price.mean()
         max_price = elec_price.max()
         min_price = elec_price.min()
@@ -951,12 +950,13 @@ class TableGenerator:
         standard_deviation = np.std(elec_price)
         variance = np.var(elec_price)
 
-        mean_price_vector = np.full((8760,), mean_price)
+        mean_price_vector = np.full((8760,), 20)  # cent/kWh
 
         variable_price_to_db = np.column_stack(
-            [np.full((8760,), 1), np.full((8760,), "AT"), np.arange(8760), elec_price, np.full((8760, ), "cent/kWh")])
+            [np.full((8760,), 1), np.full((8760,), "AT"), np.arange(8760), elec_price, np.full((8760,), "cent/kWh")])
         fixed_price_to_db = np.column_stack(
-            [np.full((8760,), 2), np.full((8760,), "AT"), np.arange(8760), mean_price_vector, np.full((8760, ), "cent/kWh")])
+            [np.full((8760,), 2), np.full((8760,), "AT"), np.arange(8760), mean_price_vector,
+             np.full((8760,), "cent/kWh")])
         price_to_db = np.vstack([variable_price_to_db, fixed_price_to_db])
         price_columns = {"ID_PriceType": "INT",
                          "ID_Country": "TEXT",
@@ -970,6 +970,17 @@ class TableGenerator:
                              conn=self.Conn,
                              dtype=price_columns)
 
+        feed_in_tariff = np.column_stack(
+            [np.full((8760,), 1), np.arange(8760), np.full((8760,), 7.67), np.full((8760,), "cent/kWh")])
+        feed_in_columns = {"ID_FeedinTariffType": "INT",
+                           "ID_Hour": "INTEGER",
+                           "HourlyFeedinTariff": "REAL",
+                           "HourlyFeedinTariff_unit": "TEXT"}
+
+        DB().write_DataFrame(feed_in_tariff, "Sce_Price_HourlyFeedinTariff",
+                             column_names=feed_in_columns.keys(),
+                             conn=self.Conn,
+                             dtype=feed_in_columns)
         pass
 
     def gen_Sce_Demand_BaseElectricityProfile(self):
@@ -986,13 +997,12 @@ class TableGenerator:
                              column_names=columns.keys(), dtype=columns)
 
     def gen_Sce_HotWaterProfile(self):
-        hot_water = pd.read_excel(Path().absolute().parent.resolve() / Path("_Philipp/inputdata/AUT/Hot_water_profile.xlsx"),
-                               engine="openpyxl")
+        hot_water = pd.read_excel(
+            Path().absolute().parent.resolve() / Path("_Philipp/inputdata/AUT/Hot_water_profile.xlsx"),
+            engine="openpyxl")
         hot_water_profile = np.column_stack([hot_water["Profile"].to_numpy(), np.full((8760,), "kWh")])
         columns = {"HotWater": "REAL", "Unit": "TEXT"}
         DB().write_DataFrame(hot_water_profile, "Gen_Sce_HotWaterProfile", columns.keys(), self.Conn, dtype=columns)
-
-
 
     def run(self):
         # these have to be run before ID Household
@@ -1032,9 +1042,10 @@ if __name__ == "__main__":
 
     # A.save_PV2Base(ID_COUNTRY)
 
-    # A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
+    A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
     # A.gen_Sce_AC_HourlyCOP()
 
+    A.gen_Sce_electricity_price()
     # A.gen_OBJ_ID_SpaceHeating()
     # A.gen_OBJ_ID_SpaceCooling()
     # A.gen_OBJ_ID_ApplianceGroup()
