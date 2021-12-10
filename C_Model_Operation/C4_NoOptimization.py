@@ -51,7 +51,7 @@ class no_DR:
     def remove_household_IDs(self) -> pd.DataFrame:
         """ return a pandas dataframe of the Gen_OBJ_ID_Household frame but removes all building IDs but one because
         the reference model calculates all buidling IDs at the same time"""
-        return self.ID_Household.loc[self.ID_Household.loc[:, "ID_Building"] == 1]
+        return self.ID_Household.loc[self.ID_Household.loc[:, "ID_Building"] == 1].reset_index(drop=True)
 
     def COP_HP(self, outside_temperature, supply_temperature, efficiency, source):
         """
@@ -454,7 +454,7 @@ class no_DR:
 
         return Total_load_battery, surplus_after_battery, BatterySOC, Battery2Load  # kW and kWh
 
-    def calculate_noDR(self, household_RowID: int, environment_RowID: int) -> (np.array, np.array):
+    def calculate_noDR(self, household_RowID: int, environment_RowID: int) -> (np.array(str), np.array(str)):
         """
         Assumption for the Reference scenario: the produced PV power is always used for the immediate electric demand,
         if there is a surplus of PV power, it will be used to charge the Battery,
@@ -636,7 +636,7 @@ class no_DR:
             total_elec_cost[:, column] = PriceHourly * elec_grid_demand[:, column] - Electricity_surplus[:,
                                                                                      column] * FIT
 
-        print("Total Operation Cost: " + str(round(total_elec_cost.sum(axis=0)[Household.ID_Building - 1] / 100)))
+        print("Total Operation Cost: " + str(round(total_elec_cost.sum(axis=0) / 100)))
 
         # Dataframe for yearly values:
         YearlyFrame = np.column_stack([np.full((elec_grid_demand.shape[1]), Household.ID),
