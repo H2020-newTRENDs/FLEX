@@ -12,7 +12,7 @@ from C_Model_Operation.C1_REG import REG_Table, REG_Var
 from A_Infrastructure.A1_CONS import CONS
 from C_Model_Operation.C4_OperationOptimization import DataSetUp, create_abstract_model, update_instance, \
     create_instances2solve
-from C_Model_Operation.C4_NoOptimization import no_DR
+from C_Model_Operation.C4_NoOptimization import no_SEMS
 from C_Model_Operation.C2_DataCollector import DataCollector
 
 
@@ -208,7 +208,7 @@ class RunModelModes(ModelModes):
     def get_row_ids_reference(self) -> (int, int):
         """gets the row id for the specific testing_ids in the REDUCED Gen_OBJ_ID_Household frame and
         the row id for the environment ID"""
-        reduced_gen_obj_id_household = no_DR().remove_household_IDs()
+        reduced_gen_obj_id_household = no_SEMS().remove_household_IDs()
         single_row_id = reduced_gen_obj_id_household.loc[
                             (reduced_gen_obj_id_household.loc[:, "ID_PV"] == self.testing_ids.loc["ID_PV"].values[0]) &
                             (reduced_gen_obj_id_household.loc[:, "ID_SpaceHeating"] ==
@@ -230,7 +230,7 @@ class RunModelModes(ModelModes):
     def run_reference(self) -> (np.array, np.array):
         """runs the reference calculation and returns the hourly values as numpy array"""
         household_row_id, environment_row_id = self.get_row_ids_reference()
-        yearly_results_all_ids, hourly_results_all_ids = no_DR().calculate_noDR(household_row_id, environment_row_id)
+        yearly_results_all_ids, hourly_results_all_ids = no_SEMS().calculate_noDR(household_row_id, environment_row_id)
         # ref model calculates for all building IDs at the same time -> take out single building ID
         yearly_results = yearly_results_all_ids[yearly_results_all_ids[:, 1] ==
                                                 str(self.testing_ids.loc["ID_Building"].values[0]),

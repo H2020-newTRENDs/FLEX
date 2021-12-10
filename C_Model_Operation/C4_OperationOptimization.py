@@ -10,6 +10,7 @@ from A_Infrastructure.A2_DB import DB
 from C_Model_Operation.C2_DataCollector import DataCollector
 from B_Classes.B1_Household import Household
 from A_Infrastructure.A1_CONS import CONS
+from C_Model_Operation.C0_Model import MotherModel
 import time
 from pathos.multiprocessing import ProcessingPool, cpu_count
 from functools import wraps
@@ -29,50 +30,7 @@ def performance_counter(func):
     return wrapper
 
 
-class DataSetUp:
-
-    def __init__(self):
-
-        self.Conn = DB().create_Connection(CONS().RootDB)
-        self.ID_Household = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Household, self.Conn)
-        self.ID_Environment = DB().read_DataFrame(REG_Table().Gen_Sce_ID_Environment, self.Conn)
-
-        self.TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
-        self.OptimizationHourHorizon = len(self.TimeStructure)
-        self.Temperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn)
-
-        self.ElectricityPrice = DB().read_DataFrame(REG_Table().Gen_Sce_ElectricityProfile, self.Conn)
-        self.FeedinTariff = DB().read_DataFrame(REG_Table().Sce_Price_HourlyFeedinTariff, self.Conn)
-
-        self.BaseLoadProfile = DB().read_DataFrame(REG_Table().Sce_Demand_BaseElectricityProfile,
-                                                   self.Conn).BaseElectricityProfile.to_numpy()
-
-        self.PhotovoltaicProfile = DB().read_DataFrame(REG_Table().Gen_Sce_PhotovoltaicProfile, self.Conn)
-        self.HotWaterProfile = DB().read_DataFrame(REG_Table().Gen_Sce_HotWaterProfile, self.Conn)
-        self.Radiation_SkyDirections = DB().read_DataFrame(REG_Table().Gen_Sce_Weather_Radiation_SkyDirections,
-                                                           self.Conn)
-        # self.HeatPump_HourlyCOP = DB().read_DataFrame(REG_Table().Gen_Sce_HeatPump_HourlyCOP, self.Conn)
-        self.AC_HourlyCOP = DB().read_DataFrame(REG_Table().Gen_Sce_AC_HourlyCOP, self.Conn)
-
-        self.TargetTemperature = DB().read_DataFrame(REG_Table().Gen_Sce_TargetTemperature, self.Conn)
-
-        # C_Water
-        self.CPWater = 4200 / 3600
-
-    def COP_HP(self, outside_temperature, supply_temperature, efficiency, source):
-        """
-        calculates the COP based on a performance factor and the massflow temperatures
-        """
-        if source == "Air_HP":
-            COP = np.array([efficiency * (supply_temperature + 273.15) / (supply_temperature - temp) for temp in
-                            outside_temperature])
-        elif source == "Water_HP":
-            # for the ground source heat pump the temperature of the source is 10°C
-            COP = np.array([efficiency * (supply_temperature + 273.15) / (supply_temperature - 10) for temp in
-                            outside_temperature])
-        else:
-            assert "only >>air<< and >>ground<< are valid arguments"
-        return COP
+class DataSetUp(MotherModel):
 
     def gen_Household(self, row_id):
         ParaSeries = self.ID_Household.iloc[row_id]
@@ -176,7 +134,7 @@ class DataSetUp:
 
         space_heating_supply_temperature = 35  # TODO implement this info in Household
         hot_water_supply_temperature = 55  # TODO implement this info in Household
-        SpaceHeatingHourlyCOP = self.COP_HP(outside_temperature=self.Temperature["Temperature"].to_numpy(),
+        SpaceHeatingHourlyCOP = self.COP_HP(outside_temperature=self.outside_temperature["Temperature"].to_numpy(),
                                             supply_temperature=space_heating_supply_temperature,
                                             efficiency=Household.SpaceHeating.CarnotEfficiencyFactor,
                                             source=Household.SpaceHeating.Name_SpaceHeatingPumpType)
@@ -192,7 +150,7 @@ class DataSetUp:
         HotWaterProfile = self.HotWaterProfile.HotWater.to_numpy() * 1_000  # Wh
 
         # COP for HotWater generation
-        HotWaterHourlyCOP = self.COP_HP(outside_temperature=self.Temperature["Temperature"].to_numpy(),
+        HotWaterHourlyCOP = self.COP_HP(outside_temperature=self.outside_temperature["Temperature"].to_numpy(),
                                         supply_temperature=hot_water_supply_temperature,
                                         efficiency=Household.SpaceHeating.CarnotEfficiencyFactor,
                                         source=Household.SpaceHeating.Name_SpaceHeatingPumpType)
@@ -216,13 +174,13 @@ class DataSetUp:
         # 1. Electricity price
         # --------------------
         ElectricityPrice = \
-        self.ElectricityPrice.loc[self.ElectricityPrice['ID_PriceType'] == Environment["ID_ElectricityPriceType"]][
+        self.electricity_price.loc[self.electricity_price['ID_PriceType'] == Environment["ID_ElectricityPriceType"]][
             "ElectricityPrice"].to_numpy() / 1000  # Cent/Wh
         # -----------------
         # 2. Feed-in tariff
         # -----------------
-        FeedinTariff = self.FeedinTariff.loc[(self.FeedinTariff['ID_FeedinTariffType'] ==
-                                              Environment["ID_FeedinTariffType"])][
+        FeedinTariff = self.feed_in_tariff.loc[(self.feed_in_tariff['ID_FeedinTariffType'] ==
+                                                Environment["ID_FeedinTariffType"])][
             "HourlyFeedinTariff"].to_numpy() / 1000  # Cent/Wh
 
         # ---------------------
@@ -260,7 +218,7 @@ class DataSetUp:
                              "FiT": self.creat_Dict(FeedinTariff),  # C/Wh
                              "Q_Solar": self.creat_Dict(Q_sol),  # W
                              "PhotovoltaicProfile": self.creat_Dict(PhotovoltaicProfile),
-                             "T_outside": self.creat_Dict(self.Temperature["Temperature"].to_numpy()),  # °C
+                             "T_outside": self.creat_Dict(self.outside_temperature["Temperature"].to_numpy()),  # °C
                              "SpaceHeatingHourlyCOP": self.creat_Dict(SpaceHeatingHourlyCOP),
                              "CoolingCOP": self.creat_Dict(ACHourlyCOP),
                              "BaseLoadProfile": self.creat_Dict(BaseLoadProfile),  # W
@@ -598,7 +556,7 @@ def create_abstract_model():
     # ------------
 
     def minimize_cost(m):
-        rule = sum(m.Grid[t] * m.ElectricityPrice[t] - m.Feedin[t] * m.FiT[t] for t in m.t)
+        rule = sum(m.Grid[t] * m.electricity_price[t] - m.Feedin[t] * m.FiT[t] for t in m.t)
         return rule
 
     m.Objective = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
@@ -624,7 +582,7 @@ def update_instance(total_input, instance):
     # update the instance
     for t in range(1, len(HeatingTargetTemperature) + 1):
         # time dependent parameters are updated:
-        instance.ElectricityPrice[t] = input_parameters[None]["ElectricityPrice"][t]
+        instance.electricity_price[t] = input_parameters[None]["ElectricityPrice"][t]
         instance.FiT[t] = input_parameters[None]["FiT"][t]
         instance.Q_Solar[t] = input_parameters[None]["Q_Solar"][t]
         instance.PhotovoltaicProfile[t] = input_parameters[None]["PhotovoltaicProfile"][t]
