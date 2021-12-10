@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-__author__ = 'Philipp'
+__author__ = 'Philipp, Thomas, Songmin'
 
 import pyomo.environ as pyo
 import numpy as np
@@ -8,7 +8,6 @@ import sys as sys
 from C_Model_Operation.C1_REG import REG_Table
 from A_Infrastructure.A2_DB import DB
 from C_Model_Operation.C2_DataCollector import DataCollector
-from C_Model_Operation.C2_DataCollectorNoSQlite import DataCollector_noSQlite
 from B_Classes.B1_Household import Household
 from A_Infrastructure.A1_CONS import CONS
 import time
