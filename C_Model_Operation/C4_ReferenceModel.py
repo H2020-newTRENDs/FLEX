@@ -82,7 +82,7 @@ class no_SEMS(MotherModel):
         when the tank energy is always used for heating when necessary. Input parameters are all provided in kW
         (except COP which has no unit). Return values are also provided in kW.
         """
-        T_outside = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()
+        T_outside = self.outside_temperature.Temperature.to_numpy()
         Total_Load_minusPV = Total_Load_minusPV * 1_000  # W
         PV_profile_surplus = PV_profile_surplus * 1_000  # W
         TankSize = float(Household.SpaceHeating.TankSize)
