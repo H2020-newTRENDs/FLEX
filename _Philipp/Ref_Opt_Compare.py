@@ -10,9 +10,9 @@ import sqlite3
 from A_Infrastructure.A2_DB import DB
 from C_Model_Operation.C1_REG import REG_Table, REG_Var
 from A_Infrastructure.A1_CONS import CONS
-from C_Model_Operation.C4_OperationOptimization import DataSetUp, create_abstract_model, update_instance, \
+from C_Model_Operation.C4_OptimizationModel import DataSetUp, create_abstract_model, update_instance, \
     create_instances2solve
-from C_Model_Operation.C4_NoOptimization import no_SEMS
+from C_Model_Operation.C4_ReferenceModel import no_SEMS
 from C_Model_Operation.C2_DataCollector import DataCollector
 
 
