@@ -659,7 +659,7 @@ class OperationOptimization:
             for environment_RowID in range(0,1):
                 Household, Environment, PyomoModelInstance = self.run_Optimization(household_RowID, environment_RowID)
                 DC.collect_OptimizationResult(Household, Environment, PyomoModelInstance)
-        DC.save_OptimizationResult()
+        DC.save_OptimizationResult_outside_loop()
 
 
 
