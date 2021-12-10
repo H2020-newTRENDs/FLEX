@@ -279,6 +279,16 @@ class HeatingCooling_noDR:
 
 if __name__ == "__main__":
     A = HeatingCooling_noDR()
-    A.ref_HeatingCooling()
+    Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t = A.ref_HeatingCooling()
+
+    column_names = ["heating demand W", "cooling demand W", "outside temperature °C"]
+    outside_temp = DB().read_DataFrame(
+        REG_Table().Sce_Weather_Temperature, DB().create_Connection(CONS().RootDB)).Temperature.to_numpy()
+
+    df_toexcel = np.column_stack([Q_Heating_noDR[:, -1], Q_Cooling_noDR[:, -1], outside_temp])
+    DB().write_DataFrame2Excel(
+        table=df_toexcel,
+        path="C://Users//mascherbauer//PycharmProjects//NewTrends//Prosumager//_Philipp//outputdata//demand_profile_single_buildings.xlsx",
+        column_names=column_names)
 
     pass
