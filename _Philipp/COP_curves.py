@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+import matplotlib
 
 def COP_air_HP_Thomas(outside_temperature, water_temperature):
     """
@@ -200,14 +200,13 @@ def main():
     plt.tight_layout()
 
     plt.show()
-
-    data_boxplot = data2plot.loc[data2plot["Warmwassertemperatur"] == 35].drop(columns=["Warmwassertemperatur"]).set_index("Außentemperatur", drop=True).to_numpy()
-    x_axis = outside_temperature[3:8].to_numpy()
+    matplotlib.rc("font", size=14)
+    data_boxplot = data2plot.loc[data2plot["Warmwassertemperatur"] == 35].drop(columns=["Warmwassertemperatur"]).set_index("Außentemperatur", drop=True).to_numpy()[:-1, :]
+    x_axis = outside_temperature[3:7].to_numpy()
     boxplot_list = [i[~np.isnan(i)] for i in data_boxplot]
     fig_35 = plt.figure()
     ax = plt.gca()
-    ax.plot(np.array([10, 7, 2, -7, -10]), COP_air_HP_Thomas([10, 7, 2, -7, -10], 35), label="COP fitted")
-
+    ax.plot(np.arange(-7, 11), COP_air_HP_Thomas(np.arange(-7, 11), 35), label="COP fitted")
     locs, labels = plt.xticks()
     ax.boxplot(boxplot_list, positions=x_axis)
     ax.set_xticklabels(x_axis)
@@ -216,6 +215,8 @@ def main():
     ax.set_ylabel("COP")
     ax.set_title("COP curve for 35°C heating temperature")
     plt.legend()
+
+    plt.savefig("C://Users//mascherbauer//PycharmProjects//NewTrends//Prosumager//_Figures//Aggregated_Results//COP//COP_35.png")
     plt.show()
 
 
