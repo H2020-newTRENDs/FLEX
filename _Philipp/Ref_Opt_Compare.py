@@ -112,11 +112,11 @@ class DefineTestHouse:
             enter_button.grid(row=3 + row_number + 1, column=0, columnspan=2)
             root.mainloop()
 
-    def define_test_household_IDs(self, new_id: bool = False) -> pd.DataFrame:
+    def define_test_household_IDs(self, new_id: bool = True) -> pd.DataFrame:
         """defines the household used for the comparison and returns the IDs as Dataframe
-        if new_id = False (default) the IDs are loaded from the database if they exist
-        if new_id = True the IDs will be newly generated through user input"""
-        # check if sqlite file exists:
+        if new_id = True (default) the IDs will be newly generated through user input
+        if new_id = False the IDs are loaded from the database if they exist"""
+        # check if sqlite file exists and new ID = False:
         if check_dict_exists(self.test_house) and not new_id:
             # read the dictionary from database
             test_IDs_df = DB().read_DataFrame(table_name=self.test_house, conn=self.conn)
@@ -161,22 +161,26 @@ class DefineTestHouse:
 
         return test_IDs_df
 
+class ModelModes:
+    def __init__(self):
+        self.conn = DB().create_Connection(CONS().RootDB)
+        self.table_name_reference_yearly = "test_results_reference_yearly"
+        self.table_name_reference_hourly = "test_results_reference_hourly"
+        self.table_name_optimization_yearly = "test_results_optimization_yearly"
+        self.table_name_optimization_hourly = "test_results_optimization_hourly"
 
-class RunModelModes:
+
+class RunModelModes(ModelModes):
     """if new_id = True (default) the IDs will be newly generated through user input and the
         data will be newly generated and saved to the DB
         if new_id = False the IDs are loaded from the database if they exist as well as the results"""
 
     def __init__(self, new_id: bool = True):
-        self.conn = DB().create_Connection(CONS().RootDB)
+        super().__init__()
         self.new_id = new_id
         self.testing_ids = DefineTestHouse().define_test_household_IDs(new_id).set_index("index", drop=True)
         self.Gen_OBJ_ID_Household = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Household, self.conn)
         self.Gen_Sce_ID_Environment = DB().read_DataFrame(REG_Table().Gen_Sce_ID_Environment, self.conn)
-        self.table_name_reference_yearly = "test_results_reference_yearly"
-        self.table_name_reference_hourly = "test_results_reference_hourly"
-        self.table_name_optimization_yearly = "test_results_optimization_yearly"
-        self.table_name_optimization_hourly = "test_results_optimization_hourly"
 
     def get_row_ids_optimization(self) -> (int, int):
         """gets the row id for the specific testing_ids in the Gen_OBJ_ID_Household frame and
@@ -310,34 +314,23 @@ class RunModelModes:
                              conn=self.conn,
                              dtype=DataCollector(self.conn).SystemOperationHour_Column)
         # optimization year
-        DB().write_DataFrame(table=yearly_results_optimization,
-                             table_name=self.yearly_results_optimization,
+        DB().write_DataFrame(table=np.array(yearly_results_optimization).reshape(1, -1),
+                             table_name=self.table_name_optimization_yearly,
                              column_names=DataCollector(self.conn).SystemOperationYear_Column.keys(),
                              conn=self.conn,
                              dtype=DataCollector(self.conn).SystemOperationYear_Column)
         # optimization hourly
         DB().write_DataFrame(table=hourly_results_optimization,
-                             table_name=self.hourly_results_optimization,
+                             table_name=self.table_name_optimization_hourly,
                              column_names=DataCollector(self.conn).SystemOperationHour_Column.keys(),
                              conn=self.conn,
                              dtype=DataCollector(self.conn).SystemOperationHour_Column)
 
 
-class CompareModelModes(RunModelModes):
+class CompareModelModes(ModelModes):
     def __init__(self, new_id: bool = False):
-        super().__init__(new_id)
-        self.conn = DB().create_Connection(CONS().RootDB)
-        self.yearly_results_reference = None
-        self.hourly_results_reference = None
-        self.yearly_results_optimization = None
-        self.hourly_results_optimization = None
-        self.table_name_reference_yearly = "test_results_reference_yearly"
-        self.table_name_reference_hourly = "test_results_reference_hourly"
-        self.table_name_optimization_yearly = "test_results_optimization_yearly"
-        self.table_name_optimization_hourly = "test_results_optimization_hourly"
-
-    def calculate_results(self):
-        """runs the optimization and reference mode and saves results to self-variables"""
+        super().__init__()
+        self.new_id = new_id
         yearly_results_reference, hourly_results_reference, yearly_results_optimization, hourly_results_optimization = \
             RunModelModes(new_id=self.new_id).get_results_both_modes()
         self.yearly_results_reference = yearly_results_reference
@@ -349,5 +342,7 @@ class CompareModelModes(RunModelModes):
         """visualizes the results from both modes for the whole year and hourly for certain weeks"""
 
 
+        a=1
+
 if __name__ == "__main__":
-    RunModelModes(new_id=True).get_results_both_modes()
+    CompareModelModes(new_id=True).plot_comparison_results()
