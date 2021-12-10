@@ -139,6 +139,8 @@ class REG_Var:
         self.ID_Environment = self.ID + "Environment"
         self.ID_Hour = self.ID + "Hour"
         self.ID_Building = self.ID + "Building"
+        self.ID_AgeGroup = self.ID + "AgeGroup"
+        self.ID_SpaceHeating = self.ID + "SpaceHeating"
 
         self.ElectricityPrice = "ElectricityPrice"
         self.FeedinTariff = "FeedinTariff"
