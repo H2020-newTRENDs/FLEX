@@ -122,10 +122,10 @@ class DataCollector:
         result_array = np.nan_to_num(np.array(list(result_DictValues.values()), dtype=np.float), nan=0)
         return result_array
 
-    def collect_OptimizationResult(self, household, environment, instance):
+    def collect_OptimizationResult(self, household, environment, instance) -> (np.array, np.array):
         ElectricityPrice_array = self.extract_Result2Array(
-            instance.ElectricityPrice.extract_values()) * 1000  # Cent/kWh
-        FeedinTariff_array = self.extract_Result2Array(instance.FiT.extract_values()) * 1_000  # Cent/kWh
+            instance.ElectricityPrice.extract_values()) * 1_000  # Cent/kWh
+        FeedinTariff_array = self.extract_Result2Array(instance.FiT.extract_values()) * 1_000 # Cent/kWh
         OutsideTemperature_array = self.extract_Result2Array(instance.T_outside.extract_values())
 
         E_BaseLoad_array = self.extract_Result2Array(instance.BaseLoadProfile.extract_values()) / 1000  # kW
@@ -179,7 +179,7 @@ class DataCollector:
         E_BatSoC_array = self.extract_Result2Array(instance.BatSoC.extract_values()) / 1000
 
         E_Load_array = self.extract_Result2Array(instance.Load.extract_values()) / 1000
-
+        print(f"{E_Grid_array.sum()*0.2 - E_PV2Grid_array.sum()*0.0767}")
 
         # (column stack is 6 times faster than for loop)
         hourly_value_list = np.column_stack([
@@ -282,12 +282,15 @@ class DataCollector:
                            household["ID_AgeGroup"],
                            household["Name_SpaceHeatingPumpType"],
                            environment["ID_ElectricityPriceType"]]
+        return yearly_value_list, hourly_value_list
 
         # old code (stack it up in RAM)
         # self.SystemOperationHour_ValueList.append(hourly_value_list)
         # self.SystemOperationYear_ValueList.append(yearly_value_list)
 
+    def save_optimization_results_in_the_loop(self, household, environment, instance):
         # new approach (save it directly to SQLite) may be impossible with multiprocessing
+        yearly_value_list, hourly_value_list = self.collect_OptimizationResult(household, environment, instance)
         # Hourly:
         DB().add_DataFrame(table=hourly_value_list,
                            table_name="Res_SystemOperationHour_new",
@@ -301,7 +304,7 @@ class DataCollector:
                            conn=self.Conn,
                            dtype=self.SystemOperationYear_Column)
 
-    def save_OptimizationResult(self):
+    def save_OptimizationResult_outside_loop(self):
         DB().write_DataFrame(np.vstack(self.SystemOperationHour_ValueList), REG_Table().Res_SystemOperationHour,
                              self.SystemOperationHour_Column.keys(), self.Conn, dtype=self.SystemOperationHour_Column)
         DB().write_DataFrame(self.SystemOperationYear_ValueList, REG_Table().Res_SystemOperationYear,
