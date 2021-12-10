@@ -14,7 +14,6 @@ class MotherModel:
         self.ID_Environment = DB().read_DataFrame(REG_Table().Gen_Sce_ID_Environment, self.Conn)
         self.Buildings = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.Conn)
 
-
         self.TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
         self.OptimizationHourHorizon = len(self.TimeStructure)
         self.outside_temperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn)
