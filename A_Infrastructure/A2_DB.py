@@ -13,7 +13,7 @@ class DB:
         conn = sqlite3.connect(CONS().DatabasePath / database_name)
         return conn
 
-    def read_DataFrame(self, table_name, conn, *column_names, **kwargs):
+    def read_DataFrame(self, table_name: str, conn, *column_names: list, **kwargs: dict):
         if len(column_names) > 0:
             columns2extract = ""
             for name in column_names:
