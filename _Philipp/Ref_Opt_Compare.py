@@ -131,7 +131,7 @@ class DefineTestHouse:
                                    str(int(row["construction_period_end"])) for (i, row) in building_table.iterrows()]
             building_table = building_table.drop(columns=["construction_period_start", "construction_period_end"])
             building_table["construction_period"] = construction_period
-            space_heating_table = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceHeating, self.conn,
+            space_heating_table = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceHeatingSystem, self.conn,
                                                       *["ID", "TankSize", "TankSize_unit", "ID_SpaceHeatingPumpType",
                                                         "Name_SpaceHeatingPumpType"])
             space_cooling_table = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceCooling, self.conn,

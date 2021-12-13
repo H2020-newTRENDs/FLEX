@@ -76,12 +76,15 @@ class no_SEMS(MotherModel):
                     T_air_max=27)  # has no influence cause its winter -- > only heating
         return T_thermalMass_constant[-1, :]
 
-    def calculate_DHW_tank_energy(self):
+    def calculate_DHW_tank_energy(self, Total_Load_minusPV, PV_profile_surplus):
         """calculates the usage and the energy in the domestic hot water tank. The tank is charged by the heat pump
         with the COP for hot water.
         Whenever there is surplus of PV electricity the DHW tank is charged and it is discharged by the DHW-usage.
         IF a DHW tank is utilized the energy for DHW will always be solemnly provided by the DHW tank. Therefore the
         heat pump input into the DHW tank must be in accordance with the output of the DHW tank + losses."""
+
+        Total_Load_minusPV = Total_Load_minusPV * 1_000  # W
+        PV_profile_surplus = PV_profile_surplus * 1_000  # W
 
 
 
@@ -94,16 +97,16 @@ class no_SEMS(MotherModel):
         T_outside = self.outside_temperature.Temperature.to_numpy()
         Total_Load_minusPV = Total_Load_minusPV * 1_000  # W
         PV_profile_surplus = PV_profile_surplus * 1_000  # W
-        TankSize = float(Household.SpaceHeating.TankSize)
-        TankMinTemperature = float(Household.SpaceHeating.TankMinimalTemperature)
-        TankMaxTemperature = float(Household.SpaceHeating.TankMaximalTemperature)
-        TankSurfaceArea = float(Household.SpaceHeating.TankSurfaceArea)
-        TankLoss = float(Household.SpaceHeating.TankLoss)
-        TankSurroundingTemperature = float(Household.SpaceHeating.TankSurroundingTemperature)
-        TankStartTemperature = float(Household.SpaceHeating.TankStartTemperature)
+        TankSize = float(Household.SpaceHeatingSystem.TankSize)
+        TankMinTemperature = float(Household.SpaceHeatingSystem.TankMinimalTemperature)
+        TankMaxTemperature = float(Household.SpaceHeatingSystem.TankMaximalTemperature)
+        TankSurfaceArea = float(Household.SpaceHeatingSystem.TankSurfaceArea)
+        TankLoss = float(Household.SpaceHeatingSystem.TankLoss)
+        TankSurroundingTemperature = float(Household.SpaceHeatingSystem.TankSurroundingTemperature)
+        TankStartTemperature = float(Household.SpaceHeatingSystem.TankStartTemperature)
         COP_SpaceHeating = self.COP_HP(self.outside_temperature, 35,
-                                       Household.SpaceHeating.CarnotEfficiencyFactor,
-                                       Household.SpaceHeating.Name_SpaceHeatingPumpType)  # 35 °C supply temperature
+                                       Household.SpaceHeatingSystem.CarnotEfficiencyFactor,
+                                       Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType)  # 35 °C supply temperature
 
         # Assumption: Tank is always kept at minimum temperature except when it is charged with surplus energy:
         # Note: I completely neglect Hot Water here (but its also neglected in the optimization)
@@ -470,9 +473,9 @@ class no_SEMS(MotherModel):
         HeatingElement = np.zeros(Q_Heating_noDR.shape)
         for index, row in enumerate(Q_Heating_noDR):
             for column, element in enumerate(row):
-                if element > Household.SpaceHeating.HeatPumpMaximalThermalPower:
-                    Q_Heating_noDR[index, column] = Household.SpaceHeating.HeatPumpMaximalThermalPower
-                    HeatingElement[index, column] = element - Household.SpaceHeating.HeatPumpMaximalThermalPower
+                if element > Household.SpaceHeatingSystem.HeatPumpMaximalThermalPower:
+                    Q_Heating_noDR[index, column] = Household.SpaceHeatingSystem.HeatPumpMaximalThermalPower
+                    HeatingElement[index, column] = element - Household.SpaceHeatingSystem.HeatPumpMaximalThermalPower
 
         # change values to kW:
         Q_Heating_noDR = Q_Heating_noDR / 1_000
@@ -509,12 +512,12 @@ class no_SEMS(MotherModel):
 
         # electricity for DHW:
         COP_SpaceHeating = self.COP_HP(self.outside_temperature, 35,
-                                       Household.SpaceHeating.CarnotEfficiencyFactor,
-                                       Household.SpaceHeating.Name_SpaceHeatingPumpType)  # 35 °C supply temperature
+                                       Household.SpaceHeatingSystem.CarnotEfficiencyFactor,
+                                       Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType)  # 35 °C supply temperature
 
         COP_HotWater = self.COP_HP(self.outside_temperature, 55,
-                                   Household.SpaceHeating.CarnotEfficiencyFactor,
-                                   Household.SpaceHeating.Name_SpaceHeatingPumpType)  # 55 °C supply temperature
+                                   Household.SpaceHeatingSystem.CarnotEfficiencyFactor,
+                                   Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType)  # 55 °C supply temperature
 
         Q_HotWater = self.HotWaterProfile.HotWater.to_numpy()
         DHWProfile = Q_HotWater / COP_HotWater
@@ -663,13 +666,13 @@ class no_SEMS(MotherModel):
                                        # Household.ApplianceGroup.DishWasherShifting,
                                        # Household.ApplianceGroup.WashingMachineShifting,
                                        # Household.ApplianceGroup.DryerShifting,
-                                       np.full((elec_grid_demand.shape[1]), Household.SpaceHeating.TankSize),
+                                       np.full((elec_grid_demand.shape[1]), Household.SpaceHeatingSystem.TankSize),
                                        np.full((elec_grid_demand.shape[1]), Household.SpaceCooling.AdoptionStatus),
                                        np.full((elec_grid_demand.shape[1]), Household.PV.PVPower),
                                        np.full((elec_grid_demand.shape[1]), Household.Battery.Capacity * 1_000),
                                        np.full((elec_grid_demand.shape[1]), Household.ID_AgeGroup),
                                        np.full((elec_grid_demand.shape[1]),
-                                               Household.SpaceHeating.Name_SpaceHeatingPumpType),
+                                               Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType),
                                        np.full((elec_grid_demand.shape[1]), Environment["ID_ElectricityPriceType"])
                                        ])
 
@@ -682,7 +685,7 @@ class no_SEMS(MotherModel):
             np.tile(PriceHourly, (elec_grid_demand.shape[1],)),  # elec price
             np.tile(FIT, (elec_grid_demand.shape[1],)),  # Feed in tarif
             np.tile(np.full((len(elec_grid_demand),), Household.ID_AgeGroup), (elec_grid_demand.shape[1],)),  # Age Group
-            np.tile(np.full((len(elec_grid_demand),), Household.SpaceHeating.Name_SpaceHeatingPumpType),
+            np.tile(np.full((len(elec_grid_demand),), Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType),
                     (elec_grid_demand.shape[1],)),  # space heating type
             np.tile(self.outside_temperature.to_numpy(), (elec_grid_demand.shape[1],)),  # outside temperature
 

@@ -74,8 +74,8 @@ class MotherTableGenerator(ABC):
 class TableGeneratorGenObj(MotherTableGenerator, ABC):
     """generates the GEN_OBJ tables through the ID_Tables"""
 
-    def gen_OBJ_ID_Building(self):
-        BuildingOption = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.conn)
+    def gen_OBJ_ID_Building(self) -> None:
+        BuildingOption = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.conn) # TODO the function to create ID_Building option still has to be created
         BuildingMassTemperature = DB().read_DataFrame(REG_Table().ID_BuildingMassTemperature, self.conn)
         GridInfrastructure = DB().read_DataFrame(REG_Table().ID_GridInfrastructure, self.conn)
         self.gen_OBJ_ID_Table_3To1(REG_Table().Gen_OBJ_ID_Building,
@@ -162,16 +162,16 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
         """creates the ID_DHWTank table in the Database"""
         tank_sizes = [200, 500, 1_000]  # liter  TODO kan be given externally
         columns = {"ID_DHWTankType": "INTEGER",
-                   "TankSize": "REAL",
-                   "TankSize_unit": "TEXT",
-                   "TankSurfaceArea": "REAL",
-                   "TankSurfaceArea_unit": "TEXT",
-                   "TankLoss": "REAL",
-                   "TankLoss_unit": "TEXT",
-                   "TankStartTemperature": "REAL",
-                   "TankMaximalTemperature": "REAL",
-                   "TankMinimalTemperature": "REAL",
-                   "TankSurroundingTemperature": "REAL"}
+                   "DHWTankSize": "REAL",
+                   "DHWTankSize_unit": "TEXT",
+                   "DHWTankSurfaceArea": "REAL",
+                   "DHWTankSurfaceArea_unit": "TEXT",
+                   "DHWTankLoss": "REAL",
+                   "DHWTankLoss_unit": "TEXT",
+                   "DHWTankStartTemperature": "REAL",
+                   "DHWTankMaximalTemperature": "REAL",
+                   "DHWTankMinimalTemperature": "REAL",
+                   "DHWTankSurroundingTemperature": "REAL"}
         # tank is designed as Cylinder with minimal surface area:
         radius = [(2 * volume / 1_000 / 4 / np.pi) ** (1. / 3) for volume in
                   tank_sizes]  # radius for cylinder with minimal surface

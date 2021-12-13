@@ -2,7 +2,7 @@
 from A_Infrastructure.A1_CONS import CONS
 from A_Infrastructure.A2_DB import DB
 from C_Model_Operation.C1_REG import REG_Table, REG_Var
-from C_Model_Operation.C3_TableGenerator import TableGenerator
+from C_Model_Operation.C3_TableGenerator import TableGeneratorGenObj
 
 
 #from C_Model_Operation.C4_RQ2_Reference_OperationOptimization import OperationOptimization

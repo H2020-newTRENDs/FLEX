@@ -99,7 +99,7 @@ class HeatingCoolingNoSEMS(MotherModel):
             pass
         else:
             # get outside temperature from database
-            T_outside = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()  # TODO careful when more outside temperatures in Database
+            T_outside = self.outside_temperature.Temperature.to_numpy()  # TODO careful when more outside temperatures in Database
         if isinstance(T_air_min, int):
             T_air_min = np.full((len(T_outside),), T_air_min)
             T_air_max = np.full((len(T_outside),), T_air_max)

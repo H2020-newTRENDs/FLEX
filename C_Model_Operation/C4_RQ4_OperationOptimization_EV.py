@@ -109,22 +109,22 @@ class OperationOptimization:
         # (3.1) Tank
 
         # fixed starting values:
-        T_TankStart = Household.SpaceHeating.TankStartTemperature
+        T_TankStart = Household.SpaceHeatingSystem.TankStartTemperature
         # min,max tank temperature for boundary of energy
-        T_TankMax = Household.SpaceHeating.TankMaximalTemperature
-        T_TankMin = Household.SpaceHeating.TankMinimalTemperature
+        T_TankMax = Household.SpaceHeatingSystem.TankMaximalTemperature
+        T_TankMin = Household.SpaceHeatingSystem.TankMinimalTemperature
         # sourounding temp of tank
-        T_TankSourounding = Household.SpaceHeating.TankSurroundingTemperature
+        T_TankSourounding = Household.SpaceHeatingSystem.TankSurroundingTemperature
         # C_Water
         CWater = 4200 / 3600
 
         # Parameters of SpaceHeatingTank
         # Mass of water in tank
-        M_WaterTank = Household.SpaceHeating.TankSize
+        M_WaterTank = Household.SpaceHeatingSystem.TankSize
         # Surface of Tank in m2
-        A_SurfaceTank = Household.SpaceHeating.TankSurfaceArea
+        A_SurfaceTank = Household.SpaceHeatingSystem.TankSurfaceArea
         # insulation of tank, for calc of losses
-        U_ValueTank = Household.SpaceHeating.TankLoss
+        U_ValueTank = Household.SpaceHeatingSystem.TankLoss
 
         # (3.2) RC-Model
 
@@ -168,7 +168,7 @@ class OperationOptimization:
         Q_sol = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
 
         # (3.4) Selection of heat pump COP
-        SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] ==Household.SpaceHeating.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP']
+        SpaceHeatingHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] == Household.SpaceHeatingSystem.ID_SpaceHeatingBoilerType]['SpaceHeatingHourlyCOP']
 
         # ------------
         # 4. Hot water
@@ -182,7 +182,7 @@ class OperationOptimization:
         HotWaterProfile2 = HotWaterProfileSelect['HotWaterPart2']
 
         # Selection of COP
-        HotWaterHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] == Household.SpaceHeating.ID_SpaceHeatingBoilerType]['HotWaterHourlyCOP']
+        HotWaterHourlyCOP = self.HeatPump_HourlyCOP.loc[self.HeatPump_HourlyCOP['ID_SpaceHeatingBoilerType'] == Household.SpaceHeatingSystem.ID_SpaceHeatingBoilerType]['HotWaterHourlyCOP']
 
         # ----------------------
         # 5. PV and battery
@@ -298,11 +298,11 @@ class OperationOptimization:
         # ----------------------------
 
         # Variables SpaceHeating
-        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.HeatPumpMaximalThermalPower))
-        m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.HeatingElementPower))
+        m.Q_TankHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeatingSystem.HeatPumpMaximalThermalPower))
+        m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeatingSystem.HeatingElementPower))
         m.E_tank = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(CWater * M_WaterTank * (273.15 + T_TankMin),
                                                                      CWater * M_WaterTank * (273.15 + T_TankMax)))
-        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeating.MaximalPowerFloorHeating))
+        m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceHeatingSystem.MaximalPowerFloorHeating))
 
         # energy used for cooling
         m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(0, Household.SpaceCooling.SpaceCoolingPower))  # 6kW thermal, 2 kW electrical
