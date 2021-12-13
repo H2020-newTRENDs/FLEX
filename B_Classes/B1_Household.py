@@ -29,7 +29,7 @@ class Household:
         # self.HotWater = HotWater(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_HotWater, (para_series["ID_HotWater"] - 1), self.Conn))
         self.PV = PV(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_PV, (para_series["ID_PV"] - 1), self.Conn))
         self.Battery = Battery(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_Battery, (para_series["ID_Battery"] - 1), self.Conn))
-        self.ElectricVehicle = ElectricVehicle(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_ElectricVehicle, (para_series["ID_ElectricVehicle"] - 1), self.Conn))
+        # self.ElectricVehicle = ElectricVehicle(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_ElectricVehicle, (para_series["ID_ElectricVehicle"] - 1), self.Conn))
 
 
 

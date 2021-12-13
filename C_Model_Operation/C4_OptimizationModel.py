@@ -116,19 +116,9 @@ class DataSetUp(MotherModel):
         Htr_3 = 1 / (1 / Htr_2 + 1 / Htr_ms)  # Equ.C.8
 
         # (3.3) Solar gains
-        # solar gains from different celestial directions
-        radiation = self.Radiation_SkyDirections
-        # window areas in celestial directions
-        AreaWindowEastWest = Household.Building.average_effective_area_wind_west_east_red_cool
-        AreaWindowSouth = Household.Building.average_effective_area_wind_south_red_cool
-        AreaWindowNorth = Household.Building.average_effective_area_wind_north_red_cool
-        # solar gains from different celestial directions
-        Q_sol_north = np.outer(radiation.north.to_numpy(), AreaWindowNorth)
-        Q_sol_east = np.outer(radiation.east.to_numpy(), AreaWindowEastWest / 2)
-        Q_sol_south = np.outer(radiation.south.to_numpy(), AreaWindowSouth)
-        Q_sol_west = np.outer(radiation.west.to_numpy(), AreaWindowEastWest / 2)
-
-        Q_sol = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
+        Q_solar = self.calculate_solar_gains()
+        # Use only the profile for the building ID
+        Q_sol = Q_solar[:, Household.Building.ID - 1]
 
         # (3.4) Selection of heat pump COP
 

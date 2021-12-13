@@ -12,7 +12,6 @@ class MotherModel:
         self.Conn = DB().create_Connection(CONS().RootDB)
         self.ID_Household = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Household, self.Conn)
         self.ID_Environment = DB().read_DataFrame(REG_Table().Gen_Sce_ID_Environment, self.Conn)
-        self.Buildings = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.Conn)
 
         self.TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
         self.OptimizationHourHorizon = len(self.TimeStructure)
@@ -36,6 +35,12 @@ class MotherModel:
         # C_Water
         self.CPWater = 4_200 / 3_600
 
+        # building information
+        self.Buildings = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.Conn)
+        self.AreaWindowEastWest = self.Buildings['average_effective_area_wind_west_east_red_cool'].to_numpy()
+        self.AreaWindowSouth = self.Buildings['average_effective_area_wind_south_red_cool'].to_numpy()
+        self.AreaWindowNorth = self.Buildings['average_effective_area_wind_north_red_cool'].to_numpy()
+
     def COP_HP(self, outside_temperature, supply_temperature, efficiency, source):
         """
         calculates the COP based on a performance factor and the massflow temperatures
@@ -50,3 +55,14 @@ class MotherModel:
         else:
             assert "only >>air<< and >>ground<< are valid arguments"
         return COP
+
+    def calculate_solar_gains(self) -> np.array:
+        """calculates the solar gains through solar radiation through the effective window area
+        returns the solar gains for all considered building IDs with 8760 rows. Each columns represents a building ID"""
+        Q_sol_north = np.outer(self.Radiation_SkyDirections.north.to_numpy(), self.AreaWindowSouth)
+        Q_sol_east = np.outer(self.Radiation_SkyDirections.east.to_numpy(), self.AreaWindowEastWest / 2)
+        Q_sol_south = np.outer(self.Radiation_SkyDirections.south.to_numpy(), self.AreaWindowSouth)
+        Q_sol_west = np.outer(self.Radiation_SkyDirections.west.to_numpy(), self.AreaWindowEastWest / 2)
+        Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
+        return Q_solar
+
