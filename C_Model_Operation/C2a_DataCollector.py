@@ -307,7 +307,7 @@ class DataCollector:
                                                    Household.ApplianceGroup.DishWasherShifting,
                                                    Household.ApplianceGroup.WashingMachineShifting,
                                                    Household.ApplianceGroup.DryerShifting,
-                                                   Household.SpaceHeating.TankSize,
+                                                   Household.SpaceHeatingSystem.TankSize,
                                                    Household.SpaceCooling.AdoptionStatus,
                                                    Household.PV.PVPower,
                                                    Household.Battery.Capacity,

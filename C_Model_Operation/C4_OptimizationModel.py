@@ -71,20 +71,20 @@ class DataSetUp(MotherModel):
         # (3.1) Tank
 
         # fixed starting values:
-        T_TankStart = float(Household.SpaceHeating.TankMinimalTemperature)  # start temperature is min temp (empty tank)
+        T_TankStart = float(Household.SpaceHeatingSystem.TankMinimalTemperature)  # start temperature is min temp (empty tank)
         # min,max tank temperature for boundary of energy
-        T_TankMax = float(Household.SpaceHeating.TankMaximalTemperature)
-        T_TankMin = float(Household.SpaceHeating.TankMinimalTemperature)
+        T_TankMax = float(Household.SpaceHeatingSystem.TankMaximalTemperature)
+        T_TankMin = float(Household.SpaceHeatingSystem.TankMinimalTemperature)
         # surrounding temp of tank
-        T_TankSurrounding = float(Household.SpaceHeating.TankSurroundingTemperature)
+        T_TankSurrounding = float(Household.SpaceHeatingSystem.TankSurroundingTemperature)
 
         # Parameters of SpaceHeatingTank
         # Mass of water in tank
-        M_WaterTank = float(Household.SpaceHeating.TankSize)
+        M_WaterTank = float(Household.SpaceHeatingSystem.TankSize)
         # Surface of Tank in m2
-        A_SurfaceTank = float(Household.SpaceHeating.TankSurfaceArea)
+        A_SurfaceTank = float(Household.SpaceHeatingSystem.TankSurfaceArea)
         # insulation of tank, for calc of losses
-        U_ValueTank = float(Household.SpaceHeating.TankLoss)
+        U_ValueTank = float(Household.SpaceHeatingSystem.TankLoss)
 
         # (3.2) RC-Model
 
@@ -121,13 +121,12 @@ class DataSetUp(MotherModel):
         Q_sol = Q_solar[:, Household.Building.ID - 1]
 
         # (3.4) Selection of heat pump COP
-
         space_heating_supply_temperature = 35  # TODO implement this info in Household
         hot_water_supply_temperature = 55  # TODO implement this info in Household
         SpaceHeatingHourlyCOP = self.COP_HP(outside_temperature=self.outside_temperature["Temperature"].to_numpy(),
                                             supply_temperature=space_heating_supply_temperature,
-                                            efficiency=Household.SpaceHeating.CarnotEfficiencyFactor,
-                                            source=Household.SpaceHeating.Name_SpaceHeatingPumpType)
+                                            efficiency=Household.SpaceHeatingSystem.CarnotEfficiencyFactor,
+                                            source=Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType)
 
         # Selection of AC COP
         ACHourlyCOP = self.AC_HourlyCOP.ACHourlyCOP.to_numpy()
@@ -142,8 +141,8 @@ class DataSetUp(MotherModel):
         # COP for HotWater generation
         HotWaterHourlyCOP = self.COP_HP(outside_temperature=self.outside_temperature["Temperature"].to_numpy(),
                                         supply_temperature=hot_water_supply_temperature,
-                                        efficiency=Household.SpaceHeating.CarnotEfficiencyFactor,
-                                        source=Household.SpaceHeating.Name_SpaceHeatingPumpType)
+                                        efficiency=Household.SpaceHeatingSystem.CarnotEfficiencyFactor,
+                                        source=Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType)
 
         # ----------------------
         # 5. PV and battery
@@ -241,13 +240,13 @@ class DataSetUp(MotherModel):
         # break up household and environment because they contain sqlite connection which can not be parallelized:
         household_dict = {
             "SpaceHeating_HeatPumpMaximalThermalPower": float(
-                Household.SpaceHeating.HeatPumpMaximalThermalPower),
-            "SpaceHeating_HeatingElementPower": float(Household.SpaceHeating.HeatingElementPower),
+                Household.SpaceHeatingSystem.HeatPumpMaximalThermalPower),
+            "SpaceHeating_HeatingElementPower": float(Household.SpaceHeatingSystem.HeatingElementPower),
             "SpaceCooling_SpaceCoolingPower": float(Household.SpaceCooling.SpaceCoolingPower),
             "Building_MaximalGridPower": float(Household.Building.MaximalGridPower * 1_000),
-            "SpaceHeating_TankSize": float(Household.SpaceHeating.TankSize),
-            "SpaceHeating_TankMinimalTemperature": float(Household.SpaceHeating.TankMinimalTemperature),
-            "SpaceHeating_TankMaximalTemperature": float(Household.SpaceHeating.TankMaximalTemperature),
+            "SpaceHeating_TankSize": float(Household.SpaceHeatingSystem.TankSize),
+            "SpaceHeating_TankMinimalTemperature": float(Household.SpaceHeatingSystem.TankMinimalTemperature),
+            "SpaceHeating_TankMaximalTemperature": float(Household.SpaceHeatingSystem.TankMaximalTemperature),
             "Battery_MaxDischargePower": float(Household.Battery.MaxDischargePower * 1_000),
             "Battery_Capacity": float(Household.Battery.Capacity * 1_000),
             "Battery_MaxChargePower": float(Household.Battery.MaxChargePower * 1_000),
@@ -257,7 +256,7 @@ class DataSetUp(MotherModel):
             "Building_hwb_norm1": float(Household.Building.hwb_norm1),
             "SpaceCooling_AdoptionStatus": int(Household.SpaceCooling.AdoptionStatus),
             "PV_PVPower": float(Household.PV.PVPower),
-            "Name_SpaceHeatingPumpType": Household.SpaceHeating.Name_SpaceHeatingPumpType,
+            "Name_SpaceHeatingPumpType": Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType,
             "ID_AgeGroup": int(Household.ID_AgeGroup)
         }
 
