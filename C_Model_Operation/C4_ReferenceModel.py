@@ -1,7 +1,7 @@
 from A_Infrastructure.A2_DB import DB
 from C_Model_Operation.C1_REG import REG_Table, REG_Var
 from A_Infrastructure.A1_CONS import CONS
-from B_Classes.B2_Building import HeatingCooling_noDR
+from B_Classes.B2_Building import HeatingCoolingNoSEMS
 from B_Classes.B1_Household import Household
 from C_Model_Operation.C2_DataCollector import DataCollector
 from C_Model_Operation.C0_Model import MotherModel
@@ -47,7 +47,7 @@ class no_SEMS(MotherModel):
         of the minimal indoor temperature and the outside temperature being the outside temperature at the first hour
         of the year. The solar gains are set to 0.
         """
-        Buildings = HeatingCooling_noDR()
+        Buildings = HeatingCoolingNoSEMS()
         # start time steps to calculate constant values
         runtime = 100
         # start with 100 hours,  check if Tm_t is constant:
@@ -76,7 +76,16 @@ class no_SEMS(MotherModel):
                     T_air_max=27)  # has no influence cause its winter -- > only heating
         return T_thermalMass_constant[-1, :]
 
-    def calculate_tank_energy(self, Total_Load_minusPV, Q_Heating_noDR, PV_profile_surplus, Household):
+    def calculate_DHW_tank_energy(self):
+        """calculates the usage and the energy in the domestic hot water tank. The tank is charged by the heat pump
+        with the COP for hot water.
+        Whenever there is surplus of PV electricity the DHW tank is charged and it is discharged by the DHW-usage.
+        IF a DHW tank is utilized the energy for DHW will always be solemnly provided by the DHW tank. Therefore the
+        heat pump input into the DHW tank must be in accordance with the output of the DHW tank + losses."""
+
+
+
+    def calculate_heating_tank_energy(self, Total_Load_minusPV, Q_Heating_noDR, PV_profile_surplus, Household):
         """
         Calculates the energy/temperature inside the hot water tank and the heating energy that has to be actually used
         when the tank energy is always used for heating when necessary. Input parameters are all provided in kW
@@ -444,14 +453,8 @@ class no_SEMS(MotherModel):
             assert "no valid option for indoor set temperature"
 
         # calculate solar gains from database
-        # solar gains from different celestial directions
-  # TODO careful when there are more profiles
-        Q_sol_north = np.outer(self.Radiation_SkyDirections.north.to_numpy(), HeatingCooling_noDR().AreaWindowNorth)
-        Q_sol_east = np.outer(self.Radiation_SkyDirections.east.to_numpy(), HeatingCooling_noDR().AreaWindowEastWest / 2)
-        Q_sol_south = np.outer(self.Radiation_SkyDirections.south.to_numpy(), HeatingCooling_noDR().AreaWindowSouth)
-        Q_sol_west = np.outer(self.Radiation_SkyDirections.west.to_numpy(), HeatingCooling_noDR().AreaWindowEastWest / 2)
-
-        Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
+        # solar gains from different celestial direction
+        Q_solar = self.calculate_solar_gains()
 
         # calculate the heating and cooling energy for all buildings in IDBuildingOption:
         # initial_thermal_mass_temperature = self.calculate_initial_thermal_mass_temp()
@@ -459,7 +462,7 @@ class no_SEMS(MotherModel):
         # if no cooling is adopted --> raise max air temperature to 100 so it will never cool:
         if Household.SpaceCooling.AdoptionStatus == 0:
             T_indoorSetMax = np.full((8760,), 100)
-        Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t_noDR = HeatingCooling_noDR().ref_HeatingCooling(
+        Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t_noDR = HeatingCoolingNoSEMS().ref_HeatingCooling(
             initial_thermal_mass_temp=15,
             T_air_min=T_indoorSetMin,
             T_air_max=T_indoorSetMax)

@@ -11,7 +11,7 @@ from A_Infrastructure.A2_DB import DB
 from C_Model_Operation.C2_DataCollector import DataCollector
 from B_Classes.B1_Household import Household
 
-from B_Classes.B2_Building import HeatingCooling_noDR
+from B_Classes.B2_Building import HeatingCoolingNoSEMS
 
 
 class OperationOptimization:

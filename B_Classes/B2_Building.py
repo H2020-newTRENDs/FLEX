@@ -5,6 +5,7 @@ import geopandas as gpd
 from pyproj import CRS, Transformer
 from A_Infrastructure.A2_DB import DB
 from C_Model_Operation.C1_REG import REG_Table
+from C_Model_Operation.C0_Model import MotherModel
 
 
 
@@ -49,38 +50,32 @@ class Building:
         self.MaximalBuildingMassTemperature = para_series['MaximalBuildingMassTemperature']
 
 
-class HeatingCooling_noDR:
+class HeatingCoolingNoSEMS(MotherModel):
 
     def __init__(self):
-        conn = DB().create_Connection(CONS().RootDB)
-        self.Conn = conn
-        ID_BuildingOption_dataframe = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.Conn)
+        super().__init__()
         # try:
-        self.index = ID_BuildingOption_dataframe['index']
-        self.name = ID_BuildingOption_dataframe['name']
-        self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
-        self.number_of_dwellings_per_building = ID_BuildingOption_dataframe['number_of_dwellings_per_building']
-        self.areawindows = ID_BuildingOption_dataframe['areawindows']
-        self.area_suitable_solar = ID_BuildingOption_dataframe['area_suitable_solar']
-        # self.ued_dhw = ID_BuildingOption_dataframe['ued_dhw']
-        self.AreaWindowEastWest = ID_BuildingOption_dataframe[
-            'average_effective_area_wind_west_east_red_cool'].to_numpy()
-        self.AreaWindowSouth = ID_BuildingOption_dataframe['average_effective_area_wind_south_red_cool'].to_numpy()
-        self.AreaWindowNorth = ID_BuildingOption_dataframe['average_effective_area_wind_north_red_cool'].to_numpy()
-        self.building_categories_index = ID_BuildingOption_dataframe['building_categories_index']
+        self.index = self.Buildings['index']
+        self.name = self.Buildings['name']
+        self.building_categories_index = self.Buildings['building_categories_index']
+        self.number_of_dwellings_per_building = self.Buildings['number_of_dwellings_per_building']
+        self.area_windows = self.Buildings['areawindows']
+        self.area_suitable_solar = self.Buildings['area_suitable_solar']
+        # self.ued_dhw = self.Buildings['ued_dhw']
+        self.building_categories_index = self.Buildings['building_categories_index']
         # except:
         #     pass
-        self.InternalGains = ID_BuildingOption_dataframe['spec_int_gains_cool_watt'].to_numpy()
-        self.Hop = ID_BuildingOption_dataframe['Hop'].to_numpy()
-        self.Htr_w = ID_BuildingOption_dataframe['Htr_w'].to_numpy()
-        self.Hve = ID_BuildingOption_dataframe['Hve'].to_numpy()
-        self.CM_factor = ID_BuildingOption_dataframe['CM_factor'].to_numpy()
-        self.Am_factor = ID_BuildingOption_dataframe['Am_factor'].to_numpy()
+        self.internal_gains = self.Buildings['spec_int_gains_cool_watt'].to_numpy()
+        self.Hop = self.Buildings['Hop'].to_numpy()
+        self.Htr_w = self.Buildings['Htr_w'].to_numpy()
+        self.Hve = self.Buildings['Hve'].to_numpy()
+        self.CM_factor = self.Buildings['CM_factor'].to_numpy()
+        self.Am_factor = self.Buildings['Am_factor'].to_numpy()
         # self.country_ID = ID_BuildingOption_dataframe['country_ID'].to_numpy()
         try:
-            self.Af = ID_BuildingOption_dataframe['Af'].to_numpy()
-        except:
-            self.Af = ID_BuildingOption_dataframe["areafloor"].to_numpy()
+            self.Af = self.Buildings['Af'].to_numpy()
+        except KeyError:
+            self.Af = self.Buildings["areafloor"].to_numpy()
 
     def ref_HeatingCooling(self, T_outside=None, Q_solar=None, initial_thermal_mass_temp=20, T_air_min=20, T_air_max=27,
                            **kwargs):
@@ -93,7 +88,7 @@ class HeatingCooling_noDR:
         # ------------------------------------------------------------------------------------------
         # this is for the purpose of using the function outside of the database with specific inputs
         if "Buildings" in kwargs:
-            self.InternalGains = kwargs["Buildings"]['spec_int_gains_cool_watt'].to_numpy()
+            self.internal_gains = kwargs["Buildings"]['spec_int_gains_cool_watt'].to_numpy()
             self.Hop = kwargs["Buildings"]['Hop'].to_numpy()
             self.Htr_w = kwargs["Buildings"]['Htr_w'].to_numpy()
             self.Hve = kwargs["Buildings"]['Hve'].to_numpy()
@@ -114,14 +109,7 @@ class HeatingCooling_noDR:
             pass
         else:
             # calculate solar gains from database
-            # solar gains from different celestial directions
-            radiation = DB().read_DataFrame(REG_Table().Gen_Sce_Weather_Radiation_SkyDirections, self.Conn)
-            Q_sol_north = np.outer(radiation.north.to_numpy(), self.AreaWindowSouth)
-            Q_sol_east = np.outer(radiation.east.to_numpy(), self.AreaWindowEastWest / 2)
-            Q_sol_south = np.outer(radiation.south.to_numpy(), self.AreaWindowSouth)
-            Q_sol_west = np.outer(radiation.west.to_numpy(), self.AreaWindowEastWest / 2)
-
-            Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
+            Q_solar = self.calculate_solar_gains()
         # ------------------------------------------------------------------------------------------
 
         # Oberflächeninhalt aller Flächen, die zur Gebäudezone weisen
@@ -131,7 +119,7 @@ class HeatingCooling_noDR:
         # wirksame Massenbezogene Fläche [m^2]
         Am = self.Am_factor * self.Af
         # internal gains
-        Q_InternalGains = self.InternalGains * self.Af
+        Q_InternalGains = self.internal_gains * self.Af
         timesteps = np.arange(len(T_outside))
 
         # Kopplung Temp Luft mit Temp Surface Knoten s
@@ -278,7 +266,7 @@ class HeatingCooling_noDR:
 
 
 if __name__ == "__main__":
-    A = HeatingCooling_noDR()
+    A = HeatingCoolingNoSEMS()
     Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t = A.ref_HeatingCooling()
 
     column_names = ["heating demand W", "cooling demand W", "outside temperature °C"]

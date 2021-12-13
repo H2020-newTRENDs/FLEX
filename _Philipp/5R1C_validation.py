@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import datetime
 import pyomo.environ as pyo
 from _Philipp.Radiation import calculate_angels_of_sun
-from B_Classes.B2_Building import HeatingCooling_noDR
+from B_Classes.B2_Building import HeatingCoolingNoSEMS
 
 
 def create_dict(liste):
@@ -337,7 +337,7 @@ def Sprungantwort():
     # # Heizen:
     # define building data
     buildingData = pd.read_excel(base_input_path / "Sprungantwort_tests.xlsx", engine="openpyxl")
-    B = HeatingCooling_noDR(buildingData)
+    B = HeatingCoolingNoSEMS(buildingData)
 
     stunden_anzahl = 24
     outdoorTemp_heating = -5
@@ -365,7 +365,7 @@ def Sprungantwort():
 def Sprungantwort_Strompreis(base_input_path):
     # define building data
     buildingData = pd.read_excel(base_input_path / "Sprungantwort_tests.xlsx", engine="openpyxl")
-    B = HeatingCooling_noDR(buildingData)
+    B = HeatingCoolingNoSEMS(buildingData)
 
     stunden_anzahl = 24
     outdoorTemp = -5
@@ -461,7 +461,7 @@ def compare_solar_radation():
         pd.read_csv(base_input_path / "solarRadiationEPlus.csv", sep=";").loc[:, "solar radiation"])
     Q_sol_EPlus = pd.concat([Q_sol_EPlus, Q_sol_EPlus, Q_sol_EPlus], axis=1).to_numpy()
 
-    B = HeatingCooling_noDR(buildingData)
+    B = HeatingCoolingNoSEMS(buildingData)
     Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, T_thermalMass_noDR = B.ref_HeatingCooling(Temperature_outside,
                                                                                            Q_solar=Q_sol,
                                                                                            initial_thermal_mass_temp=20,
@@ -504,7 +504,7 @@ if __name__=="__main__":
     base_input_path = project_directory_path / "inputdata"
     # define building data
     buildingData = pd.read_excel(base_input_path / "Sprungantwort_tests.xlsx", engine="openpyxl")
-    Buildings = HeatingCooling_noDR(buildingData)
+    Buildings = HeatingCoolingNoSEMS(buildingData)
 
     # Sprungantwort()
     compare_solar_radation()
