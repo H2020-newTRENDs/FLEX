@@ -46,7 +46,7 @@ class REG_Table:
         self.Gen_OBJ_ID_Household = self.GeneratedData + self.Object + self.ID + "Household"
         self.Gen_OBJ_ID_Building = self.GeneratedData + self.Object + self.ID + "Building"
         self.Gen_OBJ_ID_ApplianceGroup = self.GeneratedData + self.Object + self.ID + "ApplianceGroup"
-        self.Gen_OBJ_ID_SpaceHeating = self.GeneratedData + self.Object + self.ID + "SpaceHeating"
+        self.Gen_OBJ_ID_SpaceHeatingSystem = self.GeneratedData + self.Object + self.ID + "SpaceHeatingSystem"
         self.Gen_OBJ_ID_SpaceCooling = self.GeneratedData + self.Object + self.ID + "SpaceCooling"
         self.Gen_OBJ_ID_SpaceHeatingTank = self.GeneratedData + self.Object + self.ID + "SpaceHeatingTank"
         self.Gen_OBJ_ID_DHW_tank = self.GeneratedData + self.Object + self.ID + "DHWTank"
