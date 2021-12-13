@@ -94,15 +94,37 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
                                    WashingMachine)
         return None
 
-    def gen_OBJ_ID_SpaceHeatingSystem(self):
-        SpaceHeatingPump = DB().read_DataFrame(REG_Table().ID_SpaceHeatingPumpType, self.conn)
-        self.gen_OBJ_ID_Table_1To1(REG_Table().Gen_OBJ_ID_SpaceHeating, SpaceHeatingPump)
-        return None
+    def gen_OBJ_ID_SpaceHeatingSystem(self) -> None:
+        """creates the space heating system table in the Database"""
+        heating_system = ["Air_HP", "Ground_HP"]  #  TODO kan be given externally
+        carnot_factor = [0.4, 0.35]  # for the heat pumps respectively
+        columns = {"ID_SpaceHeatingSystem": "INTEGER",
+                   "Name_SpaceHeatingPumpType": "TEXT",
+                   "HeatPumpMaximalThermalPower": "REAL",
+                   "HeatPumpMaximalThermalPower_unit": "TEXT",
+                   "HeatingElementPower": "REAL",
+                   "HeatingElementPower_unit": "TEXT",
+                   "CarnotEfficiencyFactor": "REAL"}
 
-    def gen_OBJ_ID_heatingTank(self):
+        table = np.column_stack([np.arange(1, len(heating_system) + 1),     # ID
+                                 heating_system,                            # Name_SpaceHeatingPumpType
+                                 np.full((len(heating_system), ), 15_000),  # HeatPumpMaximalThermalPower
+                                 np.full((len(heating_system), ), "W"),     # HeatPumpMaximalThermalPower_unit
+                                 np.full((len(heating_system), ), 7_500),   # HeatingElementPower
+                                 np.full((len(heating_system), ), "W"),     # HeatingElementPower_unit
+                                 carnot_factor]                             # CarnotEfficiencyFactor
+                                )
+        # save
+        DB().write_DataFrame(table=table,
+                             table_name=REG_Table().Gen_OBJ_ID_SpaceHeatingSystem,
+                             conn=self.conn,
+                             column_names=columns.keys(),
+                             dtype=columns)
+
+    def gen_OBJ_ID_heatingTank(self) -> None:
         """creates the space heating tank table in the Database"""
         tank_sizes = [500, 1_000, 1500]  # liter  TODO kan be given externally
-        columns = {"ID_SpaceHeatingTankType": "TEXT",
+        columns = {"ID_SpaceHeatingTankType": "INTEGER",
                    "TankSize": "REAL",
                    "TankSize_unit": "TEXT",
                    "TankSurfaceArea": "REAL",
@@ -114,23 +136,24 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
                    "TankMinimalTemperature": "REAL",
                    "TankSurroundingTemperature": "REAL"}
         # tank is designed as Cylinder with minimal surface area:
-        radius = [(2 * volume/1_000 / 4 / np.pi)**(1./3) for volume in tank_sizes]  # radius for cylinder with minimal surface
-        surface_area = [2*np.pi*r**2 + 2 * tank_sizes[i]/1_000 / r for i, r in enumerate(radius)]
+        radius = [(2 * volume / 1_000 / 4 / np.pi) ** (1. / 3) for volume in
+                  tank_sizes]  # radius for cylinder with minimal surface
+        surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
         table = np.column_stack([np.arange(1, len(tank_sizes) + 1),  # ID
                                  tank_sizes,  # tank size
-                                 np.full((len(tank_sizes, )), "kg"),  # TankSize_unit
+                                 np.full((len(tank_sizes), ), "kg"),  # TankSize_unit
                                  surface_area,  # TankSurfaceArea
-                                 np.full((len(tank_sizes, )), "m2"),  # TankSurfaceArea_unit
-                                 np.full((len(tank_sizes, )), 0.2),  # TankLoss
-                                 np.full((len(tank_sizes, )), "W/m2"),  # TankLoss_unit
-                                 np.full((len(tank_sizes, )), 28),  # TankStartTemperature
-                                 np.full((len(tank_sizes, )), 65),  # TankMaximalTemperature
-                                 np.full((len(tank_sizes, )), 28),  # TankMinimalTemperature
-                                 np.full((len(tank_sizes, )), 20)]  # TankSurroundingTemperature
-                                 )
+                                 np.full((len(tank_sizes), ), "m2"),  # TankSurfaceArea_unit
+                                 np.full((len(tank_sizes), ), 0.2),  # TankLoss
+                                 np.full((len(tank_sizes), ), "W/m2"),  # TankLoss_unit
+                                 np.full((len(tank_sizes), ), 28),  # TankStartTemperature
+                                 np.full((len(tank_sizes), ), 65),  # TankMaximalTemperature
+                                 np.full((len(tank_sizes), ), 28),  # TankMinimalTemperature
+                                 np.full((len(tank_sizes), ), 20)]  # TankSurroundingTemperature
+                                )
         # save
         DB().write_DataFrame(table=table,
-                             table_name=REG_Table().Gen_OBJ_ID_DHW_tank,
+                             table_name=REG_Table().Gen_OBJ_ID_SpaceHeatingTank,
                              conn=self.conn,
                              column_names=columns.keys(),
                              dtype=columns)
@@ -138,7 +161,7 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
     def gen_OBJ_ID_DHWTank(self) -> None:
         """creates the ID_DHWTank table in the Database"""
         tank_sizes = [200, 500, 1_000]  # liter  TODO kan be given externally
-        columns = {"ID_DHWTankType": "TEXT",
+        columns = {"ID_DHWTankType": "INTEGER",
                    "TankSize": "REAL",
                    "TankSize_unit": "TEXT",
                    "TankSurfaceArea": "REAL",
@@ -150,20 +173,21 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
                    "TankMinimalTemperature": "REAL",
                    "TankSurroundingTemperature": "REAL"}
         # tank is designed as Cylinder with minimal surface area:
-        radius = [(2 * volume/1_000 / 4 / np.pi)**(1./3) for volume in tank_sizes]  # radius for cylinder with minimal surface
-        surface_area = [2*np.pi*r**2 + 2 * tank_sizes[i]/1_000 / r for i, r in enumerate(radius)]
+        radius = [(2 * volume / 1_000 / 4 / np.pi) ** (1. / 3) for volume in
+                  tank_sizes]  # radius for cylinder with minimal surface
+        surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
         table = np.column_stack([np.arange(1, len(tank_sizes) + 1),  # ID
                                  tank_sizes,  # tank size
-                                 np.full((len(tank_sizes, )), "kg"),  # TankSize_unit
+                                 np.full((len(tank_sizes), ), "kg"),  # TankSize_unit
                                  surface_area,  # TankSurfaceArea
-                                 np.full((len(tank_sizes, )), "m2"),  # TankSurfaceArea_unit
-                                 np.full((len(tank_sizes, )), 0.2),  # TankLoss
-                                 np.full((len(tank_sizes, )), "W/m2"),  # TankLoss_unit
-                                 np.full((len(tank_sizes, )), 28),  # TankStartTemperature
-                                 np.full((len(tank_sizes, )), 65),  # TankMaximalTemperature
-                                 np.full((len(tank_sizes, )), 28),  # TankMinimalTemperature
-                                 np.full((len(tank_sizes, )), 20)]  # TankSurroundingTemperature
-                                 )
+                                 np.full((len(tank_sizes), ), "m2"),  # TankSurfaceArea_unit
+                                 np.full((len(tank_sizes), ), 0.2),  # TankLoss
+                                 np.full((len(tank_sizes), ), "W/m2"),  # TankLoss_unit
+                                 np.full((len(tank_sizes), ), 28),  # TankStartTemperature
+                                 np.full((len(tank_sizes), ), 65),  # TankMaximalTemperature
+                                 np.full((len(tank_sizes), ), 28),  # TankMinimalTemperature
+                                 np.full((len(tank_sizes), ), 20)]  # TankSurroundingTemperature
+                                )
         # save
         DB().write_DataFrame(table=table,
                              table_name=REG_Table().Gen_OBJ_ID_DHW_tank,
@@ -171,18 +195,58 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
                              column_names=columns.keys(),
                              dtype=columns)
 
-    def gen_OBJ_ID_SpaceCooling(self):
-        SpaceCooling = DB().read_DataFrame(REG_Table().ID_SpaceCoolingType, self.conn)
-        self.gen_OBJ_ID_Table_1To1(REG_Table().Gen_OBJ_ID_SpaceCooling,
-                                   SpaceCooling)
-        return None
+    def gen_OBJ_ID_SpaceCooling(self) -> None:
+        """creates the ID_SpaceCooling table in the Database"""
+        cooling_power = [0, 10_000]  # W  TODO kan be given externally
+        columns = {"ID_SpaceCoolingType": "INTEGER",
+                   "SpaceCoolingEfficiency": "REAL",
+                   "SpaceCoolingPower": "REAL",
+                   "SpaceCoolingPower_unit": "TEXT"}
+        cooling_efficiency = np.full((len(cooling_power), ), 3)  # TODO add other COPs?
 
-    def gen_OBJ_ID_Battery(self):
-        Battery = DB().read_DataFrame(REG_Table().ID_BatteryType, self.conn)
-        self.gen_OBJ_ID_Table_1To1(REG_Table().Gen_OBJ_ID_Battery, Battery)
-        return None
+        table = np.column_stack([np.arange(1, len(cooling_power) + 1),  # ID
+                                 cooling_efficiency,  # SpaceCoolingEfficiency
+                                 cooling_power,  # SpaceCoolingPower
+                                 np.full((len(cooling_power), ), "W")]  # SpaceCoolingPower_unit
+                                )
+        # save
+        DB().write_DataFrame(table=table,
+                             table_name=REG_Table().Gen_OBJ_ID_SpaceCooling,
+                             conn=self.conn,
+                             column_names=columns.keys(),
+                             dtype=columns)
 
-    def gen_OBJ_ID_Household(self):
+    def gen_OBJ_ID_Battery(self) -> None:
+        """creates the ID_Battery table in the Database"""
+        battery_capacity = [0, 10_000]  # W  TODO kan be given externally
+        columns = {"ID_BatteryType": "INTEGER",
+                   "Capacity": "REAL",
+                   "Capacity_unit": "TEXT",
+                   "ChargeEfficiency": "REAL",
+                   "DischargeEfficiency": "REAL",
+                   "MaxChargePower": "REAL",
+                   "MaxChargePower_unit": "TEXT",
+                   "MaxDischargePower": "REAL",
+                   "MaxDischargePower_unit": "TEXT"}
+
+        table = np.column_stack([np.arange(1, len(battery_capacity) + 1),  # ID
+                                 battery_capacity,  # Capacity
+                                 np.full((len(battery_capacity), ), "W"),   # Capacity_unit
+                                 np.full((len(battery_capacity), ), 0.95),  # ChargeEfficiency
+                                 np.full((len(battery_capacity), ), 0.95),  # DischargeEfficiency
+                                 np.full((len(battery_capacity),), 4_500),  # MaxChargePower
+                                 np.full((len(battery_capacity),), "W"),    # MaxChargePower_unit
+                                 np.full((len(battery_capacity),), 4_500),  # MaxDischargePower
+                                 np.full((len(battery_capacity),), "W")]    # MaxDischargePower_unit
+                                )
+        # save
+        DB().write_DataFrame(table=table,
+                             table_name=REG_Table().Gen_OBJ_ID_Battery,
+                             conn=self.conn,
+                             column_names=columns.keys(),
+                             dtype=columns)
+
+    def gen_OBJ_ID_Household(self) -> None:
         """
         Creates big table for optimization with everthing included.
         """
@@ -191,7 +255,7 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
         AgeGroup = DB().read_DataFrame(REG_Table().ID_AgeGroup, self.conn)
         Building = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.conn)
         # ApplianceGroup = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_ApplianceGroup, self.Conn)
-        SpaceHeating = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceHeating, self.conn)
+        SpaceHeating = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceHeatingSystem, self.conn)
         SpaceCooling = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceCooling, self.conn)
         # HotWater = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_HotWater, self.Conn)
         PV = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_PV, self.conn)
@@ -237,7 +301,7 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
 
     def run(self):
         self.gen_OBJ_ID_Building()
-        self.gen_OBJ_ID_ApplianceGroup()
+        # self.gen_OBJ_ID_ApplianceGroup()
         self.gen_OBJ_ID_SpaceHeatingSystem()
         self.gen_OBJ_ID_heatingTank()
         self.gen_OBJ_ID_DHWTank()
@@ -603,9 +667,6 @@ class TableGeneratorID(MotherTableGenerator, ABC):
 
         print("mean tables for country {} have been saved".format(id_country))
 
-
-
-
     def run(self):
         self.get_PVGIS_data()  # TODO make this versatile for other countries
         self.country_mean_PV_GIS()
@@ -613,7 +674,8 @@ class TableGeneratorID(MotherTableGenerator, ABC):
 
 class TableGeneratorGenSce(MotherTableGenerator, ABC):
 
-    def gen_Sce_Demand_DishWasherHours(self, NumberOfDishWasherProfiles):  # TODO if more than 1 dishwasher type is implemented, rewrite the function
+    def gen_Sce_Demand_DishWasherHours(self,
+                                       NumberOfDishWasherProfiles):  # TODO if more than 1 dishwasher type is implemented, rewrite the function
         """
         creates Dish washer days where the dishwasher can be used on a random basis. Hours of the days where
         the Dishwasher has to be used are index = 1 and hours of days where the dishwasher is not used are indexed = 0.
@@ -943,7 +1005,8 @@ class TableGeneratorGenSce(MotherTableGenerator, ABC):
         DB().write_DataFrame(TargetTable_list, REG_Table().Gen_Sce_ID_Environment, TargetTable_columns, self.conn)
 
     def run(self):
-        self.gen_Sce_Demand_DishWasherHours(10)  # TODO this number should be externally set or we dont need the profiles anyways
+        self.gen_Sce_Demand_DishWasherHours(
+            10)  # TODO this number should be externally set or we dont need the profiles anyways
         self.gen_Sce_Demand_WashingMachineHours(10)
         self.gen_sce_target_temperature()
         self.gen_Sce_AC_HourlyCOP()
@@ -961,5 +1024,3 @@ if __name__ == "__main__":
     first.run()
     second.run()
     third.run()
-
-
