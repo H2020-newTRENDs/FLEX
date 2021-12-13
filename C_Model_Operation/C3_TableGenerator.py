@@ -8,20 +8,18 @@ from A_Infrastructure.A1_CONS import CONS
 import geopandas as gpd
 from pyproj import CRS, Transformer
 from pathlib import Path
+from abc import ABC, abstractmethod
 
 
-class TableGenerator:
+class MotherTableGenerator(ABC):
+    def __init__(self):
+        self.conn = DB().create_Connection(CONS().RootDB)
+        self.TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.conn)
+        self.id_hour = self.TimeStructure.ID_Hour.to_numpy()
 
-    def __init__(self, conn):
-        self.Conn = conn
-
-        self.SolarRadiationList = []
-        self.TemperatureList = []
-        self.PVPowerList = []
-
-    # ---------------------------------------
-    # 1 Functions used to generate the tables
-    # ---------------------------------------
+    @abstractmethod
+    def run(self):
+        """runs all the functions of the class to generate the tables"""
 
     def gen_OBJ_ID_Table_1To1(self, target_table_name, table1):
 
@@ -70,49 +68,16 @@ class TableGenerator:
                                             list(table3.iloc[row3].values))
                     ID += 1
         DB().write_DataFrame(TargetTable_list, target_table_name, TargetTable_columns, self.Conn)
-
         return None
 
-    def gen_Sce_ApplianceUseHours(self, OnDays):
-        # use the cycles of technology and generates a yearly table with 365 days with 1 and 0
 
-        Year = 365
-        OffDays = Year - int(OnDays)
-        rest = round(int(OnDays) / OffDays, 2)
-        add = int(OnDays) / OffDays
-        i = 1
-        UseDays = []
-
-        while i <= Year:
-            if rest > 1:
-                UseDays.append(1)
-                rest = rest - 1
-                i = i + 1
-            elif rest < 1:
-                UseDays.append(0)
-                rest = rest + add
-                i = i + 1
-
-        TheorecitalOnHours = []
-        for day in UseDays:
-            if day == 1:
-                TheorecitalOnHours.extend(
-                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
-
-            elif day == 0:
-                TheorecitalOnHours.extend(
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-
-        return TheorecitalOnHours  # returns list of UseHours with 8760 values
-
-    # -------------------------
-    # 2 Generate the OBJ tables
-    # -------------------------
+class TableGeneratorGenObj(MotherTableGenerator, ABC):
+    """generates the GEN_OBJ tables through the ID_Tables"""
 
     def gen_OBJ_ID_Building(self):
-        BuildingOption = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.Conn)
-        BuildingMassTemperature = DB().read_DataFrame(REG_Table().ID_BuildingMassTemperature, self.Conn)
-        GridInfrastructure = DB().read_DataFrame(REG_Table().ID_GridInfrastructure, self.Conn)
+        BuildingOption = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.conn)
+        BuildingMassTemperature = DB().read_DataFrame(REG_Table().ID_BuildingMassTemperature, self.conn)
+        GridInfrastructure = DB().read_DataFrame(REG_Table().ID_GridInfrastructure, self.conn)
         self.gen_OBJ_ID_Table_3To1(REG_Table().Gen_OBJ_ID_Building,
                                    BuildingOption,
                                    BuildingMassTemperature,
@@ -120,71 +85,100 @@ class TableGenerator:
         return None
 
     def gen_OBJ_ID_ApplianceGroup(self):
-        DishWasher = DB().read_DataFrame(REG_Table().ID_DishWasherType, self.Conn)
-        Dryer = DB().read_DataFrame(REG_Table().ID_DryerType, self.Conn)
-        WashingMachine = DB().read_DataFrame(REG_Table().ID_WashingMachineType, self.Conn)
+        DishWasher = DB().read_DataFrame(REG_Table().ID_DishWasherType, self.conn)
+        Dryer = DB().read_DataFrame(REG_Table().ID_DryerType, self.conn)
+        WashingMachine = DB().read_DataFrame(REG_Table().ID_WashingMachineType, self.conn)
         self.gen_OBJ_ID_Table_3To1(REG_Table().Gen_OBJ_ID_ApplianceGroup,
                                    DishWasher,
                                    Dryer,
                                    WashingMachine)
         return None
 
-    def gen_OBJ_ID_SpaceHeating(self):
-        SpaceHeatingTank = DB().read_DataFrame(REG_Table().ID_SpaceHeatingTankType, self.Conn)
-        SpaceHeatingPump = DB().read_DataFrame(REG_Table().ID_SpaceHeatingPumpType, self.Conn)
-        self.gen_OBJ_ID_Table_2To1(REG_Table().Gen_OBJ_ID_SpaceHeating,
-                                   SpaceHeatingTank,
-                                   SpaceHeatingPump)
+    def gen_OBJ_ID_SpaceHeatingSystem(self):
+        SpaceHeatingPump = DB().read_DataFrame(REG_Table().ID_SpaceHeatingPumpType, self.conn)
+        self.gen_OBJ_ID_Table_1To1(REG_Table().Gen_OBJ_ID_SpaceHeating, SpaceHeatingPump)
         return None
 
+    def gen_OBJ_ID_heatingTank(self):
+        """creates the space heating tank table in the Database"""
+        tank_sizes = [500, 1_000, 1500]  # liter  TODO kan be given externally
+        columns = {"ID_SpaceHeatingTankType": "TEXT",
+                   "TankSize": "REAL",
+                   "TankSize_unit": "TEXT",
+                   "TankSurfaceArea": "REAL",
+                   "TankSurfaceArea_unit": "TEXT",
+                   "TankLoss": "REAL",
+                   "TankLoss_unit": "TEXT",
+                   "TankStartTemperature": "REAL",
+                   "TankMaximalTemperature": "REAL",
+                   "TankMinimalTemperature": "REAL",
+                   "TankSurroundingTemperature": "REAL"}
+        # tank is designed as Cylinder with minimal surface area:
+        radius = [(2 * volume/1_000 / 4 / np.pi)**(1./3) for volume in tank_sizes]  # radius for cylinder with minimal surface
+        surface_area = [2*np.pi*r**2 + 2 * tank_sizes[i]/1_000 / r for i, r in enumerate(radius)]
+        table = np.column_stack([np.arange(1, len(tank_sizes) + 1),  # ID
+                                 tank_sizes,  # tank size
+                                 np.full((len(tank_sizes, )), "kg"),  # TankSize_unit
+                                 surface_area,  # TankSurfaceArea
+                                 np.full((len(tank_sizes, )), "m2"),  # TankSurfaceArea_unit
+                                 np.full((len(tank_sizes, )), 0.2),  # TankLoss
+                                 np.full((len(tank_sizes, )), "W/m2"),  # TankLoss_unit
+                                 np.full((len(tank_sizes, )), 28),  # TankStartTemperature
+                                 np.full((len(tank_sizes, )), 65),  # TankMaximalTemperature
+                                 np.full((len(tank_sizes, )), 28),  # TankMinimalTemperature
+                                 np.full((len(tank_sizes, )), 20)]  # TankSurroundingTemperature
+                                 )
+        # save
+        DB().write_DataFrame(table=table,
+                             table_name=REG_Table().Gen_OBJ_ID_DHW_tank,
+                             conn=self.conn,
+                             column_names=columns.keys(),
+                             dtype=columns)
+
+    def gen_OBJ_ID_DHWTank(self) -> None:
+        """creates the ID_DHWTank table in the Database"""
+        tank_sizes = [200, 500, 1_000]  # liter  TODO kan be given externally
+        columns = {"ID_DHWTankType": "TEXT",
+                   "TankSize": "REAL",
+                   "TankSize_unit": "TEXT",
+                   "TankSurfaceArea": "REAL",
+                   "TankSurfaceArea_unit": "TEXT",
+                   "TankLoss": "REAL",
+                   "TankLoss_unit": "TEXT",
+                   "TankStartTemperature": "REAL",
+                   "TankMaximalTemperature": "REAL",
+                   "TankMinimalTemperature": "REAL",
+                   "TankSurroundingTemperature": "REAL"}
+        # tank is designed as Cylinder with minimal surface area:
+        radius = [(2 * volume/1_000 / 4 / np.pi)**(1./3) for volume in tank_sizes]  # radius for cylinder with minimal surface
+        surface_area = [2*np.pi*r**2 + 2 * tank_sizes[i]/1_000 / r for i, r in enumerate(radius)]
+        table = np.column_stack([np.arange(1, len(tank_sizes) + 1),  # ID
+                                 tank_sizes,  # tank size
+                                 np.full((len(tank_sizes, )), "kg"),  # TankSize_unit
+                                 surface_area,  # TankSurfaceArea
+                                 np.full((len(tank_sizes, )), "m2"),  # TankSurfaceArea_unit
+                                 np.full((len(tank_sizes, )), 0.2),  # TankLoss
+                                 np.full((len(tank_sizes, )), "W/m2"),  # TankLoss_unit
+                                 np.full((len(tank_sizes, )), 28),  # TankStartTemperature
+                                 np.full((len(tank_sizes, )), 65),  # TankMaximalTemperature
+                                 np.full((len(tank_sizes, )), 28),  # TankMinimalTemperature
+                                 np.full((len(tank_sizes, )), 20)]  # TankSurroundingTemperature
+                                 )
+        # save
+        DB().write_DataFrame(table=table,
+                             table_name=REG_Table().Gen_OBJ_ID_DHW_tank,
+                             conn=self.conn,
+                             column_names=columns.keys(),
+                             dtype=columns)
+
     def gen_OBJ_ID_SpaceCooling(self):
-        SpaceCooling = DB().read_DataFrame(REG_Table().ID_SpaceCoolingType, self.Conn)
+        SpaceCooling = DB().read_DataFrame(REG_Table().ID_SpaceCoolingType, self.conn)
         self.gen_OBJ_ID_Table_1To1(REG_Table().Gen_OBJ_ID_SpaceCooling,
                                    SpaceCooling)
         return None
 
-    def gen_OBJ_ID_HotWater(self):
-        HotWaterBoiler = DB().read_DataFrame(REG_Table().ID_HotWaterBoilerType, self.Conn)
-        self.gen_OBJ_ID_Table_1To1(REG_Table().Gen_OBJ_ID_HotWater, HotWaterBoiler)
-        return None
-
-    def gen_OBJ_DHW(self):
-        """"
-        This profile is taken from https://www.iea-ebc.org/projects/project?AnnexID=42
-        """
-        origin_data = pd.read_excel()
-        pass
-
-    def save_PV2Base(self, id_country):
-        # table = np.column_stack([id_country, id_pv_type, ID_Hour, PVProfile, unit])
-        # TargetTable = np.vstack([TargetTable, table])
-        # drop first column of TargetTable because its 0 from np.zeros:
-        PVTable = np.vstack(self.PVPowerList)
-        unique_regions = np.unique(PVTable[:, 0])
-        unique_PVPower = np.unique(PVTable[:, 1]).astype(float)
-
-        targetFrame = []
-        for power in unique_PVPower:
-            sumFrame = np.zeros(shape=(8760, 1))
-            for region in unique_regions:
-                powerTable = PVTable[np.where(PVTable[:, 0] == region), 1:].astype(float).squeeze()
-                sumFrame = sumFrame + powerTable[np.where(powerTable[:, 0] == power), 1].T
-
-            MeanFrame = sumFrame / len(unique_regions)
-            targetFrame.append(np.column_stack(
-                [np.full((8760,), ID_COUNTRY), np.full((8760,), power), MeanFrame, np.full((8760,), "kW")]))
-        targetFrame = np.vstack(targetFrame)
-
-        columnNames = {"ID_Country": "INTEGER",
-                       "ID_PVType": "INTEGER",
-                       "PVPower": "REAL",
-                       "Unit": "TEXT"}
-
-        DB().write_DataFrame(targetFrame, REG_Table().Gen_Sce_PhotovoltaicProfile, columnNames.keys(),
-                             self.Conn, dtype=columnNames)
-
     def gen_OBJ_ID_Battery(self):
-        Battery = DB().read_DataFrame(REG_Table().ID_BatteryType, self.Conn)
+        Battery = DB().read_DataFrame(REG_Table().ID_BatteryType, self.conn)
         self.gen_OBJ_ID_Table_1To1(REG_Table().Gen_OBJ_ID_Battery, Battery)
         return None
 
@@ -192,16 +186,16 @@ class TableGenerator:
         """
         Creates big table for optimization with everthing included.
         """
-        Country = DB().read_DataFrame(REG_Table().ID_Country, self.Conn)
-        HouseholdType = DB().read_DataFrame(REG_Table().ID_HouseholdType, self.Conn)
-        AgeGroup = DB().read_DataFrame(REG_Table().ID_AgeGroup, self.Conn)
-        Building = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.Conn)
+        Country = DB().read_DataFrame(REG_Table().ID_Country, self.conn)
+        HouseholdType = DB().read_DataFrame(REG_Table().ID_HouseholdType, self.conn)
+        AgeGroup = DB().read_DataFrame(REG_Table().ID_AgeGroup, self.conn)
+        Building = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.conn)
         # ApplianceGroup = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_ApplianceGroup, self.Conn)
-        SpaceHeating = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceHeating, self.Conn)
-        SpaceCooling = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceCooling, self.Conn)
+        SpaceHeating = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceHeating, self.conn)
+        SpaceCooling = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceCooling, self.conn)
         # HotWater = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_HotWater, self.Conn)
-        PV = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_PV, self.Conn)
-        Battery = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Battery, self.Conn)
+        PV = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_PV, self.conn)
+        Battery = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Battery, self.conn)
 
         TargetTable_list = []
         TargetTable_columns = ["ID"]
@@ -239,271 +233,25 @@ class TableGenerator:
                                                                 )
                                         print("Round: " + str(ID) + "/" + str(TotalRounds))
                                         ID += 1
-        DB().write_DataFrame(TargetTable_list, REG_Table().Gen_OBJ_ID_Household, TargetTable_columns, self.Conn)
+        DB().write_DataFrame(TargetTable_list, REG_Table().Gen_OBJ_ID_Household, TargetTable_columns, self.conn)
 
-    # ------------------------------
-    # 3 Generate the scenario tables
-    # ------------------------------
+    def run(self):
+        self.gen_OBJ_ID_Building()
+        self.gen_OBJ_ID_ApplianceGroup()
+        self.gen_OBJ_ID_SpaceHeatingSystem()
+        self.gen_OBJ_ID_heatingTank()
+        self.gen_OBJ_ID_DHWTank()
+        self.gen_OBJ_ID_SpaceCooling()
+        self.gen_OBJ_ID_Battery()
+        self.gen_OBJ_ID_Household()
 
-    def gen_Sce_Demand_DishWasherHours(self,
-                                       NumberOfDishWasherProfiles):  # TODO if more than 1 dishwasher type is implemented, rewrite the function
-        """
-        creates Dish washer days where the dishwasher can be used on a random basis. Hours of the days where
-        the Dishwasher has to be used are index = 1 and hours of days where the dishwasher is not used are indexed = 0.
-        Dishwasher is not used during the night, only between 06:00 and 22:00.
 
-        Dishwasher starting hours are randomly generated between 06:00 and 22:00 and a seperate dataframe is created
-        """
-        Demand_DishWasher = DB().read_DataFrame(REG_Table().Sce_Demand_DishWasher, self.Conn)
-        DishWasherDuration = int(Demand_DishWasher.DishWasherDuration)
-        TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
-
-        # Assumption: Dishwasher runs maximum once a day:
-        UseDays = int(Demand_DishWasher.DishWasherCycle)
-        TotalDays = TimeStructure.ID_Day.to_numpy()[-1]
-
-        # create array with 0 or 1 for every hour a day and random choice of 0 and 1 but with correct numbers of 1
-        # (UseDays)
-        def rand_bin_array(usedays, totaldays):
-            arr = np.zeros(totaldays)
-            arr[:usedays] = 1
-            np.random.shuffle(arr)
-            arr = np.repeat(arr, 24, axis=0)
-            return arr
-
-        TargetTable = TimeStructure.ID_Hour.to_numpy()
-        TargetTable = np.column_stack([TargetTable, TimeStructure.ID_DayHour.to_numpy()])
-        TargetTable_columns = {"ID_Hour": "INTEGER",
-                               "ID_DayHour": "INTEGER"}
-        for i in range(NumberOfDishWasherProfiles + 1):
-            TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
-            TargetTable_columns["DishWasherHours " + str(i)] = "INTEGER"
-
-        # iterate through table and assign random values between 06:00 and 21:00 on UseDays:
-        # this table is for reference scenarios or if the dishwasher is not optimized: First a random starting time is
-        # specified and from there the timeslots for the duration of the dishwasher are set to 1:
-        TargetTable2 = np.copy(TargetTable)
-        for index in range(0, len(TargetTable2), 24):
-            for column in range(2, TargetTable2.shape[1]):
-                if TargetTable2[index, column] == 1:
-                    HourOfTheDay = np.random.randint(low=6, high=22) - 1
-                    TargetTable2[index + HourOfTheDay:index + HourOfTheDay + DishWasherDuration, column] = 1
-                    TargetTable2[index:index + HourOfTheDay, column] = 0
-                    TargetTable2[index + HourOfTheDay + DishWasherDuration:index + 24, column] = 0
-        # write dataframe with starting hours to database:
-        DB().write_DataFrame(TargetTable2, REG_Table().Gen_Sce_DishWasherStartingHours, TargetTable_columns.keys(),
-                             self.Conn, dtype=TargetTable_columns)
-
-        # set values to 0 when it is before 6 am:
-        TargetTable[:, 2:][TargetTable[:, 1] < 6] = 0
-        # set values to 0 when it is after 10 pm:
-        TargetTable[:, 2:][TargetTable[:, 1] > 21] = 0
-
-        # save arrays to database:
-        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_DishWasherHours, TargetTable_columns.keys(),
-                             self.Conn, dtype=TargetTable_columns)
-
-    def gen_Sce_Demand_WashingMachineHours(self, NumberOfWashingMachineProfiles):
-        """
-        same as dish washer function above
-        washingmachine starting hours are between 06:00 and 20:00 because the dryer might be used afterwards
-        Note: The last day is not being used! because in the optimization the dryer would run until
-        """
-        # Dryer has no own function because it will always be used after the washing machine
-        Demand_WashingMachine = DB().read_DataFrame(REG_Table().Sce_Demand_WashingMachine, self.Conn)
-        WashingMachineDuration = int(Demand_WashingMachine.WashingMachineDuration)
-        Demand_Dryer = DB().read_DataFrame(REG_Table().Sce_Demand_Dryer, self.Conn)
-        DryerDuration = int(Demand_Dryer.DryerDuration)
-        TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
-
-        # Assumption: Washing machine runs maximum once a day:
-        UseDays = int(Demand_WashingMachine.WashingMachineCycle)
-        TotalDays = TimeStructure.ID_Day.to_numpy()[-1] - 1  # last day is added later
-
-        # create array with 0 or 1 for every hour a day and random choice of 0 and 1 but with correct numbers of 1
-        # (UseDays)
-        def rand_bin_array(usedays, totaldays):
-            arr = np.zeros(totaldays)
-            arr[:usedays] = 1
-            np.random.shuffle(arr)
-            arr = np.repeat(arr, 24, axis=0)
-            return arr
-
-        TargetTable = TimeStructure.ID_Hour.to_numpy()[:-24]
-        TargetTable = np.column_stack([TargetTable, TimeStructure.ID_DayHour.to_numpy()[:-24]])
-        TargetTable_columns = {"ID_Hour": "INTEGER",
-                               "ID_DayHour": "INTEGER"}
-        Dryer_columns = {"ID_Hour": "INTEGER",
-                         "ID_DayHour": "INTEGER"}
-        for i in range(NumberOfWashingMachineProfiles + 1):
-            TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
-            TargetTable_columns["WashingMachineHours " + str(i)] = "INTEGER"
-            Dryer_columns["DryerHours " + str(i)] = "INTEGER"
-
-        # append the last day to the target table:
-        lastDay_hours = TimeStructure.ID_Hour.to_numpy()[-24:]
-        lastDay_IDHours = TimeStructure.ID_DayHour.to_numpy()[-24:]
-        lastDay_zeros = np.zeros((len(lastDay_IDHours), TargetTable.shape[1] - 2))
-        lastDay = np.column_stack([lastDay_hours, lastDay_IDHours, lastDay_zeros])
-
-        # merge last day to target table:
-        TargetTable = np.vstack([TargetTable, lastDay])
-
-        # iterate through table and assign random values between 06:00 and 19:00 on UseDays (dryer has
-        # to be used as well):
-        # this table is for reference scenarios or if the dishwasher is not optimized:
-        TargetTable_washmachine = np.copy(TargetTable)
-        TargetTable_dryer = np.copy(TargetTable)  # for the dryer
-        for index in range(0, len(TargetTable_washmachine), 24):
-            for column in range(2, TargetTable_washmachine.shape[1]):
-                if TargetTable_washmachine[index, column] == 1:
-                    HourOfTheDay = np.random.randint(low=6,
-                                                     high=21) - 1  # weil bei 0 zu zählen anfängt (Hour of day 6 ist 7 uhr)
-                    TargetTable_washmachine[index + HourOfTheDay:index + HourOfTheDay + WashingMachineDuration,
-                    column] = 1
-                    TargetTable_washmachine[index:index + HourOfTheDay, column] = 0
-                    TargetTable_washmachine[index + HourOfTheDay + WashingMachineDuration:index + 24, column] = 0
-
-                    # Dryer always starts 1 hour after the washing machine:
-                    TargetTable_dryer[
-                    index + HourOfTheDay + WashingMachineDuration + 1:index + HourOfTheDay + WashingMachineDuration + 1 + DryerDuration,
-                    column] = 1
-                    TargetTable_dryer[index:index + HourOfTheDay + WashingMachineDuration + 1, column] = 0
-                    TargetTable_dryer[index + HourOfTheDay + WashingMachineDuration + 1 + DryerDuration:index + 24,
-                    column] = 0
-
-        # write dataframe with starting hours to database:
-        DB().write_DataFrame(TargetTable_washmachine, REG_Table().Gen_Sce_WashingMachineStartingHours,
-                             TargetTable_columns.keys(),
-                             self.Conn, dtype=TargetTable_columns)
-        DB().write_DataFrame(TargetTable_dryer, REG_Table().Gen_Sce_DryerStartingHours, Dryer_columns.keys(),
-                             self.Conn, dtype=Dryer_columns)
-
-        # set values to 0 when it is before 6 am:
-        TargetTable[:, 2:][TargetTable[:, 1] < 6] = 0
-        # set values to 0 when it is after 8 pm:
-        TargetTable[:, 2:][TargetTable[:, 1] > 20] = 0
-        # save starting days for optimization:
-        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_WashingMachineHours, TargetTable_columns.keys(),
-                             self.Conn, dtype=TargetTable_columns)
-
-    def gen_Sce_ID_Environment(self):
-
-        ElectricityPriceType = DB().read_DataFrame(REG_Table().ID_ElectricityPrice, self.Conn)
-        FeedinTariffType = DB().read_DataFrame(REG_Table().Sce_ID_FeedinTariffType, self.Conn)
-        # HotWaterProfileType = DB().read_DataFrame(REG_Table().Sce_ID_HotWaterProfileType, self.Conn)
-        # PhotovoltaicProfileType = DB().read_DataFrame(REG_Table().Sce_ID_PhotovoltaicProfileType, self.Conn)
-        # TargetTemperatureType = DB().read_DataFrame(REG_Table().Sce_ID_TargetTemperatureType, self.Conn)
-        # BaseElectricityProfileType = DB().read_DataFrame(REG_Table().Sce_ID_BaseElectricityProfileType, self.Conn)
-        # EnergyCostType = DB().read_DataFrame(REG_Table().Sce_ID_EnergyCostType, self.Conn)
-
-        TargetTable_list = []
-
-        TargetTable_columns = ["ID"]
-
-        # TargetTable_columns += ["ID_ElectricityPriceType", "ID_TargetTemperatureType", "ID_FeedinTariffType",
-        #                         "ID_HotWaterProfileType", "ID_PhotovoltaicProfileType", "ID_BaseElectricityProfileType",
-        #                         "ID_EnergyCostType"]
-        TargetTable_columns += ["ID_ElectricityPriceType", "ID_FeedinTariffType"]
-
-        ID = 1
-
-        for row1 in range(0, len(ElectricityPriceType)):
-            # for row2 in range(0, len(TargetTemperatureType)):
-            for row3 in range(0, len(FeedinTariffType)):
-                # for row4 in range(0, len(HotWaterProfileType)):
-                #     for row5 in range(0, len(PhotovoltaicProfileType)):
-                #         for row6 in range(0, len(BaseElectricityProfileType)):
-                #             for row7 in range(0, len(EnergyCostType)):
-                TargetTable_list.append([ID] +
-                                        [ElectricityPriceType.iloc[row1][
-                                             "ID_ElectricityPriceType"]] +
-                                        # [TargetTemperatureType.iloc[row2][
-                                        #      "ID_TargetTemperatureType"]] +
-                                        [FeedinTariffType.iloc[row3]["ID_FeedinTariffType"]])  # +
-                # [HotWaterProfileType.iloc[row4]["ID_HotWaterProfileType"]] +
-                # [PhotovoltaicProfileType.iloc[row5][
-                #      "ID_PhotovoltaicProfile"]] +
-                # [BaseElectricityProfileType.iloc[row6][
-                #      "ID_BaseElectricityProfileType"]] +
-                # [EnergyCostType.iloc[row6]["ID_EnergyCostType"]]
-
-                ID += 1
-
-        DB().write_DataFrame(TargetTable_list, REG_Table().Gen_Sce_ID_Environment, TargetTable_columns, self.Conn)
-
-    def gen_Sce_HeatPump_HourlyCOP(self):
-        """
-        This function calculates the hourly COP for space heating and DHW based on the table in the database which
-        provides values for temperatures between -22 and 40 °C. Every value is interpolated between the temperature
-        steps.
-        Input must be the outside temperature vector for every hour of the year.
-        Output are four numpy arrays with 8760 entries for every hours of the year.
-        """
-        # calculate COP of HP for heating and DHW:
-        outsideTemperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()
-        # calculate hourly COP for certain temperatures [30 to 65]:
-        hot_water_temperatures = np.arange(30, 70, 5)
-
-        HeatPump_COP = DB().read_DataFrame(REG_Table().Sce_HeatPump_COPCurve, self.Conn)
-        HeatPump_COP_Water = HeatPump_COP.loc[
-            HeatPump_COP['ID_SpaceHeatingBoilerType'] == 2]  # outside heat changer to water
-        HeatPump_COP_Air = HeatPump_COP.loc[
-            HeatPump_COP['ID_SpaceHeatingBoilerType'] == 1]  # outside heat exchanger to air
-
-        # create COP vector with linear interpolation:
-        HeatPump_HourlyCOP_Air = np.zeros((8760,))
-        DHW_HourlyCOP_Air = np.zeros((8760,))
-        HeatPump_HourlyCOP_Water = np.full((8760,), HeatPump_COP_Water.COP_SpaceHeating)
-        DHW_HourlyCOP_Water = np.full((8760,), HeatPump_COP_Water.COP_HotWater)
-        for index, temperature in enumerate(outsideTemperature):
-            if temperature <= min(HeatPump_COP_Air.TemperatureEnvironment):
-                HeatPump_HourlyCOP_Air[index] = min(HeatPump_COP_Air.COP_SpaceHeating)
-                DHW_HourlyCOP_Air[index] = min(HeatPump_COP_Air.COP_HotWater)
-                continue
-            if temperature >= 18:  # because the COP curve is capped above 18°C
-                HeatPump_HourlyCOP_Air[index] = max(HeatPump_COP_Air.COP_SpaceHeating)
-                DHW_HourlyCOP_Air[index] = max(HeatPump_COP_Air.COP_HotWater)
-                continue
-            for index2, temperatureEnvironment in enumerate(HeatPump_COP_Air.TemperatureEnvironment):
-                if temperatureEnvironment - temperature <= 0 and temperatureEnvironment - temperature > -1:
-                    HeatPump_HourlyCOP_Air[index] = HeatPump_COP_Air.COP_SpaceHeating[index2] + \
-                                                    (HeatPump_COP_Air.COP_SpaceHeating[index2 + 1] -
-                                                     HeatPump_COP_Air.COP_SpaceHeating[
-                                                         index2]) \
-                                                    * abs(temperatureEnvironment - temperature)
-
-                    DHW_HourlyCOP_Air[index] = HeatPump_COP_Air.COP_HotWater[index2] + \
-                                               (HeatPump_COP_Air.COP_HotWater[index2 + 1] -
-                                                HeatPump_COP_Air.COP_HotWater[index2]) * \
-                                               abs(temperatureEnvironment - temperature)
-
-        TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
-        ID_Hour = TimeStructure.ID_Hour
-        ID_SpaceHeatingBoilerTypeAir = list([1]) * len(ID_Hour)  # outside heat changer to air
-        ID_SpaceHeatingBoilerTypeWater = list([2]) * len(ID_Hour)  # outside heat changer to water
-
-        # combine list of both types for DB
-        ID_SpaceHeatingBoilerType = ID_SpaceHeatingBoilerTypeAir + ID_SpaceHeatingBoilerTypeWater
-        HeatPump_HourlyCOP_both = np.append(HeatPump_HourlyCOP_Air, HeatPump_HourlyCOP_Water)
-        DHW_HourlyCOP_both = np.append(DHW_HourlyCOP_Air, DHW_HourlyCOP_Water)
-        ID_Hour = np.append(ID_Hour, ID_Hour)
-        Temperature = np.append(outsideTemperature, outsideTemperature)
-
-        TargetTable_columns = {"ID_SpaceHeatingBoilerType": "INTEGER",
-                               "ID_Hour": "INTEGER",
-                               "Temperature": "REAL",
-                               "SpaceHeatingHourlyCOP": "REAL",
-                               "HotWaterHourlyCOP": "REAL"}
-
-        TargetTable = np.column_stack((ID_SpaceHeatingBoilerType,
-                                       ID_Hour,
-                                       Temperature,
-                                       HeatPump_HourlyCOP_both,
-                                       DHW_HourlyCOP_both))
-
-        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_HeatPump_HourlyCOP, TargetTable_columns.keys(),
-                             self.Conn, dtype=TargetTable_columns)
+class TableGeneratorID(MotherTableGenerator, ABC):
+    def __init__(self):
+        super().__init__()
+        self.SolarRadiationList = []
+        self.TemperatureList = []
+        self.PVPowerList = []
 
     def getNutsCenter(self, region_id,
                       url_nuts0_poly="https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_60M_2021_3035_LEVL_0.geojson",
@@ -572,7 +320,7 @@ class TableGenerator:
         table_name_radiation = "NUTS3_Radiation_Data_AT"
         table_name_PV = "NUTS3_PV_Data_AT"
 
-        def get_JRC_PV(lat, lon, startyear, endyear, peakpower, nuts_id):
+        def get_PV_generation(lat, lon, startyear, endyear, peakpower, nuts_id):
             # % JRC data
             # possible years are 2005 to 2017
             pvCalculation = 1  # 0 for no and 1 for yes
@@ -618,7 +366,7 @@ class TableGenerator:
                 print("PV Data is not available for this location {}".format(nuts_id))
                 return PV_Profile
 
-        def get_JRC(lat, lon, aspect, startyear, endyear, nuts_id):
+        def get_temperature_and_solar_radiation(lat, lon, aspect, startyear, endyear, nuts_id):
             # % JRC data
             # possible years are 2005 to 2017
             pvCalculation = 0  # 0 for no and 1 for yes
@@ -669,10 +417,8 @@ class TableGenerator:
                 df = None
                 return df
 
-        startyear = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn).ID_Year.iloc[0]
-        endyear = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn).ID_Year.iloc[-1]
-        ID_Timestructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
-        ID_Hour = ID_Timestructure.ID_Hour
+        startyear = self.TimeStructure.ID_Year.iloc[0]
+        endyear = self.TimeStructure.ID_Year.iloc[-1]
         for nuts_id in nuts:
             lat, lon = self.getNutsCenter(nuts_id)
             # CelestialDirections are "north", "south", "east", "west":
@@ -681,28 +427,28 @@ class TableGenerator:
             for CelestialDirection in ["south", "east", "west", "north"]:
                 if CelestialDirection == "south":
                     aspect = 0
-                    df_south = get_JRC(lat, lon, aspect, startyear, endyear, nuts_id)
+                    df_south = get_temperature_and_solar_radiation(lat, lon, aspect, startyear, endyear, nuts_id)
                     if df_south is None:
                         valid_nuts_id = False
                         break
                     south_radiation = pd.to_numeric(df_south["Gb(i)"]) + pd.to_numeric(df_south["Gd(i)"])
                 elif CelestialDirection == "east":
                     aspect = -90
-                    df_east = get_JRC(lat, lon, aspect, startyear, endyear, nuts_id)
+                    df_east = get_temperature_and_solar_radiation(lat, lon, aspect, startyear, endyear, nuts_id)
                     east_radiation = pd.to_numeric(df_east["Gb(i)"]) + pd.to_numeric(df_east["Gd(i)"])
                 elif CelestialDirection == "west":
                     aspect = 90
-                    df_west = get_JRC(lat, lon, aspect, startyear, endyear, nuts_id)
+                    df_west = get_temperature_and_solar_radiation(lat, lon, aspect, startyear, endyear, nuts_id)
                     west_radiation = pd.to_numeric(df_west["Gb(i)"]) + pd.to_numeric(df_west["Gd(i)"])
                 elif CelestialDirection == "north":
                     aspect = -180
-                    df_north = get_JRC(lat, lon, aspect, startyear, endyear, nuts_id)
+                    df_north = get_temperature_and_solar_radiation(lat, lon, aspect, startyear, endyear, nuts_id)
                     north_radiation = pd.to_numeric(df_north["Gb(i)"]) + pd.to_numeric(df_north["Gd(i)"])
             if not valid_nuts_id:
                 continue
-            ID_Country = pd.Series([nuts_id] * len(ID_Hour), name="ID_Country").to_numpy()
+            ID_Country = pd.Series([nuts_id] * len(self.id_hour), name="ID_Country").to_numpy()
             SolarRadiationList = np.column_stack([ID_Country,
-                                                  ID_Hour.to_numpy(),
+                                                  self.id_hour.to_numpy(),
                                                   south_radiation.reset_index(drop=True).to_numpy(),
                                                   east_radiation.reset_index(drop=True).to_numpy(),
                                                   west_radiation.reset_index(drop=True).to_numpy(),
@@ -717,7 +463,7 @@ class TableGenerator:
             DB().add_DataFrame(table=SolarRadiationList,
                                table_name=table_name_radiation,
                                column_names=columns.keys(),
-                               conn=self.Conn,
+                               conn=self.conn,
                                dtype=columns)
 
             dtypes = {"ID_Country": "TEXT",
@@ -726,36 +472,36 @@ class TableGenerator:
             # write table for outside temperature:
             outsideTemperature = pd.to_numeric(df_south["T2m"].reset_index(drop=True).rename("Temperature"))
             TemperatureList = np.column_stack([ID_Country,
-                                               ID_Hour,
+                                               self.id_hour,
                                                outsideTemperature.to_numpy()])
             DB().add_DataFrame(table=TemperatureList,
                                table_name=table_name_temperature,
                                column_names=dtypes.keys(),
-                               conn=self.Conn,
+                               conn=self.conn,
                                dtype=dtypes)
 
             # PV profiles:
-            PV_options = DB().read_DataFrame(REG_Table().ID_PVType, self.Conn)
+            PV_options = DB().read_DataFrame(REG_Table().ID_PVType, self.conn)
             columnNames = {"ID_Country": "INTEGER",
                            "ID_PVType": "INTEGER",
                            "ID_Hour": "INTEGER",
                            "PVPower": "REAL",
                            "Unit": "TEXT"}
-            unit = np.full((len(ID_Hour),), "kW")
+            unit = np.full((len(self.id_hour),), "kW")
             for index, peakPower in enumerate(PV_options.PVPower):
                 # for peakpower = 0 exception:
                 if peakPower == 0:
                     continue  # 0-profile will not be saved
                 else:
-                    PVProfile = get_JRC_PV(lat, lon, startyear, endyear, peakPower, nuts_id)
+                    PVProfile = get_PV_generation(lat, lon, startyear, endyear, peakPower, nuts_id)
 
                 pv_type = np.full((len(PVProfile),), int(PV_options.ID_PVType[index]))
-                PVPowerList = np.column_stack([ID_Country, pv_type, ID_Hour, PVProfile, unit])
+                PVPowerList = np.column_stack([ID_Country, pv_type, self.id_hour, PVProfile, unit])
 
                 DB().add_DataFrame(table=PVPowerList,
                                    table_name=table_name_PV,
                                    column_names=columnNames.keys(),
-                                   conn=self.Conn,
+                                   conn=self.conn,
                                    dtype=columnNames)
 
             print("{} saved".format(nuts_id))
@@ -770,7 +516,7 @@ class TableGenerator:
         temperature_weighted_sum = np.zeros((8760, 1))
         radiation_weighted_sum = np.zeros((8760, 4))
         # get different PV id types:
-        unique_PV_id_types = np.unique(DB().read_DataFrame("NUTS3_PV_Data_AT", self.Conn, "ID_PVType").to_numpy())
+        unique_PV_id_types = np.unique(DB().read_DataFrame("NUTS3_PV_Data_AT", self.conn, "ID_PVType").to_numpy())
         # dictionary for different PV types
         PV_weighted_sum = {id_pv: np.zeros((8760, 1)) for id_pv in unique_PV_id_types}
         for index, row in heat_demand_AT.iterrows():
@@ -778,14 +524,14 @@ class TableGenerator:
             heat_demand_of_specific_region = row["sum"]
             # Temperature
             temperature_profile = DB().read_DataFrame("NUTS3_Temperature_Data_AT",
-                                                      self.Conn,
+                                                      self.conn,
                                                       "Temperature",
                                                       ID_Country=nuts_id).to_numpy()
             temperature_weighted_sum += temperature_profile * heat_demand_of_specific_region / total_heat_demand
 
             # Solar radiation
             radiation_profile = DB().read_DataFrame("NUTS3_Radiation_Data_AT",
-                                                    self.Conn,
+                                                    self.conn,
                                                     "south", "east", "west", "north",  # *columns
                                                     ID_Country=nuts_id).to_numpy()  # **kwargs
             radiation_weighted_sum += radiation_profile * heat_demand_of_specific_region / total_heat_demand
@@ -794,7 +540,7 @@ class TableGenerator:
             # iterate through different PV types and add each weighted profiles to corresponding dictionary index
             for id_pv in unique_PV_id_types:
                 PV_profile = DB().read_DataFrame("NUTS3_PV_Data_AT",
-                                                 self.Conn,
+                                                 self.conn,
                                                  "PVPower",  # *columns
                                                  ID_Country=nuts_id, ID_PVType=id_pv).to_numpy()  # **kwargs
                 PV_weighted_sum[id_pv] += PV_profile * heat_demand_of_specific_region / total_heat_demand
@@ -811,7 +557,7 @@ class TableGenerator:
         DB().write_DataFrame(table=temperature_table,
                              table_name="Sce_Weather_Temperature",
                              column_names=temperature_columns.keys(),
-                             conn=self.Conn,
+                             conn=self.conn,
                              dtype=temperature_columns)
 
         # Radiation
@@ -825,7 +571,7 @@ class TableGenerator:
         DB().write_DataFrame(table=radiation_table,
                              table_name="Gen_Sce_Weather_Radiation_SkyDirections",
                              column_names=radiation_columns.keys(),
-                             conn=self.Conn,
+                             conn=self.conn,
                              dtype=radiation_columns)
 
         # PV
@@ -850,20 +596,171 @@ class TableGenerator:
         pv_table = pv_table[1:]
         # save to sql database:
         DB().write_DataFrame(table=pv_table,
-                             table_name="Gen_Sce_PhotovoltaicProfile",
+                             table_name=REG_Table().Gen_Sce_PhotovoltaicProfile,
                              column_names=pv_columns.keys(),
-                             conn=self.Conn,
+                             conn=self.conn,
                              dtype=pv_columns)
 
         print("mean tables for country {} have been saved".format(id_country))
 
-    def gen_sce_indoor_temperature(self):
-        outsideTemperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.Conn).Temperature.to_numpy()
-        TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
+
+
+
+    def run(self):
+        self.get_PVGIS_data()  # TODO make this versatile for other countries
+        self.country_mean_PV_GIS()
+
+
+class TableGeneratorGenSce(MotherTableGenerator, ABC):
+
+    def gen_Sce_Demand_DishWasherHours(self, NumberOfDishWasherProfiles):  # TODO if more than 1 dishwasher type is implemented, rewrite the function
+        """
+        creates Dish washer days where the dishwasher can be used on a random basis. Hours of the days where
+        the Dishwasher has to be used are index = 1 and hours of days where the dishwasher is not used are indexed = 0.
+        Dishwasher is not used during the night, only between 06:00 and 22:00.
+
+        Dishwasher starting hours are randomly generated between 06:00 and 22:00 and a seperate dataframe is created
+        """
+        Demand_DishWasher = DB().read_DataFrame(REG_Table().Sce_Demand_DishWasher, self.conn)
+        DishWasherDuration = int(Demand_DishWasher.DishWasherDuration)
+        TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.conn)
+
+        # Assumption: Dishwasher runs maximum once a day:
+        UseDays = int(Demand_DishWasher.DishWasherCycle)
+        TotalDays = TimeStructure.ID_Day.to_numpy()[-1]
+
+        # create array with 0 or 1 for every hour a day and random choice of 0 and 1 but with correct numbers of 1
+        # (UseDays)
+        def rand_bin_array(usedays, totaldays):
+            arr = np.zeros(totaldays)
+            arr[:usedays] = 1
+            np.random.shuffle(arr)
+            arr = np.repeat(arr, 24, axis=0)
+            return arr
+
+        TargetTable = TimeStructure.ID_Hour.to_numpy()
+        TargetTable = np.column_stack([TargetTable, TimeStructure.ID_DayHour.to_numpy()])
+        TargetTable_columns = {"ID_Hour": "INTEGER",
+                               "ID_DayHour": "INTEGER"}
+        for i in range(NumberOfDishWasherProfiles + 1):
+            TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
+            TargetTable_columns["DishWasherHours " + str(i)] = "INTEGER"
+
+        # iterate through table and assign random values between 06:00 and 21:00 on UseDays:
+        # this table is for reference scenarios or if the dishwasher is not optimized: First a random starting time is
+        # specified and from there the timeslots for the duration of the dishwasher are set to 1:
+        TargetTable2 = np.copy(TargetTable)
+        for index in range(0, len(TargetTable2), 24):
+            for column in range(2, TargetTable2.shape[1]):
+                if TargetTable2[index, column] == 1:
+                    HourOfTheDay = np.random.randint(low=6, high=22) - 1
+                    TargetTable2[index + HourOfTheDay:index + HourOfTheDay + DishWasherDuration, column] = 1
+                    TargetTable2[index:index + HourOfTheDay, column] = 0
+                    TargetTable2[index + HourOfTheDay + DishWasherDuration:index + 24, column] = 0
+        # write dataframe with starting hours to database:
+        DB().write_DataFrame(TargetTable2, REG_Table().Gen_Sce_DishWasherStartingHours, TargetTable_columns.keys(),
+                             self.conn, dtype=TargetTable_columns)
+
+        # set values to 0 when it is before 6 am:
+        TargetTable[:, 2:][TargetTable[:, 1] < 6] = 0
+        # set values to 0 when it is after 10 pm:
+        TargetTable[:, 2:][TargetTable[:, 1] > 21] = 0
+
+        # save arrays to database:
+        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_DishWasherHours, TargetTable_columns.keys(),
+                             self.conn, dtype=TargetTable_columns)
+
+    def gen_Sce_Demand_WashingMachineHours(self, NumberOfWashingMachineProfiles):
+        """
+        same as dish washer function above
+        washingmachine starting hours are between 06:00 and 20:00 because the dryer might be used afterwards
+        Note: The last day is not being used! because in the optimization the dryer would run until
+        """
+        # Dryer has no own function because it will always be used after the washing machine
+        Demand_WashingMachine = DB().read_DataFrame(REG_Table().Sce_Demand_WashingMachine, self.conn)
+        WashingMachineDuration = int(Demand_WashingMachine.WashingMachineDuration)
+        Demand_Dryer = DB().read_DataFrame(REG_Table().Sce_Demand_Dryer, self.conn)
+        DryerDuration = int(Demand_Dryer.DryerDuration)
+        TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.conn)
+
+        # Assumption: Washing machine runs maximum once a day:
+        UseDays = int(Demand_WashingMachine.WashingMachineCycle)
+        TotalDays = TimeStructure.ID_Day.to_numpy()[-1] - 1  # last day is added later
+
+        # create array with 0 or 1 for every hour a day and random choice of 0 and 1 but with correct numbers of 1
+        # (UseDays)
+        def rand_bin_array(usedays, totaldays):
+            arr = np.zeros(totaldays)
+            arr[:usedays] = 1
+            np.random.shuffle(arr)
+            arr = np.repeat(arr, 24, axis=0)
+            return arr
+
+        TargetTable = TimeStructure.ID_Hour.to_numpy()[:-24]
+        TargetTable = np.column_stack([TargetTable, TimeStructure.ID_DayHour.to_numpy()[:-24]])
+        TargetTable_columns = {"ID_Hour": "INTEGER",
+                               "ID_DayHour": "INTEGER"}
+        Dryer_columns = {"ID_Hour": "INTEGER",
+                         "ID_DayHour": "INTEGER"}
+        for i in range(NumberOfWashingMachineProfiles + 1):
+            TargetTable = np.column_stack([TargetTable, rand_bin_array(UseDays, TotalDays)])
+            TargetTable_columns["WashingMachineHours " + str(i)] = "INTEGER"
+            Dryer_columns["DryerHours " + str(i)] = "INTEGER"
+
+        # append the last day to the target table:
+        lastDay_hours = TimeStructure.ID_Hour.to_numpy()[-24:]
+        lastDay_IDHours = TimeStructure.ID_DayHour.to_numpy()[-24:]
+        lastDay_zeros = np.zeros((len(lastDay_IDHours), TargetTable.shape[1] - 2))
+        lastDay = np.column_stack([lastDay_hours, lastDay_IDHours, lastDay_zeros])
+
+        # merge last day to target table:
+        TargetTable = np.vstack([TargetTable, lastDay])
+
+        # iterate through table and assign random values between 06:00 and 19:00 on UseDays (dryer has
+        # to be used as well):
+        # this table is for reference scenarios or if the dishwasher is not optimized:
+        TargetTable_washmachine = np.copy(TargetTable)
+        TargetTable_dryer = np.copy(TargetTable)  # for the dryer
+        for index in range(0, len(TargetTable_washmachine), 24):
+            for column in range(2, TargetTable_washmachine.shape[1]):
+                if TargetTable_washmachine[index, column] == 1:
+                    HourOfTheDay = np.random.randint(low=6,
+                                                     high=21) - 1  # weil bei 0 zu zählen anfängt (Hour of day 6 ist 7 uhr)
+                    TargetTable_washmachine[index + HourOfTheDay:index + HourOfTheDay + WashingMachineDuration,
+                    column] = 1
+                    TargetTable_washmachine[index:index + HourOfTheDay, column] = 0
+                    TargetTable_washmachine[index + HourOfTheDay + WashingMachineDuration:index + 24, column] = 0
+
+                    # Dryer always starts 1 hour after the washing machine:
+                    TargetTable_dryer[
+                    index + HourOfTheDay + WashingMachineDuration + 1:index + HourOfTheDay + WashingMachineDuration + 1 + DryerDuration,
+                    column] = 1
+                    TargetTable_dryer[index:index + HourOfTheDay + WashingMachineDuration + 1, column] = 0
+                    TargetTable_dryer[index + HourOfTheDay + WashingMachineDuration + 1 + DryerDuration:index + 24,
+                    column] = 0
+
+        # write dataframe with starting hours to database:
+        DB().write_DataFrame(TargetTable_washmachine, REG_Table().Gen_Sce_WashingMachineStartingHours,
+                             TargetTable_columns.keys(),
+                             self.conn, dtype=TargetTable_columns)
+        DB().write_DataFrame(TargetTable_dryer, REG_Table().Gen_Sce_DryerStartingHours, Dryer_columns.keys(),
+                             self.conn, dtype=Dryer_columns)
+
+        # set values to 0 when it is before 6 am:
+        TargetTable[:, 2:][TargetTable[:, 1] < 6] = 0
+        # set values to 0 when it is after 8 pm:
+        TargetTable[:, 2:][TargetTable[:, 1] > 20] = 0
+        # save starting days for optimization:
+        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_WashingMachineHours, TargetTable_columns.keys(),
+                             self.conn, dtype=TargetTable_columns)
+
+    def gen_sce_target_temperature(self):
+        outsideTemperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.conn).Temperature.to_numpy()
+        TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.conn)
         ID_Hour = TimeStructure.ID_Hour
         ID_DayHour = TimeStructure.ID_DayHour.to_numpy()
         # load min max indoor temperature from profile table
-        targetTemperature = DB().read_DataFrame(REG_Table().Sce_ID_TargetTemperatureType, self.Conn)
+        targetTemperature = DB().read_DataFrame(REG_Table().Sce_ID_TargetTemperatureType, self.conn)
 
         T_min_young = targetTemperature.HeatingTargetTemperatureYoung
         T_max_young = targetTemperature.CoolingTargetTemperatureYoung
@@ -923,19 +820,16 @@ class TableGenerator:
 
         # write set temperature data to database
         DB().write_DataFrame(TargetFrame, REG_Table().Gen_Sce_TargetTemperature, column_names.keys(),
-                             self.Conn, dtype=column_names)
+                             self.conn, dtype=column_names)
 
     def gen_Sce_AC_HourlyCOP(self):
-        TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.Conn)
-        ID_Hour = TimeStructure.ID_Hour.to_numpy()
-
         # constant COP of 3 is estimated:
         COP = 3
-        COP_array = np.full((len(ID_Hour),), COP)
-        TargetTable = np.column_stack([ID_Hour, COP_array])
+        COP_array = np.full((len(self.id_hour),), COP)
+        TargetTable = np.column_stack([self.id_hour, COP_array])
         columns = {"ID_Hour": "INTEGER",
                    "ACHourlyCOP": "REAL"}
-        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_AC_HourlyCOP, columns.keys(), self.Conn, dtype=columns)
+        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_AC_HourlyCOP, columns.keys(), self.conn, dtype=columns)
 
     def gen_Sce_electricity_price(self):
         elec_price = pd.read_excel(
@@ -967,9 +861,9 @@ class TableGenerator:
 
         DB().write_DataFrame(price_to_db, "Gen_Sce_ElectricityProfile",
                              column_names=price_columns.keys(),
-                             conn=self.Conn,
+                             conn=self.conn,
                              dtype=price_columns)
-
+        # FIT
         feed_in_tariff = np.column_stack(
             [np.full((8760,), 1), np.arange(8760), np.full((8760,), 7.67), np.full((8760,), "cent/kWh")])
         feed_in_columns = {"ID_FeedinTariffType": "INT",
@@ -979,9 +873,8 @@ class TableGenerator:
 
         DB().write_DataFrame(feed_in_tariff, "Sce_Price_HourlyFeedinTariff",
                              column_names=feed_in_columns.keys(),
-                             conn=self.Conn,
+                             conn=self.conn,
                              dtype=feed_in_columns)
-        pass
 
     def gen_Sce_Demand_BaseElectricityProfile(self):
         baseload = pd.read_csv(Path().absolute().parent.resolve() / Path("_Philipp/inputdata/AUT/synthload2019.csv"),
@@ -993,7 +886,7 @@ class TableGenerator:
         baseload_h0 = baseload_h0.reset_index(drop=True).rename(columns={"Wert": "BaseElectricityProfile"})
 
         columns = {"BaseElectricityProfile": "REAL"}
-        DB().write_DataFrame(table=baseload_h0, table_name="Sce_Demand_BaseElectricityProfile", conn=self.Conn,
+        DB().write_DataFrame(table=baseload_h0, table_name="Sce_Demand_BaseElectricityProfile", conn=self.conn,
                              column_names=columns.keys(), dtype=columns)
 
     def gen_Sce_HotWaterProfile(self):
@@ -1002,61 +895,71 @@ class TableGenerator:
             engine="openpyxl")
         hot_water_profile = np.column_stack([hot_water["Profile"].to_numpy(), np.full((8760,), "kWh")])
         columns = {"HotWater": "REAL", "Unit": "TEXT"}
-        DB().write_DataFrame(hot_water_profile, "Gen_Sce_HotWaterProfile", columns.keys(), self.Conn, dtype=columns)
+        DB().write_DataFrame(hot_water_profile, "Gen_Sce_HotWaterProfile", columns.keys(), self.conn, dtype=columns)
+
+    def gen_Sce_ID_Environment(self):
+
+        ElectricityPriceType = DB().read_DataFrame(REG_Table().ID_ElectricityPrice, self.conn)
+        FeedinTariffType = DB().read_DataFrame(REG_Table().Sce_ID_FeedinTariffType, self.conn)
+        # HotWaterProfileType = DB().read_DataFrame(REG_Table().Sce_ID_HotWaterProfileType, self.Conn)
+        # PhotovoltaicProfileType = DB().read_DataFrame(REG_Table().Sce_ID_PhotovoltaicProfileType, self.Conn)
+        # TargetTemperatureType = DB().read_DataFrame(REG_Table().Sce_ID_TargetTemperatureType, self.Conn)
+        # BaseElectricityProfileType = DB().read_DataFrame(REG_Table().Sce_ID_BaseElectricityProfileType, self.Conn)
+        # EnergyCostType = DB().read_DataFrame(REG_Table().Sce_ID_EnergyCostType, self.Conn)
+
+        TargetTable_list = []
+
+        TargetTable_columns = ["ID"]
+
+        # TargetTable_columns += ["ID_ElectricityPriceType", "ID_TargetTemperatureType", "ID_FeedinTariffType",
+        #                         "ID_HotWaterProfileType", "ID_PhotovoltaicProfileType", "ID_BaseElectricityProfileType",
+        #                         "ID_EnergyCostType"]
+        TargetTable_columns += ["ID_ElectricityPriceType", "ID_FeedinTariffType"]
+
+        ID = 1
+
+        for row1 in range(0, len(ElectricityPriceType)):
+            # for row2 in range(0, len(TargetTemperatureType)):
+            for row3 in range(0, len(FeedinTariffType)):
+                # for row4 in range(0, len(HotWaterProfileType)):
+                #     for row5 in range(0, len(PhotovoltaicProfileType)):
+                #         for row6 in range(0, len(BaseElectricityProfileType)):
+                #             for row7 in range(0, len(EnergyCostType)):
+                TargetTable_list.append([ID] +
+                                        [ElectricityPriceType.iloc[row1][
+                                             "ID_ElectricityPriceType"]] +
+                                        # [TargetTemperatureType.iloc[row2][
+                                        #      "ID_TargetTemperatureType"]] +
+                                        [FeedinTariffType.iloc[row3]["ID_FeedinTariffType"]])  # +
+                # [HotWaterProfileType.iloc[row4]["ID_HotWaterProfileType"]] +
+                # [PhotovoltaicProfileType.iloc[row5][
+                #      "ID_PhotovoltaicProfile"]] +
+                # [BaseElectricityProfileType.iloc[row6][
+                #      "ID_BaseElectricityProfileType"]] +
+                # [EnergyCostType.iloc[row6]["ID_EnergyCostType"]]
+
+                ID += 1
+
+        DB().write_DataFrame(TargetTable_list, REG_Table().Gen_Sce_ID_Environment, TargetTable_columns, self.conn)
 
     def run(self):
-        # these have to be run before ID Household
-        self.gen_OBJ_ID_Building()
-        self.gen_OBJ_ID_ApplianceGroup()
-        self.gen_OBJ_ID_SpaceHeating()
-        self.gen_OBJ_ID_SpaceCooling()
-        self.gen_OBJ_ID_HotWater()
-        self.gen_OBJ_ID_PV()
-        self.gen_OBJ_ID_Battery()
-        self.gen_OBJ_ID_ElectricVehicle()
-        ##
-        self.gen_OBJ_ID_Household()
-
-        # are independent from the rest (usually are not changed, therefore don't run them every time)
+        self.gen_Sce_Demand_DishWasherHours(10)  # TODO this number should be externally set or we dont need the profiles anyways
+        self.gen_Sce_Demand_WashingMachineHours(10)
+        self.gen_sce_target_temperature()
+        self.gen_Sce_AC_HourlyCOP()
+        self.gen_Sce_electricity_price()
         self.gen_Sce_Demand_BaseElectricityProfile()
-        self.gen_Sce_Demand_DishWasherHours()
-        self.gen_Sce_Demand_WashingMachineHours()
-
-        # gibt an welche Spalten aus Sce_ Tables verwendet werden
+        self.gen_Sce_HotWaterProfile()
         self.gen_Sce_ID_Environment()
-        # self.gen_Sce_CarAtHomeHours()
-        # self.gen_Sce_HeatPump_HourlyCOP()
-
-        # +Radiation
-        pass
 
 
 if __name__ == "__main__":
-    CONN = DB().create_Connection(CONS().RootDB)
-    A = TableGenerator(CONN)
+    first = TableGeneratorID()
+    second = TableGeneratorGenSce()
+    third = TableGeneratorGenObj()
 
-    A.gen_Sce_electricity_price()
-    # A.get_PVGIS_data()   # currently gets the data for Europe on NUTS 2 level
-    ID_COUNTRY = "AT"
-    # A.country_mean_PV_GIS(ID_COUNTRY)  # creates mean table (only for austria right now, not for all countries)
+    first.run()
+    second.run()
+    third.run()
 
-    # A.save_PV2Base(ID_COUNTRY)
 
-    A.gen_sce_indoor_temperature()  # is dependent on gen_SolarRadiation_windows_and_outsideTemperature
-    # A.gen_Sce_AC_HourlyCOP()
-
-    A.gen_Sce_electricity_price()
-    # A.gen_OBJ_ID_SpaceHeating()
-    # A.gen_OBJ_ID_SpaceCooling()
-    # A.gen_OBJ_ID_ApplianceGroup()
-    # A.gen_OBJ_ID_Battery()
-    # A.gen_OBJ_ID_Building()   # create gen_obj_id_building
-    # A.gen_Sce_HotWaterProfile()
-    # A.gen_OBJ_ID_Household()
-    # A.gen_Sce_ID_Environment()
-
-    NumberOfDishWasherProfiles = 10
-    NumberOfWashingMachineProfiles = 10
-    # A.gen_Sce_Demand_BaseElectricityProfile()
-    # A.gen_Sce_Demand_DishWasherHours(NumberOfDishWasherProfiles)  # only use once! profiles are randomly generated
-    # A.gen_Sce_Demand_WashingMachineHours(NumberOfWashingMachineProfiles)  # only use once! profiles are randomly generated
