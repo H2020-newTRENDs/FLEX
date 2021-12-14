@@ -26,7 +26,7 @@ class Household:
                                                         para_series["ID_Building"] - 1,
                                                         self.Conn))
         self.SpaceHeatingSystem = SpaceHeatingSystem(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_SpaceHeatingSystem,
-                                                                            para_series["ID_SpaceHeating"] - 1,
+                                                                            para_series["ID_SpaceHeatingSystem"] - 1,
                                                                             self.Conn))
         self.SpaceCooling = SpaceCooling(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_SpaceCooling,
                                                                 para_series["ID_SpaceCooling"] - 1,

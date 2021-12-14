@@ -22,7 +22,7 @@ class DataCollector:
                                            self.VAR.ElectricityPrice: "REAL",
                                            self.VAR.FeedinTariff: "REAL",
                                            self.VAR.ID_AgeGroup: "REAL",
-                                           self.VAR.ID_SpaceHeating: "TEXT",
+                                           self.VAR.ID_SpaceHeatingSystem: "TEXT",
                                            self.VAR.OutsideTemperature: "REAL",
 
                                            self.VAR.E_BaseElectricityLoad: "REAL",
@@ -112,7 +112,7 @@ class DataCollector:
                                            self.VAR.Household_PVPower: "REAL",
                                            self.VAR.Household_BatteryCapacity: "REAL",
                                            self.VAR.ID_AgeGroup: "REAL",
-                                           self.VAR.ID_SpaceHeating: "TEXT",
+                                           self.VAR.ID_SpaceHeatingSystem: "TEXT",
                                            self.VAR.Environment_ElectricityPriceType: "REAL"
                                            }
         self.SystemOperationYear_ValueList = []
