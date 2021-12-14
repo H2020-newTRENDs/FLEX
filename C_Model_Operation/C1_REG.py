@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 __author__ = 'Songmin'
 
+
 class REG_Table:
 
     def __init__(self):
@@ -31,11 +32,10 @@ class REG_Table:
         self.ID_WashingMachineType = self.ID + "WashingMachineType"
         self.ID_SpaceHeatingBoilerType = self.ID + "SpaceHeatingBoilerType"
         self.ID_SpaceHeatingTankType = self.ID + "SpaceHeatingTankType"
-        self.ID_SpaceHeatingPumpType = self.ID + "SpaceHeatingPumpType"
+        self.ID_SpaceHeatingSystem = self.ID + "SpaceHeatingSystem"
         self.ID_DHWTankType = self.ID + "DHWTankType"
         self.ID_HotWaterTankType = self.ID + "HotWaterTankType"
         self.ID_SpaceCoolingType = self.ID + "SpaceCoolingType"
-        self.ID_PVType = self.ID + "PVType"
         self.ID_BatteryType = self.ID + "BatteryType"
         self.ID_ElectricVehicleType = self.ID + "ElectricVehicleType"
         self.ID_GridInfrastructure = self.ID + "GridInfrastructure"
@@ -141,7 +141,16 @@ class REG_Var:
         self.ID_Hour = self.ID + "Hour"
         self.ID_Building = self.ID + "Building"
         self.ID_AgeGroup = self.ID + "AgeGroup"
-        self.ID_SpaceHeating = self.ID + "SpaceHeating"
+        # ID Heating system
+        self.ID_SpaceHeatingSystem = self.ID + "SpaceHeatingSystem"
+        self.ID_SpaceHeatingTank = f"{self.ID}SpaceHeatingTank"
+        self.ID_DHWTank = f"{self.ID}DHWTank"
+        # ID Cooling
+        self.ID_SpaceCooling = f"{self.ID}SpaceCooling"
+        # PV
+        self.ID_PV = f"{self.ID}PV"
+        # Battery
+        self.ID_Battery = f"{self.ID}Battery"
 
         self.ElectricityPrice = "ElectricityPrice"
         self.FeedinTariff = "FeedinTariff"

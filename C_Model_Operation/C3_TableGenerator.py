@@ -1,6 +1,6 @@
 import urllib.error
 
-from C_Model_Operation.C1_REG import REG_Table
+from C_Model_Operation.C1_REG import REG_Table, REG_Var
 from A_Infrastructure.A2_DB import DB
 import numpy as np
 import pandas as pd
@@ -31,7 +31,7 @@ class MotherTableGenerator(ABC):
         for row1 in range(0, len(table1)):
             TargetTable_list.append([ID] + list(table1.iloc[row1].values))
             ID += 1
-        DB().write_DataFrame(TargetTable_list, target_table_name, TargetTable_columns, self.Conn)
+        DB().write_DataFrame(TargetTable_list, target_table_name, TargetTable_columns, self.conn)
 
         return None
 
@@ -67,15 +67,16 @@ class MotherTableGenerator(ABC):
                                             list(table2.iloc[row2].values) +
                                             list(table3.iloc[row3].values))
                     ID += 1
-        DB().write_DataFrame(TargetTable_list, target_table_name, TargetTable_columns, self.Conn)
+        DB().write_DataFrame(TargetTable_list, target_table_name, TargetTable_columns, self.conn)
         return None
 
 
 class TableGeneratorGenObj(MotherTableGenerator, ABC):
     """generates the GEN_OBJ tables through the ID_Tables"""
 
-    def gen_OBJ_ID_Building(self) -> None:
-        BuildingOption = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.conn) # TODO the function to create ID_Building option still has to be created
+    def gen_OBJ_ID_Building(self) -> None:  # TODO create link to INVERT
+        BuildingOption = DB().read_DataFrame(REG_Table().ID_BuildingOption,
+                                             self.conn)  # TODO the function to create ID_Building option still has to be created
         BuildingMassTemperature = DB().read_DataFrame(REG_Table().ID_BuildingMassTemperature, self.conn)
         GridInfrastructure = DB().read_DataFrame(REG_Table().ID_GridInfrastructure, self.conn)
         self.gen_OBJ_ID_Table_3To1(REG_Table().Gen_OBJ_ID_Building,
@@ -96,9 +97,9 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
 
     def gen_OBJ_ID_SpaceHeatingSystem(self) -> None:
         """creates the space heating system table in the Database"""
-        heating_system = ["Air_HP", "Ground_HP"]  #  TODO kan be given externally
+        heating_system = ["Air_HP", "Ground_HP"]  # TODO kan be given externally
         carnot_factor = [0.4, 0.35]  # for the heat pumps respectively
-        columns = {"ID_SpaceHeatingSystem": "INTEGER",
+        columns = {REG_Var().ID_SpaceHeatingSystem: "INTEGER",
                    "Name_SpaceHeatingPumpType": "TEXT",
                    "HeatPumpMaximalThermalPower": "REAL",
                    "HeatPumpMaximalThermalPower_unit": "TEXT",
@@ -106,13 +107,13 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
                    "HeatingElementPower_unit": "TEXT",
                    "CarnotEfficiencyFactor": "REAL"}
 
-        table = np.column_stack([np.arange(1, len(heating_system) + 1),     # ID
-                                 heating_system,                            # Name_SpaceHeatingPumpType
-                                 np.full((len(heating_system), ), 15_000),  # HeatPumpMaximalThermalPower
-                                 np.full((len(heating_system), ), "W"),     # HeatPumpMaximalThermalPower_unit
-                                 np.full((len(heating_system), ), 7_500),   # HeatingElementPower
-                                 np.full((len(heating_system), ), "W"),     # HeatingElementPower_unit
-                                 carnot_factor]                             # CarnotEfficiencyFactor
+        table = np.column_stack([np.arange(1, len(heating_system) + 1),  # ID
+                                 heating_system,  # Name_SpaceHeatingPumpType
+                                 np.full((len(heating_system),), 15_000),  # HeatPumpMaximalThermalPower
+                                 np.full((len(heating_system),), "W"),  # HeatPumpMaximalThermalPower_unit
+                                 np.full((len(heating_system),), 7_500),  # HeatingElementPower
+                                 np.full((len(heating_system),), "W"),  # HeatingElementPower_unit
+                                 carnot_factor]  # CarnotEfficiencyFactor
                                 )
         # save
         DB().write_DataFrame(table=table,
@@ -124,7 +125,7 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
     def gen_OBJ_ID_heatingTank(self) -> None:
         """creates the space heating tank table in the Database"""
         tank_sizes = [500, 1_000, 1500]  # liter  TODO kan be given externally
-        columns = {"ID_SpaceHeatingTankType": "INTEGER",
+        columns = {REG_Var().ID_SpaceHeatingTank: "INTEGER",
                    "TankSize": "REAL",
                    "TankSize_unit": "TEXT",
                    "TankSurfaceArea": "REAL",
@@ -141,15 +142,15 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
         surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
         table = np.column_stack([np.arange(1, len(tank_sizes) + 1),  # ID
                                  tank_sizes,  # tank size
-                                 np.full((len(tank_sizes), ), "kg"),  # TankSize_unit
+                                 np.full((len(tank_sizes),), "kg"),  # TankSize_unit
                                  surface_area,  # TankSurfaceArea
-                                 np.full((len(tank_sizes), ), "m2"),  # TankSurfaceArea_unit
-                                 np.full((len(tank_sizes), ), 0.2),  # TankLoss
-                                 np.full((len(tank_sizes), ), "W/m2"),  # TankLoss_unit
-                                 np.full((len(tank_sizes), ), 28),  # TankStartTemperature
-                                 np.full((len(tank_sizes), ), 65),  # TankMaximalTemperature
-                                 np.full((len(tank_sizes), ), 28),  # TankMinimalTemperature
-                                 np.full((len(tank_sizes), ), 20)]  # TankSurroundingTemperature
+                                 np.full((len(tank_sizes),), "m2"),  # TankSurfaceArea_unit
+                                 np.full((len(tank_sizes),), 0.2),  # TankLoss
+                                 np.full((len(tank_sizes),), "W/m2"),  # TankLoss_unit
+                                 np.full((len(tank_sizes),), 28),  # TankStartTemperature
+                                 np.full((len(tank_sizes),), 65),  # TankMaximalTemperature
+                                 np.full((len(tank_sizes),), 28),  # TankMinimalTemperature
+                                 np.full((len(tank_sizes),), 20)]  # TankSurroundingTemperature
                                 )
         # save
         DB().write_DataFrame(table=table,
@@ -161,7 +162,7 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
     def gen_OBJ_ID_DHWTank(self) -> None:
         """creates the ID_DHWTank table in the Database"""
         tank_sizes = [200, 500, 1_000]  # liter  TODO kan be given externally
-        columns = {"ID_DHWTankType": "INTEGER",
+        columns = {REG_Var().ID_DHWTank: "INTEGER",
                    "DHWTankSize": "REAL",
                    "DHWTankSize_unit": "TEXT",
                    "DHWTankSurfaceArea": "REAL",
@@ -178,15 +179,15 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
         surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
         table = np.column_stack([np.arange(1, len(tank_sizes) + 1),  # ID
                                  tank_sizes,  # tank size
-                                 np.full((len(tank_sizes), ), "kg"),  # TankSize_unit
+                                 np.full((len(tank_sizes),), "kg"),  # TankSize_unit
                                  surface_area,  # TankSurfaceArea
-                                 np.full((len(tank_sizes), ), "m2"),  # TankSurfaceArea_unit
-                                 np.full((len(tank_sizes), ), 0.2),  # TankLoss
-                                 np.full((len(tank_sizes), ), "W/m2"),  # TankLoss_unit
-                                 np.full((len(tank_sizes), ), 28),  # TankStartTemperature
-                                 np.full((len(tank_sizes), ), 65),  # TankMaximalTemperature
-                                 np.full((len(tank_sizes), ), 28),  # TankMinimalTemperature
-                                 np.full((len(tank_sizes), ), 20)]  # TankSurroundingTemperature
+                                 np.full((len(tank_sizes),), "m2"),  # TankSurfaceArea_unit
+                                 np.full((len(tank_sizes),), 0.2),  # TankLoss
+                                 np.full((len(tank_sizes),), "W/m2"),  # TankLoss_unit
+                                 np.full((len(tank_sizes),), 28),  # TankStartTemperature
+                                 np.full((len(tank_sizes),), 65),  # TankMaximalTemperature
+                                 np.full((len(tank_sizes),), 28),  # TankMinimalTemperature
+                                 np.full((len(tank_sizes),), 20)]  # TankSurroundingTemperature
                                 )
         # save
         DB().write_DataFrame(table=table,
@@ -198,16 +199,16 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
     def gen_OBJ_ID_SpaceCooling(self) -> None:
         """creates the ID_SpaceCooling table in the Database"""
         cooling_power = [0, 10_000]  # W  TODO kan be given externally
-        columns = {"ID_SpaceCoolingType": "INTEGER",
+        columns = {REG_Var().ID_SpaceCooling: "INTEGER",
                    "SpaceCoolingEfficiency": "REAL",
                    "SpaceCoolingPower": "REAL",
                    "SpaceCoolingPower_unit": "TEXT"}
-        cooling_efficiency = np.full((len(cooling_power), ), 3)  # TODO add other COPs?
+        cooling_efficiency = np.full((len(cooling_power),), 3)  # TODO add other COPs?
 
         table = np.column_stack([np.arange(1, len(cooling_power) + 1),  # ID
                                  cooling_efficiency,  # SpaceCoolingEfficiency
                                  cooling_power,  # SpaceCoolingPower
-                                 np.full((len(cooling_power), ), "W")]  # SpaceCoolingPower_unit
+                                 np.full((len(cooling_power),), "W")]  # SpaceCoolingPower_unit
                                 )
         # save
         DB().write_DataFrame(table=table,
@@ -219,7 +220,7 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
     def gen_OBJ_ID_Battery(self) -> None:
         """creates the ID_Battery table in the Database"""
         battery_capacity = [0, 10_000]  # W  TODO kan be given externally
-        columns = {"ID_BatteryType": "INTEGER",
+        columns = {REG_Var().ID_Battery: "INTEGER",
                    "Capacity": "REAL",
                    "Capacity_unit": "TEXT",
                    "ChargeEfficiency": "REAL",
@@ -231,17 +232,35 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
 
         table = np.column_stack([np.arange(1, len(battery_capacity) + 1),  # ID
                                  battery_capacity,  # Capacity
-                                 np.full((len(battery_capacity), ), "W"),   # Capacity_unit
-                                 np.full((len(battery_capacity), ), 0.95),  # ChargeEfficiency
-                                 np.full((len(battery_capacity), ), 0.95),  # DischargeEfficiency
+                                 np.full((len(battery_capacity),), "W"),  # Capacity_unit
+                                 np.full((len(battery_capacity),), 0.95),  # ChargeEfficiency
+                                 np.full((len(battery_capacity),), 0.95),  # DischargeEfficiency
                                  np.full((len(battery_capacity),), 4_500),  # MaxChargePower
-                                 np.full((len(battery_capacity),), "W"),    # MaxChargePower_unit
+                                 np.full((len(battery_capacity),), "W"),  # MaxChargePower_unit
                                  np.full((len(battery_capacity),), 4_500),  # MaxDischargePower
-                                 np.full((len(battery_capacity),), "W")]    # MaxDischargePower_unit
+                                 np.full((len(battery_capacity),), "W")]  # MaxDischargePower_unit
                                 )
         # save
         DB().write_DataFrame(table=table,
                              table_name=REG_Table().Gen_OBJ_ID_Battery,
+                             conn=self.conn,
+                             column_names=columns.keys(),
+                             dtype=columns)
+
+    def gen_OBJ_ID_PV(self):
+        """saves the different PV types to the DB"""
+        pv_power = [0, 5, 10]  # kWp  TODO kan be given externally
+        columns = {REG_Var().ID_PV: "INTEGER",
+                   "PVPower": "REAL",
+                   "PVPower_unit": "TEXT"}
+
+        table = np.column_stack([np.arange(1, len(pv_power) + 1),  # ID
+                                 pv_power,  # PVPower
+                                 np.full((len(pv_power),), "kWp")]  # MaxDischargePower_unit
+                                )
+        # save
+        DB().write_DataFrame(table=table,
+                             table_name=REG_Table().Gen_OBJ_ID_PV,
                              conn=self.conn,
                              column_names=columns.keys(),
                              dtype=columns)
@@ -255,48 +274,53 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
         AgeGroup = DB().read_DataFrame(REG_Table().ID_AgeGroup, self.conn)
         Building = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.conn)
         # ApplianceGroup = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_ApplianceGroup, self.Conn)
-        SpaceHeating = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceHeatingSystem, self.conn)
+        SpaceHeatingSystem = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceHeatingSystem, self.conn)
+        SpaceHeatingTank = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceHeatingTank, self.conn)
+        DHWTank = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_DHW_tank, self.conn)
         SpaceCooling = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceCooling, self.conn)
         # HotWater = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_HotWater, self.Conn)
         PV = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_PV, self.conn)
         Battery = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Battery, self.conn)
 
+        input_table_list = [Country, HouseholdType, AgeGroup, Building, SpaceHeatingSystem, SpaceHeatingTank, DHWTank,
+                            SpaceCooling, PV, Battery]
+        total_rounds = 1
+        for table in input_table_list:
+            total_rounds *= len(table)
         TargetTable_list = []
         TargetTable_columns = ["ID"]
         for table in [Country, HouseholdType, AgeGroup]:
             TargetTable_columns += list(table.keys())
-        TargetTable_columns += ["ID_Building", "ID_SpaceHeating", "ID_SpaceCooling",
-                                "ID_PV", "ID_Battery"]
+        TargetTable_columns += [REG_Var().ID_Building, REG_Var().ID_SpaceHeatingSystem, REG_Var().ID_SpaceHeatingTank,
+                                REG_Var().ID_DHWTank, REG_Var().ID_SpaceCooling, REG_Var().ID_PV, REG_Var().ID_Battery]
+
         ID = 1
-        TotalRounds = len(Country) * len(HouseholdType) * len(AgeGroup) * len(Building) * len(SpaceHeating) * \
-                      len(SpaceCooling) * \
-                      len(PV) * len(Battery)  # * len(HotWater)
         # len(ApplianceGroup)
 
         for row1 in range(0, len(Country)):
             for row2 in range(0, len(HouseholdType)):
                 for row3 in range(0, len(AgeGroup)):
                     for row4 in range(0, len(Building)):
-                        # for row5 in range(0, len(ApplianceGroup)):
-                        for row6 in range(0, len(SpaceHeating)):
-                            for row7 in range(0, len(SpaceCooling)):
-                                # for row8 in range(0, len(HotWater)):
-                                for row9 in range(0, len(PV)):
-                                    for row10 in range(0, len(Battery)):
-                                        TargetTable_list.append([ID] +
-                                                                list(Country.iloc[row1].values) +
-                                                                list(HouseholdType.iloc[row2].values) +
-                                                                list(AgeGroup.iloc[row3].values) +
-                                                                [Building.iloc[row4]["ID"]] +
-                                                                # [ApplianceGroup.iloc[row5]["ID"]] +
-                                                                [SpaceHeating.iloc[row6]["ID"]] +
-                                                                [SpaceCooling.iloc[row7]["ID"]] +
-                                                                # [HotWater.iloc[row8]["ID"]] +
-                                                                [PV.iloc[row9]["ID"]] +
-                                                                [Battery.iloc[row10]["ID"]]
-                                                                )
-                                        print("Round: " + str(ID) + "/" + str(TotalRounds))
-                                        ID += 1
+                        for row5 in range(0, len(SpaceHeatingSystem)):
+                            for row6 in range(0, len(SpaceHeatingTank)):
+                                for row7 in range(0, len(DHWTank)):
+                                    for row8 in range(0, len(SpaceCooling)):
+                                        for row9 in range(0, len(PV)):
+                                            for row10 in range(0, len(Battery)):
+                                                TargetTable_list.append([ID] +
+                                                                        list(Country.iloc[row1].values) +
+                                                                        list(HouseholdType.iloc[row2].values) +
+                                                                        list(AgeGroup.iloc[row3].values) +
+                                                                        [Building.iloc[row4]["ID"]] +
+                                                                        [SpaceHeatingSystem.iloc[row5][REG_Var().ID_SpaceHeatingSystem]] +
+                                                                        [SpaceHeatingTank.iloc[row6][REG_Var().ID_SpaceHeatingTank]] +
+                                                                        [DHWTank.iloc[row7][REG_Var().ID_DHWTank]] +
+                                                                        [SpaceCooling.iloc[row8][REG_Var().ID_SpaceCooling]] +
+                                                                        [PV.iloc[row9][REG_Var().ID_PV]] +
+                                                                        [Battery.iloc[row10][REG_Var().ID_Battery]]
+                                                                        )
+                                                print("Round: " + str(ID) + "/" + str(total_rounds))
+                                                ID += 1
         DB().write_DataFrame(TargetTable_list, REG_Table().Gen_OBJ_ID_Household, TargetTable_columns, self.conn)
 
     def run(self):
@@ -307,6 +331,7 @@ class TableGeneratorGenObj(MotherTableGenerator, ABC):
         self.gen_OBJ_ID_DHWTank()
         self.gen_OBJ_ID_SpaceCooling()
         self.gen_OBJ_ID_Battery()
+        self.gen_OBJ_ID_PV()
         self.gen_OBJ_ID_Household()
 
 
@@ -512,7 +537,7 @@ class TableGeneratorID(MotherTableGenerator, ABC):
                 continue
             ID_Country = pd.Series([nuts_id] * len(self.id_hour), name="ID_Country").to_numpy()
             SolarRadiationList = np.column_stack([ID_Country,
-                                                  self.id_hour.to_numpy(),
+                                                  self.id_hour,
                                                   south_radiation.reset_index(drop=True).to_numpy(),
                                                   east_radiation.reset_index(drop=True).to_numpy(),
                                                   west_radiation.reset_index(drop=True).to_numpy(),
@@ -547,7 +572,7 @@ class TableGeneratorID(MotherTableGenerator, ABC):
             # PV profiles:
             PV_options = DB().read_DataFrame(REG_Table().ID_PVType, self.conn)
             columnNames = {"ID_Country": "INTEGER",
-                           "ID_PVType": "INTEGER",
+                           REG_Var().ID_PV: "INTEGER",
                            "ID_Hour": "INTEGER",
                            "PVPower": "REAL",
                            "Unit": "TEXT"}
@@ -580,7 +605,7 @@ class TableGeneratorID(MotherTableGenerator, ABC):
         temperature_weighted_sum = np.zeros((8760, 1))
         radiation_weighted_sum = np.zeros((8760, 4))
         # get different PV id types:
-        unique_PV_id_types = np.unique(DB().read_DataFrame("NUTS3_PV_Data_AT", self.conn, "ID_PVType").to_numpy())
+        unique_PV_id_types = np.unique(DB().read_DataFrame("NUTS3_PV_Data_AT", self.conn, REG_Var().ID_PV).to_numpy())
         # dictionary for different PV types
         PV_weighted_sum = {id_pv: np.zeros((8760, 1)) for id_pv in unique_PV_id_types}
         for index, row in heat_demand_AT.iterrows():
@@ -606,7 +631,7 @@ class TableGeneratorID(MotherTableGenerator, ABC):
                 PV_profile = DB().read_DataFrame("NUTS3_PV_Data_AT",
                                                  self.conn,
                                                  "PVPower",  # *columns
-                                                 ID_Country=nuts_id, ID_PVType=id_pv).to_numpy()  # **kwargs
+                                                 ID_Country=nuts_id, ID_PV=id_pv).to_numpy()  # **kwargs
                 PV_weighted_sum[id_pv] += PV_profile * heat_demand_of_specific_region / total_heat_demand
 
         # create table for saving to DB:
@@ -640,7 +665,7 @@ class TableGeneratorID(MotherTableGenerator, ABC):
 
         # PV
         pv_columns = {"ID_Country": "TEXT",
-                      "ID_PVType": "INTEGER",
+                      REG_Var().ID_PV: "INTEGER",
                       "ID_Hour": "INTEGER",
                       "PVPower": "REAL",
                       "Unit": "TEXT"}
@@ -669,7 +694,7 @@ class TableGeneratorID(MotherTableGenerator, ABC):
 
     def run(self):
         self.get_PVGIS_data()  # TODO make this versatile for other countries
-        self.country_mean_PV_GIS()
+        self.country_mean_PV_GIS("AT")
 
 
 class TableGeneratorGenSce(MotherTableGenerator, ABC):
@@ -1017,10 +1042,10 @@ class TableGeneratorGenSce(MotherTableGenerator, ABC):
 
 
 if __name__ == "__main__":
-    first = TableGeneratorID()
-    second = TableGeneratorGenSce()
-    third = TableGeneratorGenObj()
+    ID_generator = TableGeneratorID()
+    gensce_generator = TableGeneratorGenSce()
+    genobj_generator = TableGeneratorGenObj()
 
-    first.run()
-    second.run()
-    third.run()
+    # ID_generator.run()
+    # gensce_generator.run()
+    genobj_generator.run()

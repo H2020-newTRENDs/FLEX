@@ -1,14 +1,14 @@
 class SpaceHeatingSystem:
 
     def __init__(self, para_series):
-        # TODO change the strings in para_series[STRING] to REG_VAR()?
+        # TODO change the strings in para_series[STRING] to REG_VAR()? and then also in table generator..
         # self.ID_SpaceHeatingBoilerType = para_series["ID_SpaceHeatingBoilerType"]
         self.Name_SpaceHeatingPumpType = para_series['Name_SpaceHeatingPumpType']
         # self.ID_EnergyCarrier = para_series["ID_EnergyCarrier"]
         self.HeatPumpMaximalThermalPower = para_series["HeatPumpMaximalThermalPower"]
         self.CarnotEfficiencyFactor = para_series['CarnotEfficiencyFactor']
         self.HeatingElementPower = para_series['HeatingElementPower']
-        self.ID_SpaceHeatingPumpType = para_series["ID_SpaceHeatingPumpType"]
+        self.ID_SpaceHeatingSystem = para_series["ID_SpaceHeatingSystem"]
         # self.PumpConsumptionRate = para_series["PumpConsumptionRate"]
         # self.MaximalPowerFloorHeating = para_series["MaximalPowerFloorHeating"]
 
