@@ -402,7 +402,7 @@ class OperationOptimization:
         # (6)
         def calc_SumOfLoads(m, t):
             return m.Load[t] == m.BaseLoadProfile[t] \
-                   + ((m.Q_TankHeating[t] / m.SpaceHeatingHourlyCOP[t]) / 1_000) \
+                   + ((m.Q_HeatingTank_in[t] / m.SpaceHeatingHourlyCOP[t]) / 1_000) \
                    + (m.Q_HeatingElement[t] / 1_000) \
                    + ((m.Q_RoomCooling[t] / Household.SpaceCooling.SpaceCoolingEfficiency / 1_000)) \
                    + (m.HWPart1[t] / m.SpaceHeatingHourlyCOP[t]) \
@@ -584,11 +584,11 @@ class OperationOptimization:
 
         def tank_energy(m, t):
             if t == 1:
-                return m.E_tank[t] == CWater * M_WaterTank * (273.15 + T_TankStart)
+                return m.E_HeatingTank[t] == CWater * M_WaterTank * (273.15 + T_TankStart)
             else:
-                return m.E_tank[t] == m.E_tank[t - 1] - m.Q_RoomHeating[t] + m.Q_TankHeating[t] + m.Q_HeatingElement[t] \
+                return m.E_HeatingTank[t] == m.E_HeatingTank[t - 1] - m.Q_HeatingTank_out[t] + m.Q_HeatingTank_in[t] + m.Q_HeatingElement[t] \
                        - U_ValueTank * A_SurfaceTank * (
-                                   (m.E_tank[t] / (M_WaterTank * CWater)) - (T_TankSourounding + 273.15))
+                               (m.E_HeatingTank[t] / (M_WaterTank * CWater)) - (T_TankSourounding + 273.15))
 
         m.tank_energy_rule = pyo.Constraint(m.t, rule=tank_energy)
 
@@ -608,7 +608,7 @@ class OperationOptimization:
                 # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
                 T_sup = m.T_outside[t]
                 # Equ. C.5
-                PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / Hve) + T_sup)) / Htr_2
+                PHI_mtot = PHI_m + Htr_em * m.T_outside[t] + Htr_3 * (PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (((PHI_ia + m.Q_HeatingTank_out[t] - m.Q_RoomCooling[t]) / Hve) + T_sup)) / Htr_2
                 # Equ. C.4
                 return m.Tm_t[t] == (m.Tm_t[t - 1] * ((Cm / 3600) - 0.5 * (Htr_3 + Htr_em)) + PHI_mtot) / ((Cm / 3600) + 0.5 * (Htr_3 + Htr_em))
 
@@ -625,9 +625,9 @@ class OperationOptimization:
                 T_m = (m.Tm_t[t] + m.Tm_t[t - 1]) / 2
                 T_sup = m.T_outside[t]
                 # Euq. C.10
-                T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (T_sup + (PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / Hve)) / (Htr_ms + Htr_w + Htr_1)
+                T_s = (Htr_ms * T_m + PHI_st + Htr_w * m.T_outside[t] + Htr_1 * (T_sup + (PHI_ia + m.Q_HeatingTank_out[t] - m.Q_RoomCooling[t]) / Hve)) / (Htr_ms + Htr_w + Htr_1)
                 # Equ. C.11
-                T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / (Htr_is + Hve)
+                T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_HeatingTank_out[t] - m.Q_RoomCooling[t]) / (Htr_is + Hve)
                 # T_air = (Htr_is * T_s + Hve * T_sup + PHI_ia + m.Q_RoomHeating[t]) / (Htr_is + Hve)
                 return m.T_room[t] == T_air
 
