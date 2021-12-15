@@ -5,7 +5,7 @@ import pyomo.environ as pyo
 import numpy as np
 import sys as sys
 
-from C_Model_Operation.C1_REG import REG_Table
+from C_Model_Operation.C1_REG import REG_Table, REG_Var
 from A_Infrastructure.A2_DB import DB
 from C_Model_Operation.C2_DataCollector import DataCollector
 from B_Classes.B1_Household import Household
@@ -71,20 +71,20 @@ class DataSetUp(MotherModel):
         # (3.1) Tank
 
         # fixed starting values:
-        T_TankStart = float(Household.SpaceHeatingSystem.TankMinimalTemperature)  # start temperature is min temp (empty tank)
+        T_TankStart = float(Household.SpaceHeatingTank.TankMinimalTemperature)  # start temperature is min temp (empty tank)
         # min,max tank temperature for boundary of energy
-        T_TankMax = float(Household.SpaceHeatingSystem.TankMaximalTemperature)
-        T_TankMin = float(Household.SpaceHeatingSystem.TankMinimalTemperature)
+        T_TankMax = float(Household.SpaceHeatingTank.TankMaximalTemperature)
+        T_TankMin = float(Household.SpaceHeatingTank.TankMinimalTemperature)
         # surrounding temp of tank
-        T_TankSurrounding = float(Household.SpaceHeatingSystem.TankSurroundingTemperature)
+        T_TankSurrounding = float(Household.SpaceHeatingTank.TankSurroundingTemperature)
 
         # Parameters of SpaceHeatingTank
         # Mass of water in tank
-        M_WaterTank = float(Household.SpaceHeatingSystem.TankSize)
+        M_WaterTank = float(Household.SpaceHeatingTank.TankSize)
         # Surface of Tank in m2
-        A_SurfaceTank = float(Household.SpaceHeatingSystem.TankSurfaceArea)
+        A_SurfaceTank = float(Household.SpaceHeatingTank.TankSurfaceArea)
         # insulation of tank, for calc of losses
-        U_ValueTank = float(Household.SpaceHeatingSystem.TankLoss)
+        U_ValueTank = float(Household.SpaceHeatingTank.TankLoss)
 
         # (3.2) RC-Model
 
@@ -147,7 +147,7 @@ class DataSetUp(MotherModel):
         # ----------------------
         # 5. PV and battery
         # ----------------------
-        if Household.PV.ID_PVType in self.PhotovoltaicProfile["ID_PVType"].to_numpy():
+        if Household.PV.ID_PV in self.PhotovoltaicProfile[REG_Var().ID_PV].to_numpy():
             PhotovoltaicProfile = self.PhotovoltaicProfile.loc[
                                       (self.PhotovoltaicProfile['ID_PVType'] == Household.PV.ID_PVType) &
                                       (self.PhotovoltaicProfile['ID_Country'] == "AT")][
@@ -199,7 +199,7 @@ class DataSetUp(MotherModel):
 
         BuildingMassTemperatureStartValue = 15  # °C
 
-        if Household.SpaceCooling.AdoptionStatus == 0:
+        if Household.SpaceCooling.SpaceCoolingPower == 0:
             CoolingTargetTemperature = np.full((8760,), 60)  # delete limit for cooling, if no Cooling is available
 
         pyomo_dict = {None: {"t": {None: np.arange(1, self.OptimizationHourHorizon + 1)},
@@ -244,9 +244,9 @@ class DataSetUp(MotherModel):
             "SpaceHeating_HeatingElementPower": float(Household.SpaceHeatingSystem.HeatingElementPower),
             "SpaceCooling_SpaceCoolingPower": float(Household.SpaceCooling.SpaceCoolingPower),
             "Building_MaximalGridPower": float(Household.Building.MaximalGridPower * 1_000),
-            "SpaceHeating_TankSize": float(Household.SpaceHeatingSystem.TankSize),
-            "SpaceHeating_TankMinimalTemperature": float(Household.SpaceHeatingSystem.TankMinimalTemperature),
-            "SpaceHeating_TankMaximalTemperature": float(Household.SpaceHeatingSystem.TankMaximalTemperature),
+            "SpaceHeating_TankSize": float(Household.SpaceHeatingTank.TankSize),
+            "SpaceHeating_TankMinimalTemperature": float(Household.SpaceHeatingTank.TankMinimalTemperature),
+            "SpaceHeating_TankMaximalTemperature": float(Household.SpaceHeatingTank.TankMaximalTemperature),
             "Battery_MaxDischargePower": float(Household.Battery.MaxDischargePower),
             "Battery_Capacity": float(Household.Battery.Capacity),
             "Battery_MaxChargePower": float(Household.Battery.MaxChargePower),
@@ -254,7 +254,6 @@ class DataSetUp(MotherModel):
             "ID": int(Household.ID),
             "ID_Building": int(Household.ID_Building),
             "Building_hwb_norm1": float(Household.Building.hwb_norm1),
-            "SpaceCooling_AdoptionStatus": int(Household.SpaceCooling.AdoptionStatus),
             "PV_PVPower": float(Household.PV.PVPower),
             "Name_SpaceHeatingPumpType": Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType,
             "ID_AgeGroup": int(Household.ID_AgeGroup)
@@ -601,7 +600,7 @@ def update_instance(total_input, instance):
 
     # special cases:
     # Room Cooling:
-    if household["SpaceCooling_AdoptionStatus"] == 0:
+    if household["SpaceCooling_SpaceCoolingPower"] == 0:
         for t in range(1, len(HeatingTargetTemperature) + 1):
             instance.Q_RoomCooling[t].setub(0)
             instance.T_room[t].setub(100)
