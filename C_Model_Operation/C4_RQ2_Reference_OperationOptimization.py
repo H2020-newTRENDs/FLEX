@@ -475,7 +475,7 @@ class OperationOptimization:
         # (6)
         def calc_SumOfLoads(m, t):
             return m.Load[t] == m.BaseLoadProfile[t] \
-                   + ((m.Q_TankHeating[t] / m.SpaceHeatingHourlyCOP[t]) / 1_000) \
+                   + ((m.Q_HeatingTank_in[t] / m.SpaceHeatingHourlyCOP[t]) / 1_000) \
                    + (m.Q_HeatingElement[t] / 1_000) \
                    + ((m.Q_RoomCooling[t] / Household.SpaceCooling.SpaceCoolingEfficiency / 1_000)) \
                    + (m.HWPart1[t] / m.SpaceHeatingHourlyCOP[t]) \
@@ -663,7 +663,7 @@ class OperationOptimization:
 
         # 5 and Heating
         def calc_Ref_Heating(m, t):
-            return m.Q_TankHeating[t] + m.Q_HeatingElement[t] == m.Ref_Heating[t]
+            return m.Q_HeatingTank_in[t] + m.Q_HeatingElement[t] == m.Ref_Heating[t]
 
         m.calc_Ref_Heating = pyo.Constraint(m.t, rule=calc_Ref_Heating)
 

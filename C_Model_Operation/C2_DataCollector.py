@@ -145,12 +145,12 @@ class DataCollector:
         # E_Dryer_array = (Hour_Dryer1_array + Hour_Dryer2_array) * household["ApplianceGroup_DryerPower"]
         # E_SmartAppliances_array = E_DishWasher_array + E_WashingMachine_array + E_Dryer_array
 
-        Q_TankHeatingHeatPump_array = self.extract_Result2Array(instance.Q_TankHeating.extract_values()) / 1000  # kWh
+        Q_TankHeatingHeatPump_array = self.extract_Result2Array(instance.Q_HeatingTank_in.extract_values()) / 1000  # kWh
         SpaceHeatingHourlyCOP_array = self.extract_Result2Array(instance.SpaceHeatingHourlyCOP.extract_values())
         E_TankHeatingHeatPump_array = Q_TankHeatingHeatPump_array / SpaceHeatingHourlyCOP_array
         Q_TankHeatingHeatingElement_array = self.extract_Result2Array(
             instance.Q_HeatingElement.extract_values()) / 1000  # kWh
-        Q_RoomHeating_array = self.extract_Result2Array(instance.Q_RoomHeating.extract_values()) / 1000  # kWh
+        Q_RoomHeating_array = self.extract_Result2Array(instance.Q_HeatingTank_out.extract_values()) / 1000  # kWh
 
         RoomTemperature_array = self.extract_Result2Array(instance.T_room.extract_values())
         BuildingMassTemperature_array = self.extract_Result2Array(instance.Tm_t.extract_values())
