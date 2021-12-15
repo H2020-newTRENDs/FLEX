@@ -1,5 +1,5 @@
 
-from C_Model_Operation.C1_REG import REG_Table
+from C_Model_Operation.C1_REG import REG_Table, REG_Var
 from A_Infrastructure.A2_DB import DB
 from B_Classes.B2_Building import Building
 from B_Classes.B3_ApplianceGroup import ApplianceGroup
@@ -26,19 +26,20 @@ class Household:
                                                         para_series["ID_Building"] - 1,
                                                         self.Conn))
         self.SpaceHeatingSystem = SpaceHeatingSystem(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_SpaceHeatingSystem,
-                                                                            para_series["ID_SpaceHeatingSystem"] - 1,
+                                                                            para_series[REG_Var().ID_SpaceHeatingSystem] - 1,
                                                                             self.Conn))
         self.SpaceCooling = SpaceCooling(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_SpaceCooling,
-                                                                para_series["ID_SpaceCooling"] - 1,
+                                                                para_series[REG_Var().ID_SpaceCooling] - 1,
                                                                 self.Conn))
         self.SpaceHeatingTank = SpaceHeatingTank(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_SpaceHeatingTank,
-                                                                        para_series["ID_SpaceHeatingTankType"] - 1,
+                                                                        para_series[REG_Var().ID_SpaceHeatingTank] - 1,
                                                                         self.Conn))
         self.DHWTank = DHWTank(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_DHW_tank,
-                                                      para_series["ID_DHWTankType"] - 1,
+                                                      para_series[REG_Var().ID_DHWTank] - 1,
                                                       self.Conn))
-        self.PV = PV(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_PV, para_series["ID_PV"] - 1, self.Conn))
-        self.Battery = Battery(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_Battery, (para_series["ID_Battery"] - 1), self.Conn))
+        self.PV = PV(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_PV, para_series[REG_Var().ID_PV] - 1, self.Conn))
+        self.Battery = Battery(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_Battery,
+                                                      (para_series[REG_Var().ID_Battery] - 1), self.Conn))
 
         # self.ElectricVehicle = ElectricVehicle(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_ElectricVehicle, (para_series["ID_ElectricVehicle"] - 1), self.Conn))
         # self.HotWater = HotWater(DB().read_DataFrameRow(REG_Table().Gen_OBJ_ID_HotWater, (para_series["ID_HotWater"] - 1), self.Conn))
