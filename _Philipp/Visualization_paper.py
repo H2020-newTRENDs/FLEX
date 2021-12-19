@@ -512,7 +512,7 @@ class Visualization:
         create_percentage_barplot("Percentage of household configurations with negative energy costs \n "
                                   "in the optimization model", optimization_results_OP_below_zero_env1)
         create_percentage_barplot("Percentage of household configurations with negative energy costs \n "
-                                  "in both models", pd.concat([optimization_results_OP_below_zero_env1,
+                                  "in both b_basic", pd.concat([optimization_results_OP_below_zero_env1,
                                                                reference_results_OP_below_zero_env1]))
 
     def violin_plots(self):
@@ -1100,21 +1100,21 @@ class UpScalingToBuildingStock:
         # for yr in year_list_hdf5:
         yr = 2017  # TODO achtung bisschen fake
         # print(f"Current yr: {yr}")
-        key_bc = "BC_%i" % yr  # Building class file
+        key_bc = "BC_%i" % yr  # Building household file
         key_bssh = "BSSH_%i" % yr  # building segment (space heating) file
         try:
-            bc = hdf5_f[key_bc][()]  # building class file as Numpy recarray
+            bc = hdf5_f[key_bc][()]  # building household file as Numpy recarray
             bssh = hdf5_f[key_bssh][()]  # building segment file as Numpy recarray
         except:
             pass
             # continue
 
-        bc_index = bc["index"]  # building class index of elements in bc dataset
-        bc_index_bssh = bssh["building_classes_index"]  # building class index of elements in bssh dataset
+        bc_index = bc["index"]  # building household index of elements in bc dataset
+        bc_index_bssh = bssh["building_classes_index"]  # building household index of elements in bssh dataset
 
         # if working with pandas dataframe is preferred:
         # convert recarray to pandas dataframe
-        df_bc = pd.DataFrame(bc)  # This is pandas dataframe containing the building class data
+        df_bc = pd.DataFrame(bc)  # This is pandas dataframe containing the building household data
         del bc  # remove bc to save RAM
         df_bssh = pd.DataFrame(bssh)  # This is pandas dataframe containing the building segment data
         del bssh
