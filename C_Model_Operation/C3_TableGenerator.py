@@ -19,7 +19,7 @@ class MotherTableGenerator(ABC):
 
     @abstractmethod
     def run(self):
-        """runs all the functions of the class to generate the tables"""
+        """runs all the functions of the household to generate the tables"""
 
     def gen_OBJ_ID_Table_1To1(self, target_table_name, table1):
 

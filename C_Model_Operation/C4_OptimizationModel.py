@@ -66,7 +66,7 @@ class DataSetUp(MotherModel):
         # Transmission Coefficient
         Hve = float(Household.Building.Hve)  # Air
         Htr_w = float(Household.Building.Htr_w)  # Wall
-        Hop = float(Household.Building.Hop)  # opake Bauteile (opaque components)
+        Hop = float(Household.Building.Hop)  # opake Bauteile (opaque household)
         # Speicherkapazität (Storage capacity) [J/K]
         Cm = float(Household.Building.CM_factor) * Af
         # wirksame Massenbezogene Fläche (Effective mass related area) [m^2]
@@ -567,7 +567,7 @@ def create_abstract_model():
         return rule
 
     m.Objective = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
-    # return the abstract model
+    # return the household model
     return m
 
 
