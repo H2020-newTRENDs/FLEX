@@ -122,31 +122,62 @@ class DefineTestHouse:
             test_IDs_df = DB().read_DataFrame(table_name=self.test_house, conn=self.conn)
         else:  # household IDs will be determined by user input
             # list possible IDs:
-            electricity_price_table = DB().read_DataFrame(REG_Table().Gen_Sce_ID_Environment, conn=self.conn)
-            PV_table = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_PV, self.conn, *["ID", "PVPower", "PVPower_unit"])
-            building_table = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.conn,
-                                                 *["ID", "construction_period_start", "construction_period_end",
-                                                   "hwb_norm"])
+            electricity_price_table = DB().read_DataFrame(
+                REG_Table().Gen_Sce_ID_Environment,
+                conn=self.conn
+            )
+            PV_table = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_PV,
+                                           self.conn,
+                                           *[REG_Var().ID_PV, "PVPower", "PVPower_unit"])
+            building_table = DB().read_DataFrame(
+                REG_Table().Gen_OBJ_ID_Building,
+                self.conn,
+                *["ID", "construction_period_start", "construction_period_end", "hwb_norm"]
+            )
             construction_period = [str(int(row["construction_period_start"])) + "-" +
                                    str(int(row["construction_period_end"])) for (i, row) in building_table.iterrows()]
             building_table = building_table.drop(columns=["construction_period_start", "construction_period_end"])
             building_table["construction_period"] = construction_period
-            space_heating_table = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceHeatingSystem, self.conn,
-                                                      *["ID", "TankSize", "TankSize_unit", "ID_SpaceHeatingPumpType",
-                                                        "Name_SpaceHeatingPumpType"])
-            space_cooling_table = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceCooling, self.conn,
-                                                      *["ID", "SpaceCoolingPower", "SpaceCoolingPower_unit"])
-            battery_table = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Battery, self.conn,
-                                                *["ID_BatteryType", "Capacity", "Capacity_unit"])
-            age_group_table = DB().read_DataFrame(REG_Table().ID_AgeGroup, self.conn)
 
-            list_of_frames = {"ID_PV": PV_table,
-                              "ID_Building": building_table,
-                              "ID_SpaceHeating": space_heating_table,
-                              "ID_SpaceCooling": space_cooling_table,
-                              "ID_Battery": battery_table,
-                              "ID_AgeGroup": age_group_table,
-                              "ID_Environment": electricity_price_table}
+            space_heating_table = DB().read_DataFrame(
+                REG_Table().Gen_OBJ_ID_SpaceHeatingSystem,
+                self.conn,
+                *[REG_Var().ID_SpaceHeatingSystem,  "Name_SpaceHeatingPumpType"]
+            )
+            space_heating_tank_table = DB().read_DataFrame(
+                REG_Table().Gen_OBJ_ID_SpaceHeatingTank,
+                self.conn,
+                *[REG_Var().ID_SpaceHeatingTank, "TankSize", "TankSize_unit"]
+            )
+            DHW_tank_table = DB().read_DataFrame(
+                REG_Table().Gen_OBJ_ID_DHW_tank,
+                self.conn,
+                *[REG_Var().ID_DHWTank, "DHWTankSize", "DHWTankSize_unit"]
+            )
+            space_cooling_table = DB().read_DataFrame(
+                REG_Table().Gen_OBJ_ID_SpaceCooling,
+                self.conn,
+                *[REG_Var().ID_SpaceCooling, "SpaceCoolingPower", "SpaceCoolingPower_unit"]
+            )
+            battery_table = DB().read_DataFrame(
+                REG_Table().Gen_OBJ_ID_Battery,
+                self.conn,
+                *[REG_Var().ID_Battery, "Capacity", "Capacity_unit"]
+            )
+            age_group_table = DB().read_DataFrame(
+                REG_Table().ID_AgeGroup,
+                self.conn
+            )
+
+            list_of_frames = {REG_Var().ID_PV: PV_table,
+                              REG_Var().ID_Building: building_table,
+                              REG_Var().ID_SpaceHeatingSystem: space_heating_table,
+                              REG_Var().ID_SpaceHeatingTank: space_heating_tank_table,
+                              REG_Var().ID_DHWTank: DHW_tank_table,
+                              REG_Var().ID_SpaceCooling: space_cooling_table,
+                              REG_Var().ID_Battery: battery_table,
+                              REG_Var().ID_AgeGroup: age_group_table,
+                              REG_Var().ID_Environment: electricity_price_table}
 
             # get the user input:
             self.choose_household_tkinter(list_of_frames)
@@ -160,6 +191,7 @@ class DefineTestHouse:
             print(f"{self.test_house} saved to DB")
 
         return test_IDs_df
+
 
 class ModelModes:
     def __init__(self):
@@ -186,17 +218,22 @@ class RunModelModes(ModelModes):
         """gets the row id for the specific testing_ids in the Gen_OBJ_ID_Household frame and
         the row id for the environment ID"""
         single_row_id = self.Gen_OBJ_ID_Household.loc[
-                            (self.Gen_OBJ_ID_Household.loc[:, "ID_PV"] == self.testing_ids.loc["ID_PV"].values[0]) &
-                            (self.Gen_OBJ_ID_Household.loc[:, "ID_Building"] ==
-                             self.testing_ids.loc["ID_Building"].values[0]) &
-                            (self.Gen_OBJ_ID_Household.loc[:, "ID_SpaceHeating"] ==
-                             self.testing_ids.loc["ID_SpaceHeating"].values[0]) &
-                            (self.Gen_OBJ_ID_Household.loc[:, "ID_SpaceCooling"] ==
-                             self.testing_ids.loc["ID_SpaceCooling"].values[0]) &
-                            (self.Gen_OBJ_ID_Household.loc[:, "ID_Battery"] ==
-                             self.testing_ids.loc["ID_Battery"].values[0]) &
-                            (self.Gen_OBJ_ID_Household.loc[:, "ID_AgeGroup"] ==
-                             self.testing_ids.loc["ID_AgeGroup"].values[0])
+                            (self.Gen_OBJ_ID_Household.loc[:, REG_Var().ID_PV] ==
+                             self.testing_ids.loc[REG_Var().ID_PV].values[0]) &
+                            (self.Gen_OBJ_ID_Household.loc[:, REG_Var().ID_Building] ==
+                             self.testing_ids.loc[REG_Var().ID_Building].values[0]) &
+                            (self.Gen_OBJ_ID_Household.loc[:, REG_Var().ID_SpaceHeatingSystem] ==
+                             self.testing_ids.loc[REG_Var().ID_SpaceHeatingSystem].values[0]) &
+                            (self.Gen_OBJ_ID_Household.loc[:, REG_Var().ID_SpaceHeatingTank] ==
+                             self.testing_ids.loc[REG_Var().ID_SpaceHeatingTank].values[0]) &
+                            (self.Gen_OBJ_ID_Household.loc[:, REG_Var().ID_DHWTank] ==
+                             self.testing_ids.loc[REG_Var().ID_DHWTank].values[0]) &
+                            (self.Gen_OBJ_ID_Household.loc[:, REG_Var().ID_SpaceCooling] ==
+                             self.testing_ids.loc[REG_Var().ID_SpaceCooling].values[0]) &
+                            (self.Gen_OBJ_ID_Household.loc[:, REG_Var().ID_Battery] ==
+                             self.testing_ids.loc[REG_Var().ID_Battery].values[0]) &
+                            (self.Gen_OBJ_ID_Household.loc[:, REG_Var().ID_AgeGroup] ==
+                             self.testing_ids.loc[REG_Var().ID_AgeGroup].values[0])
                             ]["ID"].values[0] - 1  # minus 1 because counting starts at 0
 
         single_environment_id = self.Gen_Sce_ID_Environment.loc[
@@ -210,15 +247,20 @@ class RunModelModes(ModelModes):
         the row id for the environment ID"""
         reduced_gen_obj_id_household = no_SEMS().remove_household_IDs()
         single_row_id = reduced_gen_obj_id_household.loc[
-                            (reduced_gen_obj_id_household.loc[:, "ID_PV"] == self.testing_ids.loc["ID_PV"].values[0]) &
-                            (reduced_gen_obj_id_household.loc[:, "ID_SpaceHeating"] ==
-                             self.testing_ids.loc["ID_SpaceHeating"].values[0]) &
-                            (reduced_gen_obj_id_household.loc[:, "ID_SpaceCooling"] ==
-                             self.testing_ids.loc["ID_SpaceCooling"].values[0]) &
-                            (reduced_gen_obj_id_household.loc[:, "ID_Battery"] ==
-                             self.testing_ids.loc["ID_Battery"].values[0]) &
-                            (reduced_gen_obj_id_household.loc[:, "ID_AgeGroup"] ==
-                             self.testing_ids.loc["ID_AgeGroup"].values[0])
+                            (reduced_gen_obj_id_household.loc[:, REG_Var().ID_PV] ==
+                             self.testing_ids.loc[REG_Var().ID_PV].values[0]) &
+                            (reduced_gen_obj_id_household.loc[:, REG_Var().ID_SpaceHeatingSystem] ==
+                             self.testing_ids.loc[REG_Var().ID_SpaceHeatingSystem].values[0]) &
+                            (reduced_gen_obj_id_household.loc[:, REG_Var().ID_SpaceHeatingTank] ==
+                             self.testing_ids.loc[REG_Var().ID_SpaceHeatingTank].values[0]) &
+                            (reduced_gen_obj_id_household.loc[:, REG_Var().ID_DHWTank] ==
+                             self.testing_ids.loc[REG_Var().ID_DHWTank].values[0]) &
+                            (reduced_gen_obj_id_household.loc[:, REG_Var().ID_SpaceCooling] ==
+                             self.testing_ids.loc[REG_Var().ID_SpaceCooling].values[0]) &
+                            (reduced_gen_obj_id_household.loc[:, REG_Var().ID_Battery] ==
+                             self.testing_ids.loc[REG_Var().ID_Battery].values[0]) &
+                            (reduced_gen_obj_id_household.loc[:, REG_Var().ID_AgeGroup] ==
+                             self.testing_ids.loc[REG_Var().ID_AgeGroup].values[0])
                             ]["ID"].values[0] - 1  # minus 1 because counting starts at 0
 
         single_environment_id = self.Gen_Sce_ID_Environment.loc[
@@ -233,10 +275,10 @@ class RunModelModes(ModelModes):
         yearly_results_all_ids, hourly_results_all_ids = no_SEMS().calculate_noDR(household_row_id, environment_row_id)
         # ref model calculates for all building IDs at the same time -> take out single building ID
         yearly_results = yearly_results_all_ids[yearly_results_all_ids[:, 1] ==
-                                                str(self.testing_ids.loc["ID_Building"].values[0]),
+                                                str(self.testing_ids.loc[REG_Var().ID_Building].values[0]),
                          :]  # column 1 is building ID
         hourly_results = hourly_results_all_ids[hourly_results_all_ids[:, 1] ==
-                                                str(self.testing_ids.loc["ID_Building"].values[0]), :]
+                                                str(self.testing_ids.loc[REG_Var().ID_Building].values[0]), :]
         return yearly_results, hourly_results
 
     def run_optimization(self) -> (np.array, np.array):
@@ -341,8 +383,8 @@ class CompareModelModes(ModelModes):
     def plot_comparison_results(self):
         """visualizes the results from both modes for the whole year and hourly for certain weeks"""
 
+        a = 1
 
-        a=1
 
 if __name__ == "__main__":
     CompareModelModes(new_id=True).plot_comparison_results()

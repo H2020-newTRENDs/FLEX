@@ -108,7 +108,7 @@ class DataSetUp(MotherModel):
         # ------------
 
         # Hot Water Demand with Part 1 (COP SpaceHeating) and Part 2 (COP HotWater, lower)
-        HotWaterProfile = self.HotWaterProfile.HotWater.to_numpy() * 1_000  # Wh
+        HotWaterProfile = self.HotWaterProfile.HotWaterProfile.to_numpy() * 1_000  # Wh
 
         # COP for HotWater generation
         HotWaterHourlyCOP = self.COP_HP(outside_temperature=self.outside_temperature["Temperature"].to_numpy(),
@@ -121,7 +121,7 @@ class DataSetUp(MotherModel):
         # ----------------------
         if Household.PV.ID_PV in self.PhotovoltaicProfile[REG_Var().ID_PV].to_numpy():
             PhotovoltaicProfile = self.PhotovoltaicProfile.loc[
-                                      (self.PhotovoltaicProfile['ID_PVType'] == Household.PV.ID_PVType) &
+                                      (self.PhotovoltaicProfile[REG_Var().ID_PV] == Household.PV.ID_PV) &
                                       (self.PhotovoltaicProfile['ID_Country'] == "AT")][
                                       'PVPower'].to_numpy() * 1_000  # W TODO nuts ID statt ID Country!
         else:
@@ -186,7 +186,7 @@ class DataSetUp(MotherModel):
                 "SpaceHeatingHourlyCOP": self.creat_Dict(SpaceHeatingHourlyCOP),
                 "CoolingCOP": self.creat_Dict(ACHourlyCOP),
                 "BaseLoadProfile": self.creat_Dict(BaseLoadProfile),  # W
-                "HotWater": self.creat_Dict(HotWaterProfile),
+                "HotWaterProfile": self.creat_Dict(HotWaterProfile),
                 "HotWaterHourlyCOP": self.creat_Dict(HotWaterHourlyCOP),
                 "DayHour": self.creat_Dict(self.TimeStructure["ID_DayHour"]),
                 "ChargeEfficiency": {None: Household.Battery.ChargeEfficiency},
@@ -283,7 +283,7 @@ def create_abstract_model():
     # PV profile
     m.PhotovoltaicProfile = pyo.Param(m.t, mutable=True)
     # HotWater
-    m.HotWater = pyo.Param(m.t, mutable=True)
+    m.HotWaterProfile = pyo.Param(m.t, mutable=True)
     m.HotWaterHourlyCOP = pyo.Param(m.t, mutable=True)
 
     # Smart Technologies
@@ -408,7 +408,7 @@ def create_abstract_model():
 
     # (6) DHW load coverage
     def calc_SupplyOfDHW(m, t):
-        return m.HotWater[t] == m.Q_DHWTank_out[t]
+        return m.HotWaterProfile[t] == m.Q_DHWTank_out[t]
 
     m.calc_SupplyOfDHW = pyo.Constraint(m.t, rule=calc_SupplyOfDHW)
 
@@ -426,7 +426,7 @@ def create_abstract_model():
         return m.Load[t] == m.BaseLoadProfile[t] \
                + m.Q_HeatingTank_in[t] / m.SpaceHeatingHourlyCOP[t] \
                + m.Q_HeatingElement[t] \
-               + m.HotWater[t] / m.HotWaterHourlyCOP[t]
+               + m.HotWaterProfile[t] / m.HotWaterHourlyCOP[t]
 
     m.calc_SumOfLoads_without_cooling = pyo.Constraint(m.t, rule=calc_SumOfLoads_without_cooling)
 
@@ -597,7 +597,7 @@ def update_instance(total_input, instance):
         instance.SpaceHeatingHourlyCOP[t] = input_parameters[None]["SpaceHeatingHourlyCOP"][t]
         instance.CoolingCOP[t] = input_parameters[None]["CoolingCOP"][t]
         instance.BaseLoadProfile[t] = input_parameters[None]["BaseLoadProfile"][t]
-        instance.HotWater[t] = input_parameters[None]["HotWater"][t]
+        instance.HotWaterProfile[t] = input_parameters[None]["HotWaterProfile"][t]
         instance.HotWaterHourlyCOP[t] = input_parameters[None]["HotWaterHourlyCOP"][t]
         instance.DayHour[t] = input_parameters[None]["DayHour"][t]
 

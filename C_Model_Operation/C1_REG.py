@@ -122,11 +122,8 @@ class REG_Table:
         self.Res_Reference_HeatingCooling_Year = self.Result + 'Reference_HeatingCooling_Year'
 
 
-
 class REG_Var:
-
     # variable names are registered here. They are used in the DataCollector and Visualization.
-
     def __init__(self):
 
         # Prefix
@@ -143,14 +140,14 @@ class REG_Var:
         self.ID_AgeGroup = self.ID + "AgeGroup"
         # ID Heating system
         self.ID_SpaceHeatingSystem = self.ID + "SpaceHeatingSystem"
-        self.ID_SpaceHeatingTank = f"{self.ID}SpaceHeatingTank"
-        self.ID_DHWTank = f"{self.ID}DHWTank"
+        self.ID_SpaceHeatingTank = self.ID + "SpaceHeatingTank"
+        self.ID_DHWTank = self.ID + "DHWTank"
         # ID Cooling
-        self.ID_SpaceCooling = f"{self.ID}SpaceCooling"
+        self.ID_SpaceCooling = self.ID + "SpaceCooling"
         # PV
-        self.ID_PV = f"{self.ID}PV"
+        self.ID_PV = self.ID + "PV"
         # Battery
-        self.ID_Battery = f"{self.ID}Battery"
+        self.ID_Battery = self.ID + "Battery"
 
         self.ElectricityPrice = "ElectricityPrice"
         self.FeedinTariff = "FeedinTariff"
