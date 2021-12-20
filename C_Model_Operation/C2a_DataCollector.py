@@ -121,7 +121,7 @@ class DataCollector:
                                            self.VAR.Household_WashingMachineShifting: "REAL",
                                            self.VAR.Household_DryerShifting: "REAL",
                                            self.VAR.Household_TankSize: "REAL",
-                                           self.VAR.Household_CoolingAdoption: "REAL",
+                                           self.VAR.Household_CoolingPower: "REAL",
                                            self.VAR.Household_PVPower: "REAL",
                                            self.VAR.Household_BatteryCapacity: "REAL",
                                            self.VAR.Household_EVBatterySize: "REAL",
