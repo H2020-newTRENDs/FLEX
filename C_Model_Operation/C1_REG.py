@@ -138,16 +138,48 @@ class REG_Var:
         self.ID_Hour = self.ID + "Hour"
         self.ID_Building = self.ID + "Building"
         self.ID_AgeGroup = self.ID + "AgeGroup"
-        # ID Heating system
+
+        # column names in generated tables
+        # Heating system
         self.ID_SpaceHeatingSystem = self.ID + "SpaceHeatingSystem"
+        self.HeatPumpMaximalThermalPower = "HeatPumpMaximalThermalPower"
+        self.HeatingElementPower = "HeatingElementPower"
+        self.CarnotEfficiencyFactor = "CarnotEfficiencyFactor"
+        self.Name_SpaceHeatingPumpType = "Name_SpaceHeatingPumpType"
+        # space heating tank
         self.ID_SpaceHeatingTank = self.ID + "SpaceHeatingTank"
+        self.TankSize = "TankSize"
+        self.TankSurfaceArea = "TankSurfaceArea"
+        self.TankLoss = "TankLoss"
+        self.TankStartTemperature = "TankStartTemperature"
+        self.TankMaximalTemperature = "TankMaximalTemperature"
+        self.TankMinimalTemperature = "TankMinimalTemperature"
+        self.TankSurroundingTemperature = "TankSurroundingTemperature"
+        # hot water tank
         self.ID_DHWTank = self.ID + "DHWTank"
+        self.DHWTankSize = "DHWTankSize"
+        self.DHWTankSurfaceArea = "DHWTankSurfaceArea"
+        self.DHWTankLoss = "DHWTankLoss"
+        self.DHWTankStartTemperature = "DHWTankStartTemperature"
+        self.DHWTankMaximalTemperature = "DHWTankMaximalTemperature"
+        self.DHWTankMinimalTemperature = "DHWTankMinimalTemperature"
+        self.DHWTankSurroundingTemperature = "DHWTankSurroundingTemperature"
         # ID Cooling
         self.ID_SpaceCooling = self.ID + "SpaceCooling"
+        self.SpaceCoolingEfficiency = "SpaceCoolingEfficiency"
+        self.SpaceCoolingPower = "SpaceCoolingPower"
         # PV
         self.ID_PV = self.ID + "PV"
+        self.PVPower = "PVPower"
         # Battery
         self.ID_Battery = self.ID + "Battery"
+        self.Capacity = "Capacity"
+        self.ChargeEfficiency = "ChargeEfficiency"
+        self.DischargeEfficiency = "DischargeEfficiency"
+        self.MaxChargePower = "MaxChargePower"
+        self.MaxDischargePower = "MaxDischargePower"
+        # hot water table
+        self.HotWater = "HotWater"  # hot water profile
 
         self.ElectricityPrice = "ElectricityPrice"
         self.FeedinTariff = "FeedinTariff"
@@ -251,7 +283,7 @@ class REG_Var:
         self.Household_WashingMachineShifting = "Household_WashingMachineShifting"
         self.Household_DryerShifting = "Household_DryerShifting"
         self.Household_TankSize = "Household_TankSize"
-        self.Household_CoolingAdoption = "Household_CoolingAdoption"
+        self.Household_CoolingPower = "Household_CoolingPower"
         self.Household_PVPower = "Household_PVPower"
         self.Household_BatteryCapacity = "Household_BatteryCapacity"
         self.Environment_ElectricityPriceType = "Environment_ElectricityPriceType"

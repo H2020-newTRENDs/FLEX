@@ -981,7 +981,7 @@ class TableGeneratorGenSce(MotherTableGenerator, ABC):
             Path().absolute().parent.resolve() / Path("_Philipp/inputdata/AUT/Hot_water_profile.xlsx"),
             engine="openpyxl")
         hot_water_profile = np.column_stack([hot_water["Profile"].to_numpy(), np.full((8760,), "kWh")])
-        columns = {"HotWater": "REAL", "Unit": "TEXT"}
+        columns = {REG_Var().HotWater: "REAL", "Unit": "TEXT"}
         DB().write_DataFrame(hot_water_profile, "Gen_Sce_HotWaterProfile", columns.keys(), self.conn, dtype=columns)
 
     def gen_Sce_ID_Environment(self):

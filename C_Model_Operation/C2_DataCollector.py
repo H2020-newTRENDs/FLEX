@@ -108,7 +108,7 @@ class DataCollector:
                                            # self.VAR.Household_WashingMachineShifting: "REAL",
                                            # self.VAR.Household_DryerShifting: "REAL",
                                            self.VAR.Household_TankSize: "REAL",
-                                           self.VAR.Household_CoolingAdoption: "REAL",
+                                           self.VAR.Household_CoolingPower: "REAL",
                                            self.VAR.Household_PVPower: "REAL",
                                            self.VAR.Household_BatteryCapacity: "REAL",
                                            self.VAR.ID_AgeGroup: "REAL",
@@ -124,7 +124,7 @@ class DataCollector:
 
     def collect_OptimizationResult(self, household, environment, instance) -> (np.array, np.array):
         ElectricityPrice_array = self.extract_Result2Array(
-            instance.ElectricityPrice.extract_values()) * 1_000  # Cent/kWh
+            instance.electricity_price.extract_values()) * 1_000  # Cent/kWh
         FeedinTariff_array = self.extract_Result2Array(instance.FiT.extract_values()) * 1_000  # Cent/kWh
         OutsideTemperature_array = self.extract_Result2Array(instance.T_outside.extract_values())
 
@@ -282,7 +282,7 @@ class DataCollector:
             # household["ApplianceGroup_WashingMachineShifting"],
             # household["ApplianceGroup_DryerShifting"],
             household["SpaceHeating_TankSize"],
-            household["SpaceCooling_AdoptionStatus"],
+            household["SpaceCoolingPower"],
             household["PV_PVPower"],
             household["Battery_Capacity"],
             household[REG_Var().ID_AgeGroup],

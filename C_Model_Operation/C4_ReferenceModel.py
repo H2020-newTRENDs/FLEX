@@ -517,7 +517,7 @@ class no_SEMS(MotherModel):
                                    Household.SpaceHeatingSystem.CarnotEfficiencyFactor,
                                    Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType)  # 55 °C supply temperature
 
-        Q_HotWater = self.HotWaterProfile.HotWaterProfile.to_numpy()
+        Q_HotWater = self.HotWaterProfile[REG_Var().HotWater].to_numpy()
         DHWProfile = Q_HotWater / COP_HotWater
 
         # electricity for heating:
@@ -659,7 +659,7 @@ class no_SEMS(MotherModel):
             # Household.ApplianceGroup.DryerShifting,
             np.full((elec_grid_demand.shape[1]), Household.SpaceHeatingTank.TankSize),  # SpaceHeatingTank Size
 
-            np.full((elec_grid_demand.shape[1]), Household.SpaceCooling.AdoptionStatus),
+            np.full((elec_grid_demand.shape[1]), Household.SpaceCooling.SpaceCoolingPower),
             np.full((elec_grid_demand.shape[1]), Household.PV.PVPower),
             np.full((elec_grid_demand.shape[1]), Household.Battery.Capacity * 1_000),
             np.full((elec_grid_demand.shape[1]), Household.ID_AgeGroup),
@@ -680,7 +680,7 @@ class no_SEMS(MotherModel):
             # Age Group
             np.tile(np.full((len(elec_grid_demand),), Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType),
                     (elec_grid_demand.shape[1],)),  # space heating type
-            np.tile(self.outside_temperature.to_numpy(), (elec_grid_demand.shape[1],)),  # outside temperature
+            np.tile(self.outside_temperature.Temperature.to_numpy(), (elec_grid_demand.shape[1],)),  # outside temperature
 
             np.tile(self.BaseLoadProfile, (elec_grid_demand.shape[1],)),  # base load
             # DishWasherProfile,   # E dish washer
