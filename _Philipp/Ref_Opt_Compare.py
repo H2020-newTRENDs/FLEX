@@ -90,6 +90,8 @@ class DefineTestHouse:
                 self.id_chosen[frame_name] = int(number)
                 # exit tkinter
                 root.destroy()
+            # hit enter instead of button
+            root.bind('<Return>', (lambda event: hit_enter()))
 
             # loop over frame:
             button = []

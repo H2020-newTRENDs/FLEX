@@ -108,7 +108,7 @@ class DataSetUp(MotherModel):
         # ------------
 
         # Hot Water Demand with Part 1 (COP SpaceHeating) and Part 2 (COP HotWater, lower)
-        HotWaterProfile = self.HotWaterProfile.HotWaterProfile.to_numpy() * 1_000  # Wh
+        HotWaterProfile = self.HotWaterProfile[REG_Var().HotWater].to_numpy() * 1_000  # Wh
 
         # COP for HotWater generation
         HotWaterHourlyCOP = self.COP_HP(outside_temperature=self.outside_temperature["Temperature"].to_numpy(),
@@ -228,9 +228,9 @@ class DataSetUp(MotherModel):
             "SpaceHeating_TankSize": float(Household.SpaceHeatingTank.TankSize),
             "SpaceHeating_TankMinimalTemperature": float(Household.SpaceHeatingTank.TankMinimalTemperature),
             "SpaceHeating_TankMaximalTemperature": float(Household.SpaceHeatingTank.TankMaximalTemperature),
-            "DHW_TankSize": float(Household.DHWTank.TankSize),
-            "DHW_TankMinimalTemperature": float(Household.DHWTank.TankMinimalTemperature),
-            "DHW_TankMaximalTemperature": float(Household.DHWTank.TankMaximalTemperature),
+            "DHW_TankSize": float(Household.DHWTank.DHWTankSize),
+            "DHW_TankMinimalTemperature": float(Household.DHWTank.DHWTankMinimalTemperature),
+            "DHW_TankMaximalTemperature": float(Household.DHWTank.DHWTankMaximalTemperature),
             "Battery_Capacity": float(Household.Battery.Capacity),
             "Battery_MaxChargePower": float(Household.Battery.MaxChargePower),
             "Battery_MaxDischargePower": float(Household.Battery.MaxDischargePower),
@@ -267,7 +267,7 @@ def create_abstract_model():
     # -------------
 
     # price
-    m.ElectricityPrice = pyo.Param(m.t, mutable=True)  # C/Wh
+    m.electricity_price = pyo.Param(m.t, mutable=True)  # C/Wh
     # Feed in Tariff of Photovoltaic
     m.FiT = pyo.Param(m.t, mutable=True)  # C/Wh
     # solar gains:
@@ -804,7 +804,9 @@ def run():
             result = Opt.solve(instance2solve, tee=False)
             print('Total Operation Cost: ' + str(round(instance2solve.Objective(), 2)))
             print("time for optimization: {}".format(time.perf_counter() - starttime))
-            DC.collect_OptimizationResult(input_data["Household"], input_data["Environment"], instance2solve)
+            DC.collect_OptimizationResult(input_data["Household"], input_data["Environment"], instance2solve) #for testing
+            # only this row
+            # DC.save_optimization_results_in_the_loop(input_data["Household"], input_data["Environment"], instance2solve)
 
 
 if __name__ == "__main__":
