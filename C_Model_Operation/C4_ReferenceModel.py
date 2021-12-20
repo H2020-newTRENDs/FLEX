@@ -28,8 +28,7 @@ class no_SEMS(MotherModel):
     def remove_household_IDs(self) -> pd.DataFrame:
         """ return a pandas dataframe of the Gen_OBJ_ID_Household frame but removes all building IDs but one because
         the reference model calculates all buidling IDs at the same time"""
-        return self.ID_Household.loc[self.ID_Household.loc[:, "ID_Building"] == 1].reset_index(drop=True)
-
+        return self.ID_Household.loc[self.ID_Household.loc[:, REG_Var().ID_Building] == 1].reset_index(drop=True)
 
     def gen_Household(self, row_id):
         # TODO replace self.IDHousehold
@@ -85,8 +84,6 @@ class no_SEMS(MotherModel):
 
         Total_Load_minusPV = Total_Load_minusPV * 1_000  # W
         PV_profile_surplus = PV_profile_surplus * 1_000  # W
-
-
 
     def calculate_heating_tank_energy(self, Total_Load_minusPV, Q_Heating_noDR, PV_profile_surplus, Household):
         """
@@ -463,7 +460,7 @@ class no_SEMS(MotherModel):
         # initial_thermal_mass_temperature = self.calculate_initial_thermal_mass_temp()
 
         # if no cooling is adopted --> raise max air temperature to 100 so it will never cool:
-        if Household.SpaceCooling.AdoptionStatus == 0:
+        if Household.SpaceCooling.SpaceCoolingPower == 0:
             T_indoorSetMax = np.full((8760,), 100)
         Q_Heating_noDR, Q_Cooling_noDR, T_Room_noDR, Tm_t_noDR = HeatingCoolingNoSEMS().ref_HeatingCooling(
             initial_thermal_mass_temp=15,
@@ -483,9 +480,10 @@ class no_SEMS(MotherModel):
         HeatingElement = HeatingElement / 1_000
 
         # PV production profile:
-        if Household.PV.ID_PVType in self.PhotovoltaicProfile["ID_PVType"].to_numpy():
+        if Household.PV.ID_PV in self.PhotovoltaicProfile[REG_Var().ID_PV].to_numpy():
             PV_profile = pd.to_numeric(
-                self.PhotovoltaicProfile.loc[self.PhotovoltaicProfile["ID_PVType"] == Household.PV.ID_PVType, :].PVPower).to_numpy()
+                self.PhotovoltaicProfile.loc[self.PhotovoltaicProfile[REG_Var().ID_PV] == Household.PV.ID_PV,
+                :].PVPower).to_numpy()
         else:
             PV_profile = np.full((8760,), 0)
 
@@ -511,15 +509,15 @@ class no_SEMS(MotherModel):
         # DryerProfile = DryerStartingHours * DryerPower
 
         # electricity for DHW:
-        COP_SpaceHeating = self.COP_HP(self.outside_temperature, 35,
+        COP_SpaceHeating = self.COP_HP(self.outside_temperature.Temperature.to_numpy(), 35,
                                        Household.SpaceHeatingSystem.CarnotEfficiencyFactor,
                                        Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType)  # 35 °C supply temperature
 
-        COP_HotWater = self.COP_HP(self.outside_temperature, 55,
+        COP_HotWater = self.COP_HP(self.outside_temperature.Temperature.to_numpy(), 55,
                                    Household.SpaceHeatingSystem.CarnotEfficiencyFactor,
                                    Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType)  # 55 °C supply temperature
 
-        Q_HotWater = self.HotWaterProfile.HotWater.to_numpy()
+        Q_HotWater = self.HotWaterProfile[REG_Var().HotWater].to_numpy()
         DHWProfile = Q_HotWater / COP_HotWater
 
         # electricity for heating:
@@ -528,7 +526,7 @@ class no_SEMS(MotherModel):
             HeatingProfile[:, column] = Q_Heating_noDR[:, column] / COP_SpaceHeating
 
         # electricity for cooling:
-        AC_hourly_COP = self.AC_HourlyCOP .ACHourlyCOP.to_numpy()
+        AC_hourly_COP = self.AC_HourlyCOP.ACHourlyCOP.to_numpy()
         CoolingProfile = np.zeros(Q_Cooling_noDR.shape)
         for column in range(Q_Cooling_noDR.shape[1]):
             CoolingProfile[:, column] = Q_Cooling_noDR[:, column] / AC_hourly_COP
@@ -592,10 +590,12 @@ class no_SEMS(MotherModel):
 
         # calculate the electricity cost:
         PriceHourly = \
-            self.electricity_price.loc[self.electricity_price['ID_PriceType'] == Environment["ID_ElectricityPriceType"]][
+            self.electricity_price.loc[
+                self.electricity_price['ID_PriceType'] == Environment["ID_ElectricityPriceType"]][
                 "ElectricityPrice"].to_numpy()
 
-        FIT = self.feed_in_tariff.loc[(self.feed_in_tariff['ID_FeedinTariffType'] == Environment["ID_FeedinTariffType"])][
+        FIT = \
+        self.feed_in_tariff.loc[(self.feed_in_tariff['ID_FeedinTariffType'] == Environment["ID_FeedinTariffType"])][
             "HourlyFeedinTariff"].to_numpy()  # \&
         # (self.ElectricityPrice['ID_Country'] == Household.ID_Country)]['HourlyFeedinTariff'].to_numpy()
 
@@ -604,90 +604,83 @@ class no_SEMS(MotherModel):
             total_elec_cost[:, column] = PriceHourly * elec_grid_demand[:, column] - Electricity_surplus[:,
                                                                                      column] * FIT
 
-        print("Total Operation Cost: " + str(round(total_elec_cost.sum(axis=0) / 100)))
-
         # Dataframe for yearly values:
-        YearlyFrame = np.column_stack([np.full((elec_grid_demand.shape[1]), Household.ID),
-                                       np.full((elec_grid_demand.shape[1]),
-                                               np.arange(1, elec_grid_demand.shape[1] + 1)),  # ID Building from 1 to n
-                                       np.full((elec_grid_demand.shape[1]), Environment.ID),
-                                       total_elec_cost.sum(axis=0) / 100,  # €
+        YearlyFrame = np.column_stack([
+            np.full((elec_grid_demand.shape[1]), Household.ID),
+            np.full((elec_grid_demand.shape[1]), np.arange(1, elec_grid_demand.shape[1] + 1)), # ID Building from 1 to n
+            np.full((elec_grid_demand.shape[1]), Environment.ID),
+            total_elec_cost.sum(axis=0) / 100,  # €
 
-                                       np.full((elec_grid_demand.shape[1]), self.BaseLoadProfile.sum()),
-                                       # Base electricity load
-                                       # Load_Appliances.sum(axis=0),
-                                       Q_Heating_noDR.sum(axis=0),
-                                       # Note that Roomheating and Tankheating are the same
-                                       HeatingProfile.sum(axis=0),  # electricity for heating
-                                       Q_Heating_noDR.sum(axis=0) / HeatingProfile.sum(axis=0),
-                                       # heatpump Performance factor
-                                       Q_Heating_noDR.sum(axis=0) - HeatingProfile.sum(axis=0),  # ambient heat
-                                       HeatingElement.sum(axis=0),  # heating element
-                                       Q_Heating_noDR.sum(axis=0),
-                                       # Note that Roomheating and Tankheating are the same
+            np.full((elec_grid_demand.shape[1]), self.BaseLoadProfile.sum()),
+            # Base electricity load
+            # Load_Appliances.sum(axis=0),
+            Q_Heating_noDR.sum(axis=0),
+            # Note that Roomheating and Tankheating are the same
+            HeatingProfile.sum(axis=0),  # electricity for heating
+            Q_Heating_noDR.sum(axis=0) / HeatingProfile.sum(axis=0),
+            # heatpump Performance factor
+            Q_Heating_noDR.sum(axis=0) - HeatingProfile.sum(axis=0),  # ambient heat
+            HeatingElement.sum(axis=0),  # heating element
+            Q_Heating_noDR.sum(axis=0),
+            # Note that Roomheating and Tankheating are the same
 
-                                       Q_Cooling_noDR.sum(axis=0),  # cooling energy
-                                       CoolingProfile.sum(axis=0),  # cooling electricity
+            Q_Cooling_noDR.sum(axis=0),  # cooling energy
+            CoolingProfile.sum(axis=0),  # cooling electricity
 
-                                       np.full((elec_grid_demand.shape[1]), Q_HotWater.sum(axis=0)),  # hot water energy
-                                       np.full((elec_grid_demand.shape[1]), DHWProfile.sum(axis=0)),
-                                       # hot water electricity
+            np.full((elec_grid_demand.shape[1]), Q_HotWater.sum(axis=0)),  # hot water energy
+            np.full((elec_grid_demand.shape[1]), DHWProfile.sum(axis=0)),
+            # hot water electricity
 
-                                       elec_grid_demand.sum(axis=0),
-                                       elec_grid_demand.sum(axis=0),
-                                       np.full((elec_grid_demand.shape[1]), 0),
+            elec_grid_demand.sum(axis=0),
+            elec_grid_demand.sum(axis=0),
+            np.full((elec_grid_demand.shape[1]), 0),
 
-                                       np.full((elec_grid_demand.shape[1]), PV_profile.sum()),
-                                       np.full((elec_grid_demand.shape[1]), PV_profile.sum()) - Electricity_surplus.sum(
-                                           axis=0) -
-                                       PV2Battery.sum(axis=0),  # PV2Load
-                                       PV2Battery.sum(axis=0),  # PV2Bat
-                                       Electricity_surplus.sum(axis=0),  # PV2Grid
+            np.full((elec_grid_demand.shape[1]), PV_profile.sum()),
+            np.full((elec_grid_demand.shape[1]), PV_profile.sum()) - Electricity_surplus.sum(axis=0) - PV2Battery.sum(axis=0),  # PV2Load
+            PV2Battery.sum(axis=0),  # PV2Bat
+            Electricity_surplus.sum(axis=0),  # PV2Grid
 
-                                       PV2Battery.sum(axis=0),  # Battery charge
-                                       PV2Battery.sum(
-                                           axis=0) * Household.Battery.DischargeEfficiency * Household.Battery.ChargeEfficiency,
-                                       # Battery discharge
-                                       Battery2Load.sum(axis=0),  # Battery 2 Load
+            PV2Battery.sum(axis=0),  # Battery charge
+            PV2Battery.sum(axis=0) * Household.Battery.DischargeEfficiency * Household.Battery.ChargeEfficiency,
+            # Battery discharge
+            Battery2Load.sum(axis=0),  # Battery 2 Load
 
-                                       Total_Load.sum(axis=0),  # Yearly total load
-                                       (np.tile(PV_profile,
-                                                (elec_grid_demand.shape[1], 1)).T - Electricity_surplus).sum(axis=0),
-                                       # PV self use
-                                       (np.tile(PV_profile,
-                                                (elec_grid_demand.shape[1], 1)).T - Electricity_surplus).sum(
-                                           axis=0) / PV_profile.sum(),
-                                       # PV self consumption rate
-                                       (np.tile(PV_profile,
-                                                (elec_grid_demand.shape[1], 1)).T - Electricity_surplus).sum(
-                                           axis=0) / Total_Load.sum(axis=0),  # PV self Sufficiency rate
+            Total_Load.sum(axis=0),  # Yearly total load
+            (np.tile(PV_profile, (elec_grid_demand.shape[1], 1)).T - Electricity_surplus).sum(axis=0),
+            # PV self use
+            (np.tile(PV_profile, (elec_grid_demand.shape[1], 1)).T - Electricity_surplus).sum(
+                                                            axis=0) / PV_profile.sum(),  # PV self consumption rate
+            (np.tile(PV_profile, (elec_grid_demand.shape[1], 1)).T - Electricity_surplus).sum(
+                                                        axis=0) / Total_Load.sum(axis=0),  # PV self Sufficiency rate
 
-                                       np.full((elec_grid_demand.shape[1]), Household.Building.hwb_norm1),
-                                       # Household.ApplianceGroup.DishWasherShifting,
-                                       # Household.ApplianceGroup.WashingMachineShifting,
-                                       # Household.ApplianceGroup.DryerShifting,
-                                       np.full((elec_grid_demand.shape[1]), Household.SpaceHeatingSystem.TankSize),
-                                       np.full((elec_grid_demand.shape[1]), Household.SpaceCooling.AdoptionStatus),
-                                       np.full((elec_grid_demand.shape[1]), Household.PV.PVPower),
-                                       np.full((elec_grid_demand.shape[1]), Household.Battery.Capacity * 1_000),
-                                       np.full((elec_grid_demand.shape[1]), Household.ID_AgeGroup),
-                                       np.full((elec_grid_demand.shape[1]),
-                                               Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType),
-                                       np.full((elec_grid_demand.shape[1]), Environment["ID_ElectricityPriceType"])
-                                       ])
+            np.full((elec_grid_demand.shape[1]), Household.Building.hwb_norm1),
+            # Household.ApplianceGroup.DishWasherShifting,
+            # Household.ApplianceGroup.WashingMachineShifting,
+            # Household.ApplianceGroup.DryerShifting,
+            np.full((elec_grid_demand.shape[1]), Household.SpaceHeatingTank.TankSize),  # SpaceHeatingTank Size
+
+            np.full((elec_grid_demand.shape[1]), Household.SpaceCooling.SpaceCoolingPower),
+            np.full((elec_grid_demand.shape[1]), Household.PV.PVPower),
+            np.full((elec_grid_demand.shape[1]), Household.Battery.Capacity * 1_000),
+            np.full((elec_grid_demand.shape[1]), Household.ID_AgeGroup),
+            np.full((elec_grid_demand.shape[1]),
+                    Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType),
+            np.full((elec_grid_demand.shape[1]), Environment["ID_ElectricityPriceType"])
+        ])
 
         # hourly values:
         HourlyFrame = np.column_stack([
-            np.full((len(elec_grid_demand)*elec_grid_demand.shape[1],), Household.ID),  # household ID
+            np.full((len(elec_grid_demand) * elec_grid_demand.shape[1],), Household.ID),  # household ID
             np.repeat(np.arange(1, elec_grid_demand.shape[1] + 1), len(elec_grid_demand)),  # ID Building
-            np.full((len(elec_grid_demand)*elec_grid_demand.shape[1],), Environment.ID),  # environment ID
+            np.full((len(elec_grid_demand) * elec_grid_demand.shape[1],), Environment.ID),  # environment ID
             np.tile(np.arange(1, len(elec_grid_demand) + 1), (elec_grid_demand.shape[1],)),  # Hours ID
             np.tile(PriceHourly, (elec_grid_demand.shape[1],)),  # elec price
             np.tile(FIT, (elec_grid_demand.shape[1],)),  # Feed in tarif
-            np.tile(np.full((len(elec_grid_demand),), Household.ID_AgeGroup), (elec_grid_demand.shape[1],)),  # Age Group
+            np.tile(np.full((len(elec_grid_demand),), Household.ID_AgeGroup), (elec_grid_demand.shape[1],)),
+            # Age Group
             np.tile(np.full((len(elec_grid_demand),), Household.SpaceHeatingSystem.Name_SpaceHeatingPumpType),
                     (elec_grid_demand.shape[1],)),  # space heating type
-            np.tile(self.outside_temperature.to_numpy(), (elec_grid_demand.shape[1],)),  # outside temperature
+            np.tile(self.outside_temperature.Temperature.to_numpy(), (elec_grid_demand.shape[1],)),  # outside temperature
 
             np.tile(self.BaseLoadProfile, (elec_grid_demand.shape[1],)),  # base load
             # DishWasherProfile,   # E dish washer

@@ -10,11 +10,11 @@ class Battery:
 
     def __init__(self, para_series):
         self.ID_BatteryType = para_series[REG_Var().ID_Battery]
-        self.Capacity = para_series["Capacity"]
-        self.ChargeEfficiency = para_series["ChargeEfficiency"]
-        self.MaxChargePower = para_series["MaxChargePower"]
-        self.DischargeEfficiency = para_series["DischargeEfficiency"]
-        self.MaxDischargePower = para_series["MaxDischargePower"]
+        self.Capacity = para_series[REG_Var().Capacity]
+        self.ChargeEfficiency = para_series[REG_Var().ChargeEfficiency]
+        self.MaxChargePower = para_series[REG_Var().MaxChargePower]
+        self.DischargeEfficiency = para_series[REG_Var().DischargeEfficiency]
+        self.MaxDischargePower = para_series[REG_Var().MaxDischargePower]
         # self.Grid2Battery = para_series['Grid2Battery']
 
 

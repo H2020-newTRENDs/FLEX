@@ -584,7 +584,7 @@ class TableGeneratorID(MotherTableGenerator, ABC):
                 else:
                     PVProfile = get_PV_generation(lat, lon, startyear, endyear, peakPower, nuts_id)
 
-                pv_type = np.full((len(PVProfile),), int(PV_options.ID_PVType[index]))
+                pv_type = np.full((len(PVProfile),), int(PV_options.ID_PV[index]))
                 PVPowerList = np.column_stack([ID_Country, pv_type, self.id_hour, PVProfile, unit])
 
                 DB().add_DataFrame(table=PVPowerList,
@@ -981,7 +981,7 @@ class TableGeneratorGenSce(MotherTableGenerator, ABC):
             Path().absolute().parent.resolve() / Path("_Philipp/inputdata/AUT/Hot_water_profile.xlsx"),
             engine="openpyxl")
         hot_water_profile = np.column_stack([hot_water["Profile"].to_numpy(), np.full((8760,), "kWh")])
-        columns = {"HotWater": "REAL", "Unit": "TEXT"}
+        columns = {REG_Var().HotWater: "REAL", "Unit": "TEXT"}
         DB().write_DataFrame(hot_water_profile, "Gen_Sce_HotWaterProfile", columns.keys(), self.conn, dtype=columns)
 
     def gen_Sce_ID_Environment(self):
