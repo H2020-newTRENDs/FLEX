@@ -39,7 +39,7 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit f_test / coverage reports
+# Unit test / coverage reports
 htmlcov/
 .tox/
 .nox/
@@ -134,7 +134,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# pytype static type analyzer
+# pytype static type visualization
 .pytype/
 
 # Cython debug symbols

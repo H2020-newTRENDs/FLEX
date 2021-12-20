@@ -512,7 +512,7 @@ class Visualization:
         create_percentage_barplot("Percentage of household configurations with negative energy costs \n "
                                   "in the optimization model", optimization_results_OP_below_zero_env1)
         create_percentage_barplot("Percentage of household configurations with negative energy costs \n "
-                                  "in both b_basic", pd.concat([optimization_results_OP_below_zero_env1,
+                                  "in both core", pd.concat([optimization_results_OP_below_zero_env1,
                                                                reference_results_OP_below_zero_env1]))
 
     def violin_plots(self):
@@ -972,7 +972,7 @@ class Visualization:
         check_why_elec_increases_flat_price()
 
     def calculate_key_numbers(self) -> None:
-        """this function calculates important values for the paper and is here to play around"""
+        """this function calculates important values for the projects and is here to play around"""
         # sum of electricity from grid
         elec_grid_opt = DB().read_DataFrame(REG_Table().Res_SystemOperationYear, self.Conn,
                                             "Year_E_Grid")
