@@ -584,7 +584,7 @@ class TableGeneratorID(MotherTableGenerator, ABC):
                 else:
                     PVProfile = get_PV_generation(lat, lon, startyear, endyear, peakPower, nuts_id)
 
-                pv_type = np.full((len(PVProfile),), int(PV_options.ID_PVType[index]))
+                pv_type = np.full((len(PVProfile),), int(PV_options.ID_PV[index]))
                 PVPowerList = np.column_stack([ID_Country, pv_type, self.id_hour, PVProfile, unit])
 
                 DB().add_DataFrame(table=PVPowerList,
