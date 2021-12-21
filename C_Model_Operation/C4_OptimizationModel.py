@@ -342,7 +342,7 @@ def create_abstract_model():
     m.Q_HeatingTank_in = pyo.Var(m.t, within=pyo.NonNegativeReals)
     m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals)
     m.Q_HeatingTank_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
-    m.E_HeatingTank = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.E_HeatingTank = pyo.Var(m.t, within=pyo.NonNegativeReals)  # energy in the tank
 
     # Variables DHW
     m.Q_DHWTank_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
@@ -379,12 +379,6 @@ def create_abstract_model():
     # -------------------------------------
     # 3. Constraints:
     # -------------------------------------
-
-    # (1) Overall energy balance
-    def calc_ElectricalEnergyBalance(m, t):
-        return m.Grid[t] + m.PhotovoltaicProfile[t] + m.BatDischarge[t] == m.Feedin[t] + m.Load[t] + m.BatCharge[t]
-
-    m.calc_ElectricalEnergyBalance = pyo.Constraint(m.t, rule=calc_ElectricalEnergyBalance)
 
     # (2) grid balance
     def calc_UseOfGrid(m, t):
@@ -464,6 +458,7 @@ def create_abstract_model():
     # --------------------------------------
     # 5. State transition: HeatPump and Tank
     # --------------------------------------
+    # (11)
     def tank_energy_heating(m, t):
         if t == 1:
             return m.E_HeatingTank[t] == CPWater * m.M_WaterTank_heating * (273.15 + m.T_TankStart_heating)
@@ -474,12 +469,12 @@ def create_abstract_model():
                            (m.T_TankSurrounding_heating + 273.15))
 
     m.tank_energy_rule_heating = pyo.Constraint(m.t, rule=tank_energy_heating)
-
+    # (11.2)
     def tank_energy_noTank_heating(m, t):
         return m.Q_HeatingTank_in[t] + m.Q_HeatingElement[t] == m.Q_HeatingTank_out[t]  # E_HeatingTank = 0
 
     m.tank_energy_rule_noTank_heating = pyo.Constraint(m.t, rule=tank_energy_noTank_heating)
-
+    # (12)
     def tank_energy_DHW(m, t):
         if t == 1:
             return m.E_DHWTank[t] == CPWater * m.M_WaterTank_DHW * (273.15 + m.T_TankStart_DHW)
@@ -489,14 +484,14 @@ def create_abstract_model():
                            m.E_DHWTank[t] / (m.M_WaterTank_DHW * CPWater) - (m.T_TankSurrounding_DHW + 273.15)
                    )
     m.tank_energy_rule_DHW = pyo.Constraint(m.t, rule=tank_energy_DHW)
-
+    #  (12.2)
     def tank_energy_noTank_DHW(m, t):
         return m.Q_DHWTank_in[t] == m.Q_DHWTank_out[t]  # m.E_DHWTank = 0
 
     m.tank_energy_rule_noTank_DHW = pyo.Constraint(m.t, rule=tank_energy_noTank_DHW)
-
+    #  (13)
     def constrain_heating_max_power(m, t):
-        return m.Q_DHWTank_in[t] + m.Q_HeatingTank_in[t] <= m.SpaceHeating_HeatPumpMaximalThermalPower
+        return m.Q_DHWTank_in[t] / m.HotWaterHourlyCOP[t] + m.Q_HeatingTank_in[t] / m.SpaceHeatingHourlyCOP[t] <= m.SpaceHeating_HeatPumpMaximalThermalPower
 
     m.max_HP_power_constraint = pyo.Constraint(m.t, rule=constrain_heating_max_power)
 
@@ -815,7 +810,7 @@ def run():
             # solve the instance:
             starttime = time.perf_counter()
             print("solving household {} in environment {}...".format(household_RowID, environment_RowID))
-            result = Opt.solve(instance2solve, tee=False)
+            result = Opt.solve(instance2solve, tee=True)
             print('Total Operation Cost: ' + str(round(instance2solve.Objective(), 2)))
             print("time for optimization: {}".format(time.perf_counter() - starttime))
             DC.collect_OptimizationResult(input_data["Household"], input_data["Environment"], instance2solve) #for testing
