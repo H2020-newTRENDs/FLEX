@@ -115,7 +115,7 @@ import numpy as np
 # ax.plot(x, Peak15, marker='+', linestyle='--', label = '+/- 15% Peak', color = 'lightseagreen', linewidth =0.001)
 # plt.xticks(rotation=90)
 #
-# ax.set(ylabel='Saving potential for each technology in € per year')
+# ax.set(ylabel='Saving potential for each components in € per year')
 # ax.grid()
 #
 # plt.tight_layout();
