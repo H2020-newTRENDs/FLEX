@@ -23,3 +23,4 @@ class Pillar(ABC):
         for component, component_params in self.scenario.component_params_dict.items():
             if component in self.__dict__.keys():
                 setattr(self, component, self.__dict__[component + "_class"](component_params))
+
