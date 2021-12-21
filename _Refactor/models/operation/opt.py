@@ -1,5 +1,5 @@
 
-from .abstract_operation import AbstractOperationModel
+from .abstract import AbstractOperationModel
 
 class OptOperationModel(AbstractOperationModel):
     pass

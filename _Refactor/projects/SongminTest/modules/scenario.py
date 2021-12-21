@@ -1,13 +1,13 @@
 from typing import Dict, Any
 
-from _Refactor.basic.reg import TABLE
+from _Refactor.basic.reg import Table
 from _Refactor.core.elements.component_setup import GeneralComponent as GC
 from _Refactor.core.scenario.abstract_scenario import AbstractScenario
 
 class SongminTestScenario(AbstractScenario):
 
     def add_component_with_params(self):
-        table = TABLE()
+        table = Table()
         # self.add_component_params("region", GC(table.region, self.region_id).get_params_dict())
         # self.add_component_params("person_list", GC(table.person_list, self.person_list_id).get_params_dict())
         # self.add_component_params("building", GC(table.building, self.building_id).get_params_dict())

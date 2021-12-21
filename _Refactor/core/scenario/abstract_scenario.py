@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import Type, Dict, Any
 
-from _Refactor.basic.reg import TABLE
+from _Refactor.basic.reg import Table
 from _Refactor.core.elements.component import Component
 from _Refactor.core.elements.component_setup import GeneralComponent
 
@@ -35,7 +35,7 @@ class AbstractScenario(Component):
         self.feedin_tariff_id: int = None
 
     def set_component_ids(self):
-        self.set_params(GeneralComponent(TABLE().scenarios, self.scenario_id).get_params_dict())
+        self.set_params(GeneralComponent(Table().scenarios, self.scenario_id).get_params_dict())
 
     def add_component(self, component_name: str, component_params_dict: Dict[str, Any]):
         self.component_params_dict[component_name] = component_params_dict

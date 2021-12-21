@@ -24,3 +24,5 @@ class Pillar(ABC):
             if component in self.__dict__.keys():
                 setattr(self, component, self.__dict__[component + "_class"](component_params))
 
+
+

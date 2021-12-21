@@ -1,5 +1,5 @@
 
-from _Refactor.models.operation.opt_operation import OptOperationModel
+from _Refactor.models.operation.opt import OptOperationModel
 
 class SongminTestOptOperationModel(OptOperationModel):
     pass
