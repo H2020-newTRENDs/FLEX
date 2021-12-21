@@ -123,7 +123,7 @@ class DataSetUp(MotherModel):
             PhotovoltaicProfile = self.PhotovoltaicProfile.loc[
                                       (self.PhotovoltaicProfile[REG_Var().ID_PV] == Household.PV.ID_PV) &
                                       (self.PhotovoltaicProfile['ID_Country'] == "AT")][
-                                      'PVPower'].to_numpy() * 1_000  # W TODO nuts ID statt ID Country!
+                                      REG_Var().PVPower].to_numpy() * 1_000  # W TODO nuts ID statt ID Country!
         else:
             PhotovoltaicProfile = np.full((8760,), 0)
 
@@ -215,7 +215,8 @@ class DataSetUp(MotherModel):
                 "M_WaterTank_DHW": {None: Household.DHWTank.DHWTankSize},
                 "U_ValueTank_DHW": {None: Household.DHWTank.DHWTankLoss},
                 "T_TankSurrounding_DHW": {None: Household.DHWTank.DHWTankSurroundingTemperature},
-                "A_SurfaceTank_DHW": {None: Household.DHWTank.DHWTankSurfaceArea}
+                "A_SurfaceTank_DHW": {None: Household.DHWTank.DHWTankSurfaceArea},
+                "SpaceHeating_HeatPumpMaximalThermalPower": {None: Household.SpaceHeatingSystem.HeatPumpMaximalThermalPower}
             }}
 
         # break up household and environment because they contain sqlite connection which can not be parallelized:
@@ -326,6 +327,9 @@ def create_abstract_model():
     m.T_TankStart_DHW = pyo.Param(mutable=True)
     # surrounding temp of tank
     m.T_TankSurrounding_DHW = pyo.Param(mutable=True)
+
+    # heat pump
+    m.SpaceHeating_HeatPumpMaximalThermalPower = pyo.Param(mutable=True)
 
     # Battery data
     m.ChargeEfficiency = pyo.Param(mutable=True)
@@ -490,6 +494,12 @@ def create_abstract_model():
         return m.Q_DHWTank_in[t] == m.Q_DHWTank_out[t]  # m.E_DHWTank = 0
 
     m.tank_energy_rule_noTank_DHW = pyo.Constraint(m.t, rule=tank_energy_noTank_DHW)
+
+    def constrain_heating_max_power(m, t):
+        return m.Q_DHWTank_in[t] + m.Q_HeatingTank_in[t] <= m.SpaceHeating_HeatPumpMaximalThermalPower
+
+    m.max_HP_power_constraint = pyo.Constraint(m.t, rule=constrain_heating_max_power)
+
     # ----------------------------------------------------
     # 6. State transition: Building temperature (RC-Model)
     # ----------------------------------------------------
@@ -603,7 +613,6 @@ def update_instance(total_input, instance):
 
         # Boundaries:
         # Heating
-        instance.Q_HeatingTank_in[t].setub(household["SpaceHeating_HeatPumpMaximalThermalPower"])
         instance.Q_HeatingElement[t].setub(household["SpaceHeating_HeatingElementPower"])
         # room heating is handled in if cases
         # Temperatures for RC model
@@ -633,6 +642,7 @@ def update_instance(total_input, instance):
             instance.T_room[t].setub(CoolingTargetTemperature[t - 1])
         instance.calc_SumOfLoads_without_cooling.deactivate()
         instance.calc_SumOfLoads_with_cooling.activate()
+
     # Thermal storage Heating
     if household["SpaceHeating_TankSize"] == 0:
         for t in range(1, len(HeatingTargetTemperature) + 1):
@@ -645,13 +655,15 @@ def update_instance(total_input, instance):
     else:
         for t in range(1, len(HeatingTargetTemperature) + 1):
             instance.E_HeatingTank[t].fixed = False
-            instance.E_HeatingTank[t].setlb(CPWater * float(household["SpaceHeating_TankSize"]) * (273.15 +
-                                                                                                   float(household[
-                                                                                                              "SpaceHeating_TankMinimalTemperature"])))
+            instance.E_HeatingTank[t].setlb(
+                CPWater * float(household["SpaceHeating_TankSize"]) * (
+                        273.15 + float(household["SpaceHeating_TankMinimalTemperature"])
+                )
+            )
             instance.E_HeatingTank[t].setub(
-                CPWater * household["SpaceHeating_TankSize"] * (273.15 +
-                                                                household["SpaceHeating_TankMaximalTemperature"]))
-
+                CPWater * household["SpaceHeating_TankSize"] * (
+                        273.15 + household["SpaceHeating_TankMaximalTemperature"])
+            )
             instance.Q_HeatingTank_out[t].setub(household["SpaceHeating_HeatPumpMaximalThermalPower"])  # W
             pass
         instance.tank_energy_rule_noTank_heating.deactivate()
@@ -677,7 +689,7 @@ def update_instance(total_input, instance):
                 (273.15 + household["DHW_TankMaximalTemperature"])
             )
             instance.Q_DHWTank_out[t].setub(household["SpaceHeating_HeatPumpMaximalThermalPower"])  # W TODO couple powerlimit of DHW and spaceheating
-            pass
+
         instance.tank_energy_rule_noTank_DHW.deactivate()
         instance.tank_energy_rule_DHW.activate()
 
@@ -756,6 +768,8 @@ def update_instance(total_input, instance):
     instance.U_ValueTank_DHW = input_parameters[None]["U_ValueTank_DHW"][None]
     instance.T_TankSurrounding_DHW = input_parameters[None]["T_TankSurrounding_DHW"][None]
     instance.A_SurfaceTank_DHW = input_parameters[None]["A_SurfaceTank_DHW"][None]
+    # HP
+    instance.SpaceHeating_HeatPumpMaximalThermalPower = input_parameters[None]["SpaceHeating_HeatPumpMaximalThermalPower"][None]
     return instance
 
     # def run(self):
