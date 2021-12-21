@@ -142,9 +142,9 @@ def prepare_core_input_data(sol_rad, data):
 
     sol_rad_norm = np.array(sol_rad_norm)
     Af = np.tile(Af, (8760, 1)).T
-    # Number of building classes:
+    # Number of building household:
     num_bc = len(Qi)
-    print("Number of building classes: " + str(num_bc))
+    print("Number of building household: " + str(num_bc))
     daylist = np.zeros((num_bc, 24))
     monthlist = np.zeros((num_bc, 12))
     yearlist = np.zeros((num_bc, 8760))
@@ -256,7 +256,7 @@ def Heatdemand_rc_model(OUTPUT_PATH, OUTPUT_PATH_NUM_BUILD, OUTPUT_PATH_TEMP, RN
                                         (data_num_gfa_per_GE.iloc[:, 0] < data.iloc[:, 0].size)
         bc_idx_not_Zero = data_num_build_per_GE[bc_num_building_not_Zero_vctr].iloc[:, 0]
         bc_num_build = data_num_build_per_GE[bc_num_building_not_Zero_vctr].iloc[:, 1]
-        print("Number of BC classes: " + str(bc_num_build.size))
+        print("Number of BC household: " + str(bc_num_build.size))
         bc_gfa = data_num_gfa_per_GE[bc_num_building_not_Zero_vctr].iloc[:, 1]
         Bcat_per_BC = data_Bcat_per_BC[bc_num_building_not_Zero_vctr]
         print("WG")

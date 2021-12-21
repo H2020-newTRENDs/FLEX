@@ -14,7 +14,7 @@ class CONS:
 
         # Songmin
         # self.DatabasePath = Path("C:/Users/yus/Dropbox/Academic/Models/ProsumagerDatabase")
-        # self.Name = "_Songmin.sqlite"
+        # self.Name = "SongminTest.sqlite"
 
         # Philipp
         # self.DatabasePath = Path("C:/Users/mascherbauer/Dropbox/ProsumagerDatabase")  # Dropbox

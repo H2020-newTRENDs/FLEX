@@ -134,7 +134,7 @@ class OperationOptimization:
         # Transmission Coefficient
         Hve = Household.Building.Hve # Air
         Htr_w = Household.Building.Htr_w # Wall
-        Hop = Household.Building.Hop # opake Bauteile (opaque components)
+        Hop = Household.Building.Hop # opake Bauteile (opaque household)
         # Speicherkapazität (Storage capacity) [J/K]
         Cm = Household.Building.CM_factor * Af
         # wirksame Massenbezogene Fläche (Effective mass related area) [m^2]
