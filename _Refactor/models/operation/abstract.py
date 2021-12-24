@@ -17,3 +17,7 @@ class AbstractOperationModel(ABC):
         self.household = household
         self.environment = environment
 
+    # @abstractmethod
+    # def run(self):
+    #     pass
+

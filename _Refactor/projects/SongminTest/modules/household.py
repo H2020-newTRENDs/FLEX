@@ -1,13 +1,15 @@
 
 from _Refactor.core.household.abstract_household import AbstractHousehold
-from _Refactor.core.household.components import Region, PersonList, Building, ApplianceList, Boiler, Tank,\
-                                                AirConditioner, PV, Battery, Vehicle, Behavior, Demand
+from _Refactor.core.household.components import Region, PersonList, Building, ApplianceList, Boiler, SpaceHeatingTank,\
+                                                AirConditioner, HotWaterTank, PV, Battery, Vehicle, Behavior, Demand
 
 class SongminTestHousehold(AbstractHousehold):
 
     def add_components(self):
-        self.tank = None
+        self.space_heating_tank = None
+        self.hot_water_tank = None
 
     def add_component_classes(self):
-        self.tank_class = Tank
+        self.space_heating_tank_class = SpaceHeatingTank
+        self.hot_water_tank_class = HotWaterTank
 

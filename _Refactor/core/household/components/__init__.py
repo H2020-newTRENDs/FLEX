@@ -4,8 +4,9 @@ from .person import Person, PersonList
 from .building import Building
 from .appliance import Appliance, ApplianceList
 from .boiler import Boiler
-from .tank import Tank
+from .space_heating_tank import SpaceHeatingTank
 from .air_conditioner import AirConditioner
+from .hot_water_tank import HotWaterTank
 from .pv import PV
 from .battery import Battery
 from .vehicle import Vehicle
