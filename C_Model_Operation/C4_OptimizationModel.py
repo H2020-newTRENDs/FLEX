@@ -123,7 +123,7 @@ class DataSetUp(MotherModel):
             PhotovoltaicProfile = self.PhotovoltaicProfile.loc[
                                       (self.PhotovoltaicProfile[REG_Var().ID_PV] == Household.PV.ID_PV) &
                                       (self.PhotovoltaicProfile['ID_Country'] == "AT")][
-                                      'PVPower'].to_numpy() * 1_000  # W TODO nuts ID statt ID Country!
+                                      REG_Var().PVPower].to_numpy() * 1_000  # W TODO nuts ID statt ID Country!
         else:
             PhotovoltaicProfile = np.full((8760,), 0)
 
@@ -215,7 +215,8 @@ class DataSetUp(MotherModel):
                 "M_WaterTank_DHW": {None: Household.DHWTank.DHWTankSize},
                 "U_ValueTank_DHW": {None: Household.DHWTank.DHWTankLoss},
                 "T_TankSurrounding_DHW": {None: Household.DHWTank.DHWTankSurroundingTemperature},
-                "A_SurfaceTank_DHW": {None: Household.DHWTank.DHWTankSurfaceArea}
+                "A_SurfaceTank_DHW": {None: Household.DHWTank.DHWTankSurfaceArea},
+                "SpaceHeating_HeatPumpMaximalThermalPower": {None: Household.SpaceHeatingSystem.HeatPumpMaximalThermalPower}
             }}
 
         # break up household and environment because they contain sqlite connection which can not be parallelized:
@@ -327,6 +328,9 @@ def create_abstract_model():
     # surrounding temp of tank
     m.T_TankSurrounding_DHW = pyo.Param(mutable=True)
 
+    # heat pump
+    m.SpaceHeating_HeatPumpMaximalThermalPower = pyo.Param(mutable=True)
+
     # Battery data
     m.ChargeEfficiency = pyo.Param(mutable=True)
     m.DischargeEfficiency = pyo.Param(mutable=True)
@@ -338,12 +342,17 @@ def create_abstract_model():
     m.Q_HeatingTank_in = pyo.Var(m.t, within=pyo.NonNegativeReals)
     m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals)
     m.Q_HeatingTank_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
-    m.E_HeatingTank = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.E_HeatingTank = pyo.Var(m.t, within=pyo.NonNegativeReals)  # energy in the tank
+    m.Q_HeatingTank_bypass = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.Q_Heating_HP_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.Q_room_heating = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
     # Variables DHW
     m.Q_DHWTank_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
-    m.E_DHWTank = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.E_DHWTank = pyo.Var(m.t, within=pyo.NonNegativeReals)  # energy in the tank
     m.Q_DHWTank_in = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.Q_DHW_HP_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.Q_DHWTank_bypass = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
     # Variable space cooling
     m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals)
@@ -376,29 +385,41 @@ def create_abstract_model():
     # 3. Constraints:
     # -------------------------------------
 
-    # (1) Overall energy balance
-    def calc_ElectricalEnergyBalance(m, t):
-        return m.Grid[t] + m.PhotovoltaicProfile[t] + m.BatDischarge[t] == m.Feedin[t] + m.Load[t] + m.BatCharge[t]
-
-    m.calc_ElectricalEnergyBalance = pyo.Constraint(m.t, rule=calc_ElectricalEnergyBalance)
-
-    # (2) grid balance
+    # (1) grid balance
     def calc_UseOfGrid(m, t):
         return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t]
 
     m.calc_UseOfGrid = pyo.Constraint(m.t, rule=calc_UseOfGrid)
 
-    # (3) PV balance
+    # (2) PV balance
     def calc_UseOfPV(m, t):
         return m.PV2Load[t] + m.PV2Bat[t] + m.PV2Grid[t] == m.PhotovoltaicProfile[t]
 
     m.calc_UseOfPV = pyo.Constraint(m.t, rule=calc_UseOfPV)
 
-    # (4) Feed in
+    # (3) Feed in
     def calc_SumOfFeedin(m, t):
         return m.Feedin[t] == m.PV2Grid[t]
 
     m.calc_SumOfFeedin = pyo.Constraint(m.t, rule=calc_SumOfFeedin)
+
+    # (4) Sum of Loads
+    def calc_SumOfLoads_with_cooling(m, t):
+        return m.Load[t] == m.BaseLoadProfile[t] \
+               + m.Q_Heating_HP_out[t] / m.SpaceHeatingHourlyCOP[t] \
+               + m.Q_HeatingElement[t] \
+               + m.Q_RoomCooling[t] / m.CoolingCOP[t] \
+               + m.Q_DHW_HP_out[t] / m.HotWaterHourlyCOP[t]
+
+    m.calc_SumOfLoads_with_cooling = pyo.Constraint(m.t, rule=calc_SumOfLoads_with_cooling)
+
+    def calc_SumOfLoads_without_cooling(m, t):
+        return m.Load[t] == m.BaseLoadProfile[t] \
+               + m.Q_Heating_HP_out[t] / m.SpaceHeatingHourlyCOP[t] \
+               + m.Q_HeatingElement[t] \
+               + m.Q_DHW_HP_out[t] / m.HotWaterHourlyCOP[t]
+
+    m.calc_SumOfLoads_without_cooling = pyo.Constraint(m.t, rule=calc_SumOfLoads_without_cooling)
 
     # (5) load coverage
     def calc_SupplyOfLoads(m, t):
@@ -406,31 +427,14 @@ def create_abstract_model():
 
     m.calc_SupplyOfLoads = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
 
-    # (6) DHW load coverage
-    def calc_SupplyOfDHW(m, t):
-        return m.HotWaterProfile[t] == m.Q_DHWTank_out[t]
+    # Battery:
+    # (6) Battery charge
+    def calc_BatCharge(m, t):
+        return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t]  # * Household.Battery.Grid2Battery
 
-    m.calc_SupplyOfDHW = pyo.Constraint(m.t, rule=calc_SupplyOfDHW)
+    m.calc_BatCharge = pyo.Constraint(m.t, rule=calc_BatCharge)
 
-    # (7) Sum of Loads
-    def calc_SumOfLoads_with_cooling(m, t):
-        return m.Load[t] == m.BaseLoadProfile[t] \
-               + m.Q_HeatingTank_in[t] / m.SpaceHeatingHourlyCOP[t] \
-               + m.Q_HeatingElement[t] \
-               + m.Q_RoomCooling[t] / m.CoolingCOP[t] \
-               + m.Q_DHWTank_in[t] / m.HotWaterHourlyCOP[t]
-
-    m.calc_SumOfLoads_with_cooling = pyo.Constraint(m.t, rule=calc_SumOfLoads_with_cooling)
-
-    def calc_SumOfLoads_without_cooling(m, t):
-        return m.Load[t] == m.BaseLoadProfile[t] \
-               + m.Q_HeatingTank_in[t] / m.SpaceHeatingHourlyCOP[t] \
-               + m.Q_HeatingElement[t] \
-               + m.HotWaterProfile[t] / m.HotWaterHourlyCOP[t]
-
-    m.calc_SumOfLoads_without_cooling = pyo.Constraint(m.t, rule=calc_SumOfLoads_without_cooling)
-
-    # (8) Battery discharge
+    # (7) Battery discharge
     def calc_BatDischarge(m, t):
         if m.t[t] == 1:
             return m.BatDischarge[t] == 0  # start of simulation, battery is empty
@@ -441,13 +445,7 @@ def create_abstract_model():
 
     m.calc_BatDischarge = pyo.Constraint(m.t, rule=calc_BatDischarge)
 
-    # (9) Battery charge
-    def calc_BatCharge(m, t):
-        return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t]  # * Household.Battery.Grid2Battery
-
-    m.calc_BatCharge = pyo.Constraint(m.t, rule=calc_BatCharge)
-
-    # (10) Battery SOC
+    # (8) Battery SOC
     def calc_BatSoC(m, t):
         if t == 1:
             return m.BatSoC[t] == 0  # start of simulation, battery is empty
@@ -457,9 +455,8 @@ def create_abstract_model():
 
     m.calc_BatSoC = pyo.Constraint(m.t, rule=calc_BatSoC)
 
-    # --------------------------------------
-    # 5. State transition: HeatPump and Tank
-    # --------------------------------------
+    # Heating Tank:
+    # (9) energy in the tank
     def tank_energy_heating(m, t):
         if t == 1:
             return m.E_HeatingTank[t] == CPWater * m.M_WaterTank_heating * (273.15 + m.T_TankStart_heating)
@@ -471,11 +468,20 @@ def create_abstract_model():
 
     m.tank_energy_rule_heating = pyo.Constraint(m.t, rule=tank_energy_heating)
 
-    def tank_energy_noTank_heating(m, t):
-        return m.Q_HeatingTank_in[t] + m.Q_HeatingElement[t] == m.Q_HeatingTank_out[t]  # E_HeatingTank = 0
+    # (10) room heating
+    def room_heating(m, t):
+        return m.Q_room_heating[t] == m.Q_HeatingTank_out[t] + m.Q_HeatingTank_bypass[t]
 
-    m.tank_energy_rule_noTank_heating = pyo.Constraint(m.t, rule=tank_energy_noTank_heating)
+    m.room_heating_constraint = pyo.Constraint(m.t, rule=room_heating)
 
+    # (11) supply for space heating
+    def calc_supply_of_space_heating(m, t):
+        return m.Q_HeatingTank_bypass[t] + m.Q_HeatingTank_in[t] == m.Q_Heating_HP_out[t]
+
+    m.calc_use_of_HP_power_DHW_constraint = pyo.Constraint(m.t, rule=calc_supply_of_space_heating)
+
+    # DHW:
+    # (12) energy in DHW tank
     def tank_energy_DHW(m, t):
         if t == 1:
             return m.E_DHWTank[t] == CPWater * m.M_WaterTank_DHW * (273.15 + m.T_TankStart_DHW)
@@ -484,12 +490,28 @@ def create_abstract_model():
                    m.U_ValueTank_DHW * m.A_SurfaceTank_DHW * (
                            m.E_DHWTank[t] / (m.M_WaterTank_DHW * CPWater) - (m.T_TankSurrounding_DHW + 273.15)
                    )
+
     m.tank_energy_rule_DHW = pyo.Constraint(m.t, rule=tank_energy_DHW)
 
-    def tank_energy_noTank_DHW(m, t):
-        return m.Q_DHWTank_in[t] == m.Q_DHWTank_out[t]  # m.E_DHWTank = 0
+    # (13) DHW profile coverage
+    def calc_hot_water_profile(m, t):
+        return m.HotWaterProfile[t] == m.Q_DHWTank_out[t] + m.Q_DHWTank_bypass[t]
 
-    m.tank_energy_rule_noTank_DHW = pyo.Constraint(m.t, rule=tank_energy_noTank_DHW)
+    m.calc_SupplyOfDHW = pyo.Constraint(m.t, rule=calc_hot_water_profile)
+
+    # (14) supply for the hot water
+    def calc_supply_of_DHW(m, t):
+        return m.Q_DHWTank_bypass[t] + m.Q_DHWTank_in[t] == m.Q_DHW_HP_out[t]
+
+    m.bypass_DHW_constraint =pyo.Constraint(m.t, rule=calc_supply_of_DHW)
+
+    # Heat Pump
+    # (13) restrict heat pump power
+    def constrain_heating_max_power(m, t):
+        return m.Q_DHW_HP_out[t] + m.Q_Heating_HP_out[t] <= m.SpaceHeating_HeatPumpMaximalThermalPower
+
+    m.max_HP_power_constraint = pyo.Constraint(m.t, rule=constrain_heating_max_power)
+
     # ----------------------------------------------------
     # 6. State transition: Building temperature (RC-Model)
     # ----------------------------------------------------
@@ -504,7 +526,7 @@ def create_abstract_model():
             T_sup = m.T_outside[t]
             # Equ. C.5
             PHI_mtot = PHI_m + m.Htr_em * m.T_outside[t] + m.Htr_3 * (PHI_st + m.Htr_w * m.T_outside[t] + m.Htr_1 * (
-                    ((m.PHI_ia + m.Q_HeatingTank_out[t] - m.Q_RoomCooling[t]) / m.Hve) + T_sup)) / m.Htr_2
+                    ((m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / m.Hve) + T_sup)) / m.Htr_2
             # Equ. C.4
             return m.Tm_t[t] == (m.BuildingMassTemperatureStartValue *
                                  ((m.Cm / 3600) - 0.5 * (m.Htr_3 + m.Htr_em)) + PHI_mtot) / (
@@ -519,7 +541,7 @@ def create_abstract_model():
             T_sup = m.T_outside[t]
             # Equ. C.5
             PHI_mtot = PHI_m + m.Htr_em * m.T_outside[t] + m.Htr_3 * (PHI_st + m.Htr_w * m.T_outside[t] + m.Htr_1 * (
-                    ((m.PHI_ia + m.Q_HeatingTank_out[t] - m.Q_RoomCooling[t]) / m.Hve) + T_sup)) / m.Htr_2
+                    ((m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / m.Hve) + T_sup)) / m.Htr_2
             # Equ. C.4
             return m.Tm_t[t] == (m.Tm_t[t - 1] * ((m.Cm / 3600) - 0.5 * (m.Htr_3 + m.Htr_em)) + PHI_mtot) / (
                     (m.Cm / 3600) + 0.5 * (m.Htr_3 + m.Htr_em))
@@ -535,10 +557,10 @@ def create_abstract_model():
             T_sup = m.T_outside[t]
             # Euq. C.10
             T_s = (m.Htr_ms * T_m + PHI_st + m.Htr_w * m.T_outside[t] + m.Htr_1 * (
-                    T_sup + (m.PHI_ia + m.Q_HeatingTank_out[t] - m.Q_RoomCooling[t]) / m.Hve)) / (
+                    T_sup + (m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / m.Hve)) / (
                           m.Htr_ms + m.Htr_w + m.Htr_1)
             # Equ. C.11
-            T_air = (m.Htr_is * T_s + m.Hve * T_sup + m.PHI_ia + m.Q_HeatingTank_out[t] - m.Q_RoomCooling[t]) / (
+            T_air = (m.Htr_is * T_s + m.Hve * T_sup + m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / (
                     m.Htr_is + m.Hve)
             return m.T_room[t] == T_air
         else:
@@ -549,10 +571,10 @@ def create_abstract_model():
             T_sup = m.T_outside[t]
             # Euq. C.10
             T_s = (m.Htr_ms * T_m + PHI_st + m.Htr_w * m.T_outside[t] + m.Htr_1 * (
-                    T_sup + (m.PHI_ia + m.Q_HeatingTank_out[t] - m.Q_RoomCooling[t]) / m.Hve)) / (
+                    T_sup + (m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / m.Hve)) / (
                           m.Htr_ms + m.Htr_w + m.Htr_1)
             # Equ. C.11
-            T_air = (m.Htr_is * T_s + m.Hve * T_sup + m.PHI_ia + m.Q_HeatingTank_out[t] - m.Q_RoomCooling[t]) / (
+            T_air = (m.Htr_is * T_s + m.Hve * T_sup + m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / (
                     m.Htr_is + m.Hve)
             return m.T_room[t] == T_air
 
@@ -603,7 +625,6 @@ def update_instance(total_input, instance):
 
         # Boundaries:
         # Heating
-        instance.Q_HeatingTank_in[t].setub(household["SpaceHeating_HeatPumpMaximalThermalPower"])
         instance.Q_HeatingElement[t].setub(household["SpaceHeating_HeatingElementPower"])
         # room heating is handled in if cases
         # Temperatures for RC model
@@ -621,7 +642,7 @@ def update_instance(total_input, instance):
     # Room Cooling:
     if household["SpaceCooling_SpaceCoolingPower"] == 0:
         for t in range(1, len(HeatingTargetTemperature) + 1):
-            instance.Q_RoomCooling[t].setub(0)
+            instance.Q_RoomCooling[t].fix(0)
             instance.T_room[t].setub(100)
         instance.calc_SumOfLoads_without_cooling.activate()
         instance.calc_SumOfLoads_with_cooling.deactivate()
@@ -633,41 +654,53 @@ def update_instance(total_input, instance):
             instance.T_room[t].setub(CoolingTargetTemperature[t - 1])
         instance.calc_SumOfLoads_without_cooling.deactivate()
         instance.calc_SumOfLoads_with_cooling.activate()
+
     # Thermal storage Heating
     if household["SpaceHeating_TankSize"] == 0:
         for t in range(1, len(HeatingTargetTemperature) + 1):
             instance.E_HeatingTank[t].fix(0)
-            instance.Q_HeatingTank_out[t].setub(household["SpaceHeating_HeatPumpMaximalThermalPower"] +
-                                                household["SpaceHeating_HeatingElementPower"])
+            instance.Q_HeatingTank_out[t].fix(0)
+            instance.Q_HeatingTank_in[t].fix(0)
 
-        instance.tank_energy_rule_noTank_heating.activate()
+            instance.Q_Heating_HP_out[t].setub(
+                household["SpaceHeating_HeatPumpMaximalThermalPower"] + household["SpaceHeating_HeatingElementPower"]
+            )  # W
+
         instance.tank_energy_rule_heating.deactivate()
     else:
         for t in range(1, len(HeatingTargetTemperature) + 1):
             instance.E_HeatingTank[t].fixed = False
-            instance.E_HeatingTank[t].setlb(CPWater * float(household["SpaceHeating_TankSize"]) * (273.15 +
-                                                                                                   float(household[
-                                                                                                              "SpaceHeating_TankMinimalTemperature"])))
+            instance.Q_HeatingTank_out[t].fixed = False
+            instance.Q_HeatingTank_in[t].fixed = False
+            instance.E_HeatingTank[t].setlb(
+                CPWater * float(household["SpaceHeating_TankSize"]) * (
+                        273.15 + float(household["SpaceHeating_TankMinimalTemperature"])
+                )
+            )
             instance.E_HeatingTank[t].setub(
-                CPWater * household["SpaceHeating_TankSize"] * (273.15 +
-                                                                household["SpaceHeating_TankMaximalTemperature"]))
+                CPWater * household["SpaceHeating_TankSize"] * (
+                        273.15 + household["SpaceHeating_TankMaximalTemperature"])
+            )
+            instance.Q_Heating_HP_out[t].setub(
+                household["SpaceHeating_HeatPumpMaximalThermalPower"] + household["SpaceHeating_HeatingElementPower"]
+            )  # W
 
-            instance.Q_HeatingTank_out[t].setub(household["SpaceHeating_HeatPumpMaximalThermalPower"])  # W
-            pass
-        instance.tank_energy_rule_noTank_heating.deactivate()
         instance.tank_energy_rule_heating.activate()
 
     # Thermal storage DHW
     if household["DHW_TankSize"] == 0:
         for t in range(1, len(HeatingTargetTemperature) + 1):
             instance.E_DHWTank[t].fix(0)
-            instance.Q_DHWTank_out[t].setub(household["SpaceHeating_HeatPumpMaximalThermalPower"])  # TODO couple powerlimit of DHW and spaceheating
+            instance.Q_DHWTank_out[t].fix(0)
+            instance.Q_DHWTank_in[t].fix(0)
 
-        instance.tank_energy_rule_noTank_DHW.activate()
+            instance.Q_DHW_HP_out[t].setub(household["SpaceHeating_HeatPumpMaximalThermalPower"])  # W
         instance.tank_energy_rule_DHW.deactivate()
     else:
         for t in range(1, len(HeatingTargetTemperature) + 1):
             instance.E_DHWTank[t].fixed = False
+            instance.Q_DHWTank_out[t].fixed = False
+            instance.Q_DHWTank_in[t].fixed = False
             instance.E_DHWTank[t].setlb(
                 CPWater * float(household["DHW_TankSize"]) *
                 (273.15 + float(household["DHW_TankMinimalTemperature"]))
@@ -676,9 +709,8 @@ def update_instance(total_input, instance):
                 CPWater * household["DHW_TankSize"] *
                 (273.15 + household["DHW_TankMaximalTemperature"])
             )
-            instance.Q_DHWTank_out[t].setub(household["SpaceHeating_HeatPumpMaximalThermalPower"])  # W TODO couple powerlimit of DHW and spaceheating
-            pass
-        instance.tank_energy_rule_noTank_DHW.deactivate()
+            instance.Q_DHW_HP_out[t].setub(household["SpaceHeating_HeatPumpMaximalThermalPower"])  # W
+
         instance.tank_energy_rule_DHW.activate()
 
     # Battery
@@ -690,6 +722,10 @@ def update_instance(total_input, instance):
             instance.BatSoC[t].fix(0)
             instance.BatCharge[t].fix(0)
             instance.BatDischarge[t].fix(0)
+            instance.PV2Bat[t].fix(0)
+        instance.calc_BatCharge.deactivate()
+        instance.calc_BatDischarge.deactivate()
+        instance.calc_BatSoC.deactivate()
     else:
         for t in range(1, len(HeatingTargetTemperature) + 1):
             # variables have to be unfixed in case they were fixed in a previous run
@@ -698,6 +734,7 @@ def update_instance(total_input, instance):
             instance.BatSoC[t].fixed = False
             instance.BatCharge[t].fixed = False
             instance.BatDischarge[t].fixed = False
+            instance.PV2Bat[t].fixed = False
             # set upper bounds
             instance.Grid2Bat[t].setub(household["Building_MaximalGridPower"])
 
@@ -705,13 +742,17 @@ def update_instance(total_input, instance):
             instance.BatSoC[t].setub(household["Battery_Capacity"])
             instance.BatCharge[t].setub(household["Battery_MaxChargePower"])
             instance.BatDischarge[t].setub(household["Battery_MaxDischargePower"])
-            pass
+        instance.calc_BatCharge.activate()
+        instance.calc_BatDischarge.activate()
+        instance.calc_BatSoC.activate()
+
     # PV
     if household["PV_PVPower"] == 0:
         for t in range(1, len(HeatingTargetTemperature) + 1):
             instance.PV2Load[t].fix(0)
             instance.PV2Bat[t].fix(0)
             instance.PV2Grid[t].fix(0)
+        instance.calc_UseOfPV.deactivate()
 
     else:
         for t in range(1, len(HeatingTargetTemperature) + 1):
@@ -723,7 +764,7 @@ def update_instance(total_input, instance):
             instance.PV2Load[t].setub(household["Building_MaximalGridPower"])
             instance.PV2Bat[t].setub(household["Building_MaximalGridPower"])
             instance.PV2Grid[t].setub(household["Building_MaximalGridPower"])
-            pass
+        instance.calc_UseOfPV.activate()
 
     # update time independent parameters
     # building parameters:
@@ -756,6 +797,8 @@ def update_instance(total_input, instance):
     instance.U_ValueTank_DHW = input_parameters[None]["U_ValueTank_DHW"][None]
     instance.T_TankSurrounding_DHW = input_parameters[None]["T_TankSurrounding_DHW"][None]
     instance.A_SurfaceTank_DHW = input_parameters[None]["A_SurfaceTank_DHW"][None]
+    # HP
+    instance.SpaceHeating_HeatPumpMaximalThermalPower = input_parameters[None]["SpaceHeating_HeatPumpMaximalThermalPower"][None]
     return instance
 
     # def run(self):
@@ -801,7 +844,7 @@ def run():
             # solve the instance:
             starttime = time.perf_counter()
             print("solving household {} in environment {}...".format(household_RowID, environment_RowID))
-            result = Opt.solve(instance2solve, tee=False)
+            result = Opt.solve(instance2solve, tee=True)
             print('Total Operation Cost: ' + str(round(instance2solve.Objective(), 2)))
             print("time for optimization: {}".format(time.perf_counter() - starttime))
             DC.collect_OptimizationResult(input_data["Household"], input_data["Environment"], instance2solve) #for testing
