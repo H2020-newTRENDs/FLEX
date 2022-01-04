@@ -13,8 +13,9 @@ class Table:
         self.building = "HouseholdBuilding"
         self.appliance_list = "HouseholdApplianceList"
         self.boiler = "HouseholdBoiler"
-        self.tank = "HouseholdTank"
+        self.space_heating_tank = "HouseholdSpaceHeatingTank"
         self.air_conditioner = "HouseholdAirConditioner"
+        self.hot_water_tank = "HouseholdHotWaterTank"
         self.pv = "HouseholdPV"
         self.battery = "HouseholdBattery"
         self.vehicle = "HouseholdVehicle"
@@ -25,5 +26,9 @@ class Table:
         self.electricity_price = "EnvironmentElectricityPrice"
         self.feedin_tariff = "EnvironmentFeedinTariff"
 
+
+
+class Column:
+    pass
 
 

@@ -24,8 +24,9 @@ class AbstractScenario(Component):
         self.building_id: int = None
         self.appliance_list_id: int = None
         self.boiler_id: int = None
-        self.tank_id: int = None
+        self.space_heating_tank_id: int = None
         self.air_conditioner_id: int = None
+        self.hot_water_tank_id: int = None
         self.pv_id: int = None
         self.battery_id: int = None
         self.vehicle_id: int = None
