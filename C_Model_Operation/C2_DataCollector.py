@@ -129,37 +129,27 @@ class DataCollector:
         OutsideTemperature_array = self.extract_Result2Array(instance.T_outside.extract_values())
 
         E_BaseLoad_array = self.extract_Result2Array(instance.BaseLoadProfile.extract_values()) / 1000  # kW
-        # Hour_DishWasher1_array = self.extract_Result2Array(instance.DishWasher1.extract_values())
-        # Hour_DishWasher2_array = self.extract_Result2Array(instance.DishWasher2.extract_values())
-        # Hour_DishWasher3_array = self.extract_Result2Array(instance.DishWasher3.extract_values())
-        # E_DishWasher_array = (Hour_DishWasher1_array + Hour_DishWasher2_array + Hour_DishWasher3_array) * household[
-        #     "ApplianceGroup_DishWasherPower"]
-        # Hour_WashingMachine1_array = self.extract_Result2Array(instance.WashingMachine1.extract_values())
-        # Hour_WashingMachine2_array = self.extract_Result2Array(instance.WashingMachine2.extract_values())
-        # Hour_WashingMachine3_array = self.extract_Result2Array(instance.WashingMachine3.extract_values())
-        # E_WashingMachine_array = (
-        #                                      Hour_WashingMachine1_array + Hour_WashingMachine2_array + Hour_WashingMachine3_array) * \
-        #                          household["ApplianceGroup_WashingMachinePower"]
-        # Hour_Dryer1_array = self.extract_Result2Array(instance.Dryer1.extract_values())
-        # Hour_Dryer2_array = self.extract_Result2Array(instance.Dryer2.extract_values())
-        # E_Dryer_array = (Hour_Dryer1_array + Hour_Dryer2_array) * household["ApplianceGroup_DryerPower"]
-        # E_SmartAppliances_array = E_DishWasher_array + E_WashingMachine_array + E_Dryer_array
 
         # Room heating
-        Q_HeatingTank_in = self.extract_Result2Array(instance.Q_HeatingTank_in.extract_values()) / 1000  # kWh
+        Q_room_heating = self.extract_Result2Array(instance.Q_room_heating.extract_values())
+        Q_heating_heat_pump = self.extract_Result2Array(instance.Q_Heating_HP_out.extract_values())
         SpaceHeatingHourlyCOP_array = self.extract_Result2Array(instance.SpaceHeatingHourlyCOP.extract_values())
-        E_TankHeatingHeatPump_array = Q_HeatingTank_in / SpaceHeatingHourlyCOP_array
-        Q_TankHeatingHeatingElement_array = self.extract_Result2Array(instance.Q_HeatingElement.extract_values()) / 1000  # kWh
+        e_heating_heat_pump_array = Q_heating_heat_pump / SpaceHeatingHourlyCOP_array
+        Q_HeatingHeatingElement_array = self.extract_Result2Array(instance.Q_HeatingElement.extract_values()) / 1000  # kWh
+
+        # space heating tank
+        Q_HeatingTank_in = self.extract_Result2Array(instance.Q_HeatingTank_in.extract_values()) / 1000  # kWh
         Q_HeatingTank_out = self.extract_Result2Array(instance.Q_HeatingTank_out.extract_values()) / 1000  # kWh
         heating_tank_SOC = self.extract_Result2Array(instance.E_HeatingTank.extract_values())
 
         # DHW tank
+        Q_DHW_heat_pump = self.extract_Result2Array(instance.Q_DHW_HP_out.extract_values())
         DHW_tank_SOC = self.extract_Result2Array(instance.E_DHWTank.extract_values())
         Q_DHWTank_out = self.extract_Result2Array(instance.Q_DHWTank_out.extract_values())
         Q_DHWTank_in = self.extract_Result2Array(instance.Q_DHWTank_in.extract_values())
-        DHW_baseload = self.extract_Result2Array(instance.HotWaterProfile.extract_values())
+        hot_water_profile = self.extract_Result2Array(instance.HotWaterProfile.extract_values())
         HotWaterHourlyCOP_array = self.extract_Result2Array(instance.HotWaterHourlyCOP.extract_values())
-        E_HotWater_array = Q_DHWTank_out / HotWaterHourlyCOP_array
+        e_DHW_heat_pump_array = Q_DHW_heat_pump / HotWaterHourlyCOP_array
 
         RoomTemperature_array = self.extract_Result2Array(instance.T_room.extract_values())
         BuildingMassTemperature_array = self.extract_Result2Array(instance.Tm_t.extract_values())
@@ -206,9 +196,9 @@ class DataCollector:
 
             Q_HeatingTank_in,
             SpaceHeatingHourlyCOP_array,
-            E_TankHeatingHeatPump_array,
-            Q_HeatingTank_in - E_TankHeatingHeatPump_array,
-            Q_TankHeatingHeatingElement_array,
+            e_heating_heat_pump_array,
+            Q_HeatingTank_in - e_heating_heat_pump_array,
+            Q_HeatingHeatingElement_array,
             Q_HeatingTank_out,
 
             RoomTemperature_array,
@@ -219,7 +209,7 @@ class DataCollector:
             E_RoomCooling_array,
 
             Q_DHWTank_out,
-            E_HotWater_array,
+            e_DHW_heat_pump_array,
 
             E_Grid_array,
             E_Grid2Load_array,
@@ -247,17 +237,17 @@ class DataCollector:
             # E_SmartAppliances_array.sum(),
 
             Q_HeatingTank_in.sum(),
-            E_TankHeatingHeatPump_array.sum(),
-            Q_HeatingTank_in.sum() / E_TankHeatingHeatPump_array.sum(),
-            (Q_HeatingTank_in - E_TankHeatingHeatPump_array).sum(),
-            Q_TankHeatingHeatingElement_array.sum(),
+            e_heating_heat_pump_array.sum(),
+            Q_HeatingTank_in.sum() / e_heating_heat_pump_array.sum(),
+            (Q_HeatingTank_in - e_heating_heat_pump_array).sum(),
+            Q_HeatingHeatingElement_array.sum(),
             Q_HeatingTank_out.sum(),
 
             Q_RoomCooling_array.sum(),
             E_RoomCooling_array.sum(),
 
             Q_DHWTank_out.sum(),
-            E_HotWater_array.sum(),
+            e_DHW_heat_pump_array.sum(),
 
             E_Grid_array.sum(),
             E_Grid2Load_array.sum(),
