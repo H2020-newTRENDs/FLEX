@@ -27,8 +27,8 @@ class Table:
         self.feedin_tariff = "EnvironmentFeedinTariff"
 
 
-
 class Column:
+
     pass
 
 
