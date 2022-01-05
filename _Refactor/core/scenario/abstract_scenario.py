@@ -9,13 +9,13 @@ from _Refactor.core.elements.component_setup import GeneralComponent
 class AbstractScenario(Component):
 
     def __init__(self, scenario_id: int):
+        self.component_params_dict = {}
         self.scenario_id = scenario_id
         self.setup()
 
     def setup(self):
         self.add_component_ids()
         self.set_component_ids()
-        self.component_params_dict = {}
         self.add_component_with_params()
 
     def add_component_ids(self):
