@@ -5,6 +5,7 @@ from B_Classes.B2_Building import HeatingCoolingNoSEMS
 from B_Classes.B1_Household import Household
 from C_Model_Operation.C2_DataCollector import DataCollector
 from C_Model_Operation.C0_Model import MotherModel
+from _Refactor.core.scenario.abstract_scenario import AbstractScenario
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -24,6 +25,9 @@ def performance_counter(func):
 
 
 class no_SEMS(MotherModel):
+    def __init__(self):
+        super().__init__()
+        self.CPWater = 4_200 / 3_600
 
     def remove_household_IDs(self) -> pd.DataFrame:
         """ return a pandas dataframe of the Gen_OBJ_ID_Household frame but removes all building IDs but one because
@@ -806,7 +810,7 @@ class no_SEMS(MotherModel):
 
         # When there is PV surplus energy it either goes to a storage or is sold to the grid:
         # Water Tank as storage:
-        if float(Household.SpaceHeating.TankSize) > 0:
+        if float(Household.SpaceHeatingTank.TankSize) > 0:
             TankLoss_hourly, CurrentTankTemperature, Electricity_surplus_tank, Electricity_deficit, Q_heating_withTank, Total_Load_WaterTank = \
                 self.calculate_heating_tank_energy(elec_grid_demand, Electricity_surplus, Q_Heating_noDR, Household)
             # remaining surplus of electricity
@@ -829,6 +833,7 @@ class no_SEMS(MotherModel):
         for column in range(elec_grid_demand.shape[1]):
             total_elec_cost[:, column] = PriceHourly * elec_grid_demand[:, column] - Electricity_surplus[:,
                                                                                      column] * FIT
+
 
         # Dataframe for yearly values:
         YearlyFrame = np.column_stack([

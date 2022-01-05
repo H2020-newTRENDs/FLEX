@@ -27,19 +27,12 @@ class MotherModel:
         self.HotWaterProfile = DB().read_DataFrame(REG_Table().Gen_Sce_HotWaterProfile, self.Conn)
         self.Radiation_SkyDirections = DB().read_DataFrame(REG_Table().Gen_Sce_Weather_Radiation_SkyDirections,
                                                            self.Conn)
-        # self.HeatPump_HourlyCOP = DB().read_DataFrame(REG_Table().Gen_Sce_HeatPump_HourlyCOP, self.Conn)
         self.AC_HourlyCOP = DB().read_DataFrame(REG_Table().Gen_Sce_AC_HourlyCOP, self.Conn)
-
+        # indoor set temperature
         self.TargetTemperature = DB().read_DataFrame(REG_Table().Gen_Sce_TargetTemperature, self.Conn)
-
-        # C_Water
-        self.CPWater = 4_200 / 3_600
 
         # building information
         self.Buildings = DB().read_DataFrame(REG_Table().ID_BuildingOption, self.Conn)
-        self.AreaWindowEastWest = self.Buildings['average_effective_area_wind_west_east_red_cool'].to_numpy()
-        self.AreaWindowSouth = self.Buildings['average_effective_area_wind_south_red_cool'].to_numpy()
-        self.AreaWindowNorth = self.Buildings['average_effective_area_wind_north_red_cool'].to_numpy()
 
     def COP_HP(self, outside_temperature, supply_temperature, efficiency, source):
         """
@@ -59,10 +52,14 @@ class MotherModel:
     def calculate_solar_gains(self) -> np.array:
         """calculates the solar gains through solar radiation through the effective window area
         returns the solar gains for all considered building IDs with 8760 rows. Each columns represents a building ID"""
-        Q_sol_north = np.outer(self.Radiation_SkyDirections.north.to_numpy(), self.AreaWindowSouth)
-        Q_sol_east = np.outer(self.Radiation_SkyDirections.east.to_numpy(), self.AreaWindowEastWest / 2)
-        Q_sol_south = np.outer(self.Radiation_SkyDirections.south.to_numpy(), self.AreaWindowSouth)
-        Q_sol_west = np.outer(self.Radiation_SkyDirections.west.to_numpy(), self.AreaWindowEastWest / 2)
+        AreaWindowEastWest = self.Buildings['average_effective_area_wind_west_east_red_cool'].to_numpy()
+        AreaWindowSouth = self.Buildings['average_effective_area_wind_south_red_cool'].to_numpy()
+        AreaWindowNorth = self.Buildings['average_effective_area_wind_north_red_cool'].to_numpy()
+
+        Q_sol_north = np.outer(self.Radiation_SkyDirections.north.to_numpy(), AreaWindowNorth)
+        Q_sol_east = np.outer(self.Radiation_SkyDirections.east.to_numpy(), AreaWindowEastWest / 2)
+        Q_sol_south = np.outer(self.Radiation_SkyDirections.south.to_numpy(), AreaWindowSouth)
+        Q_sol_west = np.outer(self.Radiation_SkyDirections.west.to_numpy(), AreaWindowEastWest / 2)
         Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
         return Q_solar
 
