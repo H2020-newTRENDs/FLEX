@@ -18,6 +18,8 @@ class AbstractOperationModel(ABC):
         self.environment = environment
 
     # @abstractmethod
-    # def run(self):
-    #     pass
+    def run(self):
+        data_collector(some_dict)
+        pass
+
 
