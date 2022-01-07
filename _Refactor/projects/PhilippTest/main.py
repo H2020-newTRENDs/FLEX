@@ -7,7 +7,7 @@ from modules.environment import PhilippTestEnvironment
 from modules.household import PhilippTestHousehold
 from modules.scenario import PhilippTestScenario
 
-project_config
+
 scenario = PhilippTestScenario(scenario_id=0)
 household = PhilippTestHousehold(scenario)
 environment = PhilippTestEnvironment(scenario)
@@ -15,3 +15,4 @@ model = PhilippTestOptOperationModel(household, environment)
 
 print(model.household.space_heating_tank.loss)
 print(model.household.hot_water_tank.loss)
+

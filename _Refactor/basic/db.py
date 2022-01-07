@@ -1,20 +1,25 @@
 import os
 import sqlalchemy
 import pandas as pd
+from pathlib import Path
 
 from _Refactor.basic.config import Config
 
 
 class DB:
 
-    def __init__(self):
+    def __init__(self,
+                 db_name: str,
+                 db_folder: Path):
+        self.db_name = db_name
+        self.db_folder = db_folder
         self.connection = self.create_connection()
 
     def get_engine(self):
         return self.connection
 
     def create_connection(self) -> sqlalchemy.engine.Engine:
-        return sqlalchemy.create_engine(f'sqlite:///{Config().root_db}')
+        return sqlalchemy.create_engine(f'sqlite:///{self.db_folder / Path(self.db_name + ".sqlite")}')
 
     def close(self):
         self.connection.dispose()

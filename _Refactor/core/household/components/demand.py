@@ -3,6 +3,7 @@ from typing import Dict, Any
 
 from _Refactor.core.elements.component import Component
 
+
 class Demand(Component):
 
     # indoor_temperature_min: np.array
