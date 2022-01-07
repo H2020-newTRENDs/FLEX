@@ -3,6 +3,7 @@ from typing import Dict, Any
 
 from _Refactor.core.elements.component import Component
 
+
 class SpaceHeatingTank(Component):
 
     def __init__(self, params_dict: Dict[str, Any]):

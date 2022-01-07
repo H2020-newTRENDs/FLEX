@@ -10,7 +10,6 @@ class Config:
                  output_folder: str
                  ):
         self.root_db_folder = Path(__file__).parent / Path("data")
-        self.root_db = Path(__file__).parent / Path(sqlite_folder) / Path(database_name + ".sqlite")
         self.database_name = database_name
         self.project_name = project_name
         self.project_root = project_root

@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 
 from _Refactor.core.scenario.abstract_scenario import AbstractScenario
 
+
 class Pillar(ABC):
 
     def __init__(self, scenario: 'AbstractScenario'):
