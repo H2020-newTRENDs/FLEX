@@ -2,22 +2,19 @@ import os
 import sqlalchemy
 import pandas as pd
 
+from _Refactor.basic.config import Config
+
 
 class DB:
 
-    def __init__(self,
-                 db_name: str,
-                 db_path: str):
-
-        self.db_name = db_name
-        self.db_path = db_path
-        self.connection = self.create_connection(self.db_name)
+    def __init__(self):
+        self.connection = self.create_connection()
 
     def get_engine(self):
         return self.connection
 
-    def create_connection(self, db_name) -> sqlalchemy.engine.Engine:
-        return sqlalchemy.create_engine(f'sqlite:///{os.path.join(self.db_path, db_name + ".sqlite")}')
+    def create_connection(self) -> sqlalchemy.engine.Engine:
+        return sqlalchemy.create_engine(f'sqlite:///{os.path.join(Config().root_db + ".sqlite")}')
 
     def close(self):
         self.connection.dispose()
