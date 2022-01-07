@@ -4,6 +4,8 @@ from typing import Dict, Any
 from os.path import join, dirname
 
 from _Refactor.basic.db import DB
+from _Refactor.basic.config import Config
+
 
 class GetComponentParamsDictStrategy(ABC):
 
@@ -11,17 +13,17 @@ class GetComponentParamsDictStrategy(ABC):
     def get_params_dict(self) -> Dict[str, Any]:
         pass
 
+
 class GeneralComponent(GetComponentParamsDictStrategy):
 
     def __init__(self,
-                 table_name: str,
                  row_id: int,
-                 db_name: str = "root",
-                 db_folder: str = join(dirname(dirname(dirname(__file__))), "data")):
+                 table_name: str,
+                 db_name: str = Config().database_name,
+                 db_folder: str = Config().root_db_folder):
         self.table_name = table_name
         self.row_id = row_id
-        self.db_folder = db_folder
-        self.db = DB(db_name, self.db_folder)
+        self.db = DB()
 
     def get_params_dict(self) -> Dict[str, Any]:
         table = self.db.read_dataframe(self.table_name)

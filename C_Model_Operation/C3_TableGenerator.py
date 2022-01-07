@@ -1,7 +1,7 @@
 import urllib.error
 
 from C_Model_Operation.C1_REG import REG_Table, REG_Var
-from A_Infrastructure.A2_DB import DB
+# from A_Infrastructure.A2_DB import DB
 import numpy as np
 import pandas as pd
 from A_Infrastructure.A1_CONS import CONS
@@ -10,10 +10,13 @@ from pyproj import CRS, Transformer
 from pathlib import Path
 from abc import ABC, abstractmethod
 
+from _Refactor.basic.db import DB
+
 
 class MotherTableGenerator(ABC):
     def __init__(self):
-        self.conn = DB().create_Connection(CONS().RootDB)
+        # self.conn = DB().create_Connection(CONS().RootDB)
+        self.conn = DB().create_Connection()
         self.TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.conn)
         self.id_hour = self.TimeStructure.ID_Hour.to_numpy()
 

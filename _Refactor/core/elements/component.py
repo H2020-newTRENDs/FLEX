@@ -1,6 +1,7 @@
 
 from typing import Dict, Any
 
+
 class Component:
 
     def set_params(self, params: Dict[str, Any]):
