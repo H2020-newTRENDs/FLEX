@@ -14,7 +14,7 @@ class DB:
         return self.connection
 
     def create_connection(self) -> sqlalchemy.engine.Engine:
-        return sqlalchemy.create_engine(f'sqlite:///{os.path.join(Config().root_db + ".sqlite")}')
+        return sqlalchemy.create_engine(f'sqlite:///{Config().root_db}')
 
     def close(self):
         self.connection.dispose()
