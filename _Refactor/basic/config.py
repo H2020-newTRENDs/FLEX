@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 class Config:
     def __init__(self,
@@ -8,8 +8,8 @@ class Config:
                  database_name: str,
                  output_folder: str
                  ):
-        self.root_db_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-        self.root_db = os.path.join(os.path.dirname(os.path.dirname(__file__), sqlite_folder, database_name))
+        self.root_db_folder = Path(__file__).parent / Path("data")
+        self.root_db = Path(__file__).parent / Path(sqlite_folder) / Path(database_name)
         self.database_name = database_name
         self.project_name = project_name
         self.project_root = project_root
