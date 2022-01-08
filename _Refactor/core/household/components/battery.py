@@ -6,16 +6,15 @@ from _Refactor.core.elements.component import Component
 
 class Battery(Component):
 
-    def __init__(self, params_dict: Dict[str, Any]):
-        self.ID_Battery: str
-        self.Capacity: float
-        self.Capacity_unit: str
-        self.ChargeEfficiency: float
-        self.DischargeEfficiency: float
-        self.MaxChargePower: float
-        self.MaxChargePower_unit: str
-        self.MaxDischargePower: float
-        self.MaxDischargePower_unit: str
+    def __init__(self):
+        self.ID_Battery: str = None
+        self.Capacity: float = None
+        self.Capacity_unit: str = None
+        self.ChargeEfficiency: float = None
+        self.DischargeEfficiency: float = None
+        self.MaxChargePower: float = None
+        self.MaxChargePower_unit: str = None
+        self.MaxDischargePower: float = None
+        self.MaxDischargePower_unit: str = None
 
-        self.set_params(params_dict)
 

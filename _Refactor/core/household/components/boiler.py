@@ -6,15 +6,12 @@ from _Refactor.core.elements.component import Component
 
 class Boiler(Component):
 
-    def __init__(self, params_dict: Dict[str, Any]):
-        self.ID_Boiler: int
-        self.name: str
-        self.thermal_power_max: float
-        self.thermal_power_max_unit: str
-        self.heating_element_power: float
-        self.heating_element_power_unit: str
-        self.carnot_efficiency_factor: float
-
-        self.set_params(params_dict)
-
+    def __init__(self):
+        self.ID_Boiler: int = None
+        self.name: str = None
+        self.thermal_power_max: float = None
+        self.thermal_power_max_unit: str = None
+        self.heating_element_power: float = None
+        self.heating_element_power_unit: str = None
+        self.carnot_efficiency_factor: float = None
 

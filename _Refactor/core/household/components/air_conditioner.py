@@ -6,10 +6,9 @@ from _Refactor.core.elements.component import Component
 
 class AirConditioner(Component):
 
-    def __init__(self, params_dict: Dict[str, Any]):
-        self.ID_AirConditioner: int
-        self.power: float
-        self.power_unit: str
+    def __init__(self):
+        self.ID_AirConditioner: int = None
+        self.power: float = None
+        self.power_unit: str = None
 
-        self.set_params(params_dict)
 

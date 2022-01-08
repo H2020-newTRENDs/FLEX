@@ -6,17 +6,15 @@ from _Refactor.core.elements.component import Component
 
 class HotWaterTank(Component):
 
-    def __init__(self, params_dict: Dict[str, Any]):
-        self.size: float
-        self.size_unit: str
-        self.surface_area: float
-        self.surface_area_unit: str
-        self.loss: float
-        self.loss_unit: str
-        self.temperature_start: float
-        self.temperature_max: float
-        self.temperature_min: float
-        self.temperature_surrounding: float
-
-        self.set_params(params_dict)
+    def __init__(self):
+        self.size: float = None
+        self.size_unit: str = None
+        self.surface_area: float = None
+        self.surface_area_unit: str = None
+        self.loss: float = None
+        self.loss_unit: str = None
+        self.temperature_start: float = None
+        self.temperature_max: float = None
+        self.temperature_min: float = None
+        self.temperature_surrounding: float = None
 
