@@ -1,25 +1,19 @@
-import os
 import sqlalchemy
 import pandas as pd
-from pathlib import Path
 
-from _Refactor.basic.config import Config
+import _Refactor.basic.config as config
 
 
 class DB:
 
     def __init__(self,
-                 db_name: str,
-                 db_folder: Path):
-        self.db_name = db_name
-        self.db_folder = db_folder
-        self.connection = self.create_connection()
+                 connection: sqlalchemy.engine.Engine = config.root_connection):
+        """the default connection will be the root connection from the config file, for a different connection,
+        the "create_connection function from the config file can be used"""
+        self.connection = connection
 
     def get_engine(self):
         return self.connection
-
-    def create_connection(self) -> sqlalchemy.engine.Engine:
-        return sqlalchemy.create_engine(f'sqlite:///{self.db_folder / Path(self.db_name + ".sqlite")}')
 
     def close(self):
         self.connection.dispose()
@@ -31,9 +25,10 @@ class DB:
     def write_dataframe(self,
                         table_name: str,
                         data_frame: pd.DataFrame,
-                        data_types,
-                        if_exists='append'): # if_exists: {'replace', 'fail', 'append'}
-        data_frame.to_sql(table_name, self.connection, index=False, dtype=data_types, if_exists=if_exists)
+                        data_types: dict,
+                        if_exists='append'):  # if_exists: {'replace', 'fail', 'append'}
+        data_frame.to_sql(table_name, self.connection, index=False, dtype=data_types, if_exists=if_exists,
+                          chunksize=10_000)
 
     def read_dataframe(self, table_name: str) -> pd.DataFrame:
         return pd.read_sql(f'select * from {table_name}', self.connection)

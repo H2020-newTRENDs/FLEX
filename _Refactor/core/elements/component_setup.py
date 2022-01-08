@@ -24,7 +24,7 @@ class GeneralComponent(GetComponentParamsDictStrategy):
                  db_folder: str = Path(__file__).parent / Path("data")):
         self.table_name = table_name
         self.row_id = row_id
-        self.db = DB(db_name, db_folder)
+        self.db = DB()
 
     def get_params_dict(self) -> Dict[str, Any]:
         table = self.db.read_dataframe(self.table_name)

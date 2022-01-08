@@ -6,10 +6,9 @@ from _Refactor.core.elements.component import Component
 
 class PV(Component):
 
-    def __init__(self, params_dict: Dict[str, Any]):
-        self.ID_PV: int
-        self.PVPower: float
-        self.PVPower_unit: str
+    def __init__(self):
+        self.ID_PV: int = None
+        self.peak_power: float = None
+        self.peak_power_unit: str = None
 
-        self.set_params(params_dict)
 

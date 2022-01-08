@@ -1,4 +1,16 @@
 from pathlib import Path
+import sqlalchemy
+
+
+def create_connection(db_folder: Path = Path(__file__).parent / Path("data"),
+                      db_name: str = "root"
+                      ) -> sqlalchemy.engine.Engine:
+    """if no database name and folder path are provided the root database is selected"""
+    return sqlalchemy.create_engine(f'sqlite:///{db_folder / Path(db_name + ".sqlite")}',
+                                    pool_pre_ping=True)
+
+
+root_connection = create_connection()  # when multiprocessing the engine has to be created for each process
 
 
 class Config:
@@ -15,8 +27,3 @@ class Config:
         self.project_root = project_root
         self.sqlite_folder = sqlite_folder
         self.output_folder = output_folder
-
-        def initialize():
-
-            pass
-
