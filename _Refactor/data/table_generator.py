@@ -17,7 +17,7 @@ from _Refactor.basic.reg import Table
 class MotherTableGenerator(ABC):
 
     def __init__(self):
-        self.conn = DB()
+        pass
 
     def get_dtypes_dict(self, class_dict):
         dtypes_dict = {}
@@ -85,19 +85,14 @@ class MotherTableGenerator(ABC):
         return None
 
 
-class TableGeneratorHousehold(MotherTableGenerator):
-    """generates the GEN_OBJ tables through the ID_Tables"""
+class HouseholdComponentGenerator(MotherTableGenerator):
+    """generates the Household tables"""
 
-    def gen_OBJ_ID_Building(self) -> None:  # TODO create link to INVERT
-        BuildingOption = DB().read_DataFrame(REG_Table().ID_BuildingOption,
-                                             self.conn)  # TODO the function to create ID_Building option still has to be created
-        BuildingMassTemperature = DB().read_DataFrame(REG_Table().ID_BuildingMassTemperature, self.conn)
-        GridInfrastructure = DB().read_DataFrame(REG_Table().ID_GridInfrastructure, self.conn)
-        self.gen_OBJ_ID_Table_3To1(REG_Table().Gen_OBJ_ID_Building,
-                                   BuildingOption,
-                                   BuildingMassTemperature,
-                                   GridInfrastructure)
-        return None
+    def calculate_cylindrical_area_from_volume(self, tank_sizes: float) -> float:
+        """calculates the minimal cylindicral area of a tank with a give volume"""
+        radius = [(2 * volume / 1_000 / 4 / np.pi) ** (1. / 3) for volume in tank_sizes]
+        surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
+        return surface_area
 
     def gen_OBJ_ID_ApplianceGroup(self):
         DishWasher = DB().read_DataFrame(REG_Table().ID_DishWasherType, self.conn)
@@ -107,9 +102,21 @@ class TableGeneratorHousehold(MotherTableGenerator):
                                    DishWasher,
                                    Dryer,
                                    WashingMachine)
-        return None
 
-    def HouseholdBoiler(self) -> None:
+    def create_household_building(self) -> None:  # TODO create link to INVERT
+        """reads building excel table and stores it to root"""
+
+
+        BuildingOption = DB().read_DataFrame(REG_Table().ID_BuildingOption,
+                                             self.conn)  # TODO the function to create ID_Building option still has to be created
+        BuildingMassTemperature = DB().read_DataFrame(REG_Table().ID_BuildingMassTemperature, self.conn)
+        GridInfrastructure = DB().read_DataFrame(REG_Table().ID_GridInfrastructure, self.conn)
+        self.gen_OBJ_ID_Table_3To1(REG_Table().Gen_OBJ_ID_Building,
+                                   BuildingOption,
+                                   BuildingMassTemperature,
+                                   GridInfrastructure)
+
+    def create_household_boiler(self) -> None:
         """creates the space heating system table in the Database"""
         heating_system = ["Air_HP", "Ground_HP"]  # TODO kan be given externally
         carnot_factor = [0.4, 0.35]  # for the heat pumps respectively
@@ -131,25 +138,26 @@ class TableGeneratorHousehold(MotherTableGenerator):
                              if_exists="replace"
                              )
 
-    def HouseholdSpaceHeatingTank(self) -> None:
+    def create_household_space_heating_tank(self) -> None:
         """creates the space heating tank table in the Database"""
         tank_sizes = [500, 1_000, 1500]  # liter  TODO kan be given externally
         columns = self.get_dtypes_dict(SpaceHeatingTank().__dict__)
         # tank is designed as Cylinder with minimal surface area:
-        radius = [(2 * volume / 1_000 / 4 / np.pi) ** (1. / 3) for volume in tank_sizes]
-        surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
-        table = np.column_stack([np.arange(1, len(tank_sizes) + 1),  # ID
-                                 tank_sizes,  # tank size
-                                 np.full((len(tank_sizes),), "kg"),  # TankSize_unit
-                                 surface_area,  # TankSurfaceArea
-                                 np.full((len(tank_sizes),), "m2"),  # TankSurfaceArea_unit
-                                 np.full((len(tank_sizes),), 0.2),  # TankLoss
-                                 np.full((len(tank_sizes),), "W/m2"),  # TankLoss_unit
-                                 np.full((len(tank_sizes),), 28),  # TankStartTemperature
-                                 np.full((len(tank_sizes),), 65),  # TankMaximalTemperature
-                                 np.full((len(tank_sizes),), 28),  # TankMinimalTemperature
-                                 np.full((len(tank_sizes),), 20)]  # TankSurroundingTemperature
-                                )
+        surface_area = self.calculate_cylindrical_area_from_volume(tank_sizes)
+        table_dict = {"ID_SpaceHeatingTank": np.arange(1, len(tank_sizes) + 1),  # ID
+                      "size": tank_sizes,  # tank size
+                      "size_unit": np.full((len(tank_sizes),), "kg"),  # TankSize_unit
+                      "surface_area": surface_area,  # TankSurfaceArea
+                      "surface_area_unit": np.full((len(tank_sizes),), "m2"),  # TankSurfaceArea_unit
+                      "loss": np.full((len(tank_sizes),), 0.2),  # TankLoss
+                      "loss_unit": np.full((len(tank_sizes),), "W/m2"),  # TankLoss_unit
+                      "temperature_start": np.full((len(tank_sizes),), 28),  # TankStartTemperature
+                      "temperature_max": np.full((len(tank_sizes),), 65),  # TankMaximalTemperature
+                      "temperature_min": np.full((len(tank_sizes),), 28),  # TankMinimalTemperature
+                      "temperature_surrounding": np.full((len(tank_sizes),), 20)  # TankSurroundingTemperature
+                      }
+        assert table_dict.keys() == columns.keys()
+        table = pd.DataFrame(table_dict)
         # save
         DB().write_dataframe(table_name=Table().space_heating_tank,
                              data_frame=table,
@@ -157,102 +165,92 @@ class TableGeneratorHousehold(MotherTableGenerator):
                              if_exists="replace"
                              )
 
-    def HouseholdHotWaterTank(self) -> None:
+    def create_household_hot_water_tank(self) -> None:
         """creates the ID_DHWTank table in the Database"""
         tank_sizes = [200, 500, 1_000]  # liter  TODO kan be given externally
         columns = self.get_dtypes_dict(HotWaterTank().__dict__)
         # tank is designed as Cylinder with minimal surface area:
-        radius = [(2 * volume / 1_000 / 4 / np.pi) ** (1. / 3) for volume in tank_sizes]
-        surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
-        table = np.column_stack([np.arange(1, len(tank_sizes) + 1),  # ID
-                                 tank_sizes,  # tank size
-                                 np.full((len(tank_sizes),), "kg"),  # TankSize_unit
-                                 surface_area,  # TankSurfaceArea
-                                 np.full((len(tank_sizes),), "m2"),  # TankSurfaceArea_unit
-                                 np.full((len(tank_sizes),), 0.2),  # TankLoss
-                                 np.full((len(tank_sizes),), "W/m2"),  # TankLoss_unit
-                                 np.full((len(tank_sizes),), 28),  # TankStartTemperature
-                                 np.full((len(tank_sizes),), 65),  # TankMaximalTemperature
-                                 np.full((len(tank_sizes),), 28),  # TankMinimalTemperature
-                                 np.full((len(tank_sizes),), 20)]  # TankSurroundingTemperature
-                                )
+        surface_area = self.calculate_cylindrical_area_from_volume(tank_sizes)
+        table_dict = {"ID_HotWaterTank": np.arange(1, len(tank_sizes) + 1),  # ID
+                      "size": tank_sizes,  # tank size
+                      "size_unit": np.full((len(tank_sizes),), "kg"),  # TankSize_unit
+                      "surface_area": surface_area,  # TankSurfaceArea
+                      "surface_area_unit": np.full((len(tank_sizes),), "m2"),  # TankSurfaceArea_unit
+                      "loss": np.full((len(tank_sizes),), 0.2),  # TankLoss
+                      "loss_unit": np.full((len(tank_sizes),), "W/m2"),  # TankLoss_unit
+                      "temperature_start": np.full((len(tank_sizes),), 28),  # TankStartTemperature
+                      "temperature_max": np.full((len(tank_sizes),), 65),  # TankMaximalTemperature
+                      "temperature_min": np.full((len(tank_sizes),), 28),  # TankMinimalTemperature
+                      "temperature_surrounding": np.full((len(tank_sizes),), 20)  # TankSurroundingTemperature
+                      }
+        assert table_dict.keys() == columns.keys()
+        table = pd.DataFrame(table_dict)
         # save
-        DB().write_DataFrame(table=table,
-                             table_name=REG_Table().Gen_OBJ_ID_DHW_tank,
-                             conn=self.conn,
-                             column_names=columns.keys(),
-                             dtype=columns)
+        DB().write_dataframe(table_name=Table().hot_water_tank,
+                             data_frame=table,
+                             data_types=columns,
+                             if_exists="replace"
+                             )
 
-    def gen_OBJ_ID_SpaceCooling(self) -> None:
+    def create_household_air_conditioner(self) -> None:
         """creates the ID_SpaceCooling table in the Database"""
         cooling_power = [0, 10_000]  # W  TODO kan be given externally
-        columns = {REG_Var().ID_SpaceCooling: "INTEGER",
-                   "SpaceCoolingEfficiency": "REAL",
-                   "SpaceCoolingPower": "REAL",
-                   "SpaceCoolingPower_unit": "TEXT"}
         cooling_efficiency = np.full((len(cooling_power),), 3)  # TODO add other COPs?
-
-        table = np.column_stack([np.arange(1, len(cooling_power) + 1),  # ID
-                                 cooling_efficiency,  # SpaceCoolingEfficiency
-                                 cooling_power,  # SpaceCoolingPower
-                                 np.full((len(cooling_power),), "W")]  # SpaceCoolingPower_unit
-                                )
+        columns = self.get_dtypes_dict(AirConditioner().__dict__)
+        table_dict = {"ID_AirConditioner": np.arange(1, len(cooling_power) + 1),
+                      "efficiency": cooling_efficiency,
+                      "power": cooling_power,
+                      "power_unit": np.full((len(cooling_power),), "W")
+                      }
+        assert table_dict.keys() == columns.keys()
+        table = pd.DataFrame(table_dict)
         # save
-        DB().write_DataFrame(table=table,
-                             table_name=REG_Table().Gen_OBJ_ID_SpaceCooling,
-                             conn=self.conn,
-                             column_names=columns.keys(),
-                             dtype=columns)
+        DB().write_dataframe(table_name=Table().air_conditioner,
+                             data_frame=table,
+                             data_types=columns,
+                             if_exists="replace"
+                             )
 
-    def gen_OBJ_ID_Battery(self) -> None:
+    def create_household_battery(self) -> None:
         """creates the ID_Battery table in the Database"""
         battery_capacity = [0, 10_000]  # W  TODO kan be given externally
-        columns = {REG_Var().ID_Battery: "INTEGER",
-                   "Capacity": "REAL",
-                   "Capacity_unit": "TEXT",
-                   "ChargeEfficiency": "REAL",
-                   "DischargeEfficiency": "REAL",
-                   "MaxChargePower": "REAL",
-                   "MaxChargePower_unit": "TEXT",
-                   "MaxDischargePower": "REAL",
-                   "MaxDischargePower_unit": "TEXT"}
-
-        table = np.column_stack([np.arange(1, len(battery_capacity) + 1),  # ID
-                                 battery_capacity,  # Capacity
-                                 np.full((len(battery_capacity),), "W"),  # Capacity_unit
-                                 np.full((len(battery_capacity),), 0.95),  # ChargeEfficiency
-                                 np.full((len(battery_capacity),), 0.95),  # DischargeEfficiency
-                                 np.full((len(battery_capacity),), 4_500),  # MaxChargePower
-                                 np.full((len(battery_capacity),), "W"),  # MaxChargePower_unit
-                                 np.full((len(battery_capacity),), 4_500),  # MaxDischargePower
-                                 np.full((len(battery_capacity),), "W")]  # MaxDischargePower_unit
-                                )
+        columns = self.get_dtypes_dict(Battery().__dict__)
+        table_dict = {"ID_Battery": np.arange(1, len(battery_capacity) + 1),
+                      "capacity": battery_capacity,
+                      "capacity_unit": np.full((len(battery_capacity),), "W"),
+                      "charge_efficiency": np.full((len(battery_capacity),), 0.95),
+                      "discharge_efficiency": np.full((len(battery_capacity),), 0.95),
+                      "charge_power_max": np.full((len(battery_capacity),), 4_500),
+                      "charge_power_max_unit": np.full((len(battery_capacity),), "W"),
+                      "discharge_power_max": np.full((len(battery_capacity),), 4_500),
+                      "discharge_power_max_unit": np.full((len(battery_capacity),), "W")
+                      }
+        assert table_dict.keys() == columns.keys()
+        table = pd.DataFrame(table_dict)
         # save
-        DB().write_DataFrame(table=table,
-                             table_name=REG_Table().Gen_OBJ_ID_Battery,
-                             conn=self.conn,
-                             column_names=columns.keys(),
-                             dtype=columns)
+        DB().write_dataframe(table_name=Table().battery,
+                             data_frame=table,
+                             data_types=columns,
+                             if_exists="replace"
+                             )
 
-    def gen_OBJ_ID_PV(self):
+    def create_household_pv(self):
         """saves the different PV types to the DB"""
         pv_power = [0, 5, 10]  # kWp  TODO kan be given externally
-        columns = {REG_Var().ID_PV: "INTEGER",
-                   "PVPower": "REAL",
-                   "PVPower_unit": "TEXT"}
-
-        table = np.column_stack([np.arange(1, len(pv_power) + 1),  # ID
-                                 pv_power,  # PVPower
-                                 np.full((len(pv_power),), "kWp")]  # MaxDischargePower_unit
-                                )
+        columns = self.get_dtypes_dict(PV().__dict__)
+        table_dict = {"ID_PV": np.arange(1, len(pv_power) + 1),
+                      "peak_power": pv_power,
+                      "peak_power_unit": np.full((len(pv_power),), "kWp")
+                      }
+        table = pd.DataFrame(table_dict)
         # save
-        DB().write_DataFrame(table=table,
-                             table_name=REG_Table().Gen_OBJ_ID_PV,
-                             conn=self.conn,
-                             column_names=columns.keys(),
-                             dtype=columns)
+        DB().write_dataframe(table_name=Table().pv,
+                             data_frame=table,
+                             data_types=columns,
+                             if_exists="replace"
+                             )
 
-    def gen_OBJ_ID_Household(self) -> None:
+    def generate_scenario_table(self) -> None:
         """
         Creates big table for optimization with everthing included.
         """
@@ -314,15 +312,15 @@ class TableGeneratorHousehold(MotherTableGenerator):
         DB().write_DataFrame(TargetTable_list, REG_Table().Gen_OBJ_ID_Household, TargetTable_columns, self.conn)
 
     def run(self):
-        # self.gen_OBJ_ID_Building()
+        self.create_household_building()
         # self.gen_OBJ_ID_ApplianceGroup()
-        self.HouseholdBoiler()
-        # self.gen_OBJ_ID_heatingTank()
-        # self.gen_OBJ_ID_DHWTank()
-        # self.gen_OBJ_ID_SpaceCooling()
-        # self.gen_OBJ_ID_Battery()
-        # self.gen_OBJ_ID_PV()
-        # self.gen_OBJ_ID_Household()
+        self.create_household_boiler()
+        self.create_household_pv()
+        self.create_household_battery()
+        self.create_household_air_conditioner()
+        self.create_household_hot_water_tank()
+        self.create_household_space_heating_tank()
+        self.generate_scenario_table()
 
 
 class TableGeneratorID(MotherTableGenerator, ABC):
@@ -687,7 +685,7 @@ class TableGeneratorID(MotherTableGenerator, ABC):
         self.country_mean_PV_GIS("AT")
 
 
-class TableGeneratorGenSce(MotherTableGenerator, ABC):
+class ProfileGenerator(MotherTableGenerator, ABC):
 
     def gen_Sce_Demand_DishWasherHours(self,
                                        NumberOfDishWasherProfiles):  # TODO if more than 1 dishwasher type is implemented, rewrite the function
@@ -1034,7 +1032,7 @@ class TableGeneratorGenSce(MotherTableGenerator, ABC):
 if __name__ == "__main__":
     # ID_generator = TableGeneratorID()
     # gensce_generator = TableGeneratorGenSce()
-    genobj_generator = TableGeneratorHousehold()
+    genobj_generator = HouseholdComponentGenerator()
 
     # ID_generator.run()
     # gensce_generator.run()

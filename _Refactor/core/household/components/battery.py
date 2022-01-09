@@ -8,13 +8,13 @@ class Battery(Component):
 
     def __init__(self):
         self.ID_Battery: str = None
-        self.Capacity: float = None
-        self.Capacity_unit: str = None
-        self.ChargeEfficiency: float = None
-        self.DischargeEfficiency: float = None
-        self.MaxChargePower: float = None
-        self.MaxChargePower_unit: str = None
-        self.MaxDischargePower: float = None
-        self.MaxDischargePower_unit: str = None
+        self.capacity: float = None
+        self.capacity_unit: str = None
+        self.charge_efficiency: float = None
+        self.discharge_efficiency: float = None
+        self.charge_power_max: float = None
+        self.charge_power_max_unit: str = None
+        self.discharge_power_max: float = None
+        self.discharge_power_max_unit: str = None
 
 
