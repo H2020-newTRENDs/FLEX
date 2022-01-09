@@ -6,7 +6,7 @@ import geopandas as gpd
 from pyproj import CRS, Transformer
 from pathlib import Path
 from abc import ABC, abstractmethod
-from sqlalchemy.types import Integer, Float, String
+import sqlalchemy.types
 
 from _Refactor.basic.db import DB
 from _Refactor.core.household.components import Region, Person, Building, Appliance, Boiler, SpaceHeatingTank, \
@@ -23,11 +23,11 @@ class MotherTableGenerator(ABC):
         dtypes_dict = {}
         for key in class_dict.keys():
             if "id" in key.lower():  # check if it is id parameter
-                value = Integer
-            elif "_unit" in key.lower():
-                value = String
+                value = sqlalchemy.types.Integer
+            elif "_unit" or "name" in key.lower():
+                value = sqlalchemy.types.String
             else:
-                value = Float
+                value = sqlalchemy.types.Float
             dtypes_dict[key] = value
         return dtypes_dict
 

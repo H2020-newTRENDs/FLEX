@@ -6,7 +6,7 @@ def create_connection(db_folder: Path = Path(__file__).parent / Path("data"),
                       db_name: str = "root"
                       ) -> sqlalchemy.engine.Engine:
     """if no database name and folder path are provided the root database is selected"""
-    return sqlalchemy.create_engine(f'sqlite:///{db_folder / Path(db_name + ".sqlite")}',
+    return sqlalchemy.create_engine(f'sqlite:///{(str(db_folder)+ db_name + ".sqlite")}',
                                     pool_pre_ping=True)
     # return sqlalchemy.create_engine(f'sqlite:///{os.path.join(db_folder, db_name + ".sqlite")}')
 
