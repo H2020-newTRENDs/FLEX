@@ -7,6 +7,7 @@ from _Refactor.core.elements.component import Component
 class HotWaterTank(Component):
 
     def __init__(self):
+        self.ID_HotWaterTank: int = None
         self.size: float = None
         self.size_unit: str = None
         self.surface_area: float = None

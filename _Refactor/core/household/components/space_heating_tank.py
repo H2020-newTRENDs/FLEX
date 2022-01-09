@@ -7,11 +7,15 @@ from _Refactor.core.elements.component import Component
 class SpaceHeatingTank(Component):
 
     def __init__(self):
+        self.ID_SpaceHeatingTank: int = None
         self.size: float = None
-        self.surface = None
-        self.loss = None
-        self.temperature_start = None
-        self.temperature_max = None
-        self.temperature_min = None
-        self.temperature_outside = None
+        self.size_unit: float = None
+        self.surface_area: float = None
+        self.surface_area_unit: str = None
+        self.loss: float = None
+        self.loss_unit: str = None
+        self.temperature_start: float = None
+        self.temperature_max: float = None
+        self.temperature_min: float = None
+        self.temperature_surrounding: float = None
 
