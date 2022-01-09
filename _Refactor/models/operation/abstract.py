@@ -8,6 +8,8 @@ from _Refactor.core.household.abstract_household import AbstractHousehold
 """
 abstract operation model
 """
+
+
 class AbstractOperationModel(ABC):
 
     def __init__(self,

@@ -8,7 +8,7 @@ class DB:
 
     def __init__(self,
                  connection: sqlalchemy.engine.Engine = config.root_connection):
-        """the default connection will be the root connection from the config file, for a different connection,
+        """the default connection will be the root connection, for a different connection,
         the "create_connection function from the config file can be used"""
         self.connection = connection
 
