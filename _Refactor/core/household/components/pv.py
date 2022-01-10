@@ -13,7 +13,7 @@ class PV(Component):
 class RadiationData:
     def __init__(self):
         # columns
-        self.id_country: str = sqlalchemy.types.String
+        self.nuts_id: str = sqlalchemy.types.String
         self.id_hour: int = sqlalchemy.types.Integer
         self.south: float = sqlalchemy.types.Float
         self.east: float = sqlalchemy.types.Float
@@ -23,14 +23,14 @@ class RadiationData:
 
 class TemperatureData:
     def __init__(self):
-        self.id_country: str = sqlalchemy.types.String
+        self.nuts_id: str = sqlalchemy.types.String
         self.id_hour: int = sqlalchemy.types.Integer
         self.temperature: float = sqlalchemy.types.Float
 
 
 class PVGeneration:
     def __init__(self):
-        self.id_country: str = sqlalchemy.types.String
+        self.nuts_id: str = sqlalchemy.types.String
         self.ID_PV: int = sqlalchemy.types.Integer
         self.id_hour: int = sqlalchemy.types.Integer
         self.power: float = sqlalchemy.types.Float
