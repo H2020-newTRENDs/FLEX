@@ -298,7 +298,6 @@ class GenerateDataForRoot(MotherTableGenerator):
                     exists = "replace"
                 else:
                     exists = "append"
-                # for peakpower = 0 exception:
                 if peakPower == 0:
                     continue  # 0-profile will not be saved
                 else:
