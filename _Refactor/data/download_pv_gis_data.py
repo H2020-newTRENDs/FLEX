@@ -367,9 +367,9 @@ class GenerateDataForRoot(MotherTableGenerator):
 
         # create table for saving to DB:
         # Temperature
-        temperature_columns = {"nuts_id": np.full((8760, 1), country),
+        temperature_columns = {"nuts_id": np.full((8760, ), country),
                                "id_hour": self.id_hour,
-                               "temperature": temperature_weighted_sum}
+                               "temperature": temperature_weighted_sum.flatten()}
         temperature_table = pd.DataFrame(temperature_columns)
         assert list(temperature_table.columns).sort() == list(pv.TemperatureData().__dict__.keys()).sort()
         # save weighted temperature average profile to database:
@@ -380,13 +380,13 @@ class GenerateDataForRoot(MotherTableGenerator):
                              )
 
         # Radiation
-        radiation_columns = {"nuts_id": np.full((8760, 1), country),
+        radiation_columns = {"nuts_id": np.full((8760, ), country),
                              "id_hour": self.id_hour,
                              "south": radiation_weighted_sum[:, 0],
                              "east": radiation_weighted_sum[:, 1],
                              "west": radiation_weighted_sum[:, 2],
                              "north": radiation_weighted_sum[:, 3]}
-        radiation_table = pd.DataFramer(radiation_columns)
+        radiation_table = pd.DataFrame(radiation_columns)
         assert list(radiation_table.columns).sort() == list(pv.RadiationData().__dict__.keys()).sort()
 
         # save to sql database:
@@ -402,8 +402,8 @@ class GenerateDataForRoot(MotherTableGenerator):
         pv_table_numpy = np.zeros((1, len(pv_columns)))
         for key, values in PV_weighted_sum.items():
             # create the table for each pv type
-            single_pv_table = np.column_stack([np.full((8760, 1), country),  # nuts_id
-                                               np.full((8760, 1), key),  # ID_PV
+            single_pv_table = np.column_stack([np.full((8760, ), country),  # nuts_id
+                                               np.full((8760, ), key),  # ID_PV
                                                self.id_hour,  # id_hour
                                                values,  # power
                                                np.full((8760, 1), "kW")])  # unit
@@ -439,7 +439,7 @@ class GenerateDataForRoot(MotherTableGenerator):
                             country="AT",
                             start_year=2010,
                             end_year=2010)  # TODO make this versatile for other countries
-
+        # creating a single profile as mean profile for a country weighted by the heat demand of each nuts region:
         self.calculate_single_profile_for_country(country="AT", nuts_level=3)
 
 
