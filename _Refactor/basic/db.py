@@ -30,7 +30,7 @@ class DB:
         data_frame.to_sql(table_name, self.connection, index=False, dtype=data_types, if_exists=if_exists,
                           chunksize=10_000)
 
-    def read_dataframe(self, table_name: str, conn, *column_names: list, **kwargs: dict) -> pd.DataFrame:
+    def read_dataframe(self, table_name: str, *column_names: list, **kwargs: dict) -> pd.DataFrame:
         """column_names will only extract certain columns (list)
         kwargs have to be dict with: column_name: value. The table where the column has that value is returned"""
         if len(column_names) > 0:
@@ -49,7 +49,7 @@ class DB:
         else:
             condition = ''
 
-        DataFrame = pd.read_sql('select ' + columns2extract + ' from ' + table_name + condition, con=conn)
+        DataFrame = pd.read_sql('select ' + columns2extract + ' from ' + table_name + condition, con=self.connection)
         return DataFrame
 
     def drop_table(self, table_name: str):
