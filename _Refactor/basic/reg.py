@@ -26,6 +26,11 @@ class Table:
         self.electricity_price = "EnvironmentElectricityPrice"
         self.feedin_tariff = "EnvironmentFeedinTariff"
 
+        # tables with downloaded data for countries:
+        self.temperature = "Temperature"
+        self.radiation = "Radiation"
+        self.pv_generation = "PVGeneration"
+
 
 class Column:
 

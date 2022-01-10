@@ -23,7 +23,7 @@ class Building(Component):
         self.effective_window_area_south: float = None
         self.internal_gains: float = None
         self.Af: float = None
-        self.H_op: float = None
+        self.Hop: float = None
         self.Htr_w: float = None
         self.Hve: float = None
         self.CM_factor: float = None
