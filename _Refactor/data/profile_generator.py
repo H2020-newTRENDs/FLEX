@@ -6,12 +6,17 @@ from _Refactor.basic.db import DB
 from _Refactor.data.table_generator import MotherTableGenerator
 from _Refactor.basic.reg import Table
 import _Refactor.core.household.components as components
+import _Refactor.basic.config as config
+
 
 
 class ProfileGenerator(MotherTableGenerator):
+    def __init__(self):
+        super().__init__()
+        self.id_day_hour = np.tile(np.arange(1, 25), 365)
 
-    def gen_Sce_Demand_DishWasherHours(self,
-                                       NumberOfDishWasherProfiles):  # TODO if more than 1 dishwasher type is implemented, rewrite the function
+    def generate_dishwasher_hours(self,
+                                  NumberOfDishWasherProfiles):  # TODO if more than 1 dishwasher type is implemented, rewrite the function
         """
         creates Dish washer days where the dishwasher can be used on a random basis. Hours of the days where
         the Dishwasher has to be used are index = 1 and hours of days where the dishwasher is not used are indexed = 0.
@@ -68,7 +73,7 @@ class ProfileGenerator(MotherTableGenerator):
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_DishWasherHours, TargetTable_columns.keys(),
                              self.conn, dtype=TargetTable_columns)
 
-    def gen_Sce_Demand_WashingMachineHours(self, NumberOfWashingMachineProfiles):
+    def generate_washing_machine_and_dryer_hours(self, NumberOfWashingMachineProfiles):
         """
         same as dish washer function above
         washingmachine starting hours are between 06:00 and 20:00 because the dryer might be used afterwards
@@ -152,103 +157,84 @@ class ProfileGenerator(MotherTableGenerator):
         DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_WashingMachineHours, TargetTable_columns.keys(),
                              self.conn, dtype=TargetTable_columns)
 
-    def gen_sce_target_temperature(self):
-        outsideTemperature = DB().read_DataFrame(REG_Table().Sce_Weather_Temperature, self.conn).Temperature.to_numpy()
-        TimeStructure = DB().read_DataFrame(REG_Table().Sce_ID_TimeStructure, self.conn)
-        ID_Hour = TimeStructure.ID_Hour
-        ID_DayHour = TimeStructure.ID_DayHour.to_numpy()
-        # load min max indoor temperature from profile table
-        targetTemperature = DB().read_DataFrame(REG_Table().Sce_ID_TargetTemperatureType, self.conn)
-
-        T_min_young = targetTemperature.HeatingTargetTemperatureYoung
-        T_max_young = targetTemperature.CoolingTargetTemperatureYoung
-
-        T_min_old = targetTemperature.HeatingTargetTemperatureOld
-        T_max_old = targetTemperature.CoolingTargetTemperatureOld
-
-        # temperature with night reduction: lowering min temperature by 2°C from 22:00 to 06:00 every day:
-        T_min_young_nightReduction = np.array([])
-        T_min_old_nightReduction = np.array([])
-        for hour in ID_DayHour:
-            if hour <= 6:
-                T_min_young_nightReduction = np.append(T_min_young_nightReduction, (float(T_min_young) - 2))
-                T_min_old_nightReduction = np.append(T_min_old_nightReduction, (float(T_min_old) - 2))
-            elif hour >= 22:
-                T_min_young_nightReduction = np.append(T_min_young_nightReduction, (float(T_min_young) - 2))
-                T_min_old_nightReduction = np.append(T_min_old_nightReduction, (float(T_min_old) - 2))
+    def generate_target_indoor_temperature(self,
+                                           temperature_min: int,
+                                           temperature_max: int,
+                                           night_reduction: int) -> (np.array, np.array):
+        """
+        generates the target indoor temperature table from input lists which contain max and min temperature.
+        Night reduction is done from 22:00 until 06:00 where the minimum temperature is reduced by the value of
+        the night reduction value. Returns the arrays for minimum and maximum temperature.
+        """
+        minimum_temperature = np.array([])
+        maximum_temperature = np.array([])
+        for daytime in self.id_day_hour:
+            if 6 >= daytime >= 22:
+                minimum_temperature = np.append(minimum_temperature, temperature_min - night_reduction)
+                maximum_temperature = np.append(maximum_temperature, temperature_max)
             else:
-                T_min_young_nightReduction = np.append(T_min_young_nightReduction, float(T_min_young))
-                T_min_old_nightReduction = np.append(T_min_old_nightReduction, float(T_min_old))
+                minimum_temperature = np.append(minimum_temperature, temperature_min)
+                maximum_temperature = np.append(maximum_temperature, temperature_max)
+        return minimum_temperature, maximum_temperature
 
-        # set temperature with smart system that adapts according to outside temperatuer to save energy:
-        # the heating temperature will be calculated by a function, if the heating temperature is above 21°C,
-        # it is capped. The maximum temperature will be the minimum temperature + 5°C in winter and when the minimum
-        # temperature is above 22°C the maximum temperature is set to 27°C for cooling.
-        # Fct: Tset = 20°C + (T_outside - 20°C + 12)/8
-        T_min_smartHome = np.array([])
-        T_max_smartHome = np.array([])
-        for T_out in outsideTemperature:
-            if 20 + (T_out - 20 + 12) / 8 <= 21:
-                T_min_smartHome = np.append(T_min_smartHome, 20 + (T_out - 20 + 12) / 8)
-                T_max_smartHome = np.append(T_max_smartHome, 20 + (T_out - 20 + 12) / 8 + 5)
+    def generate_target_indoor_temperature_with_outside_temperature_dependency(self,
+                                                                               temperature_min: int,
+                                                                               temperature_max: int
+                                                                               ) -> (np.array, np.array):
+        """
+        set temperature with smart system that adapts according to outside temperature to save energy:
+        the heating temperature will be calculated by a function, if the heating temperature is above temperature_min,
+        it is capped. The maximum temperature will be the minimum temperature + 5°C in winter and when the outside
+        temperature is above temperature_min  the maximum temperature is set to temperature_max for cooling.
+        Fct: Tset = 20°C + (T_outside - 20°C + 12)/8
+        returns minimum and maximum indoor set temperatures as array
+        """
+        engine = config.root_connection.connect()
+        assert engine.dialect.has_table(engine, Table().temperature)  # check if outside temperature table exists
+
+        outside_temperature = DB().read_dataframe(Table().temperature)["temperature"]
+        minimum_temperature = np.array([])
+        maximum_temperature = np.array([])
+        for T_out in outside_temperature:
+            if 20 + (T_out - 20 + 12) / 8 <= temperature_min:
+                minimum_temperature = np.append(minimum_temperature, 20 + (T_out - 20 + 12) / 8)
+                maximum_temperature = np.append(maximum_temperature, 20 + (T_out - 20 + 12) / 8 + 5)
             else:
-                T_min_smartHome = np.append(T_min_smartHome, 21)
-                T_max_smartHome = np.append(T_max_smartHome, 27)
+                minimum_temperature = np.append(minimum_temperature, temperature_min)
+                maximum_temperature = np.append(maximum_temperature, temperature_max)
+        return minimum_temperature, maximum_temperature
 
-        TargetFrame = np.column_stack([ID_DayHour,
-                                       ID_Hour,
-                                       [float(T_min_young)] * len(ID_Hour),
-                                       [float(T_max_young)] * len(ID_Hour),
-                                       [float(T_min_old)] * len(ID_Hour),
-                                       [float(T_max_old)] * len(ID_Hour),
-                                       T_min_young_nightReduction,
-                                       T_min_old_nightReduction,
-                                       T_min_smartHome,
-                                       T_max_smartHome])
-        column_names = {"ID_DayHour": "INTEGER",
-                        "ID_Hour": "INTEGER",
-                        "HeatingTargetTemperatureYoung": "REAL",
-                        "CoolingTargetTemperatureYoung": "REAL",
-                        "HeatingTargetTemperatureOld": "REAL",
-                        "CoolingTargetTemperatureOld": "REAL",
-                        "HeatingTargetTemperatureYoungNightReduction": "REAL",
-                        "HeatingTargetTemperatureOldNightReduction": "REAL",
-                        "HeatingTargetTemperatureSmartHome": "REAL",
-                        "CoolingTargetTemperatureSmartHome": "REAL"}
-
-        # write set temperature data to database
-        DB().write_DataFrame(TargetFrame, REG_Table().Gen_Sce_TargetTemperature, column_names.keys(),
-                             self.conn, dtype=column_names)
-
-    def gen_Sce_AC_HourlyCOP(self):
+    def generate_hourly_COP_air_conditioner(self):
+        """
+        returns the hourly COP of the AC. For now we only use a constant COP of 3.
+        This can be changed in the future...
+        """
         # constant COP of 3 is estimated:
         COP = 3
         COP_array = np.full((len(self.id_hour),), COP)
-        TargetTable = np.column_stack([self.id_hour, COP_array])
-        columns = {"ID_Hour": "INTEGER",
-                   "ACHourlyCOP": "REAL"}
-        DB().write_DataFrame(TargetTable, REG_Table().Gen_Sce_AC_HourlyCOP, columns.keys(), self.conn, dtype=columns)
+        return COP_array
 
-    def gen_Sce_electricity_price(self):
-        elec_price = pd.read_excel(
+    def generate_electricity_profile(self, fixed_price: float):
+        """fixed price has to be in cent/kWh"""
+        # load electricity price
+        variable_electricity_price = pd.read_excel(
             "C:/Users/mascherbauer/PycharmProjects/NewTrends/Prosumager/_Philipp/inputdata/Elec_price_per_hour.xlsx",
             engine="openpyxl").to_numpy() / 10 + 15  # cent/kWh
-        mean_price = elec_price.mean()
-        max_price = elec_price.max()
-        min_price = elec_price.min()
-        median_price = np.median(elec_price)
-        first_quantile = np.quantile(elec_price, 0.25)
-        third_quantile = np.quantile(elec_price, 0.75)
-        standard_deviation = np.std(elec_price)
-        variance = np.var(elec_price)
 
-        mean_price_vector = np.full((8760,), 20)  # cent/kWh
+        mean_price_vector = np.full((8760,), fixed_price)  # cent/kWh
 
         variable_price_to_db = np.column_stack(
-            [np.full((8760,), 1), np.full((8760,), "AT"), np.arange(8760), elec_price, np.full((8760,), "cent/kWh")])
+            [np.full((8760,), 1),  # ID
+             self.id_hour,  # id_hour
+             variable_electricity_price,
+             np.full((8760,), "cent/kWh")]
+        )
         fixed_price_to_db = np.column_stack(
-            [np.full((8760,), 2), np.full((8760,), "AT"), np.arange(8760), mean_price_vector,
-             np.full((8760,), "cent/kWh")])
+            [np.full((8760,), 2),  # ID
+             self.id_hour,
+             mean_price_vector,
+             np.full((8760,), "cent/kWh")]
+        )
         price_to_db = np.vstack([variable_price_to_db, fixed_price_to_db])
         price_columns = {"ID_PriceType": "INT",
                          "ID_Country": "TEXT",
@@ -341,10 +327,10 @@ class ProfileGenerator(MotherTableGenerator):
         DB().write_DataFrame(TargetTable_list, REG_Table().Gen_Sce_ID_Environment, TargetTable_columns, self.conn)
 
     def run(self):
-        self.gen_Sce_Demand_DishWasherHours(
+        self.generate_dishwasher_hours(
             10)  # TODO this number should be externally set or we dont need the profiles anyways
-        self.gen_Sce_Demand_WashingMachineHours(10)
-        self.gen_sce_target_temperature()
+        self.generate_washing_machine_and_dryer_hours(10)
+        self.generate_target_indoor_temperature()
         self.gen_Sce_AC_HourlyCOP()
         self.gen_Sce_electricity_price()
         self.gen_Sce_Demand_BaseElectricityProfile()
