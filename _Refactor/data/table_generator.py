@@ -14,28 +14,7 @@ import input_data_structure as structure
 import profile_generator
 
 
-class MotherTableGenerator(ABC):
-    def __init__(self):
-        self.id_hour = np.arange(1, 8761)
-
-    def get_dtypes_dict(self, class_dict):
-        dtypes_dict = {}
-        for key in class_dict.keys():
-            if "id" in key.lower():  # check if it is id parameter
-                value = sqlalchemy.types.Integer
-            elif "_unit" in key.lower() or "name" in key.lower():
-                value = sqlalchemy.types.String
-            else:
-                value = sqlalchemy.types.Float
-            dtypes_dict[key] = value
-        return dtypes_dict
-
-    @abstractmethod
-    def run(self):
-        """runs all the functions of the household to generate the tables"""
-
-
-class HouseholdComponentGenerator(MotherTableGenerator, ABC):
+class HouseholdComponentGenerator:
     """generates the Household tables"""
 
     def calculate_cylindrical_area_from_volume(self, tank_sizes: list) -> list:
@@ -110,7 +89,7 @@ class HouseholdComponentGenerator(MotherTableGenerator, ABC):
                       "loss": np.full((len(tank_sizes),), 0.2),  # TankLoss
                       "loss_unit": np.full((len(tank_sizes),), "W/m2"),  # TankLoss_unit
                       "temperature_start": np.full((len(tank_sizes),), 28),  # TankStartTemperature
-                      "temperature_max": np.full((len(tank_sizes),), 65),  # TankMaximalTemperature
+                      "temperature_max": np.full((len(tank_sizes),), 45),  # TankMaximalTemperature
                       "temperature_min": np.full((len(tank_sizes),), 28),  # TankMinimalTemperature
                       "temperature_surrounding": np.full((len(tank_sizes),), 20)  # TankSurroundingTemperature
                       }
@@ -222,7 +201,7 @@ class HouseholdComponentGenerator(MotherTableGenerator, ABC):
         self.create_household_space_heating_tank()
 
 
-class EnvironmentGenerator(MotherTableGenerator, ABC):
+class EnvironmentGenerator:
 
     def create_environment_electricity_price(self) -> None:
         columns_price = self.get_dtypes_dict(environment_components.ElectricityPrice().__dict__)

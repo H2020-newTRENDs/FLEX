@@ -1,48 +1,25 @@
-import plotly.express as px
-import plotly.graph_objects as go
 import numpy as np
-import matplotlib.pyplot as plt
+
+from _Refactor.basic.db import DB
+from _Refactor.basic.reg import Table
+
+pv_power = DB().read_dataframe(Table().pv_generation)["power"].to_numpy()
+outside_temperature = DB().read_dataframe(Table().temperature)["temperature"].to_numpy()
+mean_24_outside_temperature = np.add.reduceat(outside_temperature, np.arange(0, len(outside_temperature), 24)) / 24
+pv_generation_in_24_hours = np.add.reduceat(pv_power, np.arange(0, len(pv_power), 24))
 
 
-def lineplot(dict_):
-    fig = go.Figure()
-    for key, value in dict.items():
-        fig.add_trace(go.Scatter(x=np.arange(len(value[0])), y=value, mode="lines", name=key))
-    fig.show()
+for i, mean_temp in enumerate(mean_24_outside_temperature):
+    if mean_temp >= 12:
+        pv_generation_in_24_hours = np.delete(pv_generation_in_24_hours, i)
 
+maximum_pv_generation_in_24_hours_cold_days = np.max(pv_generation_in_24_hours)
+print(f"maximum_pv_generation_in_24_hours: {maximum_pv_generation_in_24_hours_cold_days} kWh")
+estimated_COP = 3
+print(f"maximum generated heat with pv and HP: {maximum_pv_generation_in_24_hours_cold_days * 3} kWh")
 
-def lineplot_plt(dict_):
-    fig = plt.figure()
-    for key, value in dict_.items():
-        plt.plot(np.arange(len(value[1])), value[1], label=str(key))
-    plt.legend()
-    fig.show()
-
-def overview_core(dic1, dic2):
-    fig, (ax1, ax2) = plt.subplots(2, 1)
-    for key, value in dic1.items():
-        ax1.plot(np.arange(len(value[1])), value[1], label=str(key))
-    ax1.legend()
-
-    for key, value in dic2.items():
-        ax2.plot(np.arange(len(value[1])), value[1], label=str(key))
-    ax2.legend()
-
-    fig.show()
-
-
-def one_day(dic1, dic2):
-    fig, (ax1, ax2) = plt.subplots(2, 1)
-    for key, value in dic1.items():
-        ax1.plot(np.arange(len(value)), value, label=str(key))
-    ax1.legend()
-    ax1.grid()
-    ax1.set_xlim([0, 24])
-
-    for key, value in dic2.items():
-        ax2.plot(np.arange(len(value)), value, label=str(key))
-    ax2.legend()
-    ax2.grid()
-    ax2.set_xlim([0, 24])
-
-    fig.show()
+tanksize = 1500
+min_temp = 28
+max_temp = 45
+tank_capacity = tanksize * 4200 * (max_temp - min_temp) / 3600 / 1_000
+print(f"maximum tank capacity: {tank_capacity} kWh")

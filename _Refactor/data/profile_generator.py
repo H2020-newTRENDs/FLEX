@@ -4,16 +4,15 @@ import sqlalchemy.types
 from pathlib import Path
 
 from _Refactor.basic.db import DB
-from _Refactor.data.table_generator import MotherTableGenerator
 from _Refactor.basic.reg import Table
 import _Refactor.core.household.components as components
 import _Refactor.basic.config as config
 import input_data_structure as structure
 
 
-class ProfileGenerator(MotherTableGenerator):
+class ProfileGenerator:
     def __init__(self):
-        super().__init__()
+        self.id_hour = np.arange(1, 8761)
         self.id_day_hour = np.tile(np.arange(1, 25), 365)
 
     def generate_target_indoor_temperature_fixed(self,
