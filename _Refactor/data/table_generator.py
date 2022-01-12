@@ -220,7 +220,6 @@ class HouseholdComponentGenerator(MotherTableGenerator, ABC):
         self.create_household_air_conditioner()
         self.create_household_hot_water_tank()
         self.create_household_space_heating_tank()
-        self.create_hot_water_demand()
 
 
 class EnvironmentGenerator(MotherTableGenerator, ABC):
@@ -282,7 +281,7 @@ def generate_scenarios_table() -> None:
             # iterate through columns and get id name:
             for column_name in table.columns:
                 if column_name.startswith("ID"):
-                    scenarios_columns[column_name] = table[column_name].values
+                    scenarios_columns[column_name] = table[column_name].unique()
         else:
             print(f"{household_table.__name__} does not exist in root db")
 
@@ -294,7 +293,7 @@ def generate_scenarios_table() -> None:
             # iterate through columns and get id name:
             for column_name in env_table.columns:
                 if column_name.startswith("ID"):
-                    scenarios_columns[column_name] = env_table[column_name].values
+                    scenarios_columns[column_name] = env_table[column_name].unique()
         else:
             print(f"{environment_table.__name__} does not exist in root db")
 
@@ -316,9 +315,10 @@ def generate_scenarios_table() -> None:
 def main():
     HouseholdComponentGenerator().run()
     EnvironmentGenerator().run()
-    generate_scenarios_table()
 
     profile_generator.ProfileGenerator().run()
+
+    generate_scenarios_table()
 
 
 if __name__ == "__main__":
