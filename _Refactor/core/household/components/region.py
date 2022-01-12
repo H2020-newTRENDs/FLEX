@@ -6,12 +6,10 @@ from _Refactor.core.elements.component import Component
 
 
 class Region(Component):
-
-    # id: int
-    # temperature: np.array
-    # radiation: np.array
-
     def __init__(self):
-        self.id = None
+        self.ID_Region = None
         self.temperature: np.array = None
-        self.radiation: np.array = None
+        self.radiation_north: np.array = None
+        self.radiation_east: np.array = None
+        self.radiation_south: np.array = None
+        self.radiation_west: np.array = None

@@ -11,9 +11,9 @@ from .pv import PV
 from .battery import Battery
 from .vehicle import Vehicle
 from .behavior import Behavior
-from .demand import Demand
+from .demand import HotWaterDemand
 
 household_component_list = [Region, Person, PersonList, Building, Appliance, ApplianceList, Boiler, SpaceHeatingTank,
-                            AirConditioner, HotWaterTank, PV, Battery, Vehicle, Behavior, Demand]
+                            AirConditioner, HotWaterTank, PV, Battery, Vehicle, Behavior, HotWaterDemand]
 
 

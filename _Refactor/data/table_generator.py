@@ -10,6 +10,8 @@ import _Refactor.core.environment.components as environment_components
 from _Refactor.basic.reg import Table
 import _Refactor.basic.config as config
 import import_building_data
+import input_data_structure as structure
+import profile_generator
 
 
 class MotherTableGenerator(ABC):
@@ -63,8 +65,7 @@ class HouseholdComponentGenerator(MotherTableGenerator, ABC):
         building_data["building_mass_temperature_max"] = building_mass_temperature_max
         building_data["grid_power_max"] = grid_power_max
         building_data["grid_power_max_unit"] = "W"
-        assert list(household_components.Building().__dict__.keys()).sort() == list(building_data.columns).sort()
-        columns = self.get_dtypes_dict(household_components.Building().__dict__)
+        columns = structure.BuildingData().__dict__
         assert list(columns.keys()).sort() == list(building_data.keys()).sort()
         # save
         DB().write_dataframe(table_name=Table().building,
@@ -77,7 +78,7 @@ class HouseholdComponentGenerator(MotherTableGenerator, ABC):
         """creates the space heating system table in the Database"""
         heating_system = ["Air_HP", "Ground_HP"]  # TODO kan be given externally
         carnot_factor = [0.4, 0.35]  # for the heat pumps respectively
-        columns = self.get_dtypes_dict(household_components.Boiler().__dict__)
+        columns = structure.BoilerData().__dict__
         table_dict = {"ID_Boiler": np.arange(1, len(heating_system) + 1),
                       "name": heating_system,
                       "thermal_power_max": np.full((len(heating_system),), 15_000),
@@ -98,7 +99,7 @@ class HouseholdComponentGenerator(MotherTableGenerator, ABC):
     def create_household_space_heating_tank(self) -> None:
         """creates the space heating tank table in the Database"""
         tank_sizes = [500, 1_000, 1500]  # liter  TODO kan be given externally
-        columns = self.get_dtypes_dict(household_components.SpaceHeatingTank().__dict__)
+        columns = structure.SpaceHeatingTankData().__dict__
         # tank is designed as Cylinder with minimal surface area:
         surface_area = self.calculate_cylindrical_area_from_volume(tank_sizes)
         table_dict = {"ID_SpaceHeatingTank": np.arange(1, len(tank_sizes) + 1),  # ID
@@ -125,7 +126,7 @@ class HouseholdComponentGenerator(MotherTableGenerator, ABC):
     def create_household_hot_water_tank(self) -> None:
         """creates the ID_DHWTank table in the Database"""
         tank_sizes = [200, 500, 1_000]  # liter  TODO kan be given externally
-        columns = self.get_dtypes_dict(household_components.HotWaterTank().__dict__)
+        columns = structure.HotWaterTankData().__dict__
         # tank is designed as Cylinder with minimal surface area:
         surface_area = self.calculate_cylindrical_area_from_volume(tank_sizes)
         table_dict = {"ID_HotWaterTank": np.arange(1, len(tank_sizes) + 1),  # ID
@@ -153,7 +154,7 @@ class HouseholdComponentGenerator(MotherTableGenerator, ABC):
         """creates the ID_SpaceCooling table in the Database"""
         cooling_power = [0, 10_000]  # W  TODO kan be given externally
         cooling_efficiency = np.full((len(cooling_power),), 3)  # TODO add other COPs?
-        columns = self.get_dtypes_dict(household_components.AirConditioner().__dict__)
+        columns = structure.AirConditionerData().__dict__
         table_dict = {"ID_AirConditioner": np.arange(1, len(cooling_power) + 1),
                       "efficiency": cooling_efficiency,
                       "power": cooling_power,
@@ -171,7 +172,7 @@ class HouseholdComponentGenerator(MotherTableGenerator, ABC):
     def create_household_battery(self) -> None:
         """creates the ID_Battery table in the Database"""
         battery_capacity = [0, 10_000]  # W  TODO kan be given externally
-        columns = self.get_dtypes_dict(household_components.Battery().__dict__)
+        columns = structure.BatteryData().__dict__
         table_dict = {"ID_Battery": np.arange(1, len(battery_capacity) + 1),
                       "capacity": battery_capacity,
                       "capacity_unit": np.full((len(battery_capacity),), "W"),
@@ -194,7 +195,7 @@ class HouseholdComponentGenerator(MotherTableGenerator, ABC):
     def create_household_pv(self):
         """saves the different PV types to the DB"""
         pv_power = [0, 5, 10]  # kWp  TODO kan be given externally
-        columns = self.get_dtypes_dict(household_components.PV().__dict__)
+        columns = structure.PVData().__dict__
         table_dict = {"ID_PV": np.arange(1, len(pv_power) + 1),
                       "peak_power": pv_power,
                       "peak_power_unit": np.full((len(pv_power),), "kWp")
@@ -219,6 +220,7 @@ class HouseholdComponentGenerator(MotherTableGenerator, ABC):
         self.create_household_air_conditioner()
         self.create_household_hot_water_tank()
         self.create_household_space_heating_tank()
+        self.create_hot_water_demand()
 
 
 class EnvironmentGenerator(MotherTableGenerator, ABC):
@@ -315,6 +317,8 @@ def main():
     HouseholdComponentGenerator().run()
     EnvironmentGenerator().run()
     generate_scenarios_table()
+
+    profile_generator.ProfileGenerator().run()
 
 
 if __name__ == "__main__":

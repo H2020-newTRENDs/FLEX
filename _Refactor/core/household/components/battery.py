@@ -5,7 +5,6 @@ from _Refactor.core.elements.component import Component
 
 
 class Battery(Component):
-
     def __init__(self):
         self.ID_Battery: str = None
         self.capacity: float = None
