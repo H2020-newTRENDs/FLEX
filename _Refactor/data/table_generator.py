@@ -208,8 +208,11 @@ class HouseholdComponentGenerator(MotherTableGenerator, ABC):
                              )
 
     def run(self):
+        # delete existing tables so no old tables stay accidentally:
+        for household_table in household_components.household_component_list:
+            DB().drop_table(f"Household{household_table.__name__}")
+        # create new tables
         self.create_household_building()
-        # self.gen_OBJ_ID_ApplianceGroup()
         self.create_household_boiler()
         self.create_household_pv()
         self.create_household_battery()
@@ -253,6 +256,10 @@ class EnvironmentGenerator(MotherTableGenerator, ABC):
                              )
 
     def run(self):
+        # delete existing tables so no old tables stay accidentally:
+        for environment_table in environment_components.environment_component_list:
+            DB().drop_table(f"Environment{environment_table.__name__}")
+        # create new tables
         self.create_environment_electricity_price()
         self.create_environment_feed_in_tariff()
 
