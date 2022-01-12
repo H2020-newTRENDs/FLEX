@@ -2,14 +2,19 @@ import numpy as np
 import pandas as pd
 from abc import ABC, abstractmethod
 import sqlalchemy.types
+import itertools
 
 from _Refactor.basic.db import DB
-import _Refactor.core.household.components as components
+import _Refactor.core.household.components as household_components
+import _Refactor.core.environment.components as environment_components
 from _Refactor.basic.reg import Table
+import _Refactor.basic.config as config
 import import_building_data
 
 
 class MotherTableGenerator(ABC):
+    def __init__(self):
+        self.id_hour = np.arange(1, 8761)
 
     def get_dtypes_dict(self, class_dict):
         dtypes_dict = {}
@@ -27,57 +32,8 @@ class MotherTableGenerator(ABC):
     def run(self):
         """runs all the functions of the household to generate the tables"""
 
-    def gen_OBJ_ID_Table_1To1(self, target_table_name, table1):
 
-        TargetTable_list = []
-        TargetTable_columns = ["ID"]
-        for table in [table1]:
-            TargetTable_columns += list(table.keys())
-        ID = 1
-        for row1 in range(0, len(table1)):
-            TargetTable_list.append([ID] + list(table1.iloc[row1].values))
-            ID += 1
-        DB().write_DataFrame(TargetTable_list, target_table_name, TargetTable_columns, self.conn)
-
-        return None
-
-    def gen_OBJ_ID_Table_2To1(self, target_table_name, table1, table2):
-
-        TargetTable_list = []
-        TargetTable_columns = ["ID"]
-        for table in [table1, table2]:
-            TargetTable_columns += list(table.keys())
-        ID = 1
-        for row1 in range(0, len(table1)):
-            for row2 in range(0, len(table2)):
-                TargetTable_list.append([ID] +
-                                        list(table1.iloc[row1].values) +
-                                        list(table2.iloc[row2].values))
-                ID += 1
-        DB().write_DataFrame(TargetTable_list, target_table_name, TargetTable_columns, self.Conn)
-
-        return None
-
-    def gen_OBJ_ID_Table_3To1(self, target_table_name, table1, table2, table3):
-
-        TargetTable_list = []
-        TargetTable_columns = ["ID"]
-        for table in [table1, table2, table3]:
-            TargetTable_columns += list(table.keys())
-        ID = 1
-        for row1 in range(0, len(table1)):
-            for row2 in range(0, len(table2)):
-                for row3 in range(0, len(table3)):
-                    TargetTable_list.append([ID] +
-                                            list(table1.iloc[row1].values) +
-                                            list(table2.iloc[row2].values) +
-                                            list(table3.iloc[row3].values))
-                    ID += 1
-        DB().write_DataFrame(TargetTable_list, target_table_name, TargetTable_columns, self.conn)
-        return None
-
-
-class HouseholdComponentGenerator(MotherTableGenerator):
+class HouseholdComponentGenerator(MotherTableGenerator, ABC):
     """generates the Household tables"""
 
     def calculate_cylindrical_area_from_volume(self, tank_sizes: float) -> float:
@@ -116,11 +72,11 @@ class HouseholdComponentGenerator(MotherTableGenerator):
         building_data["building_mass_temperature_max"] = building_mass_temperature_max
         building_data["grid_power_max"] = grid_power_max
         building_data["grid_power_max_unit"] = "W"
-        assert list(components.Building().__dict__.keys()).sort() == list(building_data.columns).sort()
-        columns = self.get_dtypes_dict(components.Building().__dict__)
+        assert list(household_components.Building().__dict__.keys()).sort() == list(building_data.columns).sort()
+        columns = self.get_dtypes_dict(household_components.Building().__dict__)
         assert list(columns.keys()).sort() == list(building_data.keys()).sort()
         # save
-        DB().write_dataframe(table_name=Table().boiler,
+        DB().write_dataframe(table_name=Table().building,
                              data_frame=building_data,
                              data_types=columns,
                              if_exists="replace"
@@ -130,7 +86,7 @@ class HouseholdComponentGenerator(MotherTableGenerator):
         """creates the space heating system table in the Database"""
         heating_system = ["Air_HP", "Ground_HP"]  # TODO kan be given externally
         carnot_factor = [0.4, 0.35]  # for the heat pumps respectively
-        columns = self.get_dtypes_dict(components.Boiler().__dict__)
+        columns = self.get_dtypes_dict(household_components.Boiler().__dict__)
         table_dict = {"ID_Boiler": np.arange(1, len(heating_system) + 1),
                       "name": heating_system,
                       "thermal_power_max": np.full((len(heating_system),), 15_000),
@@ -151,7 +107,7 @@ class HouseholdComponentGenerator(MotherTableGenerator):
     def create_household_space_heating_tank(self) -> None:
         """creates the space heating tank table in the Database"""
         tank_sizes = [500, 1_000, 1500]  # liter  TODO kan be given externally
-        columns = self.get_dtypes_dict(components.SpaceHeatingTank().__dict__)
+        columns = self.get_dtypes_dict(household_components.SpaceHeatingTank().__dict__)
         # tank is designed as Cylinder with minimal surface area:
         surface_area = self.calculate_cylindrical_area_from_volume(tank_sizes)
         table_dict = {"ID_SpaceHeatingTank": np.arange(1, len(tank_sizes) + 1),  # ID
@@ -178,7 +134,7 @@ class HouseholdComponentGenerator(MotherTableGenerator):
     def create_household_hot_water_tank(self) -> None:
         """creates the ID_DHWTank table in the Database"""
         tank_sizes = [200, 500, 1_000]  # liter  TODO kan be given externally
-        columns = self.get_dtypes_dict(components.HotWaterTank().__dict__)
+        columns = self.get_dtypes_dict(household_components.HotWaterTank().__dict__)
         # tank is designed as Cylinder with minimal surface area:
         surface_area = self.calculate_cylindrical_area_from_volume(tank_sizes)
         table_dict = {"ID_HotWaterTank": np.arange(1, len(tank_sizes) + 1),  # ID
@@ -206,7 +162,7 @@ class HouseholdComponentGenerator(MotherTableGenerator):
         """creates the ID_SpaceCooling table in the Database"""
         cooling_power = [0, 10_000]  # W  TODO kan be given externally
         cooling_efficiency = np.full((len(cooling_power),), 3)  # TODO add other COPs?
-        columns = self.get_dtypes_dict(components.AirConditioner().__dict__)
+        columns = self.get_dtypes_dict(household_components.AirConditioner().__dict__)
         table_dict = {"ID_AirConditioner": np.arange(1, len(cooling_power) + 1),
                       "efficiency": cooling_efficiency,
                       "power": cooling_power,
@@ -224,7 +180,7 @@ class HouseholdComponentGenerator(MotherTableGenerator):
     def create_household_battery(self) -> None:
         """creates the ID_Battery table in the Database"""
         battery_capacity = [0, 10_000]  # W  TODO kan be given externally
-        columns = self.get_dtypes_dict(components.Battery().__dict__)
+        columns = self.get_dtypes_dict(household_components.Battery().__dict__)
         table_dict = {"ID_Battery": np.arange(1, len(battery_capacity) + 1),
                       "capacity": battery_capacity,
                       "capacity_unit": np.full((len(battery_capacity),), "W"),
@@ -247,7 +203,7 @@ class HouseholdComponentGenerator(MotherTableGenerator):
     def create_household_pv(self):
         """saves the different PV types to the DB"""
         pv_power = [0, 5, 10]  # kWp  TODO kan be given externally
-        columns = self.get_dtypes_dict(components.PV().__dict__)
+        columns = self.get_dtypes_dict(household_components.PV().__dict__)
         table_dict = {"ID_PV": np.arange(1, len(pv_power) + 1),
                       "peak_power": pv_power,
                       "peak_power_unit": np.full((len(pv_power),), "kWp")
@@ -260,67 +216,6 @@ class HouseholdComponentGenerator(MotherTableGenerator):
                              if_exists="replace"
                              )
 
-    def generate_scenario_table(self) -> None:
-        """
-        Creates big table for optimization with everthing included.
-        """
-        Country = DB().read_DataFrame()
-        HouseholdType = DB().read_DataFrame()
-        AgeGroup = DB().read_DataFrame(REG_Table().ID_AgeGroup, self.conn)
-        Building = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Building, self.conn)
-        # ApplianceGroup = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_ApplianceGroup, self.Conn)
-        SpaceHeatingSystem = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceHeatingSystem, self.conn)
-        SpaceHeatingTank = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceHeatingTank, self.conn)
-        DHWTank = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_DHW_tank, self.conn)
-        SpaceCooling = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_SpaceCooling, self.conn)
-        # HotWater = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_HotWater, self.Conn)
-        PV = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_PV, self.conn)
-        Battery = DB().read_DataFrame(REG_Table().Gen_OBJ_ID_Battery, self.conn)
-
-        input_table_list = [Country, HouseholdType, AgeGroup, Building, SpaceHeatingSystem, SpaceHeatingTank, DHWTank,
-                            SpaceCooling, PV, Battery]
-        total_rounds = 1
-        for table in input_table_list:
-            total_rounds *= len(table)
-        TargetTable_list = []
-        TargetTable_columns = ["ID"]
-        for table in [Country, HouseholdType, AgeGroup]:
-            TargetTable_columns += list(table.keys())
-        TargetTable_columns += [REG_Var().ID_Building, REG_Var().ID_SpaceHeatingSystem, REG_Var().ID_SpaceHeatingTank,
-                                REG_Var().ID_DHWTank, REG_Var().ID_SpaceCooling, REG_Var().ID_PV, REG_Var().ID_Battery]
-
-        ID = 1
-        # len(ApplianceGroup)
-
-        for row1 in range(0, len(Country)):
-            for row2 in range(0, len(HouseholdType)):
-                for row3 in range(0, len(AgeGroup)):
-                    for row4 in range(0, len(Building)):
-                        for row5 in range(0, len(SpaceHeatingSystem)):
-                            for row6 in range(0, len(SpaceHeatingTank)):
-                                for row7 in range(0, len(DHWTank)):
-                                    for row8 in range(0, len(SpaceCooling)):
-                                        for row9 in range(0, len(PV)):
-                                            for row10 in range(0, len(Battery)):
-                                                TargetTable_list.append([ID] +
-                                                                        list(Country.iloc[row1].values) +
-                                                                        list(HouseholdType.iloc[row2].values) +
-                                                                        list(AgeGroup.iloc[row3].values) +
-                                                                        [Building.iloc[row4]["ID"]] +
-                                                                        [SpaceHeatingSystem.iloc[row5][
-                                                                             REG_Var().ID_SpaceHeatingSystem]] +
-                                                                        [SpaceHeatingTank.iloc[row6][
-                                                                             REG_Var().ID_SpaceHeatingTank]] +
-                                                                        [DHWTank.iloc[row7][REG_Var().ID_DHWTank]] +
-                                                                        [SpaceCooling.iloc[row8][
-                                                                             REG_Var().ID_SpaceCooling]] +
-                                                                        [PV.iloc[row9][REG_Var().ID_PV]] +
-                                                                        [Battery.iloc[row10][REG_Var().ID_Battery]]
-                                                                        )
-                                                print("Round: " + str(ID) + "/" + str(total_rounds))
-                                                ID += 1
-        DB().write_DataFrame(TargetTable_list, REG_Table().Gen_OBJ_ID_Household, TargetTable_columns, self.conn)
-
     def run(self):
         self.create_household_building()
         # self.gen_OBJ_ID_ApplianceGroup()
@@ -330,16 +225,98 @@ class HouseholdComponentGenerator(MotherTableGenerator):
         self.create_household_air_conditioner()
         self.create_household_hot_water_tank()
         self.create_household_space_heating_tank()
-        # self.generate_scenario_table()
 
 
+class EnvironmentGenerator(MotherTableGenerator, ABC):
 
+    def create_environment_electricity_price(self) -> None:
+        columns_price = self.get_dtypes_dict(environment_components.ElectricityPrice().__dict__)
+        electricity_price_types = ["variable", "fixed"]  # name  TODO should be provided externally
+        electricity_price_ids = [i for i in range(1, len(electricity_price_types) + 1)]
+
+        electricity_price_dict = {"ID_ElectricityPrice": electricity_price_ids,
+                                  "name": electricity_price_types}
+        table = pd.DataFrame(electricity_price_dict)
+        assert list(table.columns).sort() == list(columns_price.keys()).sort()
+        # save
+        DB().write_dataframe(table_name=Table().electricity_price,
+                             data_frame=table,
+                             data_types=columns_price,
+                             if_exists="replace"
+                             )
+
+    def create_environment_feed_in_tariff(self) -> None:
+        columns_feed_in = self.get_dtypes_dict(environment_components.FeedInTariff().__dict__)
+        electricity_feed_in_type = ["fixed"]  # name
+        electricity_feed_in_ids = [i for i in range(1, len(electricity_feed_in_type) + 1)]
+
+        electricity_price_dict = {"ID_FeedInTariff": electricity_feed_in_ids,
+                                  "name": electricity_feed_in_type}
+        table = pd.DataFrame(electricity_price_dict)
+        assert list(table.columns).sort() == list(columns_feed_in.keys()).sort()
+        # save
+        DB().write_dataframe(table_name=Table().feedin_tariff,
+                             data_frame=table,
+                             data_types=columns_feed_in,
+                             if_exists="replace"
+                             )
+
+    def run(self):
+        self.create_environment_electricity_price()
+        self.create_environment_feed_in_tariff()
+
+
+def generate_scenarios_table() -> None:
+    """
+    Creates big table for optimization with everything included.
+    """
+    # check which of the tables exist for the project:
+    engine = config.root_connection.connect()
+    scenarios_columns = {}
+
+    # iterate through household components
+    for household_table in household_components.household_component_list:
+        if engine.dialect.has_table(engine, f"Household{household_table.__name__}"):  # check if table exists
+            # read table:
+            table = DB().read_dataframe(f"Household{household_table.__name__}")
+            # iterate through columns and get id name:
+            for column_name in table.columns:
+                if column_name.startswith("ID"):
+                    scenarios_columns[column_name] = table[column_name].values
+        else:
+            print(f"{household_table.__name__} does not exist in root db")
+
+    # iterate through household components
+    for environment_table in environment_components.environment_component_list:
+        if engine.dialect.has_table(engine, f"Environment{environment_table.__name__}"):  # check if table exists
+            # read table:
+            env_table = DB().read_dataframe(f"Environment{environment_table.__name__}")
+            # iterate through columns and get id name:
+            for column_name in env_table.columns:
+                if column_name.startswith("ID"):
+                    scenarios_columns[column_name] = env_table[column_name].values
+        else:
+            print(f"{environment_table.__name__} does not exist in root db")
+
+    # create permutations of the columns dictionary to get all possible combinations:
+    keys, values = zip(*scenarios_columns.items())
+    permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
+    # create dataframe
+    scenarios_table = pd.DataFrame(permutations_dicts)
+    # dtypes are all "Integer":
+    dtypes_dict = {name: sqlalchemy.types.Integer for name in scenarios_table.columns}
+    # save to root db:
+    DB().write_dataframe(table_name=Table().scenarios,
+                         data_frame=scenarios_table,
+                         data_types=dtypes_dict,
+                         if_exists="replace"
+                         )
 
 
 def main():
     HouseholdComponentGenerator().run()
-
-    pass
+    EnvironmentGenerator().run()
+    generate_scenarios_table()
 
 
 if __name__ == "__main__":

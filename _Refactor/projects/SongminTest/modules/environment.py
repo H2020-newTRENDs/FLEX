@@ -1,6 +1,6 @@
 
 from _Refactor.core.environment.abstract_environment import AbstractEnvironment
-from _Refactor.core.environment.components import ElectricityPrice, FeedinTariff
+from _Refactor.core.environment.components import ElectricityPrice, FeedInTariff
 
 class SongminTestEnvironment(AbstractEnvironment):
 
@@ -10,7 +10,7 @@ class SongminTestEnvironment(AbstractEnvironment):
 
     def add_component_classes(self):
         self.electricity_price_class = ElectricityPrice
-        self.feedin_tariff_class = FeedinTariff
+        self.feedin_tariff_class = FeedInTariff
 
 
 

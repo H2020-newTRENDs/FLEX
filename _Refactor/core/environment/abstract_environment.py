@@ -4,7 +4,8 @@ from abc import ABC, abstractmethod
 
 from _Refactor.core.elements.pillar import Pillar
 from _Refactor.core.scenario.abstract_scenario import AbstractScenario
-from _Refactor.core.environment.components import ElectricityPrice, FeedinTariff
+from _Refactor.core.environment.components import ElectricityPrice, FeedInTariff
+
 
 class AbstractEnvironment(Pillar):
 
@@ -14,7 +15,7 @@ class AbstractEnvironment(Pillar):
 
     def add_component_classes(self):
         self.electricity_price_class: ClassVar['ElectricityPrice'] = ElectricityPrice
-        self.feedin_tariff_class: ClassVar['FeedinTariff'] = FeedinTariff
+        self.feedin_tariff_class: ClassVar['FeedInTariff'] = FeedInTariff
 
 
 
