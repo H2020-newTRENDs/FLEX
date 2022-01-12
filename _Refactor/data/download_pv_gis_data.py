@@ -6,17 +6,16 @@ import geopandas as gpd
 from pyproj import CRS, Transformer
 import urllib.error
 
-from _Refactor.data.table_generator import MotherTableGenerator
 from _Refactor.basic.db import DB
 from _Refactor.basic.reg import Table
 import _Refactor.data.input_data_structure as input_data_structure
 import _Refactor.basic.config as config
 
 
-class GenerateDataForRoot(MotherTableGenerator):
+class GenerateDataForRoot:
 
     def __init__(self):
-        super().__init__()
+        self.id_hour = np.arange(1, 8761)
         self.SolarRadiationList = []
         self.TemperatureList = []
         self.PVPowerList = []
@@ -134,7 +133,7 @@ class GenerateDataForRoot(MotherTableGenerator):
             df = df.iloc[1:, :]
             df.columns = header
             df = df.reset_index(drop=True)
-            PV_Profile = pd.to_numeric(df["P"]).to_numpy() / 1_000  # kW
+            PV_Profile = pd.to_numeric(df["P"]).to_numpy()   # W
             return PV_Profile
         except urllib.error.HTTPError:  # Error when nuts center is somewhere where there is no PVGIS data
             PV_Profile = None
@@ -427,6 +426,10 @@ class GenerateDataForRoot(MotherTableGenerator):
         return list(all_nuts_ids)
 
     def run(self):
+        # delete old tables:
+        DB().drop_table("Temperature")
+        DB().drop_table("Radiation")
+        DB().drop_table("PV_generation")
         # check if nuts regions exist in root:
         engine = config.root_connection.connect()
         if not engine.dialect.has_table(engine, "NUTS1") or not \
