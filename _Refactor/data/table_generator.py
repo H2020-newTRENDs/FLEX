@@ -36,20 +36,11 @@ class MotherTableGenerator(ABC):
 class HouseholdComponentGenerator(MotherTableGenerator, ABC):
     """generates the Household tables"""
 
-    def calculate_cylindrical_area_from_volume(self, tank_sizes: float) -> float:
+    def calculate_cylindrical_area_from_volume(self, tank_sizes: list) -> list:
         """calculates the minimal cylindicral area of a tank with a give volume"""
         radius = [(2 * volume / 1_000 / 4 / np.pi) ** (1. / 3) for volume in tank_sizes]
         surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
         return surface_area
-
-    def gen_OBJ_ID_ApplianceGroup(self):
-        DishWasher = DB().read_DataFrame(REG_Table().ID_DishWasherType, self.conn)
-        Dryer = DB().read_DataFrame(REG_Table().ID_DryerType, self.conn)
-        WashingMachine = DB().read_DataFrame(REG_Table().ID_WashingMachineType, self.conn)
-        self.gen_OBJ_ID_Table_3To1(REG_Table().Gen_OBJ_ID_ApplianceGroup,
-                                   DishWasher,
-                                   Dryer,
-                                   WashingMachine)
 
     def create_household_building(self) -> None:  # TODO create link to INVERT
         """reads building excel table and stores it to root"""
