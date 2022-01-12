@@ -42,3 +42,142 @@ class FeedInTariffData:
         self.id_hour = sqlalchemy.types.Integer
         self.feed_in_tariff = sqlalchemy.types.Float
         self.unit = sqlalchemy.types.String
+
+
+class AirConditionerData:
+    def __init__(self):
+        self.ID_AirConditioner = sqlalchemy.types.Integer
+        self.efficiency = sqlalchemy.types.Float
+        self.power = sqlalchemy.types.Float
+        self.power_unit = sqlalchemy.types.String
+
+
+class BatteryData:
+    def __init__(self):
+        self.ID_Battery = sqlalchemy.types.Integer
+        self.capacity = sqlalchemy.types.Float
+        self.capacity_unit = sqlalchemy.types.String
+        self.charge_efficiency = sqlalchemy.types.Float
+        self.discharge_efficiency = sqlalchemy.types.Float
+        self.charge_power_max = sqlalchemy.types.Float
+        self.charge_power_max_unit = sqlalchemy.types.String
+        self.discharge_power_max = sqlalchemy.types.Float
+        self.discharge_power_max_unit = sqlalchemy.types.String
+
+
+class BehaviorData:
+    def __init__(self):
+        self.ID_Behavior = sqlalchemy.types.Integer
+        self.indoor_set_temperature_min = sqlalchemy.types.Float
+        self.indoor_set_temperature_max = sqlalchemy.types.Float
+
+
+class BoilerData:
+    def __init__(self):
+        self.ID_Boiler = sqlalchemy.types.Integer
+        self.name = sqlalchemy.types.String
+        self.thermal_power_max = sqlalchemy.types.Float
+        self.thermal_power_max_unit = sqlalchemy.types.String
+        self.heating_element_power = sqlalchemy.types.Float
+        self.heating_element_power_unit = sqlalchemy.types.String
+        self.carnot_efficiency_factor = sqlalchemy.types.Float
+
+
+class BuildingData:
+
+    def __init__(self):
+        self.ID_Building = sqlalchemy.types.Integer
+        self.invert_index = sqlalchemy.types.Integer
+        self.name = sqlalchemy.types.String
+        self.construction_period_start = sqlalchemy.types.Integer
+        self.construction_period_end = sqlalchemy.types.Integer
+        self.number_of_dwellings_per_building = sqlalchemy.types.Float
+        self.number_of_persons_per_dwelling = sqlalchemy.types.Float
+        self.horizontal_shading = sqlalchemy.types.Float
+        self.area_windows = sqlalchemy.types.Float
+        self.area_suitable_for_solar = sqlalchemy.types.Float
+        self.hwb_norm = sqlalchemy.types.Float
+        self.effective_window_area_west_east = sqlalchemy.types.Float
+        self.effective_window_area_north = sqlalchemy.types.Float
+        self.effective_window_area_south = sqlalchemy.types.Float
+        self.internal_gains = sqlalchemy.types.Float
+        self.Af = sqlalchemy.types.Float
+        self.Hop = sqlalchemy.types.Float
+        self.Htr_w = sqlalchemy.types.Float
+        self.Hve = sqlalchemy.types.Float
+        self.CM_factor = sqlalchemy.types.Float
+        self.Am_factor = sqlalchemy.types.Float
+        self.building_mass_temperature_start = sqlalchemy.types.Float
+        self.building_mass_temperature_max = sqlalchemy.types.Float
+        self.grid_power_max = sqlalchemy.types.Float
+        self.grid_power_max_unit = sqlalchemy.types.String
+
+
+class HotWaterDemandData:
+    def __init__(self):
+        self.ID_HotWaterDemand = sqlalchemy.types.Integer
+        self.hot_water_demand = sqlalchemy.types.Float
+        self.unit = sqlalchemy.types.String
+
+
+class ElectricityDemandData:
+    def __init__(self):
+        self.ID_Electricity_Demand = sqlalchemy.types.Integer
+        self.electricity_demand = sqlalchemy.types.Float
+        self.unit = sqlalchemy.types.String
+
+
+class HotWaterTankData:
+    def __init__(self):
+        self.ID_HotWaterTank = sqlalchemy.types.Integer
+        self.size = sqlalchemy.types.Float
+        self.size_unit = sqlalchemy.types.String
+        self.surface_area = sqlalchemy.types.Float
+        self.surface_area_unit = sqlalchemy.types.String
+        self.loss = sqlalchemy.types.Float
+        self.loss_unit = sqlalchemy.types.String
+        self.temperature_start = sqlalchemy.types.Float
+        self.temperature_max = sqlalchemy.types.Float
+        self.temperature_min = sqlalchemy.types.Float
+        self.temperature_surrounding = sqlalchemy.types.Float
+
+
+class PersonData:
+    def __init__(self):
+        self.var_1 = None
+        self.var_2 = None
+
+
+class PVData:
+    def __init__(self):
+        self.ID_PV = sqlalchemy.types.Integer
+        self.peak_power = sqlalchemy.types.Float
+        self.peak_power_unit = sqlalchemy.types.String
+
+
+class RegionData:
+    def __init__(self):
+        self.ID_Region = sqlalchemy.types.Integer
+        self.temperature = sqlalchemy.types.Float
+        self.radiation = sqlalchemy.types.Float
+
+
+class SpaceHeatingTankData:
+    def __init__(self):
+        self.ID_SpaceHeatingTank = sqlalchemy.types.Integer
+        self.size = sqlalchemy.types.Float
+        self.size_unit = sqlalchemy.types.String
+        self.surface_area = sqlalchemy.types.Float
+        self.surface_area_unit = sqlalchemy.types.String
+        self.loss = sqlalchemy.types.Float
+        self.loss_unit = sqlalchemy.types.String
+        self.temperature_start = sqlalchemy.types.Float
+        self.temperature_max = sqlalchemy.types.Float
+        self.temperature_min = sqlalchemy.types.Float
+        self.temperature_surrounding = sqlalchemy.types.Float
+
+
+class VehicleData:
+    def __init__(self):
+        self.var_1 = None
+        self.var_2 = None

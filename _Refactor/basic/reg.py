@@ -20,7 +20,8 @@ class Table:
         self.battery = "HouseholdBattery"
         self.vehicle = "HouseholdVehicle"
         self.behavior = "HouseholdBehavior"
-        self.demand = "HouseholdDemand"
+        self.hot_water_demand = "HouseholdHotWaterDemand"
+        self.electricity_demand = "HouseholdElectricityDemand"
 
         # Environment
         self.electricity_price = "EnvironmentElectricityPrice"

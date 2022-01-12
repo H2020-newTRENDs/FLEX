@@ -1,7 +1,7 @@
-
 from typing import Dict, Any
 
 from _Refactor.core.elements.component import Component
+
 
 class Behavior(Component):
 
@@ -10,9 +10,8 @@ class Behavior(Component):
     # appliance_behavior: np.array
     # hot_water_behavior: np.array
 
-    def __init__(self, params_dict: Dict[str, Any]):
-        self.indoor_hours = None
-        self.driving_behavior = None
-        self.appliance_behavior = None
-        self.hot_water_behavior = None
-        self.set_params(params_dict)
+    def __init__(self):
+        self.ID_Behavior = None
+        self.indoor_set_temperature_min = None
+        self.indoor_set_temperature_max = None
+
