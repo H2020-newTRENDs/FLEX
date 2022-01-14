@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 
 from _Refactor.core.elements.pillar import Pillar
 from _Refactor.core.scenario.abstract_scenario import AbstractScenario
-from _Refactor.core.environment.components import ElectricityPrice, FeedInTariff
 
 
 class AbstractEnvironment(Pillar):
