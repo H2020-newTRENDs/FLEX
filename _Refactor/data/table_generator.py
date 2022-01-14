@@ -5,8 +5,7 @@ import sqlalchemy.types
 import itertools
 
 from _Refactor.basic.db import DB
-import _Refactor.core.household.components as household_components
-import _Refactor.core.environment.components as environment_components
+import _Refactor.core.household.components as components
 from _Refactor.basic.reg import Table
 import _Refactor.basic.config as config
 import import_building_data
@@ -189,7 +188,7 @@ class HouseholdComponentGenerator:
 
     def run(self):
         # delete existing tables so no old tables stay accidentally:
-        for household_table in household_components.component_list:
+        for household_table in components.component_list:
             DB().drop_table(household_table.__name__)
         # create new tables
         self.create_household_building()
@@ -204,7 +203,7 @@ class HouseholdComponentGenerator:
 class EnvironmentGenerator:
 
     def create_environment_electricity_price(self) -> None:
-        columns_price = self.get_dtypes_dict(environment_components.ElectricityPrice().__dict__)
+        columns_price = self.get_dtypes_dict(components.ElectricityPrice().__dict__)
         electricity_price_types = ["variable", "fixed"]  # name  TODO should be provided externally
         electricity_price_ids = [i for i in range(1, len(electricity_price_types) + 1)]
 
@@ -220,7 +219,7 @@ class EnvironmentGenerator:
                              )
 
     def create_environment_feed_in_tariff(self) -> None:
-        columns_feed_in = self.get_dtypes_dict(environment_components.FeedInTariff().__dict__)
+        columns_feed_in = self.get_dtypes_dict(components.FeedInTariff().__dict__)
         electricity_feed_in_type = ["fixed"]  # name
         electricity_feed_in_ids = [i for i in range(1, len(electricity_feed_in_type) + 1)]
 
@@ -237,7 +236,7 @@ class EnvironmentGenerator:
 
     def run(self):
         # delete existing tables so no old tables stay accidentally:
-        for environment_table in environment_components.environment_component_list:
+        for environment_table in components.environment_component_list:
             DB().drop_table(f"Environment{environment_table.__name__}")
         # create new tables
         self.create_environment_electricity_price()
@@ -253,7 +252,7 @@ def generate_scenarios_table() -> None:
     scenarios_columns = {}
 
     # iterate through household components
-    for household_table in household_components.component_list:
+    for household_table in components.component_list:
         if engine.dialect.has_table(engine, household_table.__name__):  # check if table exists
             # read table:
             table = DB().read_dataframe(household_table.__name__)
@@ -265,7 +264,7 @@ def generate_scenarios_table() -> None:
             print(f"{household_table.__name__} does not exist in root db")
 
     # iterate through household components
-    for environment_table in environment_components.environment_component_list:
+    for environment_table in components.environment_component_list:
         if engine.dialect.has_table(engine, environment_table.__name__):  # check if table exists
             # read table:
             env_table = DB().read_dataframe(environment_table.__name__)
