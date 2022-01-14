@@ -190,7 +190,7 @@ class HouseholdComponentGenerator:
     def run(self):
         # delete existing tables so no old tables stay accidentally:
         for household_table in household_components.household_component_list:
-            DB().drop_table(f"Household{household_table.__name__}")
+            DB().drop_table(household_table.__name__)
         # create new tables
         self.create_household_building()
         self.create_household_boiler()
