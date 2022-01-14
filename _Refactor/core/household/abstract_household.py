@@ -10,6 +10,7 @@ class AbstractHousehold:
 
     def __init__(self, scenario: 'AbstractScenario'):
         self.scenario = scenario
+        self.add_component_classes()
 
     def add_component_classes(self):
         # iterate through the scenario dict which hols all IDs for each component:
@@ -18,6 +19,7 @@ class AbstractHousehold:
                 if component == key.lower():  # check if they class exists and use its name
                     component_name = key
             # get the class
+            print(component_name)
             class_filled = getattr(components, component_name)(component_id=component_id)
             # create self variable of the class with the filled class
             setattr(self, component + "_class", class_filled)

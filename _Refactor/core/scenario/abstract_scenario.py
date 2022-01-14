@@ -45,6 +45,6 @@ class AbstractScenario(Component):
 
 
 if __name__=="__main__":
-    AbstractScenario(scenario_id=0).add_component_ids()
+    AbstractScenario(scenario_id=0)
 
 
