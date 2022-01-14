@@ -290,7 +290,7 @@ class GenerateDataForRoot:
 
             # PV profiles:
             PV_options = DB().read_dataframe(Table().pv)
-            unit = np.full((len(self.id_hour),), "kW")
+            unit = np.full((len(self.id_hour),), "W")
 
             for index, peakPower in enumerate(PV_options.peak_power):
                 if number == 0:  # first run replace the existing tables
@@ -404,7 +404,7 @@ class GenerateDataForRoot:
                                                np.full((8760, ), key),  # ID_PV
                                                self.id_hour,  # id_hour
                                                values,  # power
-                                               np.full((8760, 1), "kW")])  # unit
+                                               np.full((8760, 1), "W")])  # unit
             # stack the tables from dictionary to one large table
             pv_table_numpy = np.vstack([pv_table_numpy, single_pv_table])
 

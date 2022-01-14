@@ -11,9 +11,12 @@ from .pv import PV
 from .battery import Battery
 from .vehicle import Vehicle
 from .behavior import Behavior
-from .demand import HotWaterDemand
+from .demand import HotWaterDemand, ElectricityDemand
+from .electricity_price import ElectricityPrice
+from .feedin_tariff import FeedInTariff
 
-household_component_list = [Region, Person, PersonList, Building, Appliance, ApplianceList, Boiler, SpaceHeatingTank,
-                            AirConditioner, HotWaterTank, PV, Battery, Vehicle, Behavior, HotWaterDemand]
+component_list = [Region, Person, PersonList, Building, Appliance, ApplianceList, Boiler, SpaceHeatingTank,
+                  AirConditioner, HotWaterTank, PV, Battery, Vehicle, Behavior, HotWaterDemand,
+                  ElectricityDemand, ElectricityPrice, FeedInTariff]
 
 

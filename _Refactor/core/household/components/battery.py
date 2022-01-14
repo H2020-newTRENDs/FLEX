@@ -5,7 +5,7 @@ from _Refactor.core.elements.component import Component
 
 
 class Battery(Component):
-    def __init__(self):
+    def __init__(self, component_id):
         self.ID_Battery: str = None
         self.capacity: float = None
         self.capacity_unit: str = None
@@ -15,5 +15,7 @@ class Battery(Component):
         self.charge_power_max_unit: str = None
         self.discharge_power_max: float = None
         self.discharge_power_max_unit: str = None
+
+        self.set_parameters(component_id)
 
 
