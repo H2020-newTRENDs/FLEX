@@ -24,8 +24,8 @@ class Table:
         self.electricity_demand = "ElectricityDemand"
 
         # Environment
-        self.electricity_price = "EnvironmentElectricityPrice"
-        self.feedin_tariff = "EnvironmentFeedinTariff"
+        self.electricity_price = "ElectricityPrice"
+        self.feedin_tariff = "FeedinTariff"
 
         # tables with downloaded data for countries:
         self.temperature = "Temperature"
