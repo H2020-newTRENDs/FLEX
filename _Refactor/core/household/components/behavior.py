@@ -10,8 +10,10 @@ class Behavior(Component):
     # appliance_behavior: np.array
     # hot_water_behavior: np.array
 
-    def __init__(self):
+    def __init__(self, component_id):
         self.ID_Behavior = None
         self.indoor_set_temperature_min = None
         self.indoor_set_temperature_max = None
+
+        self.set_parameters(component_id)
 

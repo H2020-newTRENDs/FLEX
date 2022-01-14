@@ -189,7 +189,7 @@ class HouseholdComponentGenerator:
 
     def run(self):
         # delete existing tables so no old tables stay accidentally:
-        for household_table in household_components.household_component_list:
+        for household_table in household_components.component_list:
             DB().drop_table(household_table.__name__)
         # create new tables
         self.create_household_building()
@@ -253,7 +253,7 @@ def generate_scenarios_table() -> None:
     scenarios_columns = {}
 
     # iterate through household components
-    for household_table in household_components.household_component_list:
+    for household_table in household_components.component_list:
         if engine.dialect.has_table(engine, household_table.__name__):  # check if table exists
             # read table:
             table = DB().read_dataframe(household_table.__name__)

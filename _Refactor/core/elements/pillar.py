@@ -1,6 +1,5 @@
 
 from abc import ABC, abstractmethod
-
 from _Refactor.core.scenario.abstract_scenario import AbstractScenario
 
 
@@ -21,9 +20,9 @@ class Pillar(ABC):
     def setup(self):
         self.add_components()
         self.add_component_classes()
-        for component, component_params in self.scenario.component_params_dict.items():
+        for component, component_params in self.scenario.__dict__.items():
             if component in self.__dict__.keys():
-                setattr(self, component, self.__dict__[component + "_class"](component_params))
+                setattr(self, component, self.__dict__[component + "_class"].set_parameters(component_params, ))
 
 
 

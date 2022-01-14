@@ -9,8 +9,9 @@ from modules.scenario import PhilippTestScenario
 
 
 scenario = PhilippTestScenario(scenario_id=0)
+scenario.add_component_ids()
 household = PhilippTestHousehold(scenario)
-environment = PhilippTestEnvironment(scenario)
+# environment = PhilippTestEnvironment(scenario)
 model = PhilippTestOptOperationModel(household, environment)
 
 print(model.household.space_heating_tank.loss)

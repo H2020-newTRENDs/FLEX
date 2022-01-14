@@ -26,7 +26,7 @@ of potential loss or damage.
 pd.options.display.max_columns = None
 
 # %% parameter definitions
-client = EntsoePandasClient(api_key='700bc0dd-11e5-481d-b97c-b8c8b8e6ddb5')
+client = EntsoePandasClient(api_key='c06ee579-f827-486d-bc1f-8fa0d7ccd3da')
 
 start = pd.Timestamp('20190101', tz='CET')
 end = pd.Timestamp('20200101', tz='CET')
@@ -48,7 +48,7 @@ for BZ in BZ_list:
     df_prices.columns = ['Date/time', 'price_' + BZ]
 
     # correct daylight saving shifts: in fall, replace new hour by mean of two hours; in spring, use value of hour before
-
+    # TODO i think this hour change is useless for us (need still saving to root db and aproprate function design)
     DL_saving_28_Oct_18_1 = df_prices.iloc[650]['price_' + BZ]
     DL_saving_28_Oct_18_2 = df_prices.iloc[651]['price_' + BZ]
     DL_saving_28_Oct_18_new = (DL_saving_28_Oct_18_1 + DL_saving_28_Oct_18_2) / 2

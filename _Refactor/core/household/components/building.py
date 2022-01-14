@@ -6,7 +6,7 @@ from _Refactor.core.elements.component import Component
 
 class Building(Component):
 
-    def __init__(self):
+    def __init__(self, component_id: int):
         self.ID_Building: int = None
         self.invert_index: int = None
         self.name: str = None
@@ -32,4 +32,6 @@ class Building(Component):
         self.building_mass_temperature_max: float = None
         self.grid_power_max: float = None
         self.grid_power_max_unit: float = None
+
+        self.set_parameters(component_id)
 

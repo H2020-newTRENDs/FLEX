@@ -29,11 +29,15 @@ class GeneralComponent(GetComponentParamsDictStrategy):
         self.row_id = row_id
         self.db = DB(data_base_connection)
 
-    def get_complete_data(self) -> pd.DataFrame:
+    def get_complete_data(self) -> Dict[str, Any]:
         # reads only the data where the ID is equal to the row ID. This way we can read in profiles with 8760 values
         kwargs_dict = {"ID_" + self.table_name: self.row_id}
         table = self.db.read_dataframe(self.table_name, **kwargs_dict)
-        return table
+        if len(table) == 1:  # if its a single row, then the values should not be packed into lists
+            table_dict = table.to_dict("records")[0]
+        else:  # if its an array the values of the dict will be a list
+            table_dict = table.to_dict("list")
+        return table_dict
 
 
 
