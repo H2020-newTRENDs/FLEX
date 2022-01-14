@@ -254,9 +254,9 @@ def generate_scenarios_table() -> None:
 
     # iterate through household components
     for household_table in household_components.household_component_list:
-        if engine.dialect.has_table(engine, f"Household{household_table.__name__}"):  # check if table exists
+        if engine.dialect.has_table(engine, household_table.__name__):  # check if table exists
             # read table:
-            table = DB().read_dataframe(f"Household{household_table.__name__}")
+            table = DB().read_dataframe(household_table.__name__)
             # iterate through columns and get id name:
             for column_name in table.columns:
                 if column_name.startswith("ID"):
@@ -266,9 +266,9 @@ def generate_scenarios_table() -> None:
 
     # iterate through household components
     for environment_table in environment_components.environment_component_list:
-        if engine.dialect.has_table(engine, f"Environment{environment_table.__name__}"):  # check if table exists
+        if engine.dialect.has_table(engine, environment_table.__name__):  # check if table exists
             # read table:
-            env_table = DB().read_dataframe(f"Environment{environment_table.__name__}")
+            env_table = DB().read_dataframe(environment_table.__name__)
             # iterate through columns and get id name:
             for column_name in env_table.columns:
                 if column_name.startswith("ID"):
@@ -281,6 +281,7 @@ def generate_scenarios_table() -> None:
     permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
     # create dataframe
     scenarios_table = pd.DataFrame(permutations_dicts)
+    scenarios_table["ID_Scenarios"] = np.arange(len(scenarios_table))
     # dtypes are all "Integer":
     dtypes_dict = {name: sqlalchemy.types.Integer for name in scenarios_table.columns}
     # save to root db:
