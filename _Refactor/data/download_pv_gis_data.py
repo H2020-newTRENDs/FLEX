@@ -307,7 +307,9 @@ class GenerateDataForRoot:
                                   "ID_PV": pv_type,
                                   "id_hour": self.id_hour,
                                   "power": PVProfile,
-                                  "unit": unit}
+                                  "unit": unit,
+                                  "peak_power": np.full((8760,), peakPower),
+                                  "peak_power_unit": np.full((8760,), "kWp")}
                     pv_table = pd.DataFrame(columns_pv)
                     assert list(pv_table.columns).sort() == list(input_data_structure.PVGenerationData().__dict__.keys()).sort()
                     DB().write_dataframe(table_name=table_name_PV,
@@ -320,7 +322,12 @@ class GenerateDataForRoot:
             print(f"{nuts} saved to intermediate table")
 
     def calculate_single_profile_for_country(self, country: str, nuts_level: int) -> None:
-        """nuts level 1, 2 or 3"""
+        """nuts level 1, 2 or 3
+
+        Args:
+            country:
+            nuts_level:
+        """
         # weighted average over heat demand from hotmaps TODO get Hotmaps data through API
         heat_demand_AT = pd.read_excel(
             "C:/Users/mascherbauer/PycharmProjects/NewTrends/Prosumager/_Philipp/inputdata/AUT/AT_Heat_demand_total_NUTS3.xlsx",
@@ -399,12 +406,17 @@ class GenerateDataForRoot:
         # create single row on which tables are stacked up
         pv_table_numpy = np.zeros((1, len(pv_columns)))
         for key, values in PV_weighted_sum.items():
+            # get the peak power with the ID_PV
+            peak_power = float(DB().read_dataframe("HouseholdPV", **{"ID_PV": key})["peak_power"])
             # create the table for each pv type
             single_pv_table = np.column_stack([np.full((8760, ), country),  # nuts_id
                                                np.full((8760, ), key),  # ID_PV
                                                self.id_hour,  # id_hour
                                                values,  # power
-                                               np.full((8760, 1), "W")])  # unit
+                                               np.full((8760, ), "W"),  # unit
+                                               np.full((8760, ), peak_power),  # peak power
+                                               np.full((8760, ), "kWp")]  # peak power unit
+                                              )
             # stack the tables from dictionary to one large table
             pv_table_numpy = np.vstack([pv_table_numpy, single_pv_table])
 
@@ -421,6 +433,15 @@ class GenerateDataForRoot:
         print(f"mean tables for country {country} have been saved")
 
     def get_nuts_id_list(self, nuts_level: int, country: str) -> list:
+        """
+
+        Args:
+            nuts_level:
+            country:
+
+        Returns:
+
+        """
         database_name = f"NUTS{nuts_level}"
         all_nuts_ids = DB().read_dataframe(database_name, country=country)["nuts_id"].to_numpy()
         return list(all_nuts_ids)

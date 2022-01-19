@@ -30,7 +30,7 @@ class Table:
         # tables with downloaded data for countries:
         self.temperature = "Temperature"
         self.radiation = "Radiation"
-        self.pv_generation = "PV_generation"
+        self.pv_generation = "PV"
 
 
 class Column:

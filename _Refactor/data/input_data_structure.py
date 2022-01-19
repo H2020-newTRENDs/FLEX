@@ -26,6 +26,8 @@ class PVGenerationData:
         self.id_hour = sqlalchemy.types.Integer
         self.power = sqlalchemy.types.Float
         self.unit = sqlalchemy.types.String
+        self.peak_power = sqlalchemy.types.Float
+        self.peak_power_unit = sqlalchemy.types.String
 
 
 class ElectricityPriceData:
