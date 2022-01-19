@@ -133,7 +133,7 @@ class GenerateDataForRoot:
             df = df.iloc[1:, :]
             df.columns = header
             df = df.reset_index(drop=True)
-            PV_Profile = pd.to_numeric(df["P"]).to_numpy()   # W
+            PV_Profile = pd.to_numeric(df["P"]).to_numpy()  # W
             return PV_Profile
         except urllib.error.HTTPError:  # Error when nuts center is somewhere where there is no PVGIS data
             PV_Profile = None
@@ -267,7 +267,8 @@ class GenerateDataForRoot:
                                "west": west_radiation.reset_index(drop=True).to_numpy(),
                                "north": north_radiation.reset_index(drop=True).to_numpy()}
             solar_radiation_table = pd.DataFrame(radiation_table)
-            assert list(input_data_structure.RadiationData().__dict__.keys()).sort() == list(solar_radiation_table.columns).sort()
+            assert list(input_data_structure.RadiationData().__dict__.keys()).sort() == list(
+                solar_radiation_table.columns).sort()
             DB().write_dataframe(table_name=table_name_radiation,
                                  data_frame=solar_radiation_table,
                                  data_types=input_data_structure.RadiationData().__dict__,
@@ -281,7 +282,8 @@ class GenerateDataForRoot:
                                 "temperature": outsideTemperature.to_numpy()}
             # write table for outside temperature:
             temperature_table = pd.DataFrame(temperature_dict)
-            assert list(input_data_structure.TemperatureData().__dict__.keys()).sort() == list(temperature_table.columns).sort()
+            assert list(input_data_structure.TemperatureData().__dict__.keys()).sort() == list(
+                temperature_table.columns).sort()
             DB().write_dataframe(table_name=table_name_temperature,
                                  data_frame=temperature_table,
                                  data_types=input_data_structure.TemperatureData().__dict__,
@@ -311,7 +313,8 @@ class GenerateDataForRoot:
                                   "peak_power": np.full((8760,), peakPower),
                                   "peak_power_unit": np.full((8760,), "kWp")}
                     pv_table = pd.DataFrame(columns_pv)
-                    assert list(pv_table.columns).sort() == list(input_data_structure.PVGenerationData().__dict__.keys()).sort()
+                    assert list(pv_table.columns).sort() == list(
+                        input_data_structure.PVGenerationData().__dict__.keys()).sort()
                     DB().write_dataframe(table_name=table_name_PV,
                                          data_frame=pv_table,
                                          data_types=input_data_structure.PVGenerationData().__dict__,
@@ -370,34 +373,23 @@ class GenerateDataForRoot:
                                                  nuts_id=nuts_id, ID_PV=id_pv).to_numpy()  # **kwargs
                 PV_weighted_sum[id_pv] += PV_profile * heat_demand_of_specific_region / total_heat_demand
 
-        # create table for saving to DB:
-        # Temperature
-        temperature_columns = {"nuts_id": np.full((8760, ), country),
-                               "id_hour": self.id_hour,
-                               "temperature": temperature_weighted_sum.flatten()}
-        temperature_table = pd.DataFrame(temperature_columns)
-        assert list(temperature_table.columns).sort() == list(input_data_structure.TemperatureData().__dict__.keys()).sort()
+        # create table for saving to DB: Temperature and Radiation will be saved in the region table
+        # Temperature + Radiation
+        temperature_radiation_columns = {"nuts_id": np.full((8760,), country),
+                                         "id_hour": self.id_hour,
+                                         "south": radiation_weighted_sum[:, 0],
+                                         "east": radiation_weighted_sum[:, 1],
+                                         "west": radiation_weighted_sum[:, 2],
+                                         "north": radiation_weighted_sum[:, 3],
+                                         "temperature": temperature_weighted_sum.flatten()
+                                         }
+
+        temperature_radiation_table = pd.DataFrame(temperature_radiation_columns)
+        assert list(temperature_radiation_table.columns).sort() == list(input_data_structure.RegionData().__dict__.keys()).sort()
         # save weighted temperature average profile to database:
-        DB().write_dataframe(table_name=Table().temperature,
-                             data_frame=temperature_table,
-                             data_types=input_data_structure.TemperatureData().__dict__,
-                             if_exists="replace"
-                             )
-
-        # Radiation
-        radiation_columns = {"nuts_id": np.full((8760, ), country),
-                             "id_hour": self.id_hour,
-                             "south": radiation_weighted_sum[:, 0],
-                             "east": radiation_weighted_sum[:, 1],
-                             "west": radiation_weighted_sum[:, 2],
-                             "north": radiation_weighted_sum[:, 3]}
-        radiation_table = pd.DataFrame(radiation_columns)
-        assert list(radiation_table.columns).sort() == list(input_data_structure.RadiationData().__dict__.keys()).sort()
-
-        # save to sql database:
-        DB().write_dataframe(table_name=Table().radiation,
-                             data_frame=radiation_table,
-                             data_types=input_data_structure.RadiationData().__dict__,
+        DB().write_dataframe(table_name=Table().region,
+                             data_frame=temperature_radiation_table,
+                             data_types=input_data_structure.RegionData().__dict__,
                              if_exists="replace"
                              )
 
@@ -409,13 +401,13 @@ class GenerateDataForRoot:
             # get the peak power with the ID_PV
             peak_power = float(DB().read_dataframe("HouseholdPV", **{"ID_PV": key})["peak_power"])
             # create the table for each pv type
-            single_pv_table = np.column_stack([np.full((8760, ), country),  # nuts_id
-                                               np.full((8760, ), key),  # ID_PV
+            single_pv_table = np.column_stack([np.full((8760,), country),  # nuts_id
+                                               np.full((8760,), key),  # ID_PV
                                                self.id_hour,  # id_hour
                                                values,  # power
-                                               np.full((8760, ), "W"),  # unit
-                                               np.full((8760, ), peak_power),  # peak power
-                                               np.full((8760, ), "kWp")]  # peak power unit
+                                               np.full((8760,), "W"),  # unit
+                                               np.full((8760,), peak_power),  # peak power
+                                               np.full((8760,), "kWp")]  # peak power unit
                                               )
             # stack the tables from dictionary to one large table
             pv_table_numpy = np.vstack([pv_table_numpy, single_pv_table])
@@ -448,20 +440,20 @@ class GenerateDataForRoot:
 
     def run(self):
         # delete old tables:
-        DB().drop_table("Temperature")
-        DB().drop_table("Radiation")
-        DB().drop_table("PV_generation")
-        # check if nuts regions exist in root:
-        engine = config.root_connection.connect()
-        if not engine.dialect.has_table(engine, "NUTS1") or not \
-                engine.dialect.has_table(engine, "NUTS2") or not \
-                engine.dialect.has_table(engine, "NUTS3"):
-            self.create_nuts_regions()
-
-        self.get_PVGIS_data(nuts_id_list=self.get_nuts_id_list(3, "AT"),
-                            country="AT",
-                            start_year=2010,
-                            end_year=2010)  # TODO make this versatile for other countries
+        # DB().drop_table("Temperature")
+        # DB().drop_table("Radiation")
+        # DB().drop_table("PV_generation")
+        # # check if nuts regions exist in root:
+        # engine = config.root_connection.connect()
+        # if not engine.dialect.has_table(engine, "NUTS1") or not \
+        #         engine.dialect.has_table(engine, "NUTS2") or not \
+        #         engine.dialect.has_table(engine, "NUTS3"):
+        #     self.create_nuts_regions()
+        #
+        # self.get_PVGIS_data(nuts_id_list=self.get_nuts_id_list(3, "AT"),
+        #                     country="AT",
+        #                     start_year=2010,
+        #                     end_year=2010)  # TODO make this versatile for other countries
         # creating a single profile as mean profile for a country weighted by the heat demand of each nuts region:
         self.calculate_single_profile_for_country(country="AT", nuts_level=3)
 

@@ -28,8 +28,6 @@ class Table:
         self.feedin_tariff = "FeedinTariff"
 
         # tables with downloaded data for countries:
-        self.temperature = "Temperature"
-        self.radiation = "Radiation"
         self.pv_generation = "PV"
 
 
