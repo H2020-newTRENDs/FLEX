@@ -203,7 +203,7 @@ class HouseholdComponentGenerator:
 class EnvironmentGenerator:
 
     def create_environment_electricity_price(self) -> None:
-        columns_price = self.get_dtypes_dict(components.ElectricityPrice().__dict__)
+        columns_price = structure.ElectricityPriceData().__dict__
         electricity_price_types = ["variable", "fixed"]  # name  TODO should be provided externally
         electricity_price_ids = [i for i in range(1, len(electricity_price_types) + 1)]
 
@@ -219,7 +219,7 @@ class EnvironmentGenerator:
                              )
 
     def create_environment_feed_in_tariff(self) -> None:
-        columns_feed_in = self.get_dtypes_dict(components.FeedInTariff().__dict__)
+        columns_feed_in = structure.FeedInTariffData().__dict__
         electricity_feed_in_type = ["fixed"]  # name
         electricity_feed_in_ids = [i for i in range(1, len(electricity_feed_in_type) + 1)]
 
@@ -234,13 +234,28 @@ class EnvironmentGenerator:
                              if_exists="replace"
                              )
 
+    def create_environment_region(self) -> None:  # TODO has to be updated to it will be implemented automatically and rever other data to it
+        region_id = ["AT"]
+        region_columns = structure.RegionData().__dict__
+
+        region_dict = {"ID_Region": region_id,  # Region_ID
+                       "region_name": "Austria"  # region_name
+                       }
+        region_table = pd.DataFrame(region_dict)
+        assert list(region_table.columns).sort() == list(region_columns.keys()).sort()
+        # save
+        DB().write_dataframe(table_name=Table().region,
+                             data_frame=region_table,
+                             data_types=region_columns,
+                             if_exists="replace"
+                             )
+
+
     def run(self):
-        # delete existing tables so no old tables stay accidentally:
-        for environment_table in components.environment_component_list:
-            DB().drop_table(f"Environment{environment_table.__name__}")
         # create new tables
         self.create_environment_electricity_price()
         self.create_environment_feed_in_tariff()
+        self.create_environment_region()
 
 
 def generate_scenarios_table() -> None:
@@ -263,17 +278,6 @@ def generate_scenarios_table() -> None:
         else:
             print(f"{household_table.__name__} does not exist in root db")
 
-    # iterate through household components
-    for environment_table in components.environment_component_list:
-        if engine.dialect.has_table(engine, environment_table.__name__):  # check if table exists
-            # read table:
-            env_table = DB().read_dataframe(environment_table.__name__)
-            # iterate through columns and get id name:
-            for column_name in env_table.columns:
-                if column_name.startswith("ID"):
-                    scenarios_columns[column_name] = env_table[column_name].unique()
-        else:
-            print(f"{environment_table.__name__} does not exist in root db")
 
     # create permutations of the columns dictionary to get all possible combinations:
     keys, values = zip(*scenarios_columns.items())
