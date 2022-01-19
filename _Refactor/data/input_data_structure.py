@@ -1,24 +1,6 @@
 import sqlalchemy.types
 
 
-class RadiationData:
-    def __init__(self):
-        # columns
-        self.nuts_id = sqlalchemy.types.String
-        self.id_hour = sqlalchemy.types.Integer
-        self.south = sqlalchemy.types.Float
-        self.east = sqlalchemy.types.Float
-        self.west = sqlalchemy.types.Float
-        self.north = sqlalchemy.types.Float
-
-
-class TemperatureData:
-    def __init__(self):
-        self.nuts_id = sqlalchemy.types.String
-        self.id_hour = sqlalchemy.types.Integer
-        self.temperature = sqlalchemy.types.Float
-
-
 class PVGenerationData:
     def __init__(self):
         self.nuts_id = sqlalchemy.types.String
@@ -159,9 +141,13 @@ class PVData:
 
 class RegionData:
     def __init__(self):
-        self.ID_Region = sqlalchemy.types.Integer
-        self.region_name =  sqlalchemy.types.String
-
+        self.nuts_id = sqlalchemy.types.String
+        self.id_hour = sqlalchemy.types.Integer
+        self.south = sqlalchemy.types.Float
+        self.east = sqlalchemy.types.Float
+        self.west = sqlalchemy.types.Float
+        self.north = sqlalchemy.types.Float
+        self.temperature = sqlalchemy.types.Float
 
 class SpaceHeatingTankData:
     def __init__(self):
