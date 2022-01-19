@@ -160,8 +160,7 @@ class PVData:
 class RegionData:
     def __init__(self):
         self.ID_Region = sqlalchemy.types.Integer
-        self.temperature = sqlalchemy.types.Float
-        self.radiation = sqlalchemy.types.Float
+        self.region_name =  sqlalchemy.types.String
 
 
 class SpaceHeatingTankData:
