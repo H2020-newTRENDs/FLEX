@@ -65,6 +65,8 @@ class BoilerData:
         self.heating_element_power = sqlalchemy.types.Float
         self.heating_element_power_unit = sqlalchemy.types.String
         self.carnot_efficiency_factor = sqlalchemy.types.Float
+        self.heating_supply_temperature = sqlalchemy.types.Float
+        self.hot_water_supply_temperature = sqlalchemy.types.Float
 
 
 class BuildingData:
@@ -141,13 +143,14 @@ class PVData:
 
 class RegionData:
     def __init__(self):
-        self.nuts_id = sqlalchemy.types.String
+        self.ID_Region = sqlalchemy.types.String
         self.id_hour = sqlalchemy.types.Integer
         self.south = sqlalchemy.types.Float
         self.east = sqlalchemy.types.Float
         self.west = sqlalchemy.types.Float
         self.north = sqlalchemy.types.Float
         self.temperature = sqlalchemy.types.Float
+
 
 class SpaceHeatingTankData:
     def __init__(self):
