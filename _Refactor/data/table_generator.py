@@ -63,7 +63,9 @@ class HouseholdComponentGenerator:
                       "thermal_power_max_unit": np.full((len(heating_system),), "W"),
                       "heating_element_power": np.full((len(heating_system),), 7_500),
                       "heating_element_power_unit": np.full((len(heating_system),), "W"),
-                      "carnot_efficiency_factor": carnot_factor
+                      "carnot_efficiency_factor": carnot_factor,
+                      "heating_supply_temperature": np.full((len(heating_system),), 35),
+                      "hot_water_supply_temperature": np.full((len(heating_system),), 55)
                       }
         assert table_dict.keys() == columns.keys()
         table = pd.DataFrame(table_dict)
@@ -298,9 +300,9 @@ def generate_scenarios_table() -> None:
 def main():
     HouseholdComponentGenerator().run()
     EnvironmentGenerator().run()
-
+    #
     profile_generator.ProfileGenerator().run()
-
+    #
     generate_scenarios_table()
 
 
