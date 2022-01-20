@@ -27,7 +27,7 @@ class ProfileGenerator:
         minimum_temperature = np.array([])
         maximum_temperature = np.array([])
         for daytime in self.id_day_hour:
-            if 6 >= daytime >= 22:
+            if daytime <= 6 or daytime >= 22:
                 minimum_temperature = np.append(minimum_temperature, temperature_min - night_reduction)
                 maximum_temperature = np.append(maximum_temperature, temperature_max)
             else:
