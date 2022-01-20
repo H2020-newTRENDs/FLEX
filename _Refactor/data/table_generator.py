@@ -236,21 +236,6 @@ class EnvironmentGenerator:
                              if_exists="replace"
                              )
 
-    def create_environment_region(self) -> None:  # TODO has to be updated to it will be implemented automatically and rever other data to it
-        region_id = ["AT"]
-        region_columns = structure.RegionData().__dict__
-
-        region_dict = {"ID_Region": region_id,  # Region_ID
-                       "region_name": "Austria"  # region_name
-                       }
-        region_table = pd.DataFrame(region_dict)
-        assert list(region_table.columns).sort() == list(region_columns.keys()).sort()
-        # save
-        DB().write_dataframe(table_name=Table().region,
-                             data_frame=region_table,
-                             data_types=region_columns,
-                             if_exists="replace"
-                             )
 
 
     def run(self):
