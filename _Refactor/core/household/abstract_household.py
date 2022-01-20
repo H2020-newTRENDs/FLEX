@@ -6,9 +6,29 @@ from _Refactor.core.elements.pillar import Pillar
 from _Refactor.core.scenario.abstract_scenario import AbstractScenario
 import _Refactor.core.household.components as components
 
+
 class AbstractHousehold:
 
     def __init__(self, scenario: 'AbstractScenario'):
+        self.region_class = None
+        self.person_class = None
+        self.personlist_class = None
+        self.building_class = None
+        self.appliance_class = None
+        self.appliancelist_class = None
+        self.boiler_class = None
+        self.spaceheatingtank_class = None
+        self.airconditioner_class = None
+        self.hotwatertank_class = None
+        self.pv_class = None
+        self.battery_class = None
+        self.vehicle_class = None
+        self.behavior_class = None
+        self.hotwaterdemand_class = None
+        self.electricitydemand_class = None
+        self.electricityprice_class = None
+        self.feedintariff_class = None
+
         self.scenario = scenario
         self.add_component_classes()
 
