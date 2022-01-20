@@ -375,7 +375,7 @@ class GenerateDataForRoot:
 
         # create table for saving to DB: Temperature and Radiation will be saved in the region table
         # Temperature + Radiation
-        temperature_radiation_columns = {"nuts_id": np.full((8760,), country),
+        temperature_radiation_columns = {"ID_Region": np.full((8760,), country),
                                          "id_hour": self.id_hour,
                                          "south": radiation_weighted_sum[:, 0],
                                          "east": radiation_weighted_sum[:, 1],
