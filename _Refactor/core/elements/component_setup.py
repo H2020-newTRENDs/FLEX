@@ -23,7 +23,7 @@ class GeneralComponent(GetComponentParamsDictStrategy):
                  row_id: int,
                  table_name: str,
                  db_name: str = "root",
-                 db_folder: str = Path(__file__).parent.parent.parent / Path("data")):
+                 db_folder: Path = Path(__file__).parent.parent.parent / Path("data")):
         data_base_connection = config.create_connection(db_folder=db_folder, db_name=db_name)
         self.table_name = table_name
         self.row_id = row_id

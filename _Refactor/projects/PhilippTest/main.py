@@ -1,19 +1,18 @@
 
 import os
 
+import numpy as np
+
 from config import project_config
-from modules.model_opt import PhilippTestOptOperationModel
-# from modules.environment import PhilippTestEnvironment
-from modules.household import PhilippTestHousehold
-from modules.scenario import PhilippTestScenario
+from _Refactor.core.household.abstract_household import AbstractHousehold
+from _Refactor.models.operation.opt import OptOperationModel
 
 
-scenario = PhilippTestScenario(scenario_id=0)
 
-household = PhilippTestHousehold(scenario)
-# environment = PhilippTestEnvironment(scenario)
-model = PhilippTestOptOperationModel(household)
+household = AbstractHousehold(scenario_id=0)
+# for loop:
+model = OptOperationModel(household)
 
-print(model.household.space_heating_tank.loss)
-print(model.household.hot_water_tank.loss)
+print(model.household.spaceheatingtank_class.loss)
+print(model.household.hotwatertank_class.loss)
 
