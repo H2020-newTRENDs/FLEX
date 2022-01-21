@@ -189,7 +189,7 @@ class HouseholdComponentGenerator:
                              )
 
     def run(self):
-        # # delete existing tables so no old tables stay accidentally:
+        # # delete existing tables so no old tables stay accidentally: TODO implement this when all tables are generated in one run
         # for household_table in components.component_list:
         #     DB().drop_table(household_table.__name__)
         # create new tables

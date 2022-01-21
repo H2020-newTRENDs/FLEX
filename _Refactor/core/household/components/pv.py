@@ -9,6 +9,7 @@ class PV(Component):
         self.peak_power: float = None
         self.peak_power_unit: str = None
         self.power: np.array = None
+        self.power_unit = None
 
         self.set_parameters(component_id)
 
