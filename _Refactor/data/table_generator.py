@@ -189,9 +189,9 @@ class HouseholdComponentGenerator:
                              )
 
     def run(self):
-        # delete existing tables so no old tables stay accidentally:
-        for household_table in components.component_list:
-            DB().drop_table(household_table.__name__)
+        # # delete existing tables so no old tables stay accidentally:
+        # for household_table in components.component_list:
+        #     DB().drop_table(household_table.__name__)
         # create new tables
         self.create_household_building()
         self.create_household_boiler()
@@ -242,7 +242,6 @@ class EnvironmentGenerator:
         # create new tables
         self.create_environment_electricity_price()
         self.create_environment_feed_in_tariff()
-        self.create_environment_region()
 
 
 def generate_scenarios_table() -> None:
