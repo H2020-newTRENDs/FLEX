@@ -94,7 +94,7 @@ class GenerateDataForRoot:
         point = nuts[nuts.NUTS_ID == region_id].centroid.values[0]
         return transformer.transform(point.y, point.x)  # returns lat, lon
 
-    def get_PV_generation(self, lat, lon, startyear, endyear, peakpower, nuts_id) -> pd.DataFrame:
+    def get_PV_generation(self, lat, lon, startyear, endyear, peakpower, nuts_id) -> np.array:
         # % JRC data
         # possible years are 2005 to 2017
         pvCalculation = 1  # 0 for no and 1 for yes
@@ -300,27 +300,27 @@ class GenerateDataForRoot:
                 else:
                     exists = "append"
                 if peakPower == 0:
-                    continue  # 0-profile will not be saved
+                    PVProfile = np.full((8760,), 0)
                 else:
                     PVProfile = self.get_PV_generation(lat, lon, start_year, end_year, peakPower, nuts)
 
-                    pv_type = np.full((len(PVProfile),), int(PV_options.ID_PV[index]))
-                    columns_pv = {"nuts_id": np.full((8760,), nuts),
-                                  "ID_PV": pv_type,
-                                  "id_hour": self.id_hour,
-                                  "power": PVProfile,
-                                  "unit": unit,
-                                  "peak_power": np.full((8760,), peakPower),
-                                  "peak_power_unit": np.full((8760,), "kWp")}
-                    pv_table = pd.DataFrame(columns_pv)
-                    assert list(pv_table.columns).sort() == list(
-                        input_data_structure.PVGenerationData().__dict__.keys()).sort()
-                    DB().write_dataframe(table_name=table_name_PV,
-                                         data_frame=pv_table,
-                                         data_types=input_data_structure.PVGenerationData().__dict__,
-                                         if_exists=exists
-                                         )
-                    number += 1
+                pv_type = np.full((len(PVProfile),), int(PV_options.ID_PV[index]))
+                columns_pv = {"nuts_id": np.full((8760,), nuts),
+                              "ID_PV": pv_type,
+                              "id_hour": self.id_hour,
+                              "power": PVProfile,
+                              "unit": unit,
+                              "peak_power": np.full((8760,), peakPower),
+                              "peak_power_unit": np.full((8760,), "kWp")}
+                pv_table = pd.DataFrame(columns_pv)
+                assert list(pv_table.columns).sort() == list(
+                    input_data_structure.PVGenerationData().__dict__.keys()).sort()
+                DB().write_dataframe(table_name=table_name_PV,
+                                     data_frame=pv_table,
+                                     data_types=input_data_structure.PVGenerationData().__dict__,
+                                     if_exists=exists
+                                     )
+                number += 1
 
             print(f"{nuts} saved to intermediate table")
 
@@ -440,20 +440,20 @@ class GenerateDataForRoot:
 
     def run(self):
         # delete old tables:
-        # DB().drop_table("Temperature")
-        # DB().drop_table("Radiation")
-        # DB().drop_table("PV_generation")
-        # # check if nuts regions exist in root:
-        # engine = config.root_connection.connect()
-        # if not engine.dialect.has_table(engine, "NUTS1") or not \
-        #         engine.dialect.has_table(engine, "NUTS2") or not \
-        #         engine.dialect.has_table(engine, "NUTS3"):
-        #     self.create_nuts_regions()
-        #
-        # self.get_PVGIS_data(nuts_id_list=self.get_nuts_id_list(3, "AT"),
-        #                     country="AT",
-        #                     start_year=2010,
-        #                     end_year=2010)  # TODO make this versatile for other countries
+        DB().drop_table("Temperature")
+        DB().drop_table("Radiation")
+        DB().drop_table("PV_generation")
+        # check if nuts regions exist in root:
+        engine = config.root_connection.connect()
+        if not engine.dialect.has_table(engine, "NUTS1") or not \
+                engine.dialect.has_table(engine, "NUTS2") or not \
+                engine.dialect.has_table(engine, "NUTS3"):
+            self.create_nuts_regions()
+
+        self.get_PVGIS_data(nuts_id_list=self.get_nuts_id_list(3, "AT"),
+                            country="AT",
+                            start_year=2010,
+                            end_year=2010)  # TODO make this versatile for other countries
         # creating a single profile as mean profile for a country weighted by the heat demand of each nuts region:
         self.calculate_single_profile_for_country(country="AT", nuts_level=3)
 
