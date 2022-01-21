@@ -8,7 +8,6 @@ from _Refactor.core.elements.component_setup import GeneralComponent
 from _Refactor.basic.reg import Table
 
 
-
 class AbstractHousehold:
 
     def __init__(self, scenario_id: int):
@@ -40,34 +39,21 @@ class AbstractHousehold:
 
     def add_component_classes(self):
         # iterate through the scenario dict which hols all IDs for each component:
-        for component, component_id in self.scenario_ids.items():
+        for component_name, component_id in self.scenario_ids.items():
+            name = component_name.lower().replace("id_", "")
             for key in components.__dict__.keys():
-                if component == key.lower():  # check if they class exists and use its name
-                    component_name = key
-            # get the class
-            print(f"{component_name} exists")
-            class_filled = getattr(components, component_name)(component_id=component_id)
+                if name == key.lower():  # check if they class exists and use its name
+                    class_name = key
+                    # get the class
+                    print(f"{class_name} exists")
+            class_filled = getattr(components, class_name)(component_id=component_id)  # all classes take the component_id as parameter to initialize their values
             # create self variable of the class with the filled class
-            setattr(self, component + "_class", class_filled)
+            setattr(self, name + "_class", class_filled)
 
-    # def add_components(self):
-    #     self.region = None
-    #     self.person_list = None
-    #     self.building = None
-    #     self.appliance_list = None
-    #     self.boiler = None
-    #     self.space_heating_tank = None
-    #     self.air_conditioner = None
-    #     self.hot_water_tank = None
-    #     self.pv = None
-    #     self.battery = None
-    #     self.vehicle = None
-    #     self.behavior = None
-    #     self.hot_water_demand = None
-    #     self.electricity_demand = None
 
 
 
 if __name__ == "__main__":
-    AbstractHousehold(scenario_id=0).add_component_classes()
+    household_class = AbstractHousehold(scenario_id=0)
+    household_class.add_component_classes()
 
