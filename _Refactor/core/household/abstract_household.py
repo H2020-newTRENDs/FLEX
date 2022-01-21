@@ -44,8 +44,6 @@ class AbstractHousehold:
             # create self variable of the class with the filled class
             setattr(self, component + "_class", class_filled)
 
-            pass
-
     # def add_components(self):
     #     self.region = None
     #     self.person_list = None
