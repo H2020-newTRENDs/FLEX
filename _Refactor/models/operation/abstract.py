@@ -72,7 +72,14 @@ class AbstractOperationModel(ABC):
                efficiency: float,
                source: str) -> np.array:
         """
-        calculates the COP based on a performance factor and the massflow temperatures
+        Args:
+            outside_temperature:
+            supply_temperature: temperature that the heating system needs (eg. 35 low temperature, 65 hot)
+            efficiency: carnot efficiency factor
+            source: refers to the heat source (air, ground...) is saved in the boiler class as "name"
+
+        Returns: numpy array of the hourly COP
+
         """
         if source == "Air_HP":
             COP = np.array([efficiency * (supply_temperature + 273.15) / (supply_temperature - temp) for temp in
@@ -120,28 +127,24 @@ class AbstractOperationModel(ABC):
     def calculate_hms(self):
         return np.float_(9.1)  # [W / m2K] from Equ.C.3 (from 12.2.2) - (coupling between mass and central node s)
 
-    def calculate_Htr_ms(self, hms: float, Am: float) -> float:
-        return hms * Am  # from 12.2.2 Equ. (64)
+    def calculate_Htr_ms(self,  Am_factor: float, Af: float) -> float:
+        return self.calculate_hms() * self.calculate_Am(Am_factor, Af)  # from 12.2.2 Equ. (64)
 
-    def calculate_Htr_em(self, Hop: float, Htr_ms: float) -> float:
-        return 1 / (1 / Hop - 1 / Htr_ms)  # from 12.2.2 Equ. (63)
+    def calculate_Htr_em(self, Hop: float, Am_factor: float, Af: float) -> float:
+        return 1 / (1 / Hop - 1 / self.calculate_Htr_ms(Am_factor, Af))  # from 12.2.2 Equ. (63)
 
     # thermal coupling values [W/K]
-    def calculate_Htr_is(self, his: float, Atot: float) -> float:
-        return his * Atot
+    def calculate_Htr_is(self, Af) -> float:
+        return self.calculate_his() * self.calculate_Atot(Af=Af)
 
-    def calculate_PHI_ia(self, internal_gains: float) -> float:
-        """
-        Args:
-            internal_gains: total internal gains, not specific
-        """
-        return 0.5 * internal_gains  # Equ. C.1
+    def calculate_PHI_ia(self,specific_internal_gains: float, Af: float) -> float:
+        return 0.5 * self.calculate_Qi(specific_internal_gains, Af)  # Equ. C.1
 
-    def calculate_Htr_1(self, Hve: float, Htr_is: float) -> float:
-        return 1 / (1 / Hve + 1 / Htr_is)  # Equ. C.6
+    def calculate_Htr_1(self, Hve: float, Af: float) -> float:
+        return 1 / (1 / Hve + 1 / self.calculate_Htr_is(Af))  # Equ. C.6
 
-    def calculate_Htr_2(self, Htr_1: float, Htr_w: float) -> float:
-        return Htr_1 + Htr_w  # Equ. C.7
+    def calculate_Htr_2(self, Hve: float, Af: float, Htr_w: float) -> float:
+        return self.calculate_Htr_1(Hve, Af) + Htr_w  # Equ. C.7
 
-    def calculate_Htr_3(self, Htr_2: float, Htr_ms: float) -> float:
-        return 1 / (1 / Htr_2 + 1 / Htr_ms)  # Equ.C.8
+    def calculate_Htr_3(self,  Hve: float, Af: float, Htr_w: float, Am_factor: float) -> float:
+        return 1 / (1 / self.calculate_Htr_2(Hve, Af, Htr_w) + 1 / self.calculate_Htr_ms(Am_factor, Af))  # Equ.C.8
