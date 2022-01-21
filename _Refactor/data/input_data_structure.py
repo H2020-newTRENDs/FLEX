@@ -171,3 +171,21 @@ class VehicleData:
     def __init__(self):
         self.var_1 = None
         self.var_2 = None
+
+
+class RadiationData:
+    def __init__(self):
+        # columns
+        self.nuts_id = sqlalchemy.types.String
+        self.id_hour = sqlalchemy.types.Integer
+        self.south = sqlalchemy.types.Float
+        self.east = sqlalchemy.types.Float
+        self.west = sqlalchemy.types.Float
+        self.north = sqlalchemy.types.Float
+
+
+class TemperatureData:
+    def __init__(self):
+        self.nuts_id = sqlalchemy.types.String
+        self.id_hour = sqlalchemy.types.Integer
+        self.temperature = sqlalchemy.types.Float
