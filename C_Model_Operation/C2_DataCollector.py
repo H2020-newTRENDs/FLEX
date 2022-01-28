@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-__author__ = 'Songmin'
+
 
 import numpy as np
 from A_Infrastructure.A1_CONS import CONS
@@ -231,7 +231,7 @@ class DataCollector:
             household["ID"],
             household[REG_Var().ID_Building],
             environment["ID"],
-            instance.Objective(),
+            instance.Objective_rule(),
 
             E_BaseLoad_array.sum(),
             # E_SmartAppliances_array.sum(),

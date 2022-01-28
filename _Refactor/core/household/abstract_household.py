@@ -2,13 +2,12 @@
 from typing import Type, Optional, ClassVar, TYPE_CHECKING
 from abc import ABC, abstractmethod
 
-from _Refactor.core.elements.pillar import Pillar
 import _Refactor.core.household.components as components
 from _Refactor.core.elements.component_setup import GeneralComponent
 from _Refactor.basic.reg import Table
 
 
-class AbstractHousehold:
+class AbstractScenario:
 
     def __init__(self, scenario_id: int):
         self.region_class = None
@@ -54,6 +53,6 @@ class AbstractHousehold:
 
 
 if __name__ == "__main__":
-    household_class = AbstractHousehold(scenario_id=0)
+    household_class = AbstractScenario(scenario_id=0)
     household_class.add_component_classes()
 
