@@ -680,7 +680,7 @@ class OptOperationModel(AbstractOperationModel):
         return instance2solve
 
     def collect_results(self, solved_instance):
-        OptimizationDataCollector().collect_OptimizationResult(solved_instance)
+        OptimizationDataCollector().collect_optimization_results_hourly(solved_instance)
 
 
 
@@ -698,6 +698,8 @@ if __name__ == "__main__":
     # solve model
     solved_instance = model_class.solve_optimization(updated_instance)
     # datacollector
-    model_class.collect_results(solved_instance)
+    hourly_results_df = OptimizationDataCollector().collect_optimization_results_hourly(solved_instance)
+    yearly_results_df = OptimizationDataCollector().collect_optimization_results_yearly(solved_instance)
 
+    pass
 
