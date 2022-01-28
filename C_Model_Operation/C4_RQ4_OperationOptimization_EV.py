@@ -649,7 +649,7 @@ class OperationOptimization:
         PyomoModelInstance = m.create_instance(report_timing=False)
         Opt = pyo.SolverFactory("gurobi")
         results = Opt.solve(PyomoModelInstance, tee=False)
-        print('Total Operation Cost: ' + str(round(PyomoModelInstance.Objective(), 2)))
+        print('Total Operation Cost: ' + str(round(PyomoModelInstance.Objective_rule(), 2)))
 
         return Household, Environment, PyomoModelInstance
 

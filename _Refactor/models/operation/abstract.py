@@ -2,8 +2,7 @@ from typing import Type
 from abc import ABC, abstractmethod
 import numpy as np
 
-from _Refactor.core.environment.abstract_environment import AbstractEnvironment
-from _Refactor.core.household.abstract_household import AbstractHousehold
+from _Refactor.core.household.abstract_household import AbstractScenario
 
 """
 abstract operation model
@@ -13,7 +12,7 @@ abstract operation model
 class AbstractOperationModel(ABC):
 
     def __init__(self,
-                 household: 'AbstractHousehold'):
+                 household: 'AbstractScenario'):
 
         self.household = household
         self.day_hour = np.tile(np.arange(1, 25), 365)
@@ -84,7 +83,7 @@ class AbstractOperationModel(ABC):
         if source == "Air_HP":
             COP = np.array([efficiency * (supply_temperature + 273.15) / (supply_temperature - temp) for temp in
                             outside_temperature])
-        elif source == "Water_HP":
+        elif source == "Ground_HP":
             # for the ground source heat pump the temperature of the source is 10°C
             COP = np.array([efficiency * (supply_temperature + 273.15) / (supply_temperature - 10) for temp in
                             outside_temperature])

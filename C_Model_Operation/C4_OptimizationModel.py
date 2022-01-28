@@ -644,16 +644,16 @@ def update_instance(total_input, instance):
         for t in range(1, len(HeatingTargetTemperature) + 1):
             instance.Q_RoomCooling[t].fix(0)
             instance.T_room[t].setub(100)
-        instance.calc_SumOfLoads_without_cooling.activate()
-        instance.calc_SumOfLoads_with_cooling.deactivate()
+        instance.SumOfLoads_without_cooling_rule.activate()
+        instance.SumOfLoads_with_cooling_rule.deactivate()
 
     else:
         for t in range(1, len(HeatingTargetTemperature) + 1):
             instance.Q_RoomCooling[t].fixed = False
             instance.Q_RoomCooling[t].setub(household["SpaceCooling_SpaceCoolingPower"])
             instance.T_room[t].setub(CoolingTargetTemperature[t - 1])
-        instance.calc_SumOfLoads_without_cooling.deactivate()
-        instance.calc_SumOfLoads_with_cooling.activate()
+        instance.SumOfLoads_without_cooling_rule.deactivate()
+        instance.SumOfLoads_with_cooling_rule.activate()
 
     # Thermal storage Heating
     if household["SpaceHeating_TankSize"] == 0:
@@ -723,9 +723,9 @@ def update_instance(total_input, instance):
             instance.BatCharge[t].fix(0)
             instance.BatDischarge[t].fix(0)
             instance.PV2Bat[t].fix(0)
-        instance.calc_BatCharge.deactivate()
-        instance.calc_BatDischarge.deactivate()
-        instance.calc_BatSoC.deactivate()
+        instance.BatCharge_rule.deactivate()
+        instance.BatDischarge_rule.deactivate()
+        instance.BatSoC_rule.deactivate()
     else:
         for t in range(1, len(HeatingTargetTemperature) + 1):
             # variables have to be unfixed in case they were fixed in a previous run
@@ -742,9 +742,9 @@ def update_instance(total_input, instance):
             instance.BatSoC[t].setub(household["Battery_Capacity"])
             instance.BatCharge[t].setub(household["Battery_MaxChargePower"])
             instance.BatDischarge[t].setub(household["Battery_MaxDischargePower"])
-        instance.calc_BatCharge.activate()
-        instance.calc_BatDischarge.activate()
-        instance.calc_BatSoC.activate()
+        instance.BatCharge_rule.activate()
+        instance.BatDischarge_rule.activate()
+        instance.BatSoC_rule.activate()
 
     # PV
     if household["PV_PVPower"] == 0:
@@ -752,7 +752,7 @@ def update_instance(total_input, instance):
             instance.PV2Load[t].fix(0)
             instance.PV2Bat[t].fix(0)
             instance.PV2Grid[t].fix(0)
-        instance.calc_UseOfPV.deactivate()
+        instance.UseOfPV_rule.deactivate()
 
     else:
         for t in range(1, len(HeatingTargetTemperature) + 1):
@@ -764,7 +764,7 @@ def update_instance(total_input, instance):
             instance.PV2Load[t].setub(household["Building_MaximalGridPower"])
             instance.PV2Bat[t].setub(household["Building_MaximalGridPower"])
             instance.PV2Grid[t].setub(household["Building_MaximalGridPower"])
-        instance.calc_UseOfPV.activate()
+        instance.UseOfPV_rule.activate()
 
     # update time independent parameters
     # building parameters:
@@ -845,7 +845,7 @@ def run():
             starttime = time.perf_counter()
             print("solving household {} in environment {}...".format(household_RowID, environment_RowID))
             result = Opt.solve(instance2solve, tee=True)
-            print('Total Operation Cost: ' + str(round(instance2solve.Objective(), 2)))
+            print('Total Operation Cost: ' + str(round(instance2solve.Objective_rule(), 2)))
             print("time for optimization: {}".format(time.perf_counter() - starttime))
             DC.collect_OptimizationResult(input_data["Household"], input_data["Environment"], instance2solve) #for testing
             # only this row
