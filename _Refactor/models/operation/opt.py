@@ -679,12 +679,6 @@ class OptOperationModel(AbstractOperationModel):
         result = Opt.solve(instance2solve, tee=False)
         return instance2solve
 
-    def collect_results(self, solved_instance):
-        OptimizationDataCollector().collect_optimization_results_hourly(solved_instance)
-
-
-
-        pass
 
 if __name__ == "__main__":
     from _Refactor.core.household.abstract_household import AbstractScenario
