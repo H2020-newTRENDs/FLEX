@@ -1,4 +1,5 @@
 from _Refactor.models.operation.abstract import AbstractOperationModel
+from _Refactor.models.operation.data_collector import OptimizationDataCollector
 from functools import wraps
 import time
 import pyomo.environ as pyo
@@ -230,19 +231,19 @@ class OptOperationModel(AbstractOperationModel):
         def calc_UseOfGrid(m, t):
             return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t]
 
-        m.calc_UseOfGrid = pyo.Constraint(m.t, rule=calc_UseOfGrid)
+        m.UseOfGrid_rule = pyo.Constraint(m.t, rule=calc_UseOfGrid)
 
         # (2) PV balance
         def calc_UseOfPV(m, t):
             return m.PV2Load[t] + m.PV2Bat[t] + m.PV2Grid[t] == m.PhotovoltaicProfile[t]
 
-        m.calc_UseOfPV = pyo.Constraint(m.t, rule=calc_UseOfPV)
+        m.UseOfPV_rule = pyo.Constraint(m.t, rule=calc_UseOfPV)
 
         # (3) Feed in
         def calc_SumOfFeedin(m, t):
             return m.Feedin[t] == m.PV2Grid[t]
 
-        m.calc_SumOfFeedin = pyo.Constraint(m.t, rule=calc_SumOfFeedin)
+        m.SumOfFeedin_rule = pyo.Constraint(m.t, rule=calc_SumOfFeedin)
 
         # (4) Sum of Loads
         def calc_SumOfLoads_with_cooling(m, t):
@@ -252,7 +253,7 @@ class OptOperationModel(AbstractOperationModel):
                    + m.Q_RoomCooling[t] / m.CoolingCOP \
                    + m.Q_DHW_HP_out[t] / m.HotWaterHourlyCOP[t]
 
-        m.calc_SumOfLoads_with_cooling = pyo.Constraint(m.t, rule=calc_SumOfLoads_with_cooling)
+        m.SumOfLoads_with_cooling_rule = pyo.Constraint(m.t, rule=calc_SumOfLoads_with_cooling)
 
         def calc_SumOfLoads_without_cooling(m, t):
             return m.Load[t] == m.BaseLoadProfile[t] \
@@ -260,20 +261,20 @@ class OptOperationModel(AbstractOperationModel):
                    + m.Q_HeatingElement[t] \
                    + m.Q_DHW_HP_out[t] / m.HotWaterHourlyCOP[t]
 
-        m.calc_SumOfLoads_without_cooling = pyo.Constraint(m.t, rule=calc_SumOfLoads_without_cooling)
+        m.SumOfLoads_without_cooling_rule = pyo.Constraint(m.t, rule=calc_SumOfLoads_without_cooling)
 
         # (5) load coverage
         def calc_SupplyOfLoads(m, t):
             return m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] == m.Load[t]
 
-        m.calc_SupplyOfLoads = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
+        m.SupplyOfLoads_rule = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
 
         # Battery:
         # (6) Battery charge
         def calc_BatCharge(m, t):
             return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t]  # * Household.Battery.Grid2Battery
 
-        m.calc_BatCharge = pyo.Constraint(m.t, rule=calc_BatCharge)
+        m.BatCharge_rule = pyo.Constraint(m.t, rule=calc_BatCharge)
 
         # (7) Battery discharge
         def calc_BatDischarge(m, t):
@@ -284,7 +285,7 @@ class OptOperationModel(AbstractOperationModel):
             else:
                 return m.BatDischarge[t] == m.Bat2Load[t]
 
-        m.calc_BatDischarge = pyo.Constraint(m.t, rule=calc_BatDischarge)
+        m.BatDischarge_rule = pyo.Constraint(m.t, rule=calc_BatDischarge)
 
         # (8) Battery SOC
         def calc_BatSoC(m, t):
@@ -294,13 +295,14 @@ class OptOperationModel(AbstractOperationModel):
                 return m.BatSoC[t] == m.BatSoC[t - 1] + m.BatCharge[t] * m.ChargeEfficiency - \
                        m.BatDischarge[t] * (1 + (1 - m.DischargeEfficiency))
 
-        m.calc_BatSoC = pyo.Constraint(m.t, rule=calc_BatSoC)
+        m.BatSoC_rule = pyo.Constraint(m.t, rule=calc_BatSoC)
 
         # Heating Tank:
         # (9) energy in the tank
         def tank_energy_heating(m, t):
             if t == 1:
-                return m.E_HeatingTank[t] == CPWater * m.M_WaterTank_heating * (273.15 + m.T_TankStart_heating)
+                return m.E_HeatingTank[t] == CPWater * m.M_WaterTank_heating * (273.15 + m.T_TankStart_heating) - \
+                       m.Q_HeatingTank_out[t]
             else:
                 return m.E_HeatingTank[t] == m.E_HeatingTank[t - 1] - m.Q_HeatingTank_out[t] + m.Q_HeatingTank_in[t] + \
                        m.Q_HeatingElement[t] - m.U_ValueTank_heating * m.A_SurfaceTank_heating * (
@@ -313,19 +315,19 @@ class OptOperationModel(AbstractOperationModel):
         def room_heating(m, t):
             return m.Q_room_heating[t] == m.Q_HeatingTank_out[t] + m.Q_HeatingTank_bypass[t]
 
-        m.room_heating_constraint = pyo.Constraint(m.t, rule=room_heating)
+        m.room_heating_rule = pyo.Constraint(m.t, rule=room_heating)
 
         # (11) supply for space heating
         def calc_supply_of_space_heating(m, t):
             return m.Q_HeatingTank_bypass[t] + m.Q_HeatingTank_in[t] == m.Q_Heating_HP_out[t]
 
-        m.calc_use_of_HP_power_DHW_constraint = pyo.Constraint(m.t, rule=calc_supply_of_space_heating)
+        m.calc_use_of_HP_power_DHW_rule = pyo.Constraint(m.t, rule=calc_supply_of_space_heating)
 
         # DHW:
         # (12) energy in DHW tank
         def tank_energy_DHW(m, t):
             if t == 1:
-                return m.E_DHWTank[t] == CPWater * m.M_WaterTank_DHW * (273.15 + m.T_TankStart_DHW)
+                return m.E_DHWTank[t] == CPWater * m.M_WaterTank_DHW * (273.15 + m.T_TankStart_DHW) - m.Q_DHWTank_out[t]
             else:
                 return m.E_DHWTank[t] == m.E_DHWTank[t - 1] - m.Q_DHWTank_out[t] + m.Q_DHWTank_in[t] - \
                        m.U_ValueTank_DHW * m.A_SurfaceTank_DHW * (
@@ -338,20 +340,20 @@ class OptOperationModel(AbstractOperationModel):
         def calc_hot_water_profile(m, t):
             return m.HotWaterProfile[t] == m.Q_DHWTank_out[t] + m.Q_DHWTank_bypass[t]
 
-        m.calc_SupplyOfDHW = pyo.Constraint(m.t, rule=calc_hot_water_profile)
+        m.SupplyOfDHW_rule = pyo.Constraint(m.t, rule=calc_hot_water_profile)
 
         # (14) supply for the hot water
         def calc_supply_of_DHW(m, t):
             return m.Q_DHWTank_bypass[t] + m.Q_DHWTank_in[t] == m.Q_DHW_HP_out[t]
 
-        m.bypass_DHW_constraint = pyo.Constraint(m.t, rule=calc_supply_of_DHW)
+        m.bypass_DHW_rule = pyo.Constraint(m.t, rule=calc_supply_of_DHW)
 
         # Heat Pump
         # (13) restrict heat pump power
         def constrain_heating_max_power(m, t):
             return m.Q_DHW_HP_out[t] + m.Q_Heating_HP_out[t] <= m.SpaceHeating_HeatPumpMaximalThermalPower
 
-        m.max_HP_power_constraint = pyo.Constraint(m.t, rule=constrain_heating_max_power)
+        m.max_HP_power_rule = pyo.Constraint(m.t, rule=constrain_heating_max_power)
 
         # ----------------------------------------------------
         # 6. State transition: Building temperature (RC-Model)
@@ -431,7 +433,7 @@ class OptOperationModel(AbstractOperationModel):
             rule = sum(m.Grid[t] * m.electricity_price[t] - m.Feedin[t] * m.FiT[t] for t in m.t)
             return rule
 
-        m.Objective = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
+        m.Objective_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
         # return the household model
         return m
 
@@ -493,16 +495,16 @@ class OptOperationModel(AbstractOperationModel):
             for t in range(1, 8761):
                 instance.Q_RoomCooling[t].fix(0)
                 instance.T_room[t].setub(100)
-            instance.calc_SumOfLoads_without_cooling.activate()
-            instance.calc_SumOfLoads_with_cooling.deactivate()
+            instance.SumOfLoads_without_cooling_rule.activate()
+            instance.SumOfLoads_with_cooling_rule.deactivate()
 
         else:
             for t in range(1, 8761):
                 instance.Q_RoomCooling[t].fixed = False
                 instance.Q_RoomCooling[t].setub(self.household.airconditioner_class.power)
                 instance.T_room[t].setub(self.household.behavior_class.indoor_set_temperature_max[t - 1])
-            instance.calc_SumOfLoads_without_cooling.deactivate()
-            instance.calc_SumOfLoads_with_cooling.activate()
+            instance.SumOfLoads_without_cooling_rule.deactivate()
+            instance.SumOfLoads_with_cooling_rule.activate()
 
         # Thermal storage Heating
         if self.household.spaceheatingtank_class.size == 0:
@@ -520,6 +522,8 @@ class OptOperationModel(AbstractOperationModel):
                 instance.E_HeatingTank[t].fixed = False
                 instance.Q_HeatingTank_out[t].fixed = False
                 instance.Q_HeatingTank_in[t].fixed = False
+
+
                 instance.E_HeatingTank[t].setlb(
                     CPWater * self.household.spaceheatingtank_class.size *
                     (273.15 + self.household.spaceheatingtank_class.temperature_min)
@@ -574,9 +578,9 @@ class OptOperationModel(AbstractOperationModel):
                 instance.BatCharge[t].fix(0)
                 instance.BatDischarge[t].fix(0)
                 instance.PV2Bat[t].fix(0)
-            instance.calc_BatCharge.deactivate()
-            instance.calc_BatDischarge.deactivate()
-            instance.calc_BatSoC.deactivate()
+            instance.BatCharge_rule.deactivate()
+            instance.BatDischarge_rule.deactivate()
+            instance.BatSoC_rule.deactivate()
         else:
             for t in range(1, 8761):
                 # variables have to be unfixed in case they were fixed in a previous run
@@ -593,9 +597,9 @@ class OptOperationModel(AbstractOperationModel):
                 instance.BatSoC[t].setub(self.household.battery_class.capacity)
                 instance.BatCharge[t].setub(self.household.battery_class.charge_power_max)
                 instance.BatDischarge[t].setub(self.household.battery_class.discharge_power_max)
-            instance.calc_BatCharge.activate()
-            instance.calc_BatDischarge.activate()
-            instance.calc_BatSoC.activate()
+            instance.BatCharge_rule.activate()
+            instance.BatDischarge_rule.activate()
+            instance.BatSoC_rule.activate()
 
         # PV
         if self.household.pv_class.peak_power == 0:
@@ -603,7 +607,7 @@ class OptOperationModel(AbstractOperationModel):
                 instance.PV2Load[t].fix(0)
                 instance.PV2Bat[t].fix(0)
                 instance.PV2Grid[t].fix(0)
-            instance.calc_UseOfPV.deactivate()
+            instance.UseOfPV_rule.deactivate()
 
         else:
             for t in range(1, 8761):
@@ -615,7 +619,7 @@ class OptOperationModel(AbstractOperationModel):
                 instance.PV2Load[t].setub(self.household.building_class.grid_power_max)
                 instance.PV2Bat[t].setub(self.household.building_class.grid_power_max)
                 instance.PV2Grid[t].setub(self.household.building_class.grid_power_max)
-            instance.calc_UseOfPV.activate()
+            instance.UseOfPV_rule.activate()
 
         # update time independent parameters
         # building parameters:
@@ -670,15 +674,30 @@ class OptOperationModel(AbstractOperationModel):
 
         return instance
 
+    def solve_optimization(self, instance2solve):
+        Opt = pyo.SolverFactory("gurobi")
+        result = Opt.solve(instance2solve, tee=False)
+        return instance2solve
+
+    def collect_results(self, solved_instance):
+        OptimizationDataCollector().collect_OptimizationResult(solved_instance)
+
+
+
+        pass
 
 if __name__ == "__main__":
-    from _Refactor.core.scenario.abstract_scenario import AbstractScenario
-    from _Refactor.core.household.abstract_household import AbstractHousehold
+    from _Refactor.core.household.abstract_household import AbstractScenario
 
     scenario = AbstractScenario(scenario_id=0)
-    household = AbstractHousehold(scenario)
-    model_class = OptOperationModel(household)
+    model_class = OptOperationModel(scenario)
 
     abstract_model = model_class.create_abstract_model()
     pyomo_instance = abstract_model.create_instance(data=model_class.create_pyomo_dict())
     updated_instance = model_class.update_instance(pyomo_instance)
+    # solve model
+    solved_instance = model_class.solve_optimization(updated_instance)
+    # datacollector
+    model_class.collect_results(solved_instance)
+
+
