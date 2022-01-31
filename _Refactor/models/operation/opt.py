@@ -681,7 +681,7 @@ class OptOperationModel(AbstractOperationModel):
 
 
 if __name__ == "__main__":
-    from _Refactor.core.household.abstract_household import AbstractScenario
+    from _Refactor.core.household.abstract_scenario import AbstractScenario
 
     scenario = AbstractScenario(scenario_id=0)
     model_class = OptOperationModel(scenario)
