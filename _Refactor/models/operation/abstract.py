@@ -12,10 +12,11 @@ abstract operation model
 class AbstractOperationModel(ABC):
 
     def __init__(self,
-                 household: 'AbstractScenario'):
+                 scenario: 'AbstractScenario'):
 
-        self.household = household
+        self.scenario = scenario
         self.day_hour = np.tile(np.arange(1, 25), 365)
+        self.cp_water = 4200 / 3600
 
         # Result variables: CAREFUL, THESE NAMES HAVE TO BE IDENTICAL TO THE ONES IN THE PYOMO OPTIMIZATION
         # space heating
@@ -94,14 +95,14 @@ class AbstractOperationModel(ABC):
     def calculate_solar_gains(self) -> np.array:
         """calculates the solar gains through solar radiation through the effective window area
         returns the solar gains for all considered building IDs with 8760 rows. Each columns represents a building ID"""
-        AreaWindowEastWest = self.household.building_class.effective_window_area_west_east
-        AreaWindowSouth = self.household.building_class.effective_window_area_south
-        AreaWindowNorth = self.household.building_class.effective_window_area_north
+        AreaWindowEastWest = self.scenario.building_class.effective_window_area_west_east
+        AreaWindowSouth = self.scenario.building_class.effective_window_area_south
+        AreaWindowNorth = self.scenario.building_class.effective_window_area_north
 
-        Q_sol_north = np.outer(np.array(self.household.region_class.north), AreaWindowNorth)
-        Q_sol_east = np.outer(np.array(self.household.region_class.east), AreaWindowEastWest / 2)
-        Q_sol_south = np.outer(np.array(self.household.region_class.south), AreaWindowSouth)
-        Q_sol_west = np.outer(np.array(self.household.region_class.west), AreaWindowEastWest / 2)
+        Q_sol_north = np.outer(np.array(self.scenario.region_class.north), AreaWindowNorth)
+        Q_sol_east = np.outer(np.array(self.scenario.region_class.east), AreaWindowEastWest / 2)
+        Q_sol_south = np.outer(np.array(self.scenario.region_class.south), AreaWindowSouth)
+        Q_sol_west = np.outer(np.array(self.scenario.region_class.west), AreaWindowEastWest / 2)
         Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
         return Q_solar
 

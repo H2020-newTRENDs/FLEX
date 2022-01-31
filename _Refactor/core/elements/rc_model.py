@@ -70,7 +70,10 @@ class R5C1Model(RCModel):
         room_temperature = np.zeros(shape=(8760,))
         T_outside = self.scenario.region_class.temperature
         T_air_min = self.scenario.behavior_class.indoor_set_temperature_min
-        T_air_max = self.scenario.behavior_class.indoor_set_temperature_max
+        if self.scenario.airconditioner_class.power == 0:
+            T_air_max = np.full((8760,), 100)  # if no cooling is adopted --> raise max air temperature to 100 so it will never cool:
+        else:
+            T_air_max = self.scenario.behavior_class.indoor_set_temperature_max
         for t in np.arange(8760):  # t is the index for each time step
             # Equ. C.2
             PHI_m = self.Am / self.Atot * (0.5 * self.Qi + self.Q_solar[t])
