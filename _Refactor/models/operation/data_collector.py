@@ -6,9 +6,6 @@ import numpy as np
 
 class OptimizationDataCollector(MotherDataCollector):
 
-    def __init__(self):
-        pass
-
     def extend_to_array(self, array_or_value: np.array) -> np.array:
         # check if array_or_value is an array or a single value:
         if len(array_or_value) == 1:
@@ -67,6 +64,19 @@ class OptimizationDataCollector(MotherDataCollector):
         # create the dataframe
         dataframe = pd.DataFrame(dictionary)
         return dataframe
+
+
+
+class ReferenceDataCollector(MotherDataCollector):
+
+    def collect_reference_results_hourly(self):
+
+        pass
+
+    def collect_reference_results_yearly(self):
+
+        pass
+
 
 
 
