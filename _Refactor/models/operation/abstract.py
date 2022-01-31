@@ -2,7 +2,7 @@ from typing import Type
 from abc import ABC, abstractmethod
 import numpy as np
 
-from _Refactor.core.household.abstract_household import AbstractScenario
+from _Refactor.core.household.abstract_scenario import AbstractScenario
 
 """
 abstract operation model
@@ -104,6 +104,8 @@ class AbstractOperationModel(ABC):
         Q_sol_west = np.outer(np.array(self.household.region_class.west), AreaWindowEastWest / 2)
         Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
         return Q_solar
+
+
 
     def calculate_Atot(self, Af: float) -> float:
         return 4.5 * Af  # 7.2.2.2: Area of all surfaces facing the building zone

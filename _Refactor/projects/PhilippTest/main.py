@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 from config import project_config
-from _Refactor.core.household.abstract_household import AbstractScenario
+from _Refactor.core.household.abstract_scenario import AbstractScenario
 from _Refactor.models.operation.opt import OptOperationModel
 
 
