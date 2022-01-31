@@ -13,6 +13,6 @@ household = AbstractScenario(scenario_id=0)
 # for loop:
 model = OptOperationModel(household)
 
-print(model.household.spaceheatingtank_class.loss)
-print(model.household.hotwatertank_class.loss)
+print(model.scenario.spaceheatingtank_class.loss)
+print(model.scenario.hotwatertank_class.loss)
 

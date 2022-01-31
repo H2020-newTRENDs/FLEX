@@ -12,5 +12,5 @@ household = SongminTestHousehold(scenario)
 environment = SongminTestEnvironment(scenario)
 model = SongminTestOptOperationModel(household, environment)
 
-print(model.household.space_heating_tank.loss)
-print(model.household.hot_water_tank.loss)
+print(model.scenario.space_heating_tank.loss)
+print(model.scenario.hot_water_tank.loss)

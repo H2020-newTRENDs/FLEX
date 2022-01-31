@@ -30,72 +30,72 @@ class OptOperationModel(AbstractOperationModel):
         pyomo_dict = {
             None: {"t": {
                 None: np.arange(1, 8761)},
-                "ElectricityPrice": self.creat_Dict(self.household.electricityprice_class.electricity_price),  # C/Wh
-                "FiT": self.creat_Dict(self.household.feedintariff_class.feed_in_tariff),  # C/Wh
+                "ElectricityPrice": self.creat_Dict(self.scenario.electricityprice_class.electricity_price),  # C/Wh
+                "FiT": self.creat_Dict(self.scenario.feedintariff_class.feed_in_tariff),  # C/Wh
                 "Q_Solar": self.creat_Dict(self.calculate_solar_gains()),  # W
-                "PhotovoltaicProfile": self.creat_Dict(self.household.pv_class.power),
-                "T_outside": self.creat_Dict(self.household.region_class.temperature),  # °C
+                "PhotovoltaicProfile": self.creat_Dict(self.scenario.pv_class.power),
+                "T_outside": self.creat_Dict(self.scenario.region_class.temperature),  # °C
                 "SpaceHeatingHourlyCOP": self.creat_Dict(
-                    self.COP_HP(outside_temperature=self.household.region_class.temperature,
-                                supply_temperature=self.household.boiler_class.heating_supply_temperature,
-                                efficiency=self.household.boiler_class.carnot_efficiency_factor,
-                                source=self.household.boiler_class.name)),
-                "BaseLoadProfile": self.creat_Dict(self.household.electricitydemand_class.electricity_demand),  # W
-                "HotWaterProfile": self.creat_Dict(self.household.hotwaterdemand_class.hot_water_demand),
+                    self.COP_HP(outside_temperature=self.scenario.region_class.temperature,
+                                supply_temperature=self.scenario.boiler_class.heating_supply_temperature,
+                                efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
+                                source=self.scenario.boiler_class.name)),
+                "BaseLoadProfile": self.creat_Dict(self.scenario.electricitydemand_class.electricity_demand),  # W
+                "HotWaterProfile": self.creat_Dict(self.scenario.hotwaterdemand_class.hot_water_demand),
                 "HotWaterHourlyCOP": self.creat_Dict(
-                    self.COP_HP(outside_temperature=self.household.region_class.temperature,
-                                supply_temperature=self.household.boiler_class.hot_water_supply_temperature,
-                                efficiency=self.household.boiler_class.carnot_efficiency_factor,
-                                source=self.household.boiler_class.name)),
+                    self.COP_HP(outside_temperature=self.scenario.region_class.temperature,
+                                supply_temperature=self.scenario.boiler_class.hot_water_supply_temperature,
+                                efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
+                                source=self.scenario.boiler_class.name)),
                 "DayHour": self.creat_Dict(self.day_hour),
-                "CoolingCOP": {None: self.household.airconditioner_class.efficiency},
-                "ChargeEfficiency": {None: self.household.battery_class.charge_efficiency},
-                "DischargeEfficiency": {None: self.household.battery_class.discharge_efficiency},
-                "Am": {None: self.calculate_Am(Am_factor=self.household.building_class.Am_factor,
-                                               Af=self.household.building_class.Af)},
-                "Atot": {None: self.calculate_Atot(Af=self.household.building_class.Af)},
-                "Qi": {None: self.calculate_Qi(specific_internal_gains=self.household.building_class.internal_gains,
-                                               Af=self.household.building_class.Af)},
-                "Htr_w": {None: self.household.building_class.Htr_w},
-                "Htr_em": {None: self.calculate_Htr_em(Hop=self.household.building_class.Hop,
-                                                       Am_factor=self.household.building_class.Am_factor,
-                                                       Af=self.household.building_class.Af)},
-                "Htr_3": {None: self.calculate_Htr_3(Hve=self.household.building_class.Hve,
-                                                     Af=self.household.building_class.Af,
-                                                     Htr_w=self.household.building_class.Htr_w,
-                                                     Am_factor=self.household.building_class.Am_factor)},
-                "Htr_1": {None: self.calculate_Htr_1(Hve=self.household.building_class.Hve,
-                                                     Af=self.household.building_class.Af)},
-                "Htr_2": {None: self.calculate_Htr_2(Hve=self.household.building_class.Hve,
-                                                     Af=self.household.building_class.Af,
-                                                     Htr_w=self.household.building_class.Htr_w)},
-                "Hve": {None: self.household.building_class.Hve},
-                "Htr_ms": {None: self.calculate_Htr_ms(Am_factor=self.household.building_class.Am_factor,
-                                                       Af=self.household.building_class.Af)},
-                "Htr_is": {None: self.calculate_Htr_is(Af=self.household.building_class.Af)},
+                "CoolingCOP": {None: self.scenario.airconditioner_class.efficiency},
+                "ChargeEfficiency": {None: self.scenario.battery_class.charge_efficiency},
+                "DischargeEfficiency": {None: self.scenario.battery_class.discharge_efficiency},
+                "Am": {None: self.calculate_Am(Am_factor=self.scenario.building_class.Am_factor,
+                                               Af=self.scenario.building_class.Af)},
+                "Atot": {None: self.calculate_Atot(Af=self.scenario.building_class.Af)},
+                "Qi": {None: self.calculate_Qi(specific_internal_gains=self.scenario.building_class.internal_gains,
+                                               Af=self.scenario.building_class.Af)},
+                "Htr_w": {None: self.scenario.building_class.Htr_w},
+                "Htr_em": {None: self.calculate_Htr_em(Hop=self.scenario.building_class.Hop,
+                                                       Am_factor=self.scenario.building_class.Am_factor,
+                                                       Af=self.scenario.building_class.Af)},
+                "Htr_3": {None: self.calculate_Htr_3(Hve=self.scenario.building_class.Hve,
+                                                     Af=self.scenario.building_class.Af,
+                                                     Htr_w=self.scenario.building_class.Htr_w,
+                                                     Am_factor=self.scenario.building_class.Am_factor)},
+                "Htr_1": {None: self.calculate_Htr_1(Hve=self.scenario.building_class.Hve,
+                                                     Af=self.scenario.building_class.Af)},
+                "Htr_2": {None: self.calculate_Htr_2(Hve=self.scenario.building_class.Hve,
+                                                     Af=self.scenario.building_class.Af,
+                                                     Htr_w=self.scenario.building_class.Htr_w)},
+                "Hve": {None: self.scenario.building_class.Hve},
+                "Htr_ms": {None: self.calculate_Htr_ms(Am_factor=self.scenario.building_class.Am_factor,
+                                                       Af=self.scenario.building_class.Af)},
+                "Htr_is": {None: self.calculate_Htr_is(Af=self.scenario.building_class.Af)},
                 "PHI_ia": {
-                    None: self.calculate_PHI_ia(specific_internal_gains=self.household.building_class.internal_gains,
-                                                Af=self.household.building_class.Af)},
-                "Cm": {None: self.calculate_Cm(CM_factor=self.household.building_class.CM_factor,
-                                               Af=self.household.building_class.Af)},
+                    None: self.calculate_PHI_ia(specific_internal_gains=self.scenario.building_class.internal_gains,
+                                                Af=self.scenario.building_class.Af)},
+                "Cm": {None: self.calculate_Cm(CM_factor=self.scenario.building_class.CM_factor,
+                                               Af=self.scenario.building_class.Af)},
                 "BuildingMassTemperatureStartValue": {
-                    None: self.household.building_class.building_mass_temperature_start},
+                    None: self.scenario.building_class.building_mass_temperature_start},
                 # space heating tank
-                "T_TankStart_heating": {None: self.household.spaceheatingtank_class.temperature_start},
+                "T_TankStart_heating": {None: self.scenario.spaceheatingtank_class.temperature_start},
                 # min temp is start temp
-                "M_WaterTank_heating": {None: self.household.spaceheatingtank_class.size},
-                "U_ValueTank_heating": {None: self.household.spaceheatingtank_class.loss},
-                "T_TankSurrounding_heating": {None: self.household.spaceheatingtank_class.temperature_surrounding},
-                "A_SurfaceTank_heating": {None: self.household.spaceheatingtank_class.surface_area},
+                "M_WaterTank_heating": {None: self.scenario.spaceheatingtank_class.size},
+                "U_ValueTank_heating": {None: self.scenario.spaceheatingtank_class.loss},
+                "T_TankSurrounding_heating": {None: self.scenario.spaceheatingtank_class.temperature_surrounding},
+                "A_SurfaceTank_heating": {None: self.scenario.spaceheatingtank_class.surface_area},
                 # DHW Tank
-                "T_TankStart_DHW": {None: self.household.hotwatertank_class.temperature_start},
+                "T_TankStart_DHW": {None: self.scenario.hotwatertank_class.temperature_start},
                 # min temp is start temp
-                "M_WaterTank_DHW": {None: self.household.hotwatertank_class.size},
-                "U_ValueTank_DHW": {None: self.household.hotwatertank_class.loss},
-                "T_TankSurrounding_DHW": {None: self.household.hotwatertank_class.temperature_surrounding},
-                "A_SurfaceTank_DHW": {None: self.household.hotwatertank_class.surface_area},
+                "M_WaterTank_DHW": {None: self.scenario.hotwatertank_class.size},
+                "U_ValueTank_DHW": {None: self.scenario.hotwatertank_class.loss},
+                "T_TankSurrounding_DHW": {None: self.scenario.hotwatertank_class.temperature_surrounding},
+                "A_SurfaceTank_DHW": {None: self.scenario.hotwatertank_class.surface_area},
                 "SpaceHeating_HeatPumpMaximalThermalPower": {
-                    None: self.household.boiler_class.thermal_power_max}
+                    None: self.scenario.boiler_class.thermal_power_max}
             }
         }
         return pyomo_dict
@@ -447,51 +447,51 @@ class OptOperationModel(AbstractOperationModel):
         # update the instance
         solar_gains = self.calculate_solar_gains()
 
-        space_heating_hourly_COP = self.COP_HP(outside_temperature=np.array(self.household.region_class.temperature),
-                                               supply_temperature=self.household.boiler_class.heating_supply_temperature,
-                                               efficiency=self.household.boiler_class.carnot_efficiency_factor,
-                                               source=self.household.boiler_class.name)
-        hot_water_hourly_COP = self.COP_HP(outside_temperature=np.array(self.household.region_class.temperature),
-                                           supply_temperature=self.household.boiler_class.hot_water_supply_temperature,
-                                           efficiency=self.household.boiler_class.carnot_efficiency_factor,
-                                           source=self.household.boiler_class.name)
+        space_heating_hourly_COP = self.COP_HP(outside_temperature=np.array(self.scenario.region_class.temperature),
+                                               supply_temperature=self.scenario.boiler_class.heating_supply_temperature,
+                                               efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
+                                               source=self.scenario.boiler_class.name)
+        hot_water_hourly_COP = self.COP_HP(outside_temperature=np.array(self.scenario.region_class.temperature),
+                                           supply_temperature=self.scenario.boiler_class.hot_water_supply_temperature,
+                                           efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
+                                           source=self.scenario.boiler_class.name)
         for t in range(1, 8761):
             index = t - 1  # pyomo starts at index 1
             # time dependent parameters are updated:
-            instance.electricity_price[t] = self.household.electricityprice_class.electricity_price[index]
-            instance.FiT[t] = self.household.feedintariff_class.feed_in_tariff[index]
+            instance.electricity_price[t] = self.scenario.electricityprice_class.electricity_price[index]
+            instance.FiT[t] = self.scenario.feedintariff_class.feed_in_tariff[index]
             instance.Q_Solar[t] = solar_gains[index]
-            instance.PhotovoltaicProfile[t] = self.household.pv_class.power[index]
-            instance.T_outside[t] = self.household.region_class.temperature[index]
+            instance.PhotovoltaicProfile[t] = self.scenario.pv_class.power[index]
+            instance.T_outside[t] = self.scenario.region_class.temperature[index]
             instance.SpaceHeatingHourlyCOP[t] = space_heating_hourly_COP[index]
 
 
             input_parameters = 1
             HeatingTargetTemperature = 1
             # instance.CoolingCOP[t] = self.household.airconditioner_class.efficiency  # is a single value, no index
-            instance.BaseLoadProfile[t] = self.household.electricitydemand_class.electricity_demand[index]
-            instance.HotWaterProfile[t] = self.household.hotwaterdemand_class.hot_water_demand[index]
+            instance.BaseLoadProfile[t] = self.scenario.electricitydemand_class.electricity_demand[index]
+            instance.HotWaterProfile[t] = self.scenario.hotwaterdemand_class.hot_water_demand[index]
             instance.HotWaterHourlyCOP[t] = hot_water_hourly_COP[index]
             instance.DayHour[t] = self.day_hour[index]
 
             # Boundaries:
             # Heating
-            instance.Q_HeatingElement[t].setub(self.household.boiler_class.heating_element_power)
+            instance.Q_HeatingElement[t].setub(self.scenario.boiler_class.heating_element_power)
             # room heating is handled in if cases
             # Temperatures for RC model
-            instance.T_room[t].setlb(self.household.behavior_class.indoor_set_temperature_min[index])
+            instance.T_room[t].setlb(self.scenario.behavior_class.indoor_set_temperature_min[index])
 
             instance.Tm_t[t].setub(100)  # so it wont be infeasible when no cooling
             # maximum Grid load
-            instance.Grid[t].setub(self.household.building_class.grid_power_max)
-            instance.Grid2Load[t].setub(self.household.building_class.grid_power_max)
+            instance.Grid[t].setub(self.scenario.building_class.grid_power_max)
+            instance.Grid2Load[t].setub(self.scenario.building_class.grid_power_max)
             # maximum load of house and electricity fed back to the grid
-            instance.Load[t].setub(self.household.building_class.grid_power_max)
-            instance.Feedin[t].setub(self.household.building_class.grid_power_max)
+            instance.Load[t].setub(self.scenario.building_class.grid_power_max)
+            instance.Feedin[t].setub(self.scenario.building_class.grid_power_max)
 
         # special cases:
         # Room Cooling:
-        if self.household.airconditioner_class.power == 0:
+        if self.scenario.airconditioner_class.power == 0:
             for t in range(1, 8761):
                 instance.Q_RoomCooling[t].fix(0)
                 instance.T_room[t].setub(100)
@@ -501,20 +501,20 @@ class OptOperationModel(AbstractOperationModel):
         else:
             for t in range(1, 8761):
                 instance.Q_RoomCooling[t].fixed = False
-                instance.Q_RoomCooling[t].setub(self.household.airconditioner_class.power)
-                instance.T_room[t].setub(self.household.behavior_class.indoor_set_temperature_max[t - 1])
+                instance.Q_RoomCooling[t].setub(self.scenario.airconditioner_class.power)
+                instance.T_room[t].setub(self.scenario.behavior_class.indoor_set_temperature_max[t - 1])
             instance.SumOfLoads_without_cooling_rule.deactivate()
             instance.SumOfLoads_with_cooling_rule.activate()
 
         # Thermal storage Heating
-        if self.household.spaceheatingtank_class.size == 0:
+        if self.scenario.spaceheatingtank_class.size == 0:
             for t in range(1, 8761):
                 instance.E_HeatingTank[t].fix(0)
                 instance.Q_HeatingTank_out[t].fix(0)
                 instance.Q_HeatingTank_in[t].fix(0)
 
-                instance.Q_Heating_HP_out[t].setub(self.household.boiler_class.thermal_power_max +
-                                                   self.household.boiler_class.heating_element_power)
+                instance.Q_Heating_HP_out[t].setub(self.scenario.boiler_class.thermal_power_max +
+                                                   self.scenario.boiler_class.heating_element_power)
 
             instance.tank_energy_rule_heating.deactivate()
         else:
@@ -525,29 +525,29 @@ class OptOperationModel(AbstractOperationModel):
 
 
                 instance.E_HeatingTank[t].setlb(
-                    CPWater * self.household.spaceheatingtank_class.size *
-                    (273.15 + self.household.spaceheatingtank_class.temperature_min)
+                    CPWater * self.scenario.spaceheatingtank_class.size *
+                    (273.15 + self.scenario.spaceheatingtank_class.temperature_min)
                 )
 
                 instance.E_HeatingTank[t].setub(
-                    CPWater * self.household.spaceheatingtank_class.size *
-                    (273.15 + self.household.spaceheatingtank_class.temperature_max)
+                    CPWater * self.scenario.spaceheatingtank_class.size *
+                    (273.15 + self.scenario.spaceheatingtank_class.temperature_max)
                 )
                 instance.Q_Heating_HP_out[t].setub(
-                    self.household.boiler_class.thermal_power_max + self.household.boiler_class.heating_element_power
+                    self.scenario.boiler_class.thermal_power_max + self.scenario.boiler_class.heating_element_power
                 )
 
             instance.tank_energy_rule_heating.activate()
 
         # Thermal storage DHW
-        if self.household.hotwatertank_class.size == 0:
+        if self.scenario.hotwatertank_class.size == 0:
             for t in range(1, 8761):
                 instance.E_DHWTank[t].fix(0)
                 instance.Q_DHWTank_out[t].fix(0)
                 instance.Q_DHWTank_in[t].fix(0)
 
                 instance.Q_DHW_HP_out[t].setub(
-                    self.household.boiler_class.thermal_power_max + self.household.boiler_class.heating_element_power
+                    self.scenario.boiler_class.thermal_power_max + self.scenario.boiler_class.heating_element_power
                 )
             instance.tank_energy_rule_DHW.deactivate()
         else:
@@ -556,20 +556,20 @@ class OptOperationModel(AbstractOperationModel):
                 instance.Q_DHWTank_out[t].fixed = False
                 instance.Q_DHWTank_in[t].fixed = False
                 instance.E_DHWTank[t].setlb(
-                    CPWater * self.household.hotwatertank_class.size *
-                    (273.15 + self.household.hotwatertank_class.temperature_min)
+                    CPWater * self.scenario.hotwatertank_class.size *
+                    (273.15 + self.scenario.hotwatertank_class.temperature_min)
                 )
                 instance.E_DHWTank[t].setub(
-                    CPWater * self.household.hotwatertank_class.size *
-                    (273.15 + self.household.hotwatertank_class.temperature_max)
+                    CPWater * self.scenario.hotwatertank_class.size *
+                    (273.15 + self.scenario.hotwatertank_class.temperature_max)
                 )
                 instance.Q_DHW_HP_out[t].setub(
-                    self.household.boiler_class.thermal_power_max + self.household.boiler_class.heating_element_power
+                    self.scenario.boiler_class.thermal_power_max + self.scenario.boiler_class.heating_element_power
                 )
             instance.tank_energy_rule_DHW.activate()
 
         # Battery
-        if self.household.battery_class.capacity == 0:
+        if self.scenario.battery_class.capacity == 0:
             for t in range(1, 8761):
                 # fix the parameters to 0
                 instance.Grid2Bat[t].fix(0)
@@ -591,18 +591,18 @@ class OptOperationModel(AbstractOperationModel):
                 instance.BatDischarge[t].fixed = False
                 instance.PV2Bat[t].fixed = False
                 # set upper bounds
-                instance.Grid2Bat[t].setub(self.household.battery_class.charge_power_max)
+                instance.Grid2Bat[t].setub(self.scenario.battery_class.charge_power_max)
 
-                instance.Bat2Load[t].setub(self.household.battery_class.discharge_power_max)
-                instance.BatSoC[t].setub(self.household.battery_class.capacity)
-                instance.BatCharge[t].setub(self.household.battery_class.charge_power_max)
-                instance.BatDischarge[t].setub(self.household.battery_class.discharge_power_max)
+                instance.Bat2Load[t].setub(self.scenario.battery_class.discharge_power_max)
+                instance.BatSoC[t].setub(self.scenario.battery_class.capacity)
+                instance.BatCharge[t].setub(self.scenario.battery_class.charge_power_max)
+                instance.BatDischarge[t].setub(self.scenario.battery_class.discharge_power_max)
             instance.BatCharge_rule.activate()
             instance.BatDischarge_rule.activate()
             instance.BatSoC_rule.activate()
 
         # PV
-        if self.household.pv_class.peak_power == 0:
+        if self.scenario.pv_class.peak_power == 0:
             for t in range(1, 8761):
                 instance.PV2Load[t].fix(0)
                 instance.PV2Bat[t].fix(0)
@@ -616,61 +616,61 @@ class OptOperationModel(AbstractOperationModel):
                 instance.PV2Bat[t].fixed = False
                 instance.PV2Grid[t].fixed = False
                 # set upper bounds
-                instance.PV2Load[t].setub(self.household.building_class.grid_power_max)
-                instance.PV2Bat[t].setub(self.household.building_class.grid_power_max)
-                instance.PV2Grid[t].setub(self.household.building_class.grid_power_max)
+                instance.PV2Load[t].setub(self.scenario.building_class.grid_power_max)
+                instance.PV2Bat[t].setub(self.scenario.building_class.grid_power_max)
+                instance.PV2Grid[t].setub(self.scenario.building_class.grid_power_max)
             instance.UseOfPV_rule.activate()
 
         # update time independent parameters
         # building parameters:
-        instance.Am = self.household.building_class.Am_factor
-        instance.Hve = self.household.building_class.Hve
-        instance.Htr_w = self.household.building_class.Htr_w
+        instance.Am = self.scenario.building_class.Am_factor
+        instance.Hve = self.scenario.building_class.Hve
+        instance.Htr_w = self.scenario.building_class.Htr_w
         # parameters that have to be calculated:
-        instance.Atot = self.calculate_Atot(Af=self.household.building_class.Af)
-        instance.Qi = self.calculate_Qi(specific_internal_gains=self.household.building_class.internal_gains,
-                                        Af=self.household.building_class.Af)
-        instance.Htr_em = self.calculate_Htr_em(Hop=self.household.building_class.Hop,
-                                                Am_factor=self.household.building_class.Am_factor,
-                                                Af=self.household.building_class.Af)
-        instance.Htr_3 = self.calculate_Htr_3(Hve=self.household.building_class.Hve,
-                                              Af=self.household.building_class.Af,
-                                              Htr_w=self.household.building_class.Htr_w,
-                                              Am_factor=self.household.building_class.Am_factor)
-        instance.Htr_1 = self.calculate_Htr_1(Hve=self.household.building_class.Hve,
-                                              Af=self.household.building_class.Af)
-        instance.Htr_2 = self.calculate_Htr_2(Hve=self.household.building_class.Hve,
-                                              Af=self.household.building_class.Af,
-                                              Htr_w=self.household.building_class.Htr_w)
-        instance.Htr_ms = self.calculate_Htr_ms(Am_factor=self.household.building_class.Am_factor,
-                                                Af=self.household.building_class.Af)
-        instance.Htr_is = self.calculate_Htr_is(Af=self.household.building_class.Af)
-        instance.PHI_ia = self.calculate_PHI_ia(specific_internal_gains=self.household.building_class.internal_gains,
-                                                Af=self.household.building_class.Af)
-        instance.Cm = self.calculate_Cm(CM_factor=self.household.building_class.CM_factor,
-                                        Af=self.household.building_class.Af)
+        instance.Atot = self.calculate_Atot(Af=self.scenario.building_class.Af)
+        instance.Qi = self.calculate_Qi(specific_internal_gains=self.scenario.building_class.internal_gains,
+                                        Af=self.scenario.building_class.Af)
+        instance.Htr_em = self.calculate_Htr_em(Hop=self.scenario.building_class.Hop,
+                                                Am_factor=self.scenario.building_class.Am_factor,
+                                                Af=self.scenario.building_class.Af)
+        instance.Htr_3 = self.calculate_Htr_3(Hve=self.scenario.building_class.Hve,
+                                              Af=self.scenario.building_class.Af,
+                                              Htr_w=self.scenario.building_class.Htr_w,
+                                              Am_factor=self.scenario.building_class.Am_factor)
+        instance.Htr_1 = self.calculate_Htr_1(Hve=self.scenario.building_class.Hve,
+                                              Af=self.scenario.building_class.Af)
+        instance.Htr_2 = self.calculate_Htr_2(Hve=self.scenario.building_class.Hve,
+                                              Af=self.scenario.building_class.Af,
+                                              Htr_w=self.scenario.building_class.Htr_w)
+        instance.Htr_ms = self.calculate_Htr_ms(Am_factor=self.scenario.building_class.Am_factor,
+                                                Af=self.scenario.building_class.Af)
+        instance.Htr_is = self.calculate_Htr_is(Af=self.scenario.building_class.Af)
+        instance.PHI_ia = self.calculate_PHI_ia(specific_internal_gains=self.scenario.building_class.internal_gains,
+                                                Af=self.scenario.building_class.Af)
+        instance.Cm = self.calculate_Cm(CM_factor=self.scenario.building_class.CM_factor,
+                                        Af=self.scenario.building_class.Af)
 
-        instance.BuildingMassTemperatureStartValue = self.household.building_class.building_mass_temperature_start
+        instance.BuildingMassTemperatureStartValue = self.scenario.building_class.building_mass_temperature_start
         # Battery parameters
-        instance.ChargeEfficiency = self.household.battery_class.charge_efficiency
-        instance.DischargeEfficiency = self.household.battery_class.discharge_efficiency
+        instance.ChargeEfficiency = self.scenario.battery_class.charge_efficiency
+        instance.DischargeEfficiency = self.scenario.battery_class.discharge_efficiency
         # Thermal storage heating parameters
-        instance.T_TankStart_heating = self.household.spaceheatingtank_class.temperature_start
-        instance.M_WaterTank_heating = self.household.spaceheatingtank_class.size
-        instance.U_ValueTank_heating = self.household.spaceheatingtank_class.loss
-        instance.T_TankSurrounding_heating = self.household.spaceheatingtank_class.temperature_surrounding
-        instance.A_SurfaceTank_heating = self.household.spaceheatingtank_class.surface_area
+        instance.T_TankStart_heating = self.scenario.spaceheatingtank_class.temperature_start
+        instance.M_WaterTank_heating = self.scenario.spaceheatingtank_class.size
+        instance.U_ValueTank_heating = self.scenario.spaceheatingtank_class.loss
+        instance.T_TankSurrounding_heating = self.scenario.spaceheatingtank_class.temperature_surrounding
+        instance.A_SurfaceTank_heating = self.scenario.spaceheatingtank_class.surface_area
         # Thermal storage DHW parameters
-        instance.T_TankStart_DHW = self.household.hotwatertank_class.temperature_start
-        instance.M_WaterTank_DHW = self.household.hotwatertank_class.size
-        instance.U_ValueTank_DHW = self.household.hotwatertank_class.loss
-        instance.T_TankSurrounding_DHW = self.household.hotwatertank_class.temperature_surrounding
-        instance.A_SurfaceTank_DHW = self.household.hotwatertank_class.surface_area
+        instance.T_TankStart_DHW = self.scenario.hotwatertank_class.temperature_start
+        instance.M_WaterTank_DHW = self.scenario.hotwatertank_class.size
+        instance.U_ValueTank_DHW = self.scenario.hotwatertank_class.loss
+        instance.T_TankSurrounding_DHW = self.scenario.hotwatertank_class.temperature_surrounding
+        instance.A_SurfaceTank_DHW = self.scenario.hotwatertank_class.surface_area
         # HP
-        instance.SpaceHeating_HeatPumpMaximalThermalPower = self.household.boiler_class.thermal_power_max + \
-                                                            self.household.boiler_class.heating_element_power
+        instance.SpaceHeating_HeatPumpMaximalThermalPower = self.scenario.boiler_class.thermal_power_max + \
+                                                            self.scenario.boiler_class.heating_element_power
         # Cooling
-        instance.CoolingCOP = self.household.airconditioner_class.efficiency  # is a single value, no index
+        instance.CoolingCOP = self.scenario.airconditioner_class.efficiency  # is a single value, no index
 
         return instance
 
