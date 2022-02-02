@@ -66,10 +66,49 @@ class OptimizationDataCollector(MotherDataCollector):
         return dataframe
 
 
-
 class ReferenceDataCollector(MotherDataCollector):
     def __init__(self, reference_model):
         self.reference_model = reference_model
+
+    def check_type_hourly(self, value) -> np.array:
+        if isinstance(value, float) or isinstance(value, int):  # if its a single float, int return array of same value
+            return_value = np.full((8760, ), value)
+        elif isinstance(value, np.ndarray):
+            if len(value) == 1:  # if its array with only one entry return array with 8760 entries
+                return_value = np.full((8760, ), value)
+            else:
+                return_value = value  # if its array return the array
+        elif isinstance(value, list):
+            return_value = np.array(value)  # if its list, return list as array
+        elif isinstance(value, type(None)):
+            return_value = np.full((8760,), 0)
+        else:
+            return_value = value
+        return return_value
+
+    def check_type_yearly(self, value) -> float:
+        if isinstance(value, float) or isinstance(value, int):  # if its a single float, int return it
+            return_value = value
+
+        elif isinstance(value, np.ndarray):
+            if len(value) == 1:  # if its array with only one entry return array with 8760 entries
+                return_value = float(value)
+            else:  # if its array return the array
+                # check if the values in every hour are exactly the same (eg. fixed feed in tariff):
+                if np.all(value == value[0]):
+                    return_value = float(value[0])
+                else:  # else take the sum
+                    return_value = float(value.sum())
+
+        elif isinstance(value, list):
+            return_value = np.array(value).sum()  # if its list, return the sum
+        elif isinstance(value, type(None)):  # if its NoneType return 0
+            return_value = 0
+
+        else:  # else return the same value
+            return_value = value
+        return return_value
+
 
     def collect_reference_results_hourly(self):
         # empty dataframe
@@ -77,21 +116,41 @@ class ReferenceDataCollector(MotherDataCollector):
         # iterate over all variables in the instance
         for result_name in self.reference_model.__dict__.keys():
             if result_name == "scenario" \
-                    or result_name == "cp_water":  # do not save pyomo implemented types and the time set
+                    or result_name == "cp_water":  # do not save scenario and cp_water
+                continue
+            # exclude the building parameters from the results (too much)
+            if result_name in list(self.reference_model.scenario.building_class.__dict__.keys()):
                 continue
 
             result_class = getattr(self.reference_model, result_name)
-            # check if value is array or single value
-
-            result_value = np.array(list(result_class.extract_values().values()))
-            dataframe[result_name] = self.extend_to_array(result_value)
-
-        # for input_data in self.reference_model.scenario.__dict__.keys()
-        pass
+            # check if result_class is array or single value and if they
+            # are single values make them to 8760 array
+            result_array = self.check_type_hourly(result_class)
+            # save to df
+            dataframe[result_name] = result_array
+        return dataframe
 
     def collect_reference_results_yearly(self):
+        # empty dict
+        dictionary = {}
+        # iterate over all variables in the instance
+        for result_name in self.reference_model.__dict__.keys():
+            if result_name == "scenario" \
+                    or result_name == "cp_water":  # do not save scenario and cp_water
+                continue
+            # exclude the building parameters from the results (too much)
+            if result_name in list(self.reference_model.scenario.building_class.__dict__.keys()):
+                continue
 
-        pass
+            result_class = getattr(self.reference_model, result_name)
+            # check if result_class is array or single value and if they
+            # are array take the sum except if the array only contains the same values
+            result_array = self.check_type_yearly(result_class)
+            # save to dict
+            dictionary[result_name] = result_array
+        dataframe = pd.DataFrame(dictionary, index=[0])
+        return dataframe
+
 
 
 

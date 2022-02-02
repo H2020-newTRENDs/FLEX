@@ -18,16 +18,14 @@ class RefOperationModel(AbstractOperationModel):
         Returns: grid_demand_after_DHW, electricity_surplus_after_DHW
 
         """
-        TankSize = self.scenario.hotwatertank_class.size
         TankMinTemperature = self.scenario.hotwatertank_class.temperature_min
         TankMaxTemperature = self.scenario.hotwatertank_class.temperature_max
-        TankSurfaceArea = self.scenario.hotwatertank_class.surface_area
-        TankLoss = self.scenario.hotwatertank_class.loss
-        TankSurroundingTemperature = self.scenario.hotwatertank_class.temperature_surrounding
-        TankStartTemperature = self.scenario.hotwatertank_class.temperature_start
-        COP_DHW = self.COP_HP(self.scenario.region_class.temperature, 55,
-                              self.scenario.boiler_class.carnot_efficiency_factor,
-                              self.scenario.boiler_class.name)  # 55 °C DHW temperature
+        TankSize = self.M_WaterTank_DHW
+        TankSurfaceArea = self.A_SurfaceTank_DHW
+        TankLoss = self.U_ValueTank_DHW
+        TankSurroundingTemperature = self.T_TankSurrounding_DHW
+        TankStartTemperature = self.T_TankStart_DHW
+        COP_DHW = self.HotWaterHourlyCOP
 
         electricity_surplus_after_DHW = electricity_surplus  # this gets altered through the calculation and returned
         electricity_deficit = np.zeros(electricity_surplus.shape)  # extra electricity needed to keep above min temp
@@ -599,9 +597,6 @@ class RefOperationModel(AbstractOperationModel):
         self.HotWaterHourlyCOP = self.COP_HP(self.scenario.region_class.temperature, 55,
                                     self.scenario.boiler_class.carnot_efficiency_factor,
                                     self.scenario.boiler_class.name)  # 55 °C supply temperature
-
-        # Smart Technologies
-        self.DayHour = self.day_hour
 
         # building data: is not saved in results (to much and not useful)
 
