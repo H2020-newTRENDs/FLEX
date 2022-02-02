@@ -399,7 +399,7 @@ def create_abstract_model():
 
     # (3) Feed in
     def calc_SumOfFeedin(m, t):
-        return m.Feedin[t] == m.PV2Grid[t]
+        return m.Feed2Grid[t] == m.PV2Grid[t]
 
     m.calc_SumOfFeedin = pyo.Constraint(m.t, rule=calc_SumOfFeedin)
 
@@ -585,7 +585,7 @@ def create_abstract_model():
     # ------------
 
     def minimize_cost(m):
-        rule = sum(m.Grid[t] * m.electricity_price[t] - m.Feedin[t] * m.FiT[t] for t in m.t)
+        rule = sum(m.Grid[t] * m.electricity_price[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t)
         return rule
 
     m.Objective = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
@@ -636,7 +636,7 @@ def update_instance(total_input, instance):
         instance.Grid2Load[t].setub(household["Building_MaximalGridPower"])
         # maximum load of house and electricity fed back to the grid
         instance.Load[t].setub(household["Building_MaximalGridPower"])
-        instance.Feedin[t].setub(household["Building_MaximalGridPower"])
+        instance.Feed2Grid[t].setub(household["Building_MaximalGridPower"])
 
     # special cases:
     # Room Cooling:

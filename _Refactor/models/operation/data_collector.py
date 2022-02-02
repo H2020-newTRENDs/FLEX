@@ -68,9 +68,25 @@ class OptimizationDataCollector(MotherDataCollector):
 
 
 class ReferenceDataCollector(MotherDataCollector):
+    def __init__(self, reference_model):
+        self.reference_model = reference_model
 
     def collect_reference_results_hourly(self):
+        # empty dataframe
+        dataframe = pd.DataFrame()
+        # iterate over all variables in the instance
+        for result_name in self.reference_model.__dict__.keys():
+            if result_name == "scenario" \
+                    or result_name == "cp_water":  # do not save pyomo implemented types and the time set
+                continue
 
+            result_class = getattr(self.reference_model, result_name)
+            # check if value is array or single value
+
+            result_value = np.array(list(result_class.extract_values().values()))
+            dataframe[result_name] = self.extend_to_array(result_value)
+
+        # for input_data in self.reference_model.scenario.__dict__.keys()
         pass
 
     def collect_reference_results_yearly(self):

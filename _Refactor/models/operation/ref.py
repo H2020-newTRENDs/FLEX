@@ -236,7 +236,7 @@ class RefOperationModel(AbstractOperationModel):
         TankMaxTemperature = self.scenario.spaceheatingtank_class.temperature_max
         TankSurfaceArea = self.scenario.spaceheatingtank_class.surface_area
         TankLoss = self.scenario.spaceheatingtank_class.loss
-        TankSurroundingTemperature = self.scenario.spaceheatingtank_class.surrounding_temperature
+        TankSurroundingTemperature = self.scenario.spaceheatingtank_class.temperature_surrounding
         TankStartTemperature = self.scenario.spaceheatingtank_class.temperature_start
         COP_SpaceHeating = self.COP_HP(T_outside, 35,
                                        self.scenario.boiler_class.carnot_efficiency_factor,
@@ -574,6 +574,66 @@ class RefOperationModel(AbstractOperationModel):
         self.Bat2Load = Battery2Load
         return Total_load_battery, surplus_after_battery, BatterySOC, Battery2Load
 
+    def fill_parameter_values(self) -> None:
+        """ fills all self parameter values with the input values"""
+        # price
+        self.electricity_price = self.scenario.electricityprice_class.electricity_price  # C/Wh
+        # Feed in Tariff of Photovoltaic
+        self.FiT = self.scenario.feedintariff_class.feed_in_tariff  # C/Wh
+        # solar gains:
+        self.Q_Solar = self.calculate_solar_gains()  # W
+        # outside temperature
+        self.T_outside = self.scenario.region_class.temperature  # °C
+        # COP of heatpump
+        self.SpaceHeatingHourlyCOP = self.COP_HP(self.scenario.region_class.temperature, 35,
+                                  self.scenario.boiler_class.carnot_efficiency_factor,
+                                  self.scenario.boiler_class.name)  # 35 °C supply temperature
+        # COP of cooling
+        self.CoolingCOP = self.scenario.airconditioner_class.efficiency  # single value because it is not dependent on time
+        # electricity load profile
+        self.BaseLoadProfile = self.scenario.electricitydemand_class.electricity_demand
+        # PV profile
+        self.PhotovoltaicProfile = self.scenario.pv_class.power
+        # HotWater
+        self.HotWaterProfile = self.scenario.hotwaterdemand_class.hot_water_demand
+        self.HotWaterHourlyCOP = self.COP_HP(self.scenario.region_class.temperature, 55,
+                                    self.scenario.boiler_class.carnot_efficiency_factor,
+                                    self.scenario.boiler_class.name)  # 55 °C supply temperature
+
+        # Smart Technologies
+        self.DayHour = self.day_hour
+
+        # building data: is not saved in results (to much and not useful)
+
+        # Heating Tank data
+        # Mass of water in tank
+        self.M_WaterTank_heating = self.scenario.spaceheatingtank_class.size
+        # Surface of Tank in m2
+        self.A_SurfaceTank_heating = self.scenario.spaceheatingtank_class.surface_area
+        # insulation of tank, for calc of losses
+        self.U_ValueTank_heating = self.scenario.spaceheatingtank_class.loss
+        self.T_TankStart_heating = self.scenario.spaceheatingtank_class.temperature_start
+        # surrounding temp of tank
+        self.T_TankSurrounding_heating = self.scenario.spaceheatingtank_class.temperature_surrounding
+
+        # DHW Tank data
+        # Mass of water in tank
+        self.M_WaterTank_DHW = self.scenario.hotwatertank_class.size
+        # Surface of Tank in m2
+        self.A_SurfaceTank_DHW = self.scenario.hotwatertank_class.surface_area
+        # insulation of tank, for calc of losses
+        self.U_ValueTank_DHW = self.scenario.hotwatertank_class.loss
+        self.T_TankStart_DHW = self.scenario.hotwatertank_class.temperature_start
+        # surrounding temp of tank
+        self.T_TankSurrounding_DHW = self.scenario.hotwatertank_class.temperature_surrounding
+
+        # heat pump
+        self.SpaceHeating_HeatPumpMaximalThermalPower = self.scenario.boiler_class.thermal_power_max
+
+        # Battery data
+        self.ChargeEfficiency = self.scenario.battery_class.charge_efficiency
+        self.DischargeEfficiency = self.scenario.battery_class.discharge_efficiency
+
     def calculate_no_SEMS(self):
         """
         Assumption for the Reference scenario: the produced PV power is always used for the immediate electric demand,
@@ -583,9 +643,11 @@ class RefOperationModel(AbstractOperationModel):
         The surplus of PV energy is never used to Preheat or Precool the building.
 
         """
+        self.fill_parameter_values()  # set input parameters to self values
         # calculate the heating and cooling energy and indoor air + thermal mass temperature:
         heating_demand, cooling_demand, T_Room, Tm_t = \
             R5C1Model(self.scenario).calculate_heating_and_cooling_demand()
+        room_heating = heating_demand
         self.Tm_t = Tm_t
         self.T_room = T_Room
         self.Q_RoomCooling = cooling_demand
@@ -597,27 +659,12 @@ class RefOperationModel(AbstractOperationModel):
                 heating_element[index] = element - self.scenario.boiler_class.thermal_power_max
 
         self.Q_HeatingElement = heating_element
-        # PV production profile:
-        PV_profile = self.scenario.pv_class.power
-
-        # electricity for DHW:
-        COP_heating = self.COP_HP(self.scenario.region_class.temperature, 35,
-                                  self.scenario.boiler_class.carnot_efficiency_factor,
-                                  self.scenario.boiler_class.name)  # 35 °C supply temperature
-
-        COP_hot_water = self.COP_HP(self.scenario.region_class.temperature, 55,
-                                    self.scenario.boiler_class.carnot_efficiency_factor,
-                                    self.scenario.boiler_class.name)  # 55 °C supply temperature
-
-        hot_water_demand = self.scenario.hotwaterdemand_class.hot_water_demand
-        hot_water_electricity_demand = hot_water_demand / COP_hot_water
-
+        # electricity for hot water:
+        hot_water_electricity_demand = self.HotWaterProfile / self.HotWaterHourlyCOP
         # electricity for heating:
-        heating_electricity_demand = heating_demand / COP_heating
-
+        heating_electricity_demand = heating_demand / self.SpaceHeatingHourlyCOP
         # electricity for cooling:
-        AC_hourly_COP = self.scenario.airconditioner_class.efficiency
-        cooling_electricity_demand = cooling_demand / AC_hourly_COP
+        cooling_electricity_demand = cooling_demand / self.CoolingCOP
 
         # add up all electric loads but without Heating:
         total_electricity_load = self.scenario.electricitydemand_class.electricity_demand + \
@@ -627,7 +674,7 @@ class RefOperationModel(AbstractOperationModel):
                                  heating_element
 
         # The PV profile is subtracted from the total load
-        total_load_minus_pv = total_electricity_load - PV_profile  # kW
+        total_load_minus_pv = total_electricity_load - self.PhotovoltaicProfile  # kW
 
 
         # determine the surplus PV power:
@@ -635,7 +682,7 @@ class RefOperationModel(AbstractOperationModel):
         PV_profile_surplus[PV_profile_surplus > 0] = 0
         PV_profile_surplus = abs(PV_profile_surplus)
         # determine PV2Load
-        self.PV2Load = PV_profile - PV_profile_surplus
+        self.PV2Load = self.PhotovoltaicProfile - PV_profile_surplus
 
         # Total load profile can not be negative: make negative numbers to 0
         total_load_minus_pv[total_load_minus_pv < 0] = 0
@@ -657,7 +704,7 @@ class RefOperationModel(AbstractOperationModel):
         # DHW storage:
         if self.scenario.hotwatertank_class.size > 0:
             grid_demand_after_DHW, electricity_surplus_after_DHW = self.calculate_DHW_tank_energy(
-                grid_demand, electricity_sold, hot_water_demand)
+                grid_demand, electricity_sold, self.HotWaterProfile)
             electricity_sold = electricity_surplus_after_DHW
             grid_demand = grid_demand_after_DHW
 
@@ -676,6 +723,7 @@ class RefOperationModel(AbstractOperationModel):
         total_electricity_cost = price_hourly * grid_demand - electricity_sold * FIT
 
         # grid variables
+        self.Grid = grid_demand
         self.Grid2Load = grid_demand
         self.Grid2Bat = np.full((8760, ), 0)
 
@@ -686,9 +734,22 @@ class RefOperationModel(AbstractOperationModel):
         self.Load = total_electricity_load
 
         # electricity fed back to the grid
-        self.Feedin = electricity_sold
+        self.Feed2Grid = electricity_sold
 
+        # room heating
+        self.Q_room_heating = room_heating
+        self.Q_HeatingTank_bypass = room_heating - self.Q_HeatingTank_out
+
+        # DHW
+        self.Q_DHWTank_bypass = self.HotWaterProfile - self.Q_DHWTank_out
 
 if __name__ == "__main__":
+    from _Refactor.models.operation.data_collector import ReferenceDataCollector
+
     scenario = AbstractScenario(scenario_id=0)
-    RefOperationModel(scenario).calculate_no_SEMS()
+    reference_model = RefOperationModel(scenario)
+    reference_model.calculate_no_SEMS()
+    hourly_results = ReferenceDataCollector(reference_model).collect_reference_results_hourly()
+    yearly_results = ReferenceDataCollector(reference_model).collect_reference_results_yearly()
+
+
