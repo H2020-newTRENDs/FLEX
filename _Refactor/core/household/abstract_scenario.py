@@ -10,6 +10,7 @@ from _Refactor.basic.reg import Table
 class AbstractScenario:
 
     def __init__(self, scenario_id: int):
+        self.scenario_id = scenario_id
         self.region_class = None
         self.person_class = None
         self.personlist_class = None

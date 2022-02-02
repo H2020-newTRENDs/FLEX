@@ -356,11 +356,11 @@ class OperationOptimization:
         # (1) Overall energy balance
         def calc_ElectricalEnergyBalance(m, t):
             if Household.ElectricVehicle.BatterySize == 0:
-                return m.Grid[t] + m.PhotovoltaicProfile[t] + m.BatDischarge[t] == m.Feedin[t] + m.Load[t] + m.BatCharge[t]
+                return m.Grid[t] + m.PhotovoltaicProfile[t] + m.BatDischarge[t] == m.Feed2Grid[t] + m.Load[t] + m.BatCharge[t]
             elif Household.Battery.Capacity == 0:
-                return m.Grid[t] + m.PhotovoltaicProfile[t] + m.EVDischarge[t] == m.Feedin[t] + m.Load[t] + m.EVCharge[t]
+                return m.Grid[t] + m.PhotovoltaicProfile[t] + m.EVDischarge[t] == m.Feed2Grid[t] + m.Load[t] + m.EVCharge[t]
             else:
-                return m.Grid[t] + m.PhotovoltaicProfile[t] + m.BatDischarge[t] + m.EVDischarge[t] == m.Feedin[t] + m.Load[t] + m.BatCharge[t] + m.EVCharge[t]
+                return m.Grid[t] + m.PhotovoltaicProfile[t] + m.BatDischarge[t] + m.EVDischarge[t] == m.Feed2Grid[t] + m.Load[t] + m.BatCharge[t] + m.EVCharge[t]
 
         m.calc_ElectricalEnergyBalance = pyo.Constraint(m.t, rule=calc_ElectricalEnergyBalance)
 
@@ -381,7 +381,7 @@ class OperationOptimization:
 
         # (4)
         def calc_SumOfFeedin(m, t):
-            return m.Feedin[t] == m.PV2Grid[t]
+            return m.Feed2Grid[t] == m.PV2Grid[t]
 
         m.calc_SumOfFeedin = pyo.Constraint(m.t, rule=calc_SumOfFeedin)
 
@@ -638,7 +638,7 @@ class OperationOptimization:
         # ------------
 
         def minimize_cost(m):
-            rule = sum(m.Grid[t] * m.ElectricityPrice[t] - m.Feedin[t] * m.FiT[t] for t in m.t) + PetrolCostPerYear
+            rule = sum(m.Grid[t] * m.ElectricityPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t) + PetrolCostPerYear
             return rule
         m.Objective = pyo.Objective(rule=minimize_cost)
 

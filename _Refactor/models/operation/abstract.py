@@ -19,30 +19,104 @@ class AbstractOperationModel(ABC):
         self.cp_water = 4200 / 3600
 
         # Result variables: CAREFUL, THESE NAMES HAVE TO BE IDENTICAL TO THE ONES IN THE PYOMO OPTIMIZATION
-        # space heating
+        # -----------
+        # PARAMETERS:
+        # -----------
+        # price
+        self.electricity_price = None  # C/Wh
+        # Feed in Tariff of Photovoltaic
+        self.FiT = None  # C/Wh
+        # solar gains:
+        self.Q_Solar = None  # W
+        # outside temperature
+        self.T_outside = None  # °C
+        # COP of heatpump
+        self.SpaceHeatingHourlyCOP = None
+        # COP of cooling
+        self.CoolingCOP = None  # single value because it is not dependent on time
+        # electricity load profile
+        self.BaseLoadProfile = None
+        # PV profile
+        self.PhotovoltaicProfile = None
+        # HotWater
+        self.HotWaterProfile = None
+        self.HotWaterHourlyCOP = None
+
+        # Smart Technologies
+        self.DayHour = None
+
+        # building data:
+        self.Am = None
+        self.Atot = None
+        self.Qi = None
+        self.Htr_w = None
+        self.Htr_em = None
+        self.Htr_3 = None
+        self.Htr_1 = None
+        self.Htr_2 = None
+        self.Hve = None
+        self.Htr_ms = None
+        self.Htr_is = None
+        self.PHI_ia = None
+        self.Cm = None
+        self.BuildingMassTemperatureStartValue = None
+
+        # Heating Tank data
+        # Mass of water in tank
+        self.M_WaterTank_heating = None
+        # Surface of Tank in m2
+        self.A_SurfaceTank_heating = None
+        # insulation of tank, for calc of losses
+        self.U_ValueTank_heating = None
+        self.T_TankStart_heating = None
+        # surrounding temp of tank
+        self.T_TankSurrounding_heating = None
+
+        # DHW Tank data
+        # Mass of water in tank
+        self.M_WaterTank_DHW = None
+        # Surface of Tank in m2
+        self.A_SurfaceTank_DHW = None
+        # insulation of tank, for calc of losses
+        self.U_ValueTank_DHW = None
+        self.T_TankStart_DHW = None
+        # surrounding temp of tank
+        self.T_TankSurrounding_DHW = None
+
+        # heat pump
+        self.SpaceHeating_HeatPumpMaximalThermalPower = None
+
+        # Battery data
+        self.ChargeEfficiency = None
+        self.DischargeEfficiency = None
+
+        # ----------------------------
+        # Variables
+        # ----------------------------
+        # Variables SpaceHeating
         self.Q_HeatingTank_in = None
         self.Q_HeatingElement = None
         self.Q_HeatingTank_out = None
-        self.E_HeatingTank = None
+        self.E_HeatingTank = None  # energy in the tank
         self.Q_HeatingTank_bypass = None
         self.Q_Heating_HP_out = None
         self.Q_room_heating = None
 
-        # DHW
+        # Variables DHW
         self.Q_DHWTank_out = None
-        self.E_DHWTank = None
+        self.E_DHWTank = None  # energy in the tank
         self.Q_DHWTank_in = None
         self.Q_DHW_HP_out = None
         self.Q_DHWTank_bypass = None
 
-        # space cooling
+        # Variable space cooling
         self.Q_RoomCooling = None
 
-        # temperatures
+        # Temperatures (room and thermal mass)
         self.T_room = None
         self.Tm_t = None
 
-        # grid variables
+        # Grid variables
         self.Grid = None
         self.Grid2Load = None
         self.Grid2Bat = None
@@ -52,13 +126,11 @@ class AbstractOperationModel(ABC):
         self.PV2Bat = None
         self.PV2Grid = None
 
-        # electric load
+        # Electric Load and Electricity fed back to the grid
         self.Load = None
+        self.Feed2Grid = None
 
-        # electricity fed back to the grid
-        self.Feedin = None
-
-        # Battery
+        # Battery variables
         self.BatSoC = None
         self.BatCharge = None
         self.BatDischarge = None

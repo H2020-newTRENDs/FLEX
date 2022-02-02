@@ -215,7 +215,7 @@ class OptOperationModel(AbstractOperationModel):
 
         # Electric Load and Electricity fed back to the grid
         m.Load = pyo.Var(m.t, within=pyo.NonNegativeReals)
-        m.Feedin = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.Feed2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # Battery variables
         m.BatSoC = pyo.Var(m.t, within=pyo.NonNegativeReals)
@@ -241,7 +241,7 @@ class OptOperationModel(AbstractOperationModel):
 
         # (3) Feed in
         def calc_SumOfFeedin(m, t):
-            return m.Feedin[t] == m.PV2Grid[t]
+            return m.Feed2Grid[t] == m.PV2Grid[t]
 
         m.SumOfFeedin_rule = pyo.Constraint(m.t, rule=calc_SumOfFeedin)
 
@@ -430,7 +430,7 @@ class OptOperationModel(AbstractOperationModel):
         # ------------
 
         def minimize_cost(m):
-            rule = sum(m.Grid[t] * m.electricity_price[t] - m.Feedin[t] * m.FiT[t] for t in m.t)
+            rule = sum(m.Grid[t] * m.electricity_price[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t)
             return rule
 
         m.Objective_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
@@ -487,7 +487,7 @@ class OptOperationModel(AbstractOperationModel):
             instance.Grid2Load[t].setub(self.scenario.building_class.grid_power_max)
             # maximum load of house and electricity fed back to the grid
             instance.Load[t].setub(self.scenario.building_class.grid_power_max)
-            instance.Feedin[t].setub(self.scenario.building_class.grid_power_max)
+            instance.Feed2Grid[t].setub(self.scenario.building_class.grid_power_max)
 
         # special cases:
         # Room Cooling:
