@@ -42,24 +42,7 @@ class AbstractOperationModel(ABC):
         self.HotWaterProfile = None
         self.HotWaterHourlyCOP = None
 
-        # Smart Technologies
-        self.DayHour = None
-
-        # building data:
-        self.Am = None
-        self.Atot = None
-        self.Qi = None
-        self.Htr_w = None
-        self.Htr_em = None
-        self.Htr_3 = None
-        self.Htr_1 = None
-        self.Htr_2 = None
-        self.Hve = None
-        self.Htr_ms = None
-        self.Htr_is = None
-        self.PHI_ia = None
-        self.Cm = None
-        self.BuildingMassTemperatureStartValue = None
+        # building data: not saved to DB
 
         # Heating Tank data
         # Mass of water in tank
