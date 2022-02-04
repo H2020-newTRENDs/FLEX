@@ -304,8 +304,8 @@ class OptOperationModel(AbstractOperationModel):
                 return m.E_HeatingTank[t] == CPWater * m.M_WaterTank_heating * (273.15 + m.T_TankStart_heating) - \
                        m.Q_HeatingTank_out[t]
             else:
-                return m.E_HeatingTank[t] == m.E_HeatingTank[t - 1] - m.Q_HeatingTank_out[t] + m.Q_HeatingTank_in[t] + \
-                       m.Q_HeatingElement[t] - m.U_ValueTank_heating * m.A_SurfaceTank_heating * (
+                return m.E_HeatingTank[t] == m.E_HeatingTank[t - 1] - m.Q_HeatingTank_out[t] + m.Q_HeatingTank_in[t] \
+                       - m.U_ValueTank_heating * m.A_SurfaceTank_heating * (
                                (m.E_HeatingTank[t] / (m.M_WaterTank_heating * CPWater)) -
                                (m.T_TankSurrounding_heating + 273.15))
 
@@ -313,7 +313,7 @@ class OptOperationModel(AbstractOperationModel):
 
         # (10) room heating
         def room_heating(m, t):
-            return m.Q_room_heating[t] == m.Q_HeatingTank_out[t] + m.Q_HeatingTank_bypass[t]
+            return m.Q_room_heating[t] == m.Q_HeatingTank_out[t] + m.Q_HeatingTank_bypass[t] + m.Q_HeatingElement[t]
 
         m.room_heating_rule = pyo.Constraint(m.t, rule=room_heating)
 
@@ -667,8 +667,7 @@ class OptOperationModel(AbstractOperationModel):
         instance.T_TankSurrounding_DHW = self.scenario.hotwatertank_class.temperature_surrounding
         instance.A_SurfaceTank_DHW = self.scenario.hotwatertank_class.surface_area
         # HP
-        instance.SpaceHeating_HeatPumpMaximalThermalPower = self.scenario.boiler_class.thermal_power_max + \
-                                                            self.scenario.boiler_class.heating_element_power
+        instance.SpaceHeating_HeatPumpMaximalThermalPower = self.scenario.boiler_class.thermal_power_max
         # Cooling
         instance.CoolingCOP = self.scenario.airconditioner_class.efficiency  # is a single value, no index
 
@@ -679,6 +678,13 @@ class OptOperationModel(AbstractOperationModel):
         result = Opt.solve(instance2solve, tee=False)
         return instance2solve
 
+    def run(self):
+        abstract_model = self.create_abstract_model()
+        pyomo_instance = abstract_model.create_instance(data=self.create_pyomo_dict())
+        updated_instance = self.update_instance(pyomo_instance)
+        solved_instance = self.solve_optimization(updated_instance)
+        return solved_instance
+
 
 if __name__ == "__main__":
     from _Refactor.core.household.abstract_scenario import AbstractScenario
@@ -686,12 +692,9 @@ if __name__ == "__main__":
     scenario = AbstractScenario(scenario_id=0)
     model_class = OptOperationModel(scenario)
 
-    abstract_model = model_class.create_abstract_model()
-    pyomo_instance = abstract_model.create_instance(data=model_class.create_pyomo_dict())
-    updated_instance = model_class.update_instance(pyomo_instance)
     # solve model
-    solved_instance = model_class.solve_optimization(updated_instance)
-    # datacollector
+    solved_instance = model_class.run()
+    # data collector
     hourly_results_df = OptimizationDataCollector().collect_optimization_results_hourly(solved_instance)
     yearly_results_df = OptimizationDataCollector().collect_optimization_results_yearly(solved_instance)
 
