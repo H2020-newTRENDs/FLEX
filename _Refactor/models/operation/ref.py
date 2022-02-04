@@ -629,7 +629,7 @@ class RefOperationModel(AbstractOperationModel):
         self.ChargeEfficiency = self.scenario.battery_class.charge_efficiency
         self.DischargeEfficiency = self.scenario.battery_class.discharge_efficiency
 
-    def calculate_no_SEMS(self):
+    def run(self):
         """
         Assumption for the Reference scenario: the produced PV power is always used for the immediate electric demand,
         if there is a surplus of PV power, it will be used to charge the Battery,
@@ -743,8 +743,10 @@ if __name__ == "__main__":
 
     scenario = AbstractScenario(scenario_id=0)
     reference_model = RefOperationModel(scenario)
-    reference_model.calculate_no_SEMS()
+    reference_model.run()
     hourly_results = ReferenceDataCollector(reference_model).collect_reference_results_hourly()
     yearly_results = ReferenceDataCollector(reference_model).collect_reference_results_yearly()
+
+    pass
 
 
