@@ -695,8 +695,8 @@ if __name__ == "__main__":
     # solve model
     solved_instance = model_class.run()
     # data collector
-    hourly_results_df = OptimizationDataCollector().collect_optimization_results_hourly(solved_instance)
-    yearly_results_df = OptimizationDataCollector().collect_optimization_results_yearly(solved_instance)
+    hourly_results_df = OptimizationDataCollector().collect_optimization_results_hourly(solved_instance, scenario.scenario_id)
+    yearly_results_df = OptimizationDataCollector().collect_optimization_results_yearly(solved_instance, scenario.scenario_id)
 
     pass
 

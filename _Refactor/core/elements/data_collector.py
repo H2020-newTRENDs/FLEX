@@ -1,9 +1,17 @@
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any
+from _Refactor.basic.db import DB
+import sqlalchemy
+import _Refactor.core.household.components as components
+
 
 class MotherDataCollector(ABC):
 
+    def get_column_types(self, dataframe):
+
+
+        pass
     # def __init__(self, object):
     #     self.object = object
     #     self.variables_to_collect = {}

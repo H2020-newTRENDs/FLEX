@@ -17,13 +17,16 @@ optimization_model = OptOperationModel(scenario)
 # solve model
 solved_instance = optimization_model.run()
 # datacollector
-hourly_results_optimization_df = OptimizationDataCollector().collect_optimization_results_hourly(solved_instance)
-yearly_results_optimization_df = OptimizationDataCollector().collect_optimization_results_yearly(solved_instance)
+OptimizationDataCollector(solved_instance, scenario.scenario_id).save_yearly_results()
+OptimizationDataCollector(solved_instance, scenario.scenario_id).save_hourly_results()
 
 reference_model = RefOperationModel(scenario)
 reference_model.run()
-hourly_results_reference_df = ReferenceDataCollector(reference_model).collect_reference_results_hourly()
-yearly_results_reference_df = ReferenceDataCollector(reference_model).collect_reference_results_yearly()
+# save results to db
+ReferenceDataCollector(reference_model).save_yearly_results()
+ReferenceDataCollector(reference_model).save_hourly_results()
+
+
 
 
 

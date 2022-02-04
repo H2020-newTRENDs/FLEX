@@ -6,12 +6,12 @@ def create_connection(db_folder: Path = Path(__file__).parent.parent / Path("dat
                       db_name: str = "root"
                       ) -> sqlalchemy.engine.Engine:
     """if no database name and folder path are provided the root database is selected"""
-    assert (db_folder / Path(db_name + ".sqlite")).exists()
+    # assert (db_folder / Path(db_name + ".sqlite")).exists()
     return sqlalchemy.create_engine(f'sqlite:///{(str(db_folder / Path(db_name)) + ".sqlite")}')
-    # return sqlalchemy.create_engine(f'sqlite:///{os.path.join(db_folder, db_name + ".sqlite")}')
 
 
 root_connection = create_connection()  # when multiprocessing the engine has to be created for each process
+results_connection = create_connection(db_name="results")
 
 
 class Config:

@@ -747,6 +747,11 @@ if __name__ == "__main__":
     hourly_results = ReferenceDataCollector(reference_model).collect_reference_results_hourly()
     yearly_results = ReferenceDataCollector(reference_model).collect_reference_results_yearly()
 
+    # save results to database
+    ReferenceDataCollector(reference_model).save_hourly_results()
+    ReferenceDataCollector(reference_model).save_yearly_results()
+
+
     pass
 
 
