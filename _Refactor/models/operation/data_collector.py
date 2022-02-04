@@ -23,7 +23,21 @@ class OptimizationDataCollector(MotherDataCollector):
                     or result_name == "statistics" \
                     or result_name == "config" \
                     or result_name == "solutions" \
-                    or result_name == "t":  # do not save pyomo implemented types and the time set
+                    or result_name == "t" \
+                    or result_name == "Am" \
+                    or result_name == "Atot" \
+                    or result_name == "Qi" \
+                    or result_name == "Htr_w" \
+                    or result_name == "Htr_em" \
+                    or result_name == "Htr_3" \
+                    or result_name == "Htr_1" \
+                    or result_name == "Htr_2" \
+                    or result_name == "Hve" \
+                    or result_name == "Htr_ms" \
+                    or result_name == "Htr_is" \
+                    or result_name == "PHI_ia" \
+                    or result_name == "Cm" \
+                    or result_name == "BuildingMassTemperatureStartValue":  # do not save pyomo implemented types and the time set
                 continue
             elif "rule" in result_name:  # do not save rules
                 continue
@@ -44,7 +58,22 @@ class OptimizationDataCollector(MotherDataCollector):
                     or result_name == "statistics" \
                     or result_name == "config" \
                     or result_name == "solutions" \
-                    or result_name == "t":  # do not save pyomo implemented types and the time set
+                    or result_name == "t" \
+                    or result_name == "DayHour" \
+                    or result_name == "Am" \
+                    or result_name == "Atot" \
+                    or result_name == "Qi" \
+                    or result_name == "Htr_w" \
+                    or result_name == "Htr_em" \
+                    or result_name == "Htr_3" \
+                    or result_name == "Htr_1" \
+                    or result_name == "Htr_2" \
+                    or result_name == "Hve" \
+                    or result_name == "Htr_ms" \
+                    or result_name == "Htr_is" \
+                    or result_name == "PHI_ia" \
+                    or result_name == "Cm" \
+                    or result_name == "BuildingMassTemperatureStartValue":  # do not save pyomo implemented types and the time set
                 continue
             elif "rule" in result_name:  # do not save rules
                 continue
@@ -67,6 +96,7 @@ class OptimizationDataCollector(MotherDataCollector):
 
 
 class ReferenceDataCollector(MotherDataCollector):
+
     def __init__(self, reference_model):
         self.reference_model = reference_model
 
@@ -101,7 +131,11 @@ class ReferenceDataCollector(MotherDataCollector):
                     return_value = float(value.sum())
 
         elif isinstance(value, list):
-            return_value = np.array(value).sum()  # if its list, return the sum
+            # check if the values in every hour are exactly the same (eg. fixed feed in tariff):
+            if np.all(np.array(value) == np.array(value)[0]):
+                return_value = float(value[0])
+            else:  # else take the sum
+                return_value = np.array(value).sum()  # if its list, return the sum
         elif isinstance(value, type(None)):  # if its NoneType return 0
             return_value = 0
 
@@ -136,7 +170,8 @@ class ReferenceDataCollector(MotherDataCollector):
         # iterate over all variables in the instance
         for result_name in self.reference_model.__dict__.keys():
             if result_name == "scenario" \
-                    or result_name == "cp_water":  # do not save scenario and cp_water
+                    or result_name == "cp_water" \
+                    or result_name == "day_hour":  # do not save scenario and cp_water and day_hour
                 continue
             # exclude the building parameters from the results (too much)
             if result_name in list(self.reference_model.scenario.building_class.__dict__.keys()):
