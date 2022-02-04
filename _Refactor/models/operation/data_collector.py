@@ -1,23 +1,30 @@
 import pandas as pd
 
 from _Refactor.core.elements.data_collector import MotherDataCollector
+import _Refactor.basic.config as config
+from _Refactor.basic.db import DB
 import numpy as np
+import sqlalchemy.types
 
 
-class OptimizationDataCollector(MotherDataCollector):
+class OptimizationDataCollector:
+
+    def __init__(self, instance, scenario_id: int):
+        self.instance = instance
+        self.scenario_id = scenario_id
 
     def extend_to_array(self, array_or_value: np.array) -> np.array:
         # check if array_or_value is an array or a single value:
         if len(array_or_value) == 1:
-            return np.full((8760, ), array_or_value)  # return array with same value
+            return np.full((8760,), array_or_value)  # return array with same value
         else:
             return array_or_value
 
-    def collect_optimization_results_hourly(self, instance, scenario_id: int) -> pd.DataFrame:
+    def collect_optimization_results_hourly(self) -> pd.DataFrame:
         # empty dataframe
         dataframe = pd.DataFrame()
         # iterate over all variables in the instance
-        for result_name in instance.__dict__.keys():
+        for result_name in self.instance.__dict__.keys():
             if result_name.startswith("_") \
                     or result_name == "doc" \
                     or result_name == "statistics" \
@@ -42,18 +49,18 @@ class OptimizationDataCollector(MotherDataCollector):
             elif "rule" in result_name:  # do not save rules
                 continue
 
-            result_class = getattr(instance, result_name)
+            result_class = getattr(self.instance, result_name)
             result_value = np.array(list(result_class.extract_values().values()))
             dataframe[result_name] = self.extend_to_array(result_value)
             # add the scenario id to the results
-            dataframe["scenario_id"] = scenario_id
+            dataframe["scenario_id"] = self.scenario_id
         return dataframe
 
-    def collect_optimization_results_yearly(self, instance, scenario_id) -> pd.DataFrame:
+    def collect_optimization_results_yearly(self) -> pd.DataFrame:
         # empty dictionary
         dictionary = {}
         # iterate over all variables in the instance
-        for result_name in instance.__dict__.keys():
+        for result_name in self.instance.__dict__.keys():
             # do not save pyomo implemented types and the time set and building parameters
             if result_name.startswith("_") \
                     or result_name == "doc" \
@@ -80,7 +87,7 @@ class OptimizationDataCollector(MotherDataCollector):
             elif "rule" in result_name:  # do not save rules
                 continue
 
-            result_class = getattr(instance, result_name)
+            result_class = getattr(self.instance, result_name)
             result_array = np.array(list(result_class.extract_values().values()))
             if len(result_array) > 1:  # if its hourly value, take sum
                 # check if the values in every hour are exactly the same (eg. fixed feed in tariff):
@@ -95,21 +102,54 @@ class OptimizationDataCollector(MotherDataCollector):
         # create the dataframe
         dataframe = pd.DataFrame(dictionary)
         # add the scenario id to the results
-        dataframe["scenario_id"] = scenario_id
+        dataframe["scenario_id"] = self.scenario_id
         return dataframe
 
+    def save_hourly_results(self, if_exists: str = "append") -> None:
+        """
 
-class ReferenceDataCollector(MotherDataCollector):
+        Args:
+            if_exists: ['replace', 'fail', 'append' (default)]
+
+        Returns: None
+
+        """
+        hourly_results = self.collect_optimization_results_hourly()
+        # set the datatype to float:
+        d_types_dict = {}
+        for column_name in hourly_results.columns:
+            d_types_dict[column_name] = sqlalchemy.types.Float
+
+        # save the dataframes to the result database
+        DB(connection=config.results_connection).write_dataframe(table_name="Optimization_hourly",
+                                                                 data_frame=hourly_results,
+                                                                 data_types=d_types_dict,
+                                                                 if_exists=if_exists)
+
+    def save_yearly_results(self, if_exists: str = "append") -> None:
+        yearly_results = self.collect_optimization_results_yearly()
+        # set the datatype to float:
+        d_types_dict = {}
+        for column_name in yearly_results.columns:
+            d_types_dict[column_name] = sqlalchemy.types.Float
+        # save the dataframes to the result database
+        DB(connection=config.results_connection).write_dataframe(table_name="Optimization_yearly",
+                                                                 data_frame=yearly_results,
+                                                                 data_types=d_types_dict,
+                                                                 if_exists=if_exists)
+
+
+class ReferenceDataCollector:
 
     def __init__(self, reference_model):
         self.reference_model = reference_model
 
     def check_type_hourly(self, value) -> np.array:
         if isinstance(value, float) or isinstance(value, int):  # if its a single float, int return array of same value
-            return_value = np.full((8760, ), value)
+            return_value = np.full((8760,), value)
         elif isinstance(value, np.ndarray):
             if len(value) == 1:  # if its array with only one entry return array with 8760 entries
-                return_value = np.full((8760, ), value)
+                return_value = np.full((8760,), value)
             else:
                 return_value = value  # if its array return the array
         elif isinstance(value, list):
@@ -147,7 +187,7 @@ class ReferenceDataCollector(MotherDataCollector):
             return_value = value
         return return_value
 
-    def collect_reference_results_hourly(self):
+    def collect_reference_results_hourly(self) -> pd.DataFrame:
         # empty dataframe
         dataframe = pd.DataFrame()
         # iterate over all variables in the instance
@@ -169,7 +209,7 @@ class ReferenceDataCollector(MotherDataCollector):
             dataframe["scenario_id"] = self.reference_model.scenario.scenario_id
         return dataframe
 
-    def collect_reference_results_yearly(self):
+    def collect_reference_results_yearly(self) -> pd.DataFrame:
         # empty dict
         dictionary = {}
         # iterate over all variables in the instance
@@ -193,9 +233,28 @@ class ReferenceDataCollector(MotherDataCollector):
         dataframe["scenario_id"] = self.reference_model.scenario.scenario_id
         return dataframe
 
+    def save_hourly_results(self, if_exists: str = "append") -> None:
 
+        hourly_results = self.collect_reference_results_hourly()
+        # set the datatype to float:
+        d_types_dict = {}
+        for column_name in hourly_results.columns:
+            d_types_dict[column_name] = sqlalchemy.types.Float
 
+        # save the dataframes to the result database
+        DB(connection=config.results_connection).write_dataframe(table_name="Reference_hourly",
+                                                                 data_frame=hourly_results,
+                                                                 data_types=d_types_dict,
+                                                                 if_exists=if_exists)
 
-
-
-
+    def save_yearly_results(self, if_exists: str = "append") -> None:
+        yearly_results = self.collect_reference_results_yearly()
+        # set the datatype to float:
+        d_types_dict = {}
+        for column_name in yearly_results.columns:
+            d_types_dict[column_name] = sqlalchemy.types.Float
+        # save the dataframes to the result database
+        DB(connection=config.results_connection).write_dataframe(table_name="Reference_yearly",
+                                                                 data_frame=yearly_results,
+                                                                 data_types=d_types_dict,
+                                                                 if_exists=if_exists)
