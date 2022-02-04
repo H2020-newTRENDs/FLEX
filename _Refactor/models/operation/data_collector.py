@@ -13,7 +13,7 @@ class OptimizationDataCollector(MotherDataCollector):
         else:
             return array_or_value
 
-    def collect_optimization_results_hourly(self, instance) -> pd.DataFrame:
+    def collect_optimization_results_hourly(self, instance, scenario_id: int) -> pd.DataFrame:
         # empty dataframe
         dataframe = pd.DataFrame()
         # iterate over all variables in the instance
@@ -45,14 +45,16 @@ class OptimizationDataCollector(MotherDataCollector):
             result_class = getattr(instance, result_name)
             result_value = np.array(list(result_class.extract_values().values()))
             dataframe[result_name] = self.extend_to_array(result_value)
-
+            # add the scenario id to the results
+            dataframe["scenario_id"] = scenario_id
         return dataframe
 
-    def collect_optimization_results_yearly(self, instance) -> pd.DataFrame:
+    def collect_optimization_results_yearly(self, instance, scenario_id) -> pd.DataFrame:
         # empty dictionary
         dictionary = {}
         # iterate over all variables in the instance
         for result_name in instance.__dict__.keys():
+            # do not save pyomo implemented types and the time set and building parameters
             if result_name.startswith("_") \
                     or result_name == "doc" \
                     or result_name == "statistics" \
@@ -73,7 +75,7 @@ class OptimizationDataCollector(MotherDataCollector):
                     or result_name == "Htr_is" \
                     or result_name == "PHI_ia" \
                     or result_name == "Cm" \
-                    or result_name == "BuildingMassTemperatureStartValue":  # do not save pyomo implemented types and the time set
+                    or result_name == "BuildingMassTemperatureStartValue":
                 continue
             elif "rule" in result_name:  # do not save rules
                 continue
@@ -92,6 +94,8 @@ class OptimizationDataCollector(MotherDataCollector):
             dictionary[result_name] = result_value
         # create the dataframe
         dataframe = pd.DataFrame(dictionary)
+        # add the scenario id to the results
+        dataframe["scenario_id"] = scenario_id
         return dataframe
 
 
@@ -143,7 +147,6 @@ class ReferenceDataCollector(MotherDataCollector):
             return_value = value
         return return_value
 
-
     def collect_reference_results_hourly(self):
         # empty dataframe
         dataframe = pd.DataFrame()
@@ -162,6 +165,8 @@ class ReferenceDataCollector(MotherDataCollector):
             result_array = self.check_type_hourly(result_class)
             # save to df
             dataframe[result_name] = result_array
+            # add the scenario id to the results
+            dataframe["scenario_id"] = self.reference_model.scenario.scenario_id
         return dataframe
 
     def collect_reference_results_yearly(self):
@@ -184,6 +189,8 @@ class ReferenceDataCollector(MotherDataCollector):
             # save to dict
             dictionary[result_name] = result_array
         dataframe = pd.DataFrame(dictionary, index=[0])
+        # add the scenario id to the results
+        dataframe["scenario_id"] = self.reference_model.scenario.scenario_id
         return dataframe
 
 
