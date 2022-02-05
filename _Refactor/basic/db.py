@@ -18,7 +18,7 @@ class DB:
     def close(self):
         self.connection.dispose()
 
-    def clear_database(self):
+    def clear_table_from_database(self):
         for table_name in self.connection.table_names():
             self.connection.execute(f"drop table {table_name}")
 
@@ -52,8 +52,31 @@ class DB:
         DataFrame = pd.read_sql('select ' + columns2extract + ' from ' + table_name + condition, con=self.connection)
         return DataFrame
 
-    def drop_table(self, table_name: str):
+    def drop_table(self, table_name: str) -> None:
+        """
+
+        Args:
+            table_name: name of table that should be deleted
+
+        """
         self.connection.execute(f'drop table if exists  {table_name} ;')
+
+    def delete_row_from_table(self, table_name: str, column_name_plus_value: dict) -> None:
+        """
+
+        Args:
+            table_name: name of the table (str)
+            column_name_plus_value: dictionary with column names (keys) and values of rows that should be dropped
+
+        """
+        condition_temp = ""
+        for key, value in column_name_plus_value.items():
+            condition_temp += key + " == '" + str(value) + "' and "
+        condition = " where " + condition_temp
+        condition = condition[0:-5]  # deleting last "and"
+
+        query = f"DELETE FROM {table_name}" + condition
+        self.connection.execute(query)
 
     def query(self, sql) -> pd.DataFrame:
         return pd.read_sql(sql, self.connection)

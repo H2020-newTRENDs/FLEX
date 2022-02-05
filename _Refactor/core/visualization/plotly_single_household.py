@@ -1,11 +1,18 @@
+import sqlite3
+
+import sqlalchemy.exc
+
 from _Refactor.core.household.abstract_scenario import AbstractScenario
 from _Refactor.models.operation.opt import OptOperationModel
 from _Refactor.models.operation.ref import RefOperationModel
 from _Refactor.models.operation.data_collector import OptimizationDataCollector, ReferenceDataCollector
+from _Refactor.basic.db import DB
+import _Refactor.basic.config as config
 
 import pandas as pd
 import numpy as np
 import plotly.express as px
+
 
 # -----------------------------------------------------------------------------------------------------------
 def show_yearly_comparison_of_SEMS_reference(yearly_results_optimization_df: pd.DataFrame,
@@ -25,27 +32,61 @@ def show_yearly_comparison_of_SEMS_reference(yearly_results_optimization_df: pd.
     # this plot is supposed to instantly show differences in input as well as output parameters:
     fig = px.bar(data_frame=yearly_df_plotly, x="index", y="value", color="variable", barmode="group")
     fig.show()
-# ----------------------------------------------------------------------------------------------------------
 
+
+# ----------------------------------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
     # create scenario:
     scenario = AbstractScenario(scenario_id=0)
+    try:
+        # check if scenario id is in results, if yes, load them instead of calculating them:
+        hourly_results_reference_df = DB(connection=config.results_connection).read_dataframe(
+            table_name="Reference_hourly",
+            **{"scenario_id": 0})
+        yearly_results_reference_df = DB(connection=config.results_connection).read_dataframe(
+            table_name="Reference_yearly",
+            **{"scenario_id": 0})
 
-    optimization_model = OptOperationModel(scenario)
-    # solve model
-    solved_instance = optimization_model.run()
-    # datacollector
-    hourly_results_optimization_df = OptimizationDataCollector().collect_optimization_results_hourly(solved_instance)
-    yearly_results_optimization_df = OptimizationDataCollector().collect_optimization_results_yearly(solved_instance)
+        hourly_results_optimization_df = DB(connection=config.results_connection).read_dataframe(
+            table_name="Optimization_hourly",
+            **{"scenario_id": 0})
+        yearly_results_optimization_df = DB(connection=config.results_connection).read_dataframe(
+            table_name="Optimization_yearly",
+            **{"scenario_id": 0})
+    except (sqlite3.OperationalError, sqlalchemy.exc.OperationalError) as error:
+        print(error)
+        # list of result tables:
+        result_table_names = ["Reference_hourly", "Reference_yearly", "Optimization_hourly", "Optimization_yearly"]
+        # delete the rows in case one of them is saved (eg. optimization is not here but reference is)
+        for table_name in result_table_names:
+            try:
+                DB(connection=config.results_connection).delete_row_from_table(table_name=table_name,
+                                                                           column_name_plus_value={"scenario_id": 0})
+            except sqlalchemy.exc.OperationalError:
+                continue
 
-    reference_model = RefOperationModel(scenario)
-    reference_model.run()
-    hourly_results_reference_df = ReferenceDataCollector(reference_model).collect_reference_results_hourly()
-    yearly_results_reference_df = ReferenceDataCollector(reference_model).collect_reference_results_yearly()
+        # calculate the results and save them
+        optimization_model = OptOperationModel(scenario)
+        # solve model
+        solved_instance = optimization_model.run()
+        # datacollector
+        hourly_results_optimization_df = OptimizationDataCollector(solved_instance,
+                                                                   scenario.scenario_id).collect_optimization_results_hourly()
+        yearly_results_optimization_df = OptimizationDataCollector(solved_instance,
+                                                                   scenario.scenario_id).collect_optimization_results_yearly()
+        # save results to db
+        OptimizationDataCollector(solved_instance, scenario.scenario_id).save_hourly_results()
+        OptimizationDataCollector(solved_instance, scenario.scenario_id).save_yearly_results()
+
+        reference_model = RefOperationModel(scenario)
+        reference_model.run()
+        hourly_results_reference_df = ReferenceDataCollector(reference_model).collect_reference_results_hourly()
+        yearly_results_reference_df = ReferenceDataCollector(reference_model).collect_reference_results_yearly()
+        # save results to db
+        ReferenceDataCollector(reference_model).save_yearly_results()
+        ReferenceDataCollector(reference_model).save_hourly_results()
     # ---------------------------------------------------------------------------------------------------------
 
     show_yearly_comparison_of_SEMS_reference(yearly_results_optimization_df, yearly_results_reference_df)
-
-
