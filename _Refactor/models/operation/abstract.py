@@ -15,7 +15,7 @@ class AbstractOperationModel(ABC):
                  scenario: 'AbstractScenario'):
 
         self.scenario = scenario
-        self.day_hour = np.tile(np.arange(1, 25), 365)
+        self.DayHour = np.tile(np.arange(1, 25), 365)
         self.cp_water = 4200 / 3600
 
         # Result variables: CAREFUL, THESE NAMES HAVE TO BE IDENTICAL TO THE ONES IN THE PYOMO OPTIMIZATION
