@@ -47,7 +47,7 @@ class OptOperationModel(AbstractOperationModel):
                                 supply_temperature=self.scenario.boiler_class.hot_water_supply_temperature,
                                 efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
                                 source=self.scenario.boiler_class.name)),
-                "DayHour": self.creat_Dict(self.day_hour),
+                "DayHour": self.creat_Dict(self.DayHour),
                 "CoolingCOP": {None: self.scenario.airconditioner_class.efficiency},
                 "ChargeEfficiency": {None: self.scenario.battery_class.charge_efficiency},
                 "DischargeEfficiency": {None: self.scenario.battery_class.discharge_efficiency},
@@ -472,7 +472,7 @@ class OptOperationModel(AbstractOperationModel):
             instance.BaseLoadProfile[t] = self.scenario.electricitydemand_class.electricity_demand[index]
             instance.HotWaterProfile[t] = self.scenario.hotwaterdemand_class.hot_water_demand[index]
             instance.HotWaterHourlyCOP[t] = hot_water_hourly_COP[index]
-            instance.DayHour[t] = self.day_hour[index]
+            instance.DayHour[t] = self.DayHour[index]
 
             # Boundaries:
             # Heating
