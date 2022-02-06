@@ -433,7 +433,7 @@ class OptOperationModel(AbstractOperationModel):
             rule = sum(m.Grid[t] * m.electricity_price[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t)
             return rule
 
-        m.Objective_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
+        m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
         # return the household model
         return m
 
@@ -695,8 +695,8 @@ if __name__ == "__main__":
     # solve model
     solved_instance = model_class.run()
     # data collector
-    hourly_results_df = OptimizationDataCollector().collect_optimization_results_hourly(solved_instance, scenario.scenario_id)
-    yearly_results_df = OptimizationDataCollector().collect_optimization_results_yearly(solved_instance, scenario.scenario_id)
+    hourly_results_df = OptimizationDataCollector(solved_instance, scenario.scenario_id).collect_optimization_results_hourly()
+    yearly_results_df = OptimizationDataCollector(solved_instance, scenario.scenario_id).collect_optimization_results_yearly()
 
     pass
 
