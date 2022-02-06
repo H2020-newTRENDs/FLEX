@@ -218,7 +218,7 @@ class RefOperationModel(AbstractOperationModel):
         self.Q_DHWTank_out = Q_DHWTank_out
         self.Q_DHWTank_in = Q_DHWTank_in
         self.Q_DHW_HP_out = Q_HP_DHW
-        self.E_DHWTank = CurrentTankTemperature * self.cp_water * TankSize
+        self.E_DHWTank = (CurrentTankTemperature+273.15) * self.cp_water * TankSize
         return grid_demand_after_DHW, electricity_surplus_after_DHW
 
     def calculate_heating_tank_energy(self, electricity_grid_demand, electricity_surplus, heating_demand):
@@ -477,7 +477,7 @@ class RefOperationModel(AbstractOperationModel):
         # Total_Load_WaterTank is the actual electric load with the use of the water storage
         self.Q_HeatingTank_out = Q_heatingTank_out
         self.Q_HeatingTank_in = Q_heatingTank_in
-        self.E_HeatingTank = CurrentTankTemperature * self.cp_water * TankSize
+        self.E_HeatingTank = (CurrentTankTemperature+273.15) * self.cp_water * TankSize
         self.Q_Heating_HP_out = Q_heating_HP
 
         return grid_demand_after_heating_tank, electricity_surplus_after_tank
