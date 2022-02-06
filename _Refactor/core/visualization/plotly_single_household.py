@@ -15,6 +15,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
+
 # -----------------------------------------------------------------------------------------------------------
 def show_yearly_comparison_of_SEMS_reference(yearly_results_optimization_df: pd.DataFrame,
                                              yearly_results_reference_df: pd.DataFrame):
@@ -34,9 +35,10 @@ def show_yearly_comparison_of_SEMS_reference(yearly_results_optimization_df: pd.
     fig = px.bar(data_frame=yearly_df_plotly, x="index", y="value", color="variable", barmode="group")
     fig.show()
 
+
 def hourly_comparison_SEMS_reference(reference_df: pd.DataFrame, optimization_df: pd.DataFrame):
     # check if both tables have same columns
-    assert list(reference_df.columns).sort() == list(optimization_df.columns).sort()
+    assert sorted(list(reference_df.columns)) == sorted(list(optimization_df.columns))
     # determine how many subplots are needed by excluding profiles that are zero in both modes
     for column_name in reference_df.columns:
         if (reference_df[column_name] == 0).all() and (optimization_df[column_name] == 0).all():
@@ -49,22 +51,20 @@ def hourly_comparison_SEMS_reference(reference_df: pd.DataFrame, optimization_df
             reference_df = reference_df.drop(columns=[column_name])
             optimization_df = optimization_df.drop(columns=[column_name])
 
-
     # count the columns which will be the number of subplots:
     column_number = len(list(reference_df.columns))
     # x-axis are the hours
     x_axis = np.arange(8760)
-
     # create plot
-    fig = make_subplots(rows=column_number, cols=1, subplot_titles=list(reference_df.columns), shared_xaxes=True)
-    for i, column_name in enumerate(reference_df.columns):
-        fig.add_trace(go.Scatter(x=x_axis, y=reference_df[column_name], name="reference"), row=i+1, col=1)
-        fig.add_trace(go.Scatter(x=x_axis, y=optimization_df[column_name], name="SEMS"), row=i+1, col=1)
+    fig = make_subplots(rows=column_number, cols=1,
+                        subplot_titles=sorted(list(reference_df.columns)),
+                        shared_xaxes=True)
+    for i, column_name in enumerate(sorted(list(reference_df.columns))):
+        fig.add_trace(go.Scatter(x=x_axis, y=reference_df[column_name], name="reference"), row=i + 1, col=1)
+        fig.add_trace(go.Scatter(x=x_axis, y=optimization_df[column_name], name="SEMS"), row=i + 1, col=1)
 
-    fig.update_layout(height=400*column_number, width=1600, xaxis=dict(rangeslider=dict(visible=True),
-                                 type="linear"))
+    fig.update_layout(height=400 * column_number, width=1600)
     fig.show()
-    pass
 
 
 # ----------------------------------------------------------------------------------------------------------
@@ -97,7 +97,8 @@ if __name__ == "__main__":
         for table_name in result_table_names:
             try:
                 DB(connection=config.results_connection).delete_row_from_table(table_name=table_name,
-                                                                           column_name_plus_value={"scenario_id": 0})
+                                                                               column_name_plus_value={
+                                                                                   "scenario_id": 0})
             except sqlalchemy.exc.OperationalError:
                 continue
 
