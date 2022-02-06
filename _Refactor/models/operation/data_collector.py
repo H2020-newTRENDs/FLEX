@@ -103,6 +103,8 @@ class OptimizationDataCollector:
         dataframe = pd.DataFrame(dictionary)
         # add the scenario id to the results
         dataframe["scenario_id"] = self.scenario_id
+        # get total_operation_cost:
+        dataframe["total_operation_cost"] = self.instance.total_operation_cost_rule()
         return dataframe
 
     def save_hourly_results(self, if_exists: str = "append") -> None:
@@ -193,7 +195,8 @@ class ReferenceDataCollector:
         # iterate over all variables in the instance
         for result_name in self.reference_model.__dict__.keys():
             if result_name == "scenario" \
-                    or result_name == "cp_water":  # do not save scenario and cp_water
+                    or result_name == "cp_water" \
+                    or result_name == "total_operation_cost":  # do not save scenario and cp_water, total cost
                 continue
             # exclude the building parameters from the results (too much)
             if result_name in list(self.reference_model.scenario.building_class.__dict__.keys()):

@@ -121,6 +121,9 @@ class AbstractOperationModel(ABC):
 
         # electric vehicle (EV)
 
+        # Objective:
+        self.total_operation_cost = None
+
     def COP_HP(self,
                outside_temperature: np.array,
                supply_temperature: float,

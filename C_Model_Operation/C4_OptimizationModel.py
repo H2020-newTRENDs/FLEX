@@ -845,7 +845,7 @@ def run():
             starttime = time.perf_counter()
             print("solving household {} in environment {}...".format(household_RowID, environment_RowID))
             result = Opt.solve(instance2solve, tee=True)
-            print('Total Operation Cost: ' + str(round(instance2solve.Objective_rule(), 2)))
+            print('Total Operation Cost: ' + str(round(instance2solve.total_operation_cost(), 2)))
             print("time for optimization: {}".format(time.perf_counter() - starttime))
             DC.collect_OptimizationResult(input_data["Household"], input_data["Environment"], instance2solve) #for testing
             # only this row

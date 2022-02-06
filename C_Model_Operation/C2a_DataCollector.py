@@ -258,7 +258,7 @@ class DataCollector:
 
         self.SystemOperationYear_ValueList.append([Household.ID,
                                                    Environment["ID"],
-                                                   PyomoModelInstance.Objective_rule(),
+                                                   PyomoModelInstance.total_operation_cost(),
 
                                                    E_BaseLoad_array.sum(),
                                                    E_SmartAppliances_array.sum(),

@@ -124,5 +124,5 @@ if __name__ == "__main__":
         ReferenceDataCollector(reference_model).save_hourly_results()
     # ---------------------------------------------------------------------------------------------------------
 
-    # show_yearly_comparison_of_SEMS_reference(yearly_results_optimization_df, yearly_results_reference_df)
+    show_yearly_comparison_of_SEMS_reference(yearly_results_optimization_df, yearly_results_reference_df)
     hourly_comparison_SEMS_reference(hourly_results_reference_df, hourly_results_optimization_df)

@@ -231,7 +231,7 @@ class DataCollector:
             household["ID"],
             household[REG_Var().ID_Building],
             environment["ID"],
-            instance.Objective_rule(),
+            instance.total_operation_cost(),
 
             E_BaseLoad_array.sum(),
             # E_SmartAppliances_array.sum(),
