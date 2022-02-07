@@ -34,7 +34,9 @@ boiler_config = {
 }
 
 building_config = {
-    None: None
+    "building_mass_temperature_start": 15,  # °C
+    "building_mass_temperature_max": 60,  # °C
+    "grid_power_max": 21_000,  # W
 }
 
 demand_config = {

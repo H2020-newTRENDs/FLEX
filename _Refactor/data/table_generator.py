@@ -8,12 +8,16 @@ from _Refactor.basic.db import DB
 import _Refactor.core.household.components as components
 from _Refactor.basic.reg import Table
 import _Refactor.basic.config as config
-import import_building_data
-import input_data_structure as structure
-import profile_generator
+from _Refactor.data import import_building_data
+from _Refactor.data import input_data_structure as structure
+from _Refactor.data import profile_generator
 
 
 class HouseholdComponentGenerator:
+    def __init__(self, configuration: config.Config):
+        self.input = configuration
+        self.id_hour = np.arange(8760)
+
     """generates the Household tables"""
 
     def calculate_cylindrical_area_from_volume(self, tank_sizes: list) -> list:
@@ -22,7 +26,71 @@ class HouseholdComponentGenerator:
         surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
         return surface_area
 
-    def create_household_building(self) -> None:  # TODO create link to INVERT
+    def create_air_conditioner_data(self) -> None:
+        """creates the ID_SpaceCooling table in the Database"""
+        cooling_power = self.input.air_conditioner_config["power"]  # W
+        cooling_efficiency = np.full((len(cooling_power),), self.input.air_conditioner_config["efficiency"])
+        columns = structure.AirConditionerData().__dict__
+        table_dict = {"ID_AirConditioner": np.arange(1, len(cooling_power) + 1),
+                      "efficiency": cooling_efficiency,
+                      "power": cooling_power,
+                      "power_unit": np.full((len(cooling_power),), "W")
+                      }
+        assert table_dict.keys() == columns.keys()
+        table = pd.DataFrame(table_dict)
+        # save
+        DB().write_dataframe(table_name=Table().air_conditioner,
+                             data_frame=table,
+                             data_types=columns,
+                             if_exists="replace"
+                             )
+
+    def create_appliance_data(self):
+        pass
+
+    def create_battery_data(self) -> None:
+        """creates the ID_Battery table in the Database"""
+        battery_capacity = self.input.battery_config["capacity"]  # W
+        columns = structure.BatteryData().__dict__
+        table_dict = {
+            "ID_Battery": np.arange(1, len(battery_capacity) + 1),
+            "capacity": battery_capacity,
+            "capacity_unit": np.full((len(battery_capacity),), "W"),
+            "charge_efficiency": np.full((len(battery_capacity),), self.input.battery_config["charge_efficiency"]),
+            "discharge_efficiency": np.full((len(battery_capacity),), self.input.battery_config["discharge_efficiency"]),
+            "charge_power_max": np.full((len(battery_capacity),), self.input.battery_config["charge_power_max"]),
+            "charge_power_max_unit": np.full((len(battery_capacity),), "W"),
+            "discharge_power_max": np.full((len(battery_capacity),), self.input.battery_config["discharge_power_max"]),
+            "discharge_power_max_unit": np.full((len(battery_capacity),), "W")
+        }
+        assert table_dict.keys() == columns.keys()
+        table = pd.DataFrame(table_dict)
+        # save
+        DB().write_dataframe(table_name=Table().battery,
+                             data_frame=table,
+                             data_types=columns,
+                             if_exists="replace"
+                             )
+
+    def create_behaviour_data(self):
+        minimum_indoor_temperature, maximum_indoor_temperature = self.generate_target_indoor_temperature_fixed(
+            temperature_min=20,
+            temperature_max=27,
+            night_reduction=2
+        )
+        behaviour_dict = {"ID_Behavior": np.full((8760,), 1),
+                          "indoor_set_temperature_min": minimum_indoor_temperature,
+                          "indoor_set_temperature_max": maximum_indoor_temperature}
+        behaviour_table = pd.DataFrame(behaviour_dict)
+        assert list(behaviour_table.columns).sort() == list(structure.BehaviorData().__dict__.keys()).sort()
+
+        DB().write_dataframe(table_name=Table().behavior,
+                             data_frame=behaviour_table,
+                             data_types=structure.BehaviorData().__dict__,
+                             if_exists="replace"
+                             )
+
+    def create_building_data(self) -> None:  # TODO create link to INVERT
         """reads building excel table and stores it to root"""
         building_mass_temperature_start = 15  # °C
         building_mass_temperature_max = 60  # °C
@@ -130,48 +198,6 @@ class HouseholdComponentGenerator:
                              if_exists="replace"
                              )
 
-    def create_household_air_conditioner(self) -> None:
-        """creates the ID_SpaceCooling table in the Database"""
-        cooling_power = [0, 10_000]  # W  TODO kan be given externally
-        cooling_efficiency = np.full((len(cooling_power),), 3)  # TODO add other COPs?
-        columns = structure.AirConditionerData().__dict__
-        table_dict = {"ID_AirConditioner": np.arange(1, len(cooling_power) + 1),
-                      "efficiency": cooling_efficiency,
-                      "power": cooling_power,
-                      "power_unit": np.full((len(cooling_power),), "W")
-                      }
-        assert table_dict.keys() == columns.keys()
-        table = pd.DataFrame(table_dict)
-        # save
-        DB().write_dataframe(table_name=Table().air_conditioner,
-                             data_frame=table,
-                             data_types=columns,
-                             if_exists="replace"
-                             )
-
-    def create_household_battery(self) -> None:
-        """creates the ID_Battery table in the Database"""
-        battery_capacity = [0, 10_000]  # W  TODO kan be given externally
-        columns = structure.BatteryData().__dict__
-        table_dict = {"ID_Battery": np.arange(1, len(battery_capacity) + 1),
-                      "capacity": battery_capacity,
-                      "capacity_unit": np.full((len(battery_capacity),), "W"),
-                      "charge_efficiency": np.full((len(battery_capacity),), 0.95),
-                      "discharge_efficiency": np.full((len(battery_capacity),), 0.95),
-                      "charge_power_max": np.full((len(battery_capacity),), 4_500),
-                      "charge_power_max_unit": np.full((len(battery_capacity),), "W"),
-                      "discharge_power_max": np.full((len(battery_capacity),), 4_500),
-                      "discharge_power_max_unit": np.full((len(battery_capacity),), "W")
-                      }
-        assert table_dict.keys() == columns.keys()
-        table = pd.DataFrame(table_dict)
-        # save
-        DB().write_dataframe(table_name=Table().battery,
-                             data_frame=table,
-                             data_types=columns,
-                             if_exists="replace"
-                             )
-
     def create_household_pv(self):
         """saves the different PV types to the DB"""
         pv_power = [0, 5, 10]  # kWp  TODO kan be given externally
@@ -193,7 +219,13 @@ class HouseholdComponentGenerator:
         # for household_table in components.component_list:
         #     DB().drop_table(household_table.__name__)
         # create new tables
-        self.create_household_building()
+        for configuration_name in self.input.__dict__.keys():
+            function_name = f"create_{configuration_name.strip('_config')}_data"
+            method_to_call = getattr(self, function_name)
+            method_to_call()
+            pass
+
+        self.create_building_data()
         self.create_household_boiler()
         self.create_household_pv()
         self.create_household_battery()
@@ -236,8 +268,6 @@ class EnvironmentGenerator:
                              if_exists="replace"
                              )
 
-
-
     def run(self):
         # create new tables
         self.create_environment_electricity_price()
@@ -263,7 +293,6 @@ def generate_scenarios_table() -> None:
                     scenarios_columns[column_name] = table[column_name].unique()
         else:
             print(f"{household_table.__name__} does not exist in root db")
-
 
     # create permutations of the columns dictionary to get all possible combinations:
     keys, values = zip(*scenarios_columns.items())

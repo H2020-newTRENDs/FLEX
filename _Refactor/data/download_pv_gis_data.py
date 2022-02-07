@@ -14,7 +14,8 @@ import _Refactor.basic.config as config
 
 class GenerateDataForRoot:
 
-    def __init__(self):
+    def __init__(self, configuration: config.Config):
+        self.configuration = configuration
         self.id_hour = np.arange(1, 8761)
         self.SolarRadiationList = []
         self.TemperatureList = []
