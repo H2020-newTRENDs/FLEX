@@ -13,7 +13,7 @@ from .vehicle import Vehicle
 from .behavior import Behavior
 from .demand import HotWaterDemand, ElectricityDemand
 from .electricity_price import ElectricityPrice
-from .feedin_tariff import FeedInTariff
+from .feed_in_tariff import FeedInTariff
 
 component_list = [Region, Person, PersonList, Building, Appliance, ApplianceList, Boiler, SpaceHeatingTank,
                   AirConditioner, HotWaterTank, PV, Battery, Vehicle, Behavior, HotWaterDemand,
