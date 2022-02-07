@@ -1,14 +1,5 @@
 
 
-# project_config = Config(
-#     project_name="PhilippTest",
-#     project_root=Path(__file__).parent,
-#     sqlite_folder='data/sqlite',
-#     database_name="ProsumagerUpdated_Philipp",
-#     output_folder='data/output'
-# )
-
-
 # All Power inputs have to be provided in W !!!!
 air_conditioner_config = {
     "efficiency": 3,
@@ -47,7 +38,7 @@ building_config = {
 }
 
 demand_config = {
-    "hot_water_demand_path": "C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\_Philipp\inputdata\AUT\Hot_water_profile.xlsx"  # absolute path to the profile
+    "hot_water_demand_path": r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\_Philipp\inputdata\AUT\Hot_water_profile.xlsx"  # absolute path to the profile
 }
 
 electricity_price_config = {
@@ -94,3 +85,4 @@ space_heating_tank_config = {
 vehicle_config = {
     None: None
 }
+
