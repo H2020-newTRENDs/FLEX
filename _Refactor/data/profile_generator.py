@@ -7,7 +7,7 @@ from _Refactor.basic.db import DB
 from _Refactor.basic.reg import Table
 import _Refactor.core.household.components as components
 import _Refactor.basic.config as config
-import input_data_structure as structure
+from _Refactor.data import input_data_structure as structure
 
 
 class ProfileGenerator:
@@ -80,15 +80,6 @@ class ProfileGenerator:
                              if_exists="replace"
                              )
 
-    def generate_hourly_COP_air_conditioner(self):
-        """
-        returns the hourly COP of the AC. For now we only use a constant COP of 3.
-        This can be changed in the future...
-        """
-        # constant COP of 3 is estimated:
-        COP = 3
-        COP_array = np.full((len(self.id_hour),), COP)
-        return COP_array
 
     def generate_electricity_price_profile(self, fixed_price: float):
         """fixed price has to be in cent/kWh"""

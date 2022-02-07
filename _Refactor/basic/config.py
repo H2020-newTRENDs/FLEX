@@ -16,6 +16,8 @@ results_connection = create_connection(db_name="results")
 
 class Config:
     def __init__(self, list_of_dicts):
+        self.battery_config = None
+        self.air_conditioner_config = None
         for dictionary in list_of_dicts:
             setattr(self, list(dictionary.keys())[0], list(dictionary.values())[0])
 
