@@ -219,7 +219,7 @@ class ReferenceDataCollector:
         for result_name in self.reference_model.__dict__.keys():
             if result_name == "scenario" \
                     or result_name == "cp_water" \
-                    or result_name == "day_hour":  # do not save scenario and cp_water and day_hour
+                    or result_name == "DayHour":  # do not save scenario and cp_water and day_hour
                 continue
             # exclude the building parameters from the results (too much)
             if result_name in list(self.reference_model.scenario.building_class.__dict__.keys()):
