@@ -30,6 +30,7 @@ class InputDataGenerator:
             radius = [(2 * volume / 1_000 / 4 / np.pi) ** (1. / 3) for volume in tank_sizes]
             surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
             surface_area.append(0)
+            tank_sizes.append(0)
             return surface_area
         else:
             radius = [(2 * volume / 1_000 / 4 / np.pi) ** (1. / 3) for volume in tank_sizes]
@@ -83,11 +84,11 @@ class InputDataGenerator:
                              if_exists="replace"
                              )
 
-    def create_behaviour_data(self):
-        minimum_indoor_temperature, maximum_indoor_temperature = ProfileGenerator.generate_target_indoor_temperature_fixed(
+    def create_behavior_data(self):
+        minimum_indoor_temperature, maximum_indoor_temperature = ProfileGenerator().generate_target_indoor_temperature_fixed(
             temperature_min=self.input.behavior_config["temperature_min"],
-            temperature_max=self.input.battery_config["temperature_max"],
-            night_reduction=self.input.battery_config["night_reduction"]
+            temperature_max=self.input.behavior_config["temperature_max"],
+            night_reduction=self.input.behavior_config["night_reduction"]
         )
         behaviour_dict = {"ID_Behavior": np.full((8760,), 1),
                           "indoor_set_temperature_min": minimum_indoor_temperature,
@@ -199,7 +200,7 @@ class InputDataGenerator:
             api_key=self.input.electricity_price_config["api_key"],
             start_time=self.input.electricity_price_config["start"],
             end_time=self.input.electricity_price_config["end"],
-            country_codes=self.input.electricity_price_config["country_code"]
+            country_code=self.input.electricity_price_config["country_code"]
         )
 
         fixed_price_vector = np.full((8760,), self.input.electricity_price_config["fixed_price"])  # cent/kWh
@@ -235,7 +236,7 @@ class InputDataGenerator:
                             "unit": np.full((8760,), "cent/kWh")}
 
             table = pd.DataFrame(feed_in_dict)
-            feed_in_table = pd.concat([feed_in_table, table], axis=1)
+            feed_in_table = pd.concat([feed_in_table, table], axis=0)
 
         assert sorted(list(feed_in_table.columns)) == sorted(list(structure.FeedInTariffData().__dict__.keys()))
 
@@ -286,30 +287,30 @@ class InputDataGenerator:
         pass
 
     def create_region_data(self) -> None:
-        PVGIS().run(nuts_level=self.input.pv_region_config["nuts_level"],
-                    country_code=self.input.pv_region_config["country_code"],
-                    start_year=self.input.pv_region_config["start_year"],
-                    end_year=self.input.pv_region_config["end_year"],
-                    pv_sizes=self.input.pv_region_config["pv_size"])
+        PVGIS().run(nuts_level=self.input.region_config["nuts_level"],
+                    country_code=self.input.region_config["country_code"],
+                    start_year=self.input.region_config["start_year"],
+                    end_year=self.input.region_config["end_year"],
+                    pv_sizes=self.input.region_config["pv_size"])
 
     def create_space_heating_tank_data(self) -> None:
         """creates the space heating tank table in the Database"""
-        tank_sizes = self.input.space_heating_tank_config["size"]  # liter  TODO kan be given externally
+        tank_size = self.input.space_heating_tank_config["size"]  # liter
         columns = structure.SpaceHeatingTankData().__dict__
         # tank is designed as Cylinder with minimal surface area:
-        surface_area = self.calculate_cylindrical_area_from_volume(tank_sizes)
+        surface_area = self.calculate_cylindrical_area_from_volume(tank_size)
         table_dict = {
-            "ID_SpaceHeatingTank": np.arange(1, len(tank_sizes) + 1),  # ID
-            "size": tank_sizes,  # tank size
-            "size_unit": np.full((len(tank_sizes),), "kg"),  # TankSize_unit
+            "ID_SpaceHeatingTank": np.arange(1, len(tank_size) + 1),  # ID
+            "size": tank_size,  # tank size
+            "size_unit": np.full((len(tank_size),), "kg"),  # TankSize_unit
             "surface_area": surface_area,  # TankSurfaceArea
-            "surface_area_unit": np.full((len(tank_sizes),), "m2"),  # TankSurfaceArea_unit
-            "loss": np.full((len(tank_sizes),), self.input.space_heating_tank_config["loss"]),  # TankLoss
-            "loss_unit": np.full((len(tank_sizes),), "W/m2"),  # TankLoss_unit
-            "temperature_start": np.full((len(tank_sizes),), self.input.space_heating_tank_config["temperature_start"]),
-            "temperature_max": np.full((len(tank_sizes),), self.input.space_heating_tank_config["temperature_max"]),
-            "temperature_min": np.full((len(tank_sizes),), self.input.space_heating_tank_config["temperature_min"]),
-            "temperature_surrounding": np.full((len(tank_sizes),),
+            "surface_area_unit": np.full((len(tank_size),), "m2"),  # TankSurfaceArea_unit
+            "loss": np.full((len(tank_size),), self.input.space_heating_tank_config["loss"]),  # TankLoss
+            "loss_unit": np.full((len(tank_size),), "W/m2"),  # TankLoss_unit
+            "temperature_start": np.full((len(tank_size),), self.input.space_heating_tank_config["temperature_start"]),
+            "temperature_max": np.full((len(tank_size),), self.input.space_heating_tank_config["temperature_max"]),
+            "temperature_min": np.full((len(tank_size),), self.input.space_heating_tank_config["temperature_min"]),
+            "temperature_surrounding": np.full((len(tank_size),),
                                                self.input.space_heating_tank_config["temperature_surrounding"])
         }
         assert table_dict.keys() == columns.keys()
@@ -324,10 +325,9 @@ class InputDataGenerator:
     def run(self):
         # TODO implement what to do when inputs are None
         for configuration_name in self.input.__dict__.keys():
-            function_name = f"create_{configuration_name.strip('_config')}_data"
+            function_name = f"create_{configuration_name.replace('_config', '')}_data"
             method_to_call = getattr(self, function_name)
             method_to_call()
-
 
 
 def generate_scenarios_table() -> None:

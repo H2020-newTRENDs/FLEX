@@ -227,6 +227,8 @@ def load_building_data_from_excel():
         "cum_sub_env_exist_build",
         "Tset",
         "user_profile",
+        "building_categories_index",
+        "ued_dhw"
     ])
     df_database = df_database.reset_index().rename(columns={"index": "invert_index"})
     df_database["index"] = np.arange(1, len(df_database)+1)
