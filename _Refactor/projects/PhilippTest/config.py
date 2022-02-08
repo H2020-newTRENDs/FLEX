@@ -28,7 +28,7 @@ boiler_config = {
     "name": ["Air_HP", "Ground_HP"],
     "thermal_power_max": 15_000,   # W
     "heating_element_power": 7_500,
-    "carnot_efficiency_factor": [0.4, 0.35],
+    "carnot_efficiency_factor": [0.4, 0.35],  # for the heat pumps respectively
     "heating_supply_temperature": 35,
     "hot_water_supply_temperature":  55
 }
@@ -40,14 +40,19 @@ building_config = {
 }
 
 demand_config = {
-    "hot_water_demand_path": r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\_Philipp\inputdata\AUT\Hot_water_profile.xlsx"  # absolute path to the profile
+    "hot_water_demand_path": r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\_Philipp\inputdata\AUT\Hot_water_profile.xlsx",  # absolute path to the profile
+    "base_load_path": r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\_Philipp\inputdata\AUT\synthload2019.csv"
 }
 
 electricity_price_config = {
+    # variable price
     "entsoe_api_key": 'c06ee579-f827-486d-bc1f-8fa0d7ccd3da',
     "start": "20190101",
     "end": "20200101",
-    "country_code": "AT"
+    "country_code": "AT",
+
+    # fixed price
+    "fixed_price": 20  # C/kWh
 }
 
 feed_in_tariff_config = {
@@ -72,7 +77,8 @@ pv_region_config = {
     "nuts_level": 3,
     "country_code": "AT",
     "start_year": 2010,
-    "end_year": 2010
+    "end_year": 2010,
+    "pv_size": [0, 5, 10]  # kWp
 }
 
 space_heating_tank_config = {

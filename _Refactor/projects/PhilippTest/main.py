@@ -6,7 +6,7 @@ import _Refactor.projects.PhilippTest.config as configurations
 # these imports are fixed
 import numpy as np
 from _Refactor.basic.config import Config
-from _Refactor.data.table_generator import HouseholdComponentGenerator
+from _Refactor.data.table_generator import InputDataGenerator
 from _Refactor.core.household.abstract_scenario import AbstractScenario
 from _Refactor.models.operation.opt import OptOperationModel
 from _Refactor.models.operation.ref import RefOperationModel
@@ -19,7 +19,7 @@ config_list = [{config_name: value} for (config_name, value) in configurations._
 # define scenario:
 configuration = Config(config_list)
 # create all the data for the calculations:
-HouseholdComponentGenerator(configuration).run()
+InputDataGenerator(configuration).run()
 
 
 # create scenario:
