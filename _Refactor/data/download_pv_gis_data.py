@@ -341,7 +341,7 @@ class PVGIS:
         # get different PV id types:
         unique_PV_id_types = np.unique(
             DB().read_dataframe(f"PV_generation_NUTS{nuts_level}_{country}",
-                                ["ID_PV"]).to_numpy()  # *columns
+                                *["ID_PV"]).to_numpy()  # *columns
         )
         # check if the PV types in the root are also there from PV GIS
         assert sorted(list(unique_PV_id_types)) == sorted(list(DB().read_dataframe(Table().pv).ID_PV))
@@ -353,13 +353,13 @@ class PVGIS:
             heat_demand_of_specific_region = row["sum"]
             # Temperature
             temperature_profile = DB().read_dataframe(f"Temperature_NUTS{nuts_level}_{country}",
-                                                      ["temperature"],  # *columns
+                                                      *["temperature"],  # *columns
                                                       nuts_id=nuts_id).to_numpy()  # **kwargs
             temperature_weighted_sum += temperature_profile * heat_demand_of_specific_region / total_heat_demand
 
             # Solar radiation
             radiation_profile = DB().read_dataframe(f"Radiation_NUTS{nuts_level}_{country}",
-                                                    ["south", "east", "west", "north"],  # *columns
+                                                    *["south", "east", "west", "north"],  # *columns
                                                     nuts_id=nuts_id).to_numpy()  # **kwargs
             radiation_weighted_sum += radiation_profile * heat_demand_of_specific_region / total_heat_demand
 
@@ -367,7 +367,7 @@ class PVGIS:
             # iterate through different PV types and add each weighted profiles to corresponding dictionary index
             for id_pv in unique_PV_id_types:
                 PV_profile = DB().read_dataframe(f"PV_generation_NUTS{nuts_level}_{country}",
-                                                 ["power"],  # *columns
+                                                 *["power"],  # *columns
                                                  nuts_id=nuts_id, ID_PV=id_pv).to_numpy()  # **kwargs
                 PV_weighted_sum[id_pv] += PV_profile * heat_demand_of_specific_region / total_heat_demand
 

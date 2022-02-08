@@ -46,7 +46,7 @@ demand_config = {
 
 electricity_price_config = {
     # variable price
-    "entsoe_api_key": 'c06ee579-f827-486d-bc1f-8fa0d7ccd3da',
+    "api_key": 'c06ee579-f827-486d-bc1f-8fa0d7ccd3da',
     "start": "20190101",
     "end": "20200101",
     "country_code": "AT",
@@ -73,7 +73,7 @@ person_config = {
     None: None
 }
 
-pv_region_config = {
+region_config = {
     "nuts_level": 3,
     "country_code": "AT",
     "start_year": 2010,

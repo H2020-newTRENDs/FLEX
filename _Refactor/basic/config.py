@@ -16,8 +16,8 @@ results_connection = create_connection(db_name="results")
 
 class Config:
     def __init__(self, list_of_dicts):
+        self.region_config = None
         self.space_heating_tank_config = None
-        self.pv_region_config = None
         self.hot_water_tank_config = None
         self.feed_in_tariff_config = None
         self.electricity_price_config = None

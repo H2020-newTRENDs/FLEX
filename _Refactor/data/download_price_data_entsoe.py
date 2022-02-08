@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from entsoe import EntsoePandasClient, Area
 
@@ -28,21 +29,19 @@ pd.options.display.max_columns = None
 def get_entsoe_prices(api_key: str,
                       start_time: str,
                       end_time: str,
-                      country_codes: list) -> pd.DataFrame:
+                      country_code: str) -> np.array:
     # %% parameter definitions
     client = EntsoePandasClient(api_key=api_key)
 
     start = pd.Timestamp(start_time, tz='CET')
     end = pd.Timestamp(end_time, tz='CET')
 
-    for country_code in country_codes:
-        # Get day-ahead prices from ENTSO-E Transparency
-        print('Prices in zone ' + country_code)
-        DA_prices = client.query_day_ahead_prices(country_code, start=start, end=end)
-        df_prices = pd.DataFrame(DA_prices).reset_index()
-        df_prices.columns = ['Date/time', 'price_' + country_code]
 
-    return df_prices
+    # Get day-ahead prices from ENTSO-E Transparency
+    print('Prices in zone ' + country_code)
+    DA_prices = client.query_day_ahead_prices(country_code, start=start, end=end)
+    prices = pd.DataFrame(DA_prices).reset_index(drop=True).to_numpy()
+    return prices
 
 
 

@@ -108,7 +108,7 @@ class HotWaterDemandData:
 
 class ElectricityDemandData:
     def __init__(self):
-        self.ID_Electricity_Demand = sqlalchemy.types.Integer
+        self.ID_ElectricityDemand = sqlalchemy.types.Integer
         self.electricity_demand = sqlalchemy.types.Float
         self.unit = sqlalchemy.types.String
 
