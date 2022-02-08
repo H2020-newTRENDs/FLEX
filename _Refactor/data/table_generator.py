@@ -25,9 +25,16 @@ class InputDataGenerator:
 
     def calculate_cylindrical_area_from_volume(self, tank_sizes: list) -> list:
         """calculates the minimal cylindicral area of a tank with a give volume"""
-        radius = [(2 * volume / 1_000 / 4 / np.pi) ** (1. / 3) for volume in tank_sizes]
-        surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
-        return surface_area
+        if 0 in tank_sizes:
+            tank_sizes.remove(0)
+            radius = [(2 * volume / 1_000 / 4 / np.pi) ** (1. / 3) for volume in tank_sizes]
+            surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
+            surface_area.append(0)
+            return surface_area
+        else:
+            radius = [(2 * volume / 1_000 / 4 / np.pi) ** (1. / 3) for volume in tank_sizes]
+            surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
+            return surface_area
 
     def create_air_conditioner_data(self) -> None:
         """creates the ID_SpaceCooling table in the Database"""
