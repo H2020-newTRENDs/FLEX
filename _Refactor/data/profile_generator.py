@@ -81,36 +81,7 @@ class ProfileGenerator:
                              )
 
 
-    def generate_electricity_price_profile(self, fixed_price: float):
-        """fixed price has to be in cent/kWh"""
-        # load electricity price
-        variable_electricity_price = pd.read_excel(
-            "C:/Users/mascherbauer/PycharmProjects/NewTrends/Prosumager/_Philipp/inputdata/Elec_price_per_hour.xlsx",
-            engine="openpyxl").to_numpy() / 10 + 15  # cent/kWh
 
-        fixed_price_vector = np.full((8760,), fixed_price)  # cent/kWh
-
-        variable_price_to_db = np.column_stack(
-            [np.full((8760,), 1),  # ID
-             self.id_hour,  # id_hour
-             variable_electricity_price,
-             np.full((8760,), "cent/kWh")]
-        )
-        fixed_price_to_db = np.column_stack(
-            [np.full((8760,), 2),  # ID
-             self.id_hour,
-             fixed_price_vector,
-             np.full((8760,), "cent/kWh")]
-        )
-        price_to_db = np.vstack([variable_price_to_db, fixed_price_to_db])
-        price_table = pd.DataFrame(price_to_db, columns=list(structure.ElectricityPriceData().__dict__.keys()))
-        # save to database
-
-        DB().write_dataframe(table_name=Table().electricity_price,
-                             data_frame=price_table,
-                             data_types=structure.ElectricityPriceData().__dict__,
-                             if_exists="replace"
-                             )
 
     def generate_feed_in_price_profile(self, constant_feed_in: float):
         # FIT
@@ -126,43 +97,8 @@ class ProfileGenerator:
                              if_exists="replace"
                              )
 
-    def generate_base_electricity_demand(self):
-        baseload = pd.read_csv(
-            Path().absolute().parent.parent.resolve() / Path("_Philipp/inputdata/AUT/synthload2019.csv"),
-            sep=None, engine="python")
-        baseload_h0 = baseload.loc[baseload["Typnummer"] == 1].set_index("Zeit", drop=True).drop(columns="Typnummer")
-        baseload_h0.index = pd.to_datetime(baseload_h0.index)
-        baseload_h0["Wert"] = pd.to_numeric(baseload_h0["Wert"].str.replace(",", "."))
-        baseload_h0 = baseload_h0[3:].resample("1H").sum()
-        baseload_h0 = baseload_h0.reset_index(drop=True).rename(columns={"Wert": "electricity_demand"})
-        baseload_h0 = baseload_h0.to_numpy() * 1_000  # from kWh in Wh
 
-        baseload_dict = {"ID_ElectricityDemand": np.full((8760,), 1),
-                         "electricity_demand": baseload_h0.flatten(),
-                         "unit": np.full((8760,), "Wh")}
-        baseload_table = pd.DataFrame(baseload_dict)
-        assert list(baseload_table.columns).sort() == list(structure.ElectricityDemandData().__dict__.keys()).sort()
-        DB().write_dataframe(table_name=Table().electricity_demand,
-                             data_frame=baseload_table,
-                             data_types=structure.ElectricityDemandData().__dict__,
-                             if_exists="replace"
-                             )
 
-    def generate_hot_water_profile(self):
-        hot_water = pd.read_excel(
-            Path().absolute().parent.parent.resolve() / Path("_Philipp/inputdata/AUT/Hot_water_profile.xlsx"),
-            engine="openpyxl")
-        hot_water_dict = {"ID_HotWaterDemand": np.full((8760,), 1),
-                          "hot_water_demand": hot_water["Profile"].to_numpy(),
-                          "unit": np.full((8760,), "kWh")}
-        hot_water_table = pd.DataFrame(hot_water_dict)
-        assert list(hot_water_table.columns).sort() == list(structure.HotWaterDemandData().__dict__.keys()).sort()
-
-        DB().write_dataframe(table_name=Table().hot_water_demand,
-                             data_frame=hot_water_table,
-                             data_types=structure.HotWaterDemandData().__dict__,
-                             if_exists="replace"
-                             )
 
     def run(self):
 

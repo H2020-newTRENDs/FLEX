@@ -3,6 +3,7 @@ import pandas as pd
 from abc import ABC, abstractmethod
 import sqlalchemy.types
 import itertools
+from pathlib import Path
 
 from _Refactor.basic.db import DB
 import _Refactor.core.household.components as components
@@ -10,13 +11,15 @@ from _Refactor.basic.reg import Table
 import _Refactor.basic.config as config
 from _Refactor.data import import_building_data
 from _Refactor.data import input_data_structure as structure
-from _Refactor.data import profile_generator
+from _Refactor.data.profile_generator import ProfileGenerator
+from _Refactor.data.download_price_data_entsoe import get_entsoe_prices
+from _Refactor.data.download_pv_gis_data import PVGIS
 
 
-class HouseholdComponentGenerator:
+class InputDataGenerator:
     def __init__(self, configuration: config.Config):
         self.input = configuration
-        self.id_hour = np.arange(8760)
+        self.id_hour = np.arange(1, 8761)
 
     """generates the Household tables"""
 
@@ -57,7 +60,8 @@ class HouseholdComponentGenerator:
             "capacity": battery_capacity,
             "capacity_unit": np.full((len(battery_capacity),), "W"),
             "charge_efficiency": np.full((len(battery_capacity),), self.input.battery_config["charge_efficiency"]),
-            "discharge_efficiency": np.full((len(battery_capacity),), self.input.battery_config["discharge_efficiency"]),
+            "discharge_efficiency": np.full((len(battery_capacity),),
+                                            self.input.battery_config["discharge_efficiency"]),
             "charge_power_max": np.full((len(battery_capacity),), self.input.battery_config["charge_power_max"]),
             "charge_power_max_unit": np.full((len(battery_capacity),), "W"),
             "discharge_power_max": np.full((len(battery_capacity),), self.input.battery_config["discharge_power_max"]),
@@ -73,16 +77,16 @@ class HouseholdComponentGenerator:
                              )
 
     def create_behaviour_data(self):
-        minimum_indoor_temperature, maximum_indoor_temperature = self.generate_target_indoor_temperature_fixed(
-            temperature_min=20,
-            temperature_max=27,
-            night_reduction=2
+        minimum_indoor_temperature, maximum_indoor_temperature = ProfileGenerator.generate_target_indoor_temperature_fixed(
+            temperature_min=self.input.behavior_config["temperature_min"],
+            temperature_max=self.input.battery_config["temperature_max"],
+            night_reduction=self.input.battery_config["night_reduction"]
         )
         behaviour_dict = {"ID_Behavior": np.full((8760,), 1),
                           "indoor_set_temperature_min": minimum_indoor_temperature,
                           "indoor_set_temperature_max": maximum_indoor_temperature}
         behaviour_table = pd.DataFrame(behaviour_dict)
-        assert list(behaviour_table.columns).sort() == list(structure.BehaviorData().__dict__.keys()).sort()
+        assert sorted(list(behaviour_table.columns)) == sorted(list(structure.BehaviorData().__dict__.keys()))
 
         DB().write_dataframe(table_name=Table().behavior,
                              data_frame=behaviour_table,
@@ -90,11 +94,38 @@ class HouseholdComponentGenerator:
                              if_exists="replace"
                              )
 
+    def create_boiler_data(self) -> None:
+        """creates the space heating system table in the Database"""
+        heating_system = self.input.boiler_config["name"]
+        carnot_factor = self.input.boiler_config["carnot_efficiency_factor"]
+        columns = structure.BoilerData().__dict__
+        table_dict = {
+            "ID_Boiler": np.arange(1, len(heating_system) + 1),
+            "name": heating_system,
+            "thermal_power_max": np.full((len(heating_system),), self.input.boiler_config["thermal_power_max"]),
+            "thermal_power_max_unit": np.full((len(heating_system),), "W"),
+            "heating_element_power": np.full((len(heating_system),), self.input.boiler_config["heating_element_power"]),
+            "heating_element_power_unit": np.full((len(heating_system),), "W"),
+            "carnot_efficiency_factor": carnot_factor,
+            "heating_supply_temperature": np.full((len(heating_system),),
+                                                  self.input.boiler_config["heating_supply_temperature"]),
+            "hot_water_supply_temperature": np.full((len(heating_system),),
+                                                    self.input.boiler_config["hot_water_supply_temperature"])
+        }
+        assert table_dict.keys() == columns.keys()
+        table = pd.DataFrame(table_dict)
+        # save
+        DB().write_dataframe(table_name=Table().boiler,
+                             data_frame=table,
+                             data_types=columns,
+                             if_exists="replace"
+                             )
+
     def create_building_data(self) -> None:  # TODO create link to INVERT
         """reads building excel table and stores it to root"""
-        building_mass_temperature_start = 15  # °C
-        building_mass_temperature_max = 60  # °C
-        grid_power_max = 21_000  # W
+        building_mass_temperature_start = self.input.building_config["building_mass_temperature_start"]  # °C
+        building_mass_temperature_max = self.input.building_config["building_mass_temperature_max"]  # °C
+        grid_power_max = self.input.building_config["grid_power_max"]  # W
         building_data = import_building_data.load_building_data_from_excel()
         # rename columns:
         building_data = building_data.rename(
@@ -112,7 +143,7 @@ class HouseholdComponentGenerator:
         building_data["grid_power_max"] = grid_power_max
         building_data["grid_power_max_unit"] = "W"
         columns = structure.BuildingData().__dict__
-        assert list(columns.keys()).sort() == list(building_data.keys()).sort()
+        assert sorted(list(columns.keys())) == sorted(list(building_data.keys()))
         # save
         DB().write_dataframe(table_name=Table().building,
                              data_frame=building_data,
@@ -120,75 +151,117 @@ class HouseholdComponentGenerator:
                              if_exists="replace"
                              )
 
-    def create_household_boiler(self) -> None:
-        """creates the space heating system table in the Database"""
-        heating_system = ["Air_HP", "Ground_HP"]  # TODO kan be given externally
-        carnot_factor = [0.4, 0.35]  # for the heat pumps respectively
-        columns = structure.BoilerData().__dict__
-        table_dict = {"ID_Boiler": np.arange(1, len(heating_system) + 1),
-                      "name": heating_system,
-                      "thermal_power_max": np.full((len(heating_system),), 15_000),
-                      "thermal_power_max_unit": np.full((len(heating_system),), "W"),
-                      "heating_element_power": np.full((len(heating_system),), 7_500),
-                      "heating_element_power_unit": np.full((len(heating_system),), "W"),
-                      "carnot_efficiency_factor": carnot_factor,
-                      "heating_supply_temperature": np.full((len(heating_system),), 35),
-                      "hot_water_supply_temperature": np.full((len(heating_system),), 55)
-                      }
-        assert table_dict.keys() == columns.keys()
-        table = pd.DataFrame(table_dict)
-        # save
-        DB().write_dataframe(table_name=Table().boiler,
-                             data_frame=table,
-                             data_types=columns,
+    def create_demand_data(self):
+        # Base electricity load
+        baseload = pd.read_csv(Path(self.input.demand_config["base_load_path"]), sep=None, engine="python")
+        baseload_h0 = baseload.loc[baseload["Typnummer"] == 1].set_index("Zeit", drop=True).drop(columns="Typnummer")
+        baseload_h0.index = pd.to_datetime(baseload_h0.index)
+        baseload_h0["Wert"] = pd.to_numeric(baseload_h0["Wert"].str.replace(",", "."))
+        baseload_h0 = baseload_h0[3:].resample("1H").sum()
+        baseload_h0 = baseload_h0.reset_index(drop=True).rename(columns={"Wert": "electricity_demand"})
+        baseload_h0 = baseload_h0.to_numpy() * 1_000  # from kWh in Wh
+
+        baseload_dict = {"ID_ElectricityDemand": np.full((8760,), 1),
+                         "electricity_demand": baseload_h0.flatten(),
+                         "unit": np.full((8760,), "Wh")}
+        baseload_table = pd.DataFrame(baseload_dict)
+        assert sorted(list(baseload_table.columns)) == sorted(list(structure.ElectricityDemandData().__dict__.keys()))
+        DB().write_dataframe(table_name=Table().electricity_demand,
+                             data_frame=baseload_table,
+                             data_types=structure.ElectricityDemandData().__dict__,
                              if_exists="replace"
                              )
 
-    def create_household_space_heating_tank(self) -> None:
-        """creates the space heating tank table in the Database"""
-        tank_sizes = [500, 1_000, 1500]  # liter  TODO kan be given externally
-        columns = structure.SpaceHeatingTankData().__dict__
-        # tank is designed as Cylinder with minimal surface area:
-        surface_area = self.calculate_cylindrical_area_from_volume(tank_sizes)
-        table_dict = {"ID_SpaceHeatingTank": np.arange(1, len(tank_sizes) + 1),  # ID
-                      "size": tank_sizes,  # tank size
-                      "size_unit": np.full((len(tank_sizes),), "kg"),  # TankSize_unit
-                      "surface_area": surface_area,  # TankSurfaceArea
-                      "surface_area_unit": np.full((len(tank_sizes),), "m2"),  # TankSurfaceArea_unit
-                      "loss": np.full((len(tank_sizes),), 0.2),  # TankLoss
-                      "loss_unit": np.full((len(tank_sizes),), "W/m2"),  # TankLoss_unit
-                      "temperature_start": np.full((len(tank_sizes),), 28),  # TankStartTemperature
-                      "temperature_max": np.full((len(tank_sizes),), 45),  # TankMaximalTemperature
-                      "temperature_min": np.full((len(tank_sizes),), 28),  # TankMinimalTemperature
-                      "temperature_surrounding": np.full((len(tank_sizes),), 20)  # TankSurroundingTemperature
-                      }
-        assert table_dict.keys() == columns.keys()
-        table = pd.DataFrame(table_dict)
-        # save
-        DB().write_dataframe(table_name=Table().space_heating_tank,
-                             data_frame=table,
-                             data_types=columns,
+        # Hot water demand profile
+        hot_water = pd.read_excel(Path(self.input.demand_config["hot_water_demand_path"]), engine="openpyxl")
+        hot_water_dict = {"ID_HotWaterDemand": np.full((8760,), 1),
+                          "hot_water_demand": hot_water["Profile"].to_numpy(),
+                          "unit": np.full((8760,), "kWh")}
+        hot_water_table = pd.DataFrame(hot_water_dict)
+        assert sorted(list(hot_water_table.columns)) == sorted(list(structure.HotWaterDemandData().__dict__.keys()))
+
+        DB().write_dataframe(table_name=Table().hot_water_demand,
+                             data_frame=hot_water_table,
+                             data_types=structure.HotWaterDemandData().__dict__,
                              if_exists="replace"
                              )
 
-    def create_household_hot_water_tank(self) -> None:
+    def create_electricity_price_data(self):
+        # load electricity price # TODO implement possibility of more than 2 price scenarios
+        variable_electricity_price = get_entsoe_prices(
+            api_key=self.input.electricity_price_config["api_key"],
+            start_time=self.input.electricity_price_config["start"],
+            end_time=self.input.electricity_price_config["end"],
+            country_codes=self.input.electricity_price_config["country_code"]
+        )
+
+        fixed_price_vector = np.full((8760,), self.input.electricity_price_config["fixed_price"])  # cent/kWh
+
+        variable_price_to_db = np.column_stack(
+            [np.full((8760,), 1),  # ID
+             self.id_hour,  # id_hour
+             variable_electricity_price,
+             np.full((8760,), "cent/kWh")]
+        )
+        fixed_price_to_db = np.column_stack(
+            [np.full((8760,), 2),  # ID
+             self.id_hour,
+             fixed_price_vector,
+             np.full((8760,), "cent/kWh")]
+        )
+        price_to_db = np.vstack([variable_price_to_db, fixed_price_to_db])
+        price_table = pd.DataFrame(price_to_db, columns=list(structure.ElectricityPriceData().__dict__.keys()))
+        # save to database
+
+        DB().write_dataframe(table_name=Table().electricity_price,
+                             data_frame=price_table,
+                             data_types=structure.ElectricityPriceData().__dict__,
+                             if_exists="replace"
+                             )
+
+    def create_feed_in_tariff_data(self):
+        feed_in_table = pd.DataFrame(columns=["ID_FeedInTariff", "id_hour", "feed_in_tariff", "unit"])
+        for i, fixed_feed_in in enumerate(self.input.feed_in_tariff_config["fixed_feed_in_tariff"]):
+            feed_in_dict = {"ID_FeedInTariff": np.full((8760,), i + 1),
+                            "id_hour": self.id_hour,
+                            "feed_in_tariff": np.full((8760,), fixed_feed_in),
+                            "unit": np.full((8760,), "cent/kWh")}
+
+            table = pd.DataFrame(feed_in_dict)
+            feed_in_table = pd.concat([feed_in_table, table], axis=1)
+
+        assert sorted(list(feed_in_table.columns)) == sorted(list(structure.FeedInTariffData().__dict__.keys()))
+
+        for j, variable_feed_in in enumerate(self.input.feed_in_tariff_config["variable_feed_in_tariff_path"]):
+            # TODO read the table from a file from path
+            pass
+
+        DB().write_dataframe(table_name=Table().feedin_tariff,
+                             data_frame=feed_in_table,
+                             data_types=structure.FeedInTariffData().__dict__,
+                             if_exists="replace"
+                             )
+
+    def create_hot_water_tank_data(self) -> None:
         """creates the ID_DHWTank table in the Database"""
-        tank_sizes = [200, 500, 1_000]  # liter  TODO kan be given externally
+        tank_sizes = self.input.hot_water_tank_config["size"]  # liter
         columns = structure.HotWaterTankData().__dict__
         # tank is designed as Cylinder with minimal surface area:
         surface_area = self.calculate_cylindrical_area_from_volume(tank_sizes)
-        table_dict = {"ID_HotWaterTank": np.arange(1, len(tank_sizes) + 1),  # ID
-                      "size": tank_sizes,  # tank size
-                      "size_unit": np.full((len(tank_sizes),), "kg"),  # TankSize_unit
-                      "surface_area": surface_area,  # TankSurfaceArea
-                      "surface_area_unit": np.full((len(tank_sizes),), "m2"),  # TankSurfaceArea_unit
-                      "loss": np.full((len(tank_sizes),), 0.2),  # TankLoss
-                      "loss_unit": np.full((len(tank_sizes),), "W/m2"),  # TankLoss_unit
-                      "temperature_start": np.full((len(tank_sizes),), 28),  # TankStartTemperature
-                      "temperature_max": np.full((len(tank_sizes),), 65),  # TankMaximalTemperature
-                      "temperature_min": np.full((len(tank_sizes),), 28),  # TankMinimalTemperature
-                      "temperature_surrounding": np.full((len(tank_sizes),), 20)  # TankSurroundingTemperature
-                      }
+        table_dict = {
+            "ID_HotWaterTank": np.arange(1, len(tank_sizes) + 1),  # ID
+            "size": tank_sizes,  # tank size
+            "size_unit": np.full((len(tank_sizes),), "kg"),  # TankSize_unit
+            "surface_area": surface_area,  # TankSurfaceArea
+            "surface_area_unit": np.full((len(tank_sizes),), "m2"),  # TankSurfaceArea_unit
+            "loss": np.full((len(tank_sizes),), self.input.hot_water_tank_config["loss"]),  # TankLoss
+            "loss_unit": np.full((len(tank_sizes),), "W/m2"),  # TankLoss_unit
+            "temperature_start": np.full((len(tank_sizes),), self.input.hot_water_tank_config["temperature_start"]),
+            "temperature_max": np.full((len(tank_sizes),), self.input.hot_water_tank_config["temperature_max"]),
+            "temperature_min": np.full((len(tank_sizes),), self.input.hot_water_tank_config["temperature_min"]),
+            "temperature_surrounding": np.full((len(tank_sizes),),
+                                               self.input.hot_water_tank_config["temperature_surrounding"])
+        }
         assert table_dict.keys() == columns.keys()
         table = pd.DataFrame(table_dict)
         # save
@@ -198,80 +271,56 @@ class HouseholdComponentGenerator:
                              if_exists="replace"
                              )
 
-    def create_household_pv(self):
-        """saves the different PV types to the DB"""
-        pv_power = [0, 5, 10]  # kWp  TODO kan be given externally
-        columns = structure.PVData().__dict__
-        table_dict = {"ID_PV": np.arange(1, len(pv_power) + 1),
-                      "peak_power": pv_power,
-                      "peak_power_unit": np.full((len(pv_power),), "kWp")
-                      }
+    def create_person_data(self):
+        pass
+
+    def create_pv_data(self):
+        # is created together with region data
+        pass
+
+    def create_region_data(self) -> None:
+        PVGIS().run(nuts_level=self.input.pv_region_config["nuts_level"],
+                    country_code=self.input.pv_region_config["country_code"],
+                    start_year=self.input.pv_region_config["start_year"],
+                    end_year=self.input.pv_region_config["end_year"],
+                    pv_sizes=self.input.pv_region_config["pv_size"])
+
+    def create_space_heating_tank_data(self) -> None:
+        """creates the space heating tank table in the Database"""
+        tank_sizes = self.input.space_heating_tank_config["size"]  # liter  TODO kan be given externally
+        columns = structure.SpaceHeatingTankData().__dict__
+        # tank is designed as Cylinder with minimal surface area:
+        surface_area = self.calculate_cylindrical_area_from_volume(tank_sizes)
+        table_dict = {
+            "ID_SpaceHeatingTank": np.arange(1, len(tank_sizes) + 1),  # ID
+            "size": tank_sizes,  # tank size
+            "size_unit": np.full((len(tank_sizes),), "kg"),  # TankSize_unit
+            "surface_area": surface_area,  # TankSurfaceArea
+            "surface_area_unit": np.full((len(tank_sizes),), "m2"),  # TankSurfaceArea_unit
+            "loss": np.full((len(tank_sizes),), self.input.space_heating_tank_config["loss"]),  # TankLoss
+            "loss_unit": np.full((len(tank_sizes),), "W/m2"),  # TankLoss_unit
+            "temperature_start": np.full((len(tank_sizes),), self.input.space_heating_tank_config["temperature_start"]),
+            "temperature_max": np.full((len(tank_sizes),), self.input.space_heating_tank_config["temperature_max"]),
+            "temperature_min": np.full((len(tank_sizes),), self.input.space_heating_tank_config["temperature_min"]),
+            "temperature_surrounding": np.full((len(tank_sizes),),
+                                               self.input.space_heating_tank_config["temperature_surrounding"])
+        }
+        assert table_dict.keys() == columns.keys()
         table = pd.DataFrame(table_dict)
         # save
-        DB().write_dataframe(table_name=Table().pv,
+        DB().write_dataframe(table_name=Table().space_heating_tank,
                              data_frame=table,
                              data_types=columns,
                              if_exists="replace"
                              )
 
     def run(self):
-        # # delete existing tables so no old tables stay accidentally: TODO implement this when all tables are generated in one run
-        # for household_table in components.component_list:
-        #     DB().drop_table(household_table.__name__)
-        # create new tables
+        # TODO implement what to do when inputs are None
         for configuration_name in self.input.__dict__.keys():
             function_name = f"create_{configuration_name.strip('_config')}_data"
             method_to_call = getattr(self, function_name)
             method_to_call()
-            pass
 
-        self.create_building_data()
-        self.create_household_boiler()
-        self.create_household_pv()
-        self.create_household_battery()
-        self.create_household_air_conditioner()
-        self.create_household_hot_water_tank()
-        self.create_household_space_heating_tank()
-
-
-class EnvironmentGenerator:
-
-    def create_environment_electricity_price(self) -> None:
-        columns_price = structure.ElectricityPriceData().__dict__
-        electricity_price_types = ["variable", "fixed"]  # name  TODO should be provided externally
-        electricity_price_ids = [i for i in range(1, len(electricity_price_types) + 1)]
-
-        electricity_price_dict = {"ID_ElectricityPrice": electricity_price_ids,
-                                  "name": electricity_price_types}
-        table = pd.DataFrame(electricity_price_dict)
-        assert list(table.columns).sort() == list(columns_price.keys()).sort()
-        # save
-        DB().write_dataframe(table_name=Table().electricity_price,
-                             data_frame=table,
-                             data_types=columns_price,
-                             if_exists="replace"
-                             )
-
-    def create_environment_feed_in_tariff(self) -> None:
-        columns_feed_in = structure.FeedInTariffData().__dict__
-        electricity_feed_in_type = ["fixed"]  # name
-        electricity_feed_in_ids = [i for i in range(1, len(electricity_feed_in_type) + 1)]
-
-        electricity_price_dict = {"ID_FeedInTariff": electricity_feed_in_ids,
-                                  "name": electricity_feed_in_type}
-        table = pd.DataFrame(electricity_price_dict)
-        assert list(table.columns).sort() == list(columns_feed_in.keys()).sort()
-        # save
-        DB().write_dataframe(table_name=Table().feedin_tariff,
-                             data_frame=table,
-                             data_types=columns_feed_in,
-                             if_exists="replace"
-                             )
-
-    def run(self):
-        # create new tables
-        self.create_environment_electricity_price()
-        self.create_environment_feed_in_tariff()
 
 
 def generate_scenarios_table() -> None:
@@ -311,13 +360,23 @@ def generate_scenarios_table() -> None:
 
 
 def main():
-    HouseholdComponentGenerator().run()
-    EnvironmentGenerator().run()
+
+    # create list of all configurations defined in configurations
+    config_list = [{config_name: value} for (config_name, value) in configurations.__dict__.items()
+                   if not config_name.startswith("__")]
+    # define scenario:
+    configuration = Config(config_list)
     #
-    profile_generator.ProfileGenerator().run()
-    #
+
+    InputDataGenerator(configuration=configuration).run()
     generate_scenarios_table()
 
 
+
 if __name__ == "__main__":
+    import _Refactor.projects.PhilippTest.config as configurations
+    from _Refactor.basic.config import Config
     main()
+
+
+
