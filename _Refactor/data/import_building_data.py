@@ -4,15 +4,14 @@ from pathlib import Path
 
 
 def load_building_data_from_excel():
-    base_path = Path().absolute().resolve()
-    dynamic_data_path = Path("inputdata/AUT/001__dynamic_calc_data_bc_2017_AUT.csv")
-    building_segment_path = Path("inputdata/AUT/040_aut__3__BASE__1_zz_new_bc_seg__b_building_segment_sh.csv")
-    building_class_path = Path("inputdata/AUT/001_Building_Classes_2017.csv")
+    dynamic_data_path = Path(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\_Philipp\inputdata\AUT\001__dynamic_calc_data_bc_2017_AUT.csv")
+    building_segment_path = Path(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\_Philipp\inputdata\AUT\040_aut__3__BASE__1_zz_new_bc_seg__b_building_segment_sh.csv")
+    building_class_path = Path(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\_Philipp\inputdata\AUT\001_Building_Classes_2017.csv")
 
-    dynamic_data = pd.read_csv(Path(base_path / dynamic_data_path), sep=None, engine="python")
-    building_segment = pd.read_csv(Path(base_path / building_segment_path), sep=None, engine="python").drop(
+    dynamic_data = pd.read_csv(dynamic_data_path, sep=None, engine="python")
+    building_segment = pd.read_csv(building_segment_path, sep=None, engine="python").drop(
         index=[0, 1, 2]).reset_index(drop=True)
-    building_class = pd.read_csv(Path(base_path / building_class_path), sep=None, engine="python").drop(
+    building_class = pd.read_csv(building_class_path, sep=None, engine="python").drop(
         index=[0, 1, 2]).reset_index(drop=True)
 
     # create the data for calculations
@@ -34,8 +33,11 @@ def load_building_data_from_excel():
     modern_sfh = building_class.loc[building_class["name"].str.contains("sfh", case=False)].iloc[-2:, :]
     modern_rh = building_class.loc[building_class["name"].str.contains("rh", case=False)].iloc[-2:, :]
 
-    all_classes = pd.concat([modern_sfh, sfh_gen2, sfh_gen3, sfh_gen4, modern_rh,
-                             rh_gen2, rh_gen3, rh_gen4]).set_index("index", drop=True).sort_index()
+    # all_classes = pd.concat([modern_sfh, sfh_gen2, sfh_gen3, sfh_gen4, modern_rh,
+    #                          rh_gen2, rh_gen3, rh_gen4]).set_index("index", drop=True).sort_index()
+    # no RH
+    all_classes = pd.concat([modern_sfh, sfh_gen2, sfh_gen3, sfh_gen4]
+                            ).set_index("index", drop=True).sort_index()
     indices = all_classes.index.to_numpy().astype(int)
 
     all_dynamic_data = dynamic_data.set_index("bc_index").loc[indices, :]
