@@ -322,6 +322,9 @@ class InputDataGenerator:
                              if_exists="replace"
                              )
 
+    def create_vehicle_data(self):
+        pass
+
     def run(self):
         # TODO implement what to do when inputs are None
         for configuration_name in self.input.__dict__.keys():
