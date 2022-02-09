@@ -683,6 +683,7 @@ class OptOperationModel(AbstractOperationModel):
         pyomo_instance = abstract_model.create_instance(data=self.create_pyomo_dict())
         updated_instance = self.update_instance(pyomo_instance)
         solved_instance = self.solve_optimization(updated_instance)
+        print('Total Operation Cost: ' + str(round(solved_instance.total_operation_cost(), 2)))
         return solved_instance
 
 

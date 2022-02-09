@@ -716,6 +716,7 @@ class RefOperationModel(AbstractOperationModel):
         price_hourly = self.scenario.electricityprice_class.electricity_price
         FIT = self.scenario.feedintariff_class.feed_in_tariff
         self.total_operation_cost = price_hourly * grid_demand - electricity_sold * FIT
+        print('Total Operation Cost reference: ' + str(round(self.total_operation_cost.sum(), 2)))
 
         # grid variables
         self.Grid = grid_demand
