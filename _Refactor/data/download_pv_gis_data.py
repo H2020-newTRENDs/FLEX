@@ -312,10 +312,10 @@ class PVGIS:
                               "peak_power_unit": np.full((8760,), "kWp")}
                 pv_table = pd.DataFrame(columns_pv)
                 assert sorted(list(pv_table.columns)) == sorted(list(
-                    input_data_structure.PVGenerationData().__dict__.keys()))
+                    input_data_structure.PVData().__dict__.keys()))
                 DB().write_dataframe(table_name=table_name_PV,
                                      data_frame=pv_table,
-                                     data_types=input_data_structure.PVGenerationData().__dict__,
+                                     data_types=input_data_structure.PVData().__dict__,
                                      if_exists=exists
                                      )
                 number += 1
@@ -343,11 +343,12 @@ class PVGIS:
             DB().read_dataframe(f"PV_generation_NUTS{nuts_level}_{country}",
                                 *["ID_PV"]).to_numpy()  # *columns
         )
-        # check if the PV types in the root are also there from PV GIS
-        assert sorted(list(unique_PV_id_types)) == sorted(list(DB().read_dataframe(Table().pv).ID_PV))
-
+        unique_peak_power = np.unique(
+            DB().read_dataframe(f"PV_generation_NUTS{nuts_level}_{country}",
+                                *["peak_power"]).to_numpy()  # *columns
+        )
         # dictionary for different PV types
-        PV_weighted_sum = {id_pv: np.zeros((8760, 1)) for id_pv in unique_PV_id_types}
+        PV_weighted_sum = {(id_pv, unique_peak_power[i]): np.zeros((8760, 1)) for i, id_pv in enumerate(unique_PV_id_types)}
         for index, row in heat_demand_AT.iterrows():
             nuts_id = row["nuts_id"]
             heat_demand_of_specific_region = row["sum"]
@@ -365,11 +366,12 @@ class PVGIS:
 
             # PV
             # iterate through different PV types and add each weighted profiles to corresponding dictionary index
-            for id_pv in unique_PV_id_types:
+            for i, id_pv in enumerate(unique_PV_id_types):
                 PV_profile = DB().read_dataframe(f"PV_generation_NUTS{nuts_level}_{country}",
                                                  *["power"],  # *columns
                                                  nuts_id=nuts_id, ID_PV=id_pv).to_numpy()  # **kwargs
-                PV_weighted_sum[id_pv] += PV_profile * heat_demand_of_specific_region / total_heat_demand
+                PV_weighted_sum[(id_pv, unique_peak_power[i])] += PV_profile * heat_demand_of_specific_region / \
+                                                                  total_heat_demand
 
         # create table for saving to DB: Temperature and Radiation will be saved in the region table
         # Temperature + Radiation
@@ -392,15 +394,13 @@ class PVGIS:
                              )
 
         # PV
-        pv_columns = input_data_structure.PVGenerationData().__dict__.keys()
+        pv_columns = input_data_structure.PVData().__dict__.keys()
         # create single row on which tables are stacked up
         pv_table_numpy = np.zeros((1, len(pv_columns)))
-        for key, values in PV_weighted_sum.items():
-            # get the peak power with the ID_PV
-            peak_power = float(DB().read_dataframe("HouseholdPV", **{"ID_PV": key})["peak_power"])
+        for (id, peak_power), values in PV_weighted_sum.items():
             # create the table for each pv type
             single_pv_table = np.column_stack([np.full((8760,), country),  # nuts_id
-                                               np.full((8760,), key),  # ID_PV
+                                               np.full((8760,), id),  # ID_PV
                                                self.id_hour,  # id_hour
                                                values,  # power
                                                np.full((8760,), "W"),  # unit
@@ -416,7 +416,7 @@ class PVGIS:
         # save to sql database:
         DB().write_dataframe(table_name=Table().pv_generation,
                              data_frame=pv_table,
-                             data_types=input_data_structure.PVGenerationData().__dict__,
+                             data_types=input_data_structure.PVData().__dict__,
                              if_exists="replace"
                              )
 
