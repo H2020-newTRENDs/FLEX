@@ -1,7 +1,7 @@
 import sqlalchemy.types
 
 
-class PVGenerationData:
+class PVData:
     def __init__(self):
         self.nuts_id = sqlalchemy.types.String
         self.ID_PV = sqlalchemy.types.Integer
@@ -132,13 +132,6 @@ class PersonData:
     def __init__(self):
         self.var_1 = None
         self.var_2 = None
-
-
-class PVData:
-    def __init__(self):
-        self.ID_PV = sqlalchemy.types.Integer
-        self.peak_power = sqlalchemy.types.Float
-        self.peak_power_unit = sqlalchemy.types.String
 
 
 class RegionData:
