@@ -675,7 +675,9 @@ class OptOperationModel(AbstractOperationModel):
 
     def solve_optimization(self, instance2solve):
         Opt = pyo.SolverFactory("gurobi")
+        starttime = time.perf_counter()
         result = Opt.solve(instance2solve, tee=False)
+        print("time for optimization: {}".format(time.perf_counter() - starttime))
         return instance2solve
 
     def run(self):
@@ -683,7 +685,7 @@ class OptOperationModel(AbstractOperationModel):
         pyomo_instance = abstract_model.create_instance(data=self.create_pyomo_dict())
         updated_instance = self.update_instance(pyomo_instance)
         solved_instance = self.solve_optimization(updated_instance)
-        print('Total Operation Cost: ' + str(round(solved_instance.total_operation_cost(), 2)))
+        print('Total Operation Cost: ' + str(round(solved_instance.total_operation_cost_rule(), 2)))
         return solved_instance
 
 

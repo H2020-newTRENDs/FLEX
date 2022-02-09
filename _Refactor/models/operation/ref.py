@@ -695,6 +695,12 @@ class RefOperationModel(AbstractOperationModel):
             grid_demand = Total_load_battery
             # amount of electricity from PV to Battery:
             electricity_sold = Electricity_surplus_Battery
+        else:
+            self.BatCharge = np.full((8760, ), 0)
+            self.PV2Bat = np.full((8760, ), 0)
+            self.BatSoC = np.full((8760, ), 0)
+            self.BatDischarge = np.full((8760, ), 0)
+            self.Bat2Load = np.full((8760, ), 0)
 
         # DHW storage:
         if self.scenario.hotwatertank_class.size > 0:
@@ -702,6 +708,11 @@ class RefOperationModel(AbstractOperationModel):
                 grid_demand, electricity_sold, self.HotWaterProfile)
             electricity_sold = electricity_surplus_after_DHW
             grid_demand = grid_demand_after_DHW
+        else:
+            self.Q_HeatingTank_out = np.full((8760, ), 0)
+            self.Q_HeatingTank_in = np.full((8760, ), 0)
+            self.E_HeatingTank = np.full((8760, ), 0)
+            self.Q_Heating_HP_out = np.full((8760, ), 0)
 
         # When there is PV surplus energy it either goes to a storage or is sold to the grid:
         # Water Tank as storage:
@@ -711,6 +722,11 @@ class RefOperationModel(AbstractOperationModel):
             # remaining surplus of electricity
             electricity_sold = electricity_surplus_after_tank
             grid_demand = grid_demand_after_heating_tank
+        else:
+            self.Q_HeatingTank_out = np.full((8760, ), 0)
+            self.Q_HeatingTank_in = np.full((8760, ), 0)
+            self.E_HeatingTank = np.full((8760, ), 0)
+            self.Q_Heating_HP_out = np.full((8760, ), 0)
 
         # calculate the electricity cost:
         price_hourly = self.scenario.electricityprice_class.electricity_price
