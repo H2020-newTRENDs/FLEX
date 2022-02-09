@@ -12,6 +12,7 @@ from _Refactor.basic.db import DB
 scenario_ids = len(DB().read_dataframe("Scenarios", *["ID_Scenarios"]).to_numpy())
 
 for id in range(scenario_ids):
+    print(f"scenario: {id}")
     # create scenario:
     scenario = AbstractScenario(scenario_id=id)
 

@@ -709,10 +709,10 @@ class RefOperationModel(AbstractOperationModel):
             electricity_sold = electricity_surplus_after_DHW
             grid_demand = grid_demand_after_DHW
         else:
-            self.Q_HeatingTank_out = np.full((8760, ), 0)
-            self.Q_HeatingTank_in = np.full((8760, ), 0)
-            self.E_HeatingTank = np.full((8760, ), 0)
-            self.Q_Heating_HP_out = np.full((8760, ), 0)
+            self.Q_DHWTank_out = np.full((8760, ), 0)
+            self.Q_DHWTank_in = np.full((8760, ), 0)
+            self.E_DHWTank = np.full((8760, ), 0)
+            self.Q_DHW_HP_out = np.full((8760, ), 0)
 
         # When there is PV surplus energy it either goes to a storage or is sold to the grid:
         # Water Tank as storage:
