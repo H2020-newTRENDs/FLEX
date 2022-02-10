@@ -11,5 +11,5 @@ config_list = [{config_name: value} for (config_name, value) in configurations._
 # define scenario:
 configuration = Config(config_list)
 # create all the data for the calculations:
-InputDataGenerator(configuration).run()
+InputDataGenerator(configuration).run(skip_region=True)
 
