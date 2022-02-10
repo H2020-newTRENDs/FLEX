@@ -390,8 +390,6 @@ class PVGIS:
         DB().drop_table("Temperature")
         DB().drop_table("Radiation")
         DB().drop_table("PV")
-        # check if nuts regions exist in root:
-        engine = config.root_connection.connect()
 
         self.get_PVGIS_data(nuts_id_list=self.get_nuts_id_list(nuts_level, country_code),
                             country=country_code,
