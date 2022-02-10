@@ -14,7 +14,7 @@ def load_building_data_from_excel():
     building_class = pd.read_csv(building_class_path, sep=None, engine="python").drop(
         index=[0, 1, 2]).reset_index(drop=True)
 
-    # create the data for calculations
+    # create the data for calculations TODO make these settings accesible through config
     # for old buildings I use the data of the latest renovation (most likely to have heat pump installed)
     gen4 = building_class.loc[building_class["name"].str.contains("gen4", case=False)]
     sfh_gen4 = gen4.loc[gen4["name"].str.contains("sfh", case=False)]
@@ -36,7 +36,10 @@ def load_building_data_from_excel():
     # all_classes = pd.concat([modern_sfh, sfh_gen2, sfh_gen3, sfh_gen4, modern_rh,
     #                          rh_gen2, rh_gen3, rh_gen4]).set_index("index", drop=True).sort_index()
     # no RH
-    all_classes = pd.concat([modern_sfh, sfh_gen2, sfh_gen3, sfh_gen4]
+    # all_classes = pd.concat([modern_sfh, sfh_gen2, sfh_gen3, sfh_gen4]
+    #                         ).set_index("index", drop=True).sort_index()
+    # only moder nbuildings:
+    all_classes = pd.concat([modern_sfh]
                             ).set_index("index", drop=True).sort_index()
     indices = all_classes.index.to_numpy().astype(int)
 
