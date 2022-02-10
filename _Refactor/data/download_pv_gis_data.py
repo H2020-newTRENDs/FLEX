@@ -392,10 +392,6 @@ class PVGIS:
         DB().drop_table("PV")
         # check if nuts regions exist in root:
         engine = config.root_connection.connect()
-        if not engine.dialect.has_table(engine, "NUTS1") or not \
-                engine.dialect.has_table(engine, "NUTS2") or not \
-                engine.dialect.has_table(engine, "NUTS3"):
-            self.create_nuts_regions()
 
         self.get_PVGIS_data(nuts_id_list=self.get_nuts_id_list(nuts_level, country_code),
                             country=country_code,
