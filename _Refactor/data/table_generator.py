@@ -183,8 +183,8 @@ class InputDataGenerator:
         # Hot water demand profile
         hot_water = pd.read_excel(Path(self.input.demand_config["hot_water_demand_path"]), engine="openpyxl")
         hot_water_dict = {"ID_HotWaterDemand": np.full((8760,), 1),
-                          "hot_water_demand": hot_water["Profile"].to_numpy(),
-                          "unit": np.full((8760,), "kWh")}
+                          "hot_water_demand": hot_water["Profile"].to_numpy() * 1_000,
+                          "unit": np.full((8760,), "Wh")}
         hot_water_table = pd.DataFrame(hot_water_dict)
         assert sorted(list(hot_water_table.columns)) == sorted(list(structure.HotWaterDemandData().__dict__.keys()))
 
