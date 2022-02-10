@@ -360,9 +360,13 @@ class InputDataGenerator:
                              if_exists="replace"
                              )
 
-    def run(self):
+    def run(self, skip_region: bool = False):
         # TODO implement what to do when inputs are None
         for configuration_name in self.input.__dict__.keys():
+            if skip_region == True:
+                if configuration_name == "region_config":
+                    print("skip region")
+                    continue
             function_name = f"create_{configuration_name.replace('_config', '')}_data"
             method_to_call = getattr(self, function_name)
             method_to_call()
