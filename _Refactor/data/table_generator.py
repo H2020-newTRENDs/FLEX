@@ -325,6 +325,41 @@ class InputDataGenerator:
     def create_vehicle_data(self):
         pass
 
+    def generate_scenarios_table(self) -> None:
+        """
+        Creates big table for optimization with everything included.
+        """
+        # check which of the tables exist for the project:
+        engine = config.root_connection.connect()
+        scenarios_columns = {}
+
+        # iterate through household components
+        for household_table in components.component_list:
+            if engine.dialect.has_table(engine, household_table.__name__):  # check if table exists
+                # read table:
+                table = DB().read_dataframe(household_table.__name__)
+                # iterate through columns and get id name:
+                for column_name in table.columns:
+                    if column_name.startswith("ID"):
+                        scenarios_columns[column_name] = table[column_name].unique()
+            else:
+                print(f"{household_table.__name__} does not exist in root db")
+
+        # create permutations of the columns dictionary to get all possible combinations:
+        keys, values = zip(*scenarios_columns.items())
+        permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
+        # create dataframe
+        scenarios_table = pd.DataFrame(permutations_dicts)
+        scenarios_table["ID_Scenarios"] = np.arange(len(scenarios_table))
+        # dtypes are all "Integer":
+        dtypes_dict = {name: sqlalchemy.types.Integer for name in scenarios_table.columns}
+        # save to root db:
+        DB().write_dataframe(table_name=Table().scenarios,
+                             data_frame=scenarios_table,
+                             data_types=dtypes_dict,
+                             if_exists="replace"
+                             )
+
     def run(self):
         # TODO implement what to do when inputs are None
         for configuration_name in self.input.__dict__.keys():
@@ -332,41 +367,10 @@ class InputDataGenerator:
             method_to_call = getattr(self, function_name)
             method_to_call()
 
+        self.generate_scenarios_table()
 
-def generate_scenarios_table() -> None:
-    """
-    Creates big table for optimization with everything included.
-    """
-    # check which of the tables exist for the project:
-    engine = config.root_connection.connect()
-    scenarios_columns = {}
 
-    # iterate through household components
-    for household_table in components.component_list:
-        if engine.dialect.has_table(engine, household_table.__name__):  # check if table exists
-            # read table:
-            table = DB().read_dataframe(household_table.__name__)
-            # iterate through columns and get id name:
-            for column_name in table.columns:
-                if column_name.startswith("ID"):
-                    scenarios_columns[column_name] = table[column_name].unique()
-        else:
-            print(f"{household_table.__name__} does not exist in root db")
 
-    # create permutations of the columns dictionary to get all possible combinations:
-    keys, values = zip(*scenarios_columns.items())
-    permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
-    # create dataframe
-    scenarios_table = pd.DataFrame(permutations_dicts)
-    scenarios_table["ID_Scenarios"] = np.arange(len(scenarios_table))
-    # dtypes are all "Integer":
-    dtypes_dict = {name: sqlalchemy.types.Integer for name in scenarios_table.columns}
-    # save to root db:
-    DB().write_dataframe(table_name=Table().scenarios,
-                         data_frame=scenarios_table,
-                         data_types=dtypes_dict,
-                         if_exists="replace"
-                         )
 
 
 def main():
@@ -379,7 +383,6 @@ def main():
     #
 
     InputDataGenerator(configuration=configuration).run()
-    generate_scenarios_table()
 
 
 
