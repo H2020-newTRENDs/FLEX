@@ -16,9 +16,20 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
 
+def create_header(Scenario: AbstractScenario) -> str:
+    return f"AC: {int(Scenario.airconditioner_class.power)} W; \n " \
+           f"Battery: {int(Scenario.battery_class.capacity)} W; \n " \
+           f"Building id: {Scenario.building_class.ID_Building}; \n " \
+           f"Boiler: {Scenario.boiler_class.name}; \n " \
+           f"DHW Tank: {Scenario.hotwatertank_class.size} l; \n " \
+           f"PV: {Scenario.pv_class.peak_power[0]} kWp; \n " \
+           f"Heating Tank: {Scenario.spaceheatingtank_class.size} l"
+
+
 # -----------------------------------------------------------------------------------------------------------
-def show_yearly_comparison_of_SEMS_reference(yearly_results_optimization_df: pd.DataFrame,
-                                             yearly_results_reference_df: pd.DataFrame):
+def show_yearly_comparison_of_SEMS_reference(scenario,
+                                             yearly_results_optimization_df: pd.DataFrame,
+                                             yearly_results_reference_df: pd.DataFrame) -> None:
     """
     this function creates a plotly bar chart that instantly shows the differences in the yearly results. When bars
     have value = 1 they are the same in both modes, if they are both 0 they are not being used.
@@ -33,10 +44,13 @@ def show_yearly_comparison_of_SEMS_reference(yearly_results_optimization_df: pd.
     yearly_df_plotly = pd.melt(yearly_df_normalized.T.reset_index(), id_vars="index", value_vars=["SEMS", "reference"])
     # this plot is supposed to instantly show differences in input as well as output parameters:
     fig = px.bar(data_frame=yearly_df_plotly, x="index", y="value", color="variable", barmode="group")
+    fig.update_layout(title_text=create_header(scenario))
     fig.show()
 
 
-def hourly_comparison_SEMS_reference(reference_df: pd.DataFrame, optimization_df: pd.DataFrame):
+def hourly_comparison_SEMS_reference(scenario,
+                                     reference_df: pd.DataFrame,
+                                     optimization_df: pd.DataFrame) -> None:
     # check if both tables have same columns
     assert sorted(list(reference_df.columns)) == sorted(list(optimization_df.columns))
     # determine how many subplots are needed by excluding profiles that are zero in both modes
@@ -63,7 +77,7 @@ def hourly_comparison_SEMS_reference(reference_df: pd.DataFrame, optimization_df
         fig.add_trace(go.Scatter(x=x_axis, y=reference_df[column_name], name="reference"), row=i + 1, col=1)
         fig.add_trace(go.Scatter(x=x_axis, y=optimization_df[column_name], name="SEMS"), row=i + 1, col=1)
 
-    fig.update_layout(height=400 * column_number, width=1600)
+    fig.update_layout(height=400 * column_number, width=1600, title_text=create_header(scenario))
     fig.show()
 
 
@@ -72,22 +86,23 @@ def hourly_comparison_SEMS_reference(reference_df: pd.DataFrame, optimization_df
 
 if __name__ == "__main__":
     # create scenario:
-    scenario = AbstractScenario(scenario_id=0)
+    scenario_id = 0
+    scenario = AbstractScenario(scenario_id=scenario_id)
     try:
         # check if scenario id is in results, if yes, load them instead of calculating them:
         hourly_results_reference_df = DB(connection=config.results_connection).read_dataframe(
             table_name="Reference_hourly",
-            **{"scenario_id": 0})
+            **{"scenario_id": scenario_id})
         yearly_results_reference_df = DB(connection=config.results_connection).read_dataframe(
             table_name="Reference_yearly",
-            **{"scenario_id": 0})
+            **{"scenario_id": scenario_id})
 
         hourly_results_optimization_df = DB(connection=config.results_connection).read_dataframe(
             table_name="Optimization_hourly",
-            **{"scenario_id": 0})
+            **{"scenario_id": scenario_id})
         yearly_results_optimization_df = DB(connection=config.results_connection).read_dataframe(
             table_name="Optimization_yearly",
-            **{"scenario_id": 0})
+            **{"scenario_id": scenario_id})
     except (sqlite3.OperationalError, sqlalchemy.exc.OperationalError) as error:
         print(error)
         print("creating the tables...")
@@ -98,7 +113,7 @@ if __name__ == "__main__":
             try:
                 DB(connection=config.results_connection).delete_row_from_table(table_name=table_name,
                                                                                column_name_plus_value={
-                                                                                   "scenario_id": 0})
+                                                                                   "scenario_id": scenario_id})
             except sqlalchemy.exc.OperationalError:
                 continue
 
@@ -124,5 +139,5 @@ if __name__ == "__main__":
         ReferenceDataCollector(reference_model).save_hourly_results()
     # ---------------------------------------------------------------------------------------------------------
 
-    show_yearly_comparison_of_SEMS_reference(yearly_results_optimization_df, yearly_results_reference_df)
-    hourly_comparison_SEMS_reference(hourly_results_reference_df, hourly_results_optimization_df)
+    show_yearly_comparison_of_SEMS_reference(scenario, yearly_results_optimization_df, yearly_results_reference_df)
+    hourly_comparison_SEMS_reference(scenario, hourly_results_reference_df, hourly_results_optimization_df)
