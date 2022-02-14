@@ -278,14 +278,31 @@ class PVGIS:
         """nuts level 1, 2 or 3
 
         Args:
-            country:
-            nuts_level:
+            country: european country code 2 digits (eg. DE, AT, ES...)
+            nuts_level: int [0, 1, 2, 3]
         """
-        # weighted average over heat demand from hotmaps TODO get Hotmaps data through API
-        heat_demand_AT = pd.read_excel(
-            "C:/Users/mascherbauer/PycharmProjects/NewTrends/Prosumager/_Philipp/inputdata/AUT/AT_Heat_demand_total_NUTS3.xlsx",
-            engine="openpyxl")
-        total_heat_demand = heat_demand_AT.loc[:, "sum"].sum()
+        # weighted average over heat demand from hotmaps
+        absolut_path = Path("__file__").parent.parent.resolve() / Path(f"_Refactor/data/heat_demand.json")
+        heat_demand_total = pd.read_json(absolut_path, orient="table")
+        # select the heat demand on the respective nuts level
+        if nuts_level == 0:
+            mask = heat_demand_total["nuts_id"].str.len() == 2
+            heat_demand = heat_demand_total.loc[mask]
+        elif nuts_level == 1:
+            mask = heat_demand_total["nuts_id"].str.len() == 3
+            heat_demand = heat_demand_total.loc[mask]
+        elif nuts_level == 2:
+            mask = heat_demand_total["nuts_id"].str.len() == 4
+            heat_demand = heat_demand_total.loc[mask]
+        elif nuts_level == 3:
+            mask = heat_demand_total["nuts_id"].str.len() == 5
+            heat_demand = heat_demand_total.loc[mask]
+        else:
+            assert "nuts level has to be integer of [0, 1, 2, 3]"
+        # select the heat demand for the respective country
+        heat_demand = heat_demand[heat_demand["nuts_id"].str.startswith(country)].reset_index(drop=True)
+        # total sum of heat demand
+        heat_demand_sum = heat_demand.loc[:, "sum"].sum()
 
         # create numpy arrays that will be filled inside the loop:
         temperature_weighted_sum = np.zeros((8760, 1))
@@ -301,20 +318,20 @@ class PVGIS:
         )
         # dictionary for different PV types
         PV_weighted_sum = {(id_pv, unique_peak_power[i]): np.zeros((8760, 1)) for i, id_pv in enumerate(unique_PV_id_types)}
-        for index, row in heat_demand_AT.iterrows():
+        for index, row in heat_demand.iterrows():
             nuts_id = row["nuts_id"]
             heat_demand_of_specific_region = row["sum"]
             # Temperature
             temperature_profile = DB().read_dataframe(f"Temperature_NUTS{nuts_level}_{country}",
                                                       *["temperature"],  # *columns
                                                       nuts_id=nuts_id).to_numpy()  # **kwargs
-            temperature_weighted_sum += temperature_profile * heat_demand_of_specific_region / total_heat_demand
+            temperature_weighted_sum += temperature_profile * heat_demand_of_specific_region / heat_demand_sum
 
             # Solar radiation
             radiation_profile = DB().read_dataframe(f"Radiation_NUTS{nuts_level}_{country}",
                                                     *["south", "east", "west", "north"],  # *columns
                                                     nuts_id=nuts_id).to_numpy()  # **kwargs
-            radiation_weighted_sum += radiation_profile * heat_demand_of_specific_region / total_heat_demand
+            radiation_weighted_sum += radiation_profile * heat_demand_of_specific_region / heat_demand_sum
 
             # PV
             # iterate through different PV types and add each weighted profiles to corresponding dictionary index
@@ -323,7 +340,7 @@ class PVGIS:
                                                  *["power"],  # *columns
                                                  nuts_id=nuts_id, ID_PV=id_pv).to_numpy()  # **kwargs
                 PV_weighted_sum[(id_pv, unique_peak_power[i])] += PV_profile * heat_demand_of_specific_region / \
-                                                                  total_heat_demand
+                                                                  heat_demand_sum
 
         # create table for saving to DB: Temperature and Radiation will be saved in the region table
         # Temperature + Radiation
