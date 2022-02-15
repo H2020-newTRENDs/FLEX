@@ -200,7 +200,8 @@ class InputDataGenerator:
             api_key=self.input.electricity_price_config["api_key"],
             start_time=self.input.electricity_price_config["start"],
             end_time=self.input.electricity_price_config["end"],
-            country_code=self.input.electricity_price_config["country_code"]
+            country_code=self.input.electricity_price_config["country_code"],
+            grid_fee=self.input.electricity_price_config["grid_fee"]
         )
 
         fixed_price_vector = np.full((8760,), self.input.electricity_price_config["fixed_price"])  # cent/kWh
