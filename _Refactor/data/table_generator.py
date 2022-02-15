@@ -233,7 +233,7 @@ class InputDataGenerator:
         for i, fixed_feed_in in enumerate(self.input.feed_in_tariff_config["fixed_feed_in_tariff"]):
             feed_in_dict = {"ID_FeedInTariff": np.full((8760,), i + 1),
                             "id_hour": self.id_hour,
-                            "feed_in_tariff": np.full((8760,), fixed_feed_in),
+                            "feed_in_tariff": np.full((8760,), fixed_feed_in / 1_000),  # in Wh
                             "unit": np.full((8760,), "cent/kWh")}
 
             table = pd.DataFrame(feed_in_dict)
