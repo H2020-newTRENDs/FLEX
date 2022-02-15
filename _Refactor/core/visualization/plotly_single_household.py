@@ -82,62 +82,71 @@ def hourly_comparison_SEMS_reference(scenario,
 
 
 # ----------------------------------------------------------------------------------------------------------
+def calculate_single_results(id_scenario):
+    # list of result tables:
+    result_table_names = ["Reference_hourly", "Reference_yearly", "Optimization_hourly", "Optimization_yearly"]
+    # delete the rows in case one of them is saved (eg. optimization is not here but reference is)
+    for table_name in result_table_names:
+        try:
+            DB(connection=config.results_connection).delete_row_from_table(table_name=table_name,
+                                                                           column_name_plus_value={
+                                                                               "scenario_id": id_scenario})
+        except sqlalchemy.exc.OperationalError:
+            continue
 
+    # calculate the results and save them
+    optimization_model = OptOperationModel(scenario)
+    # solve model
+    solved_instance = optimization_model.run()
+    # datacollector save results to db
+    OptimizationDataCollector(solved_instance, scenario.scenario_id).save_hourly_results()
+    OptimizationDataCollector(solved_instance, scenario.scenario_id).save_yearly_results()
+
+    reference_model = RefOperationModel(scenario)
+    reference_model.run()
+
+    # save results to db
+    ReferenceDataCollector(reference_model).save_yearly_results()
+    ReferenceDataCollector(reference_model).save_hourly_results()
+
+def read_results(id_scenario) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
+    # check if scenario id is in results, if yes, load them instead of calculating them:
+    hourly_results_reference_df = DB(connection=config.results_connection).read_dataframe(
+        table_name="Reference_hourly",
+        **{"scenario_id": id_scenario})
+    yearly_results_reference_df = DB(connection=config.results_connection).read_dataframe(
+        table_name="Reference_yearly",
+        **{"scenario_id": id_scenario})
+
+    hourly_results_optimization_df = DB(connection=config.results_connection).read_dataframe(
+        table_name="Optimization_hourly",
+        **{"scenario_id": id_scenario})
+    yearly_results_optimization_df = DB(connection=config.results_connection).read_dataframe(
+        table_name="Optimization_yearly",
+        **{"scenario_id": id_scenario})
+    return hourly_results_reference_df, yearly_results_reference_df, \
+           hourly_results_optimization_df, yearly_results_optimization_df
 
 if __name__ == "__main__":
+
     # create scenario:
-    scenario_id = 0
+    scenario_id = 5
     scenario = AbstractScenario(scenario_id=scenario_id)
     try:
         # check if scenario id is in results, if yes, load them instead of calculating them:
-        hourly_results_reference_df = DB(connection=config.results_connection).read_dataframe(
-            table_name="Reference_hourly",
-            **{"scenario_id": scenario_id})
-        yearly_results_reference_df = DB(connection=config.results_connection).read_dataframe(
-            table_name="Reference_yearly",
-            **{"scenario_id": scenario_id})
+        hourly_results_reference_df, yearly_results_reference_df, \
+        hourly_results_optimization_df, yearly_results_optimization_df = read_results(scenario_id)
+        # check if the tables are empty:
+        if len(hourly_results_reference_df) == 0:
+            print("creating the tables...")
+            calculate_single_results(scenario_id)
 
-        hourly_results_optimization_df = DB(connection=config.results_connection).read_dataframe(
-            table_name="Optimization_hourly",
-            **{"scenario_id": scenario_id})
-        yearly_results_optimization_df = DB(connection=config.results_connection).read_dataframe(
-            table_name="Optimization_yearly",
-            **{"scenario_id": scenario_id})
     except (sqlite3.OperationalError, sqlalchemy.exc.OperationalError) as error:
         print(error)
         print("creating the tables...")
-        # list of result tables:
-        result_table_names = ["Reference_hourly", "Reference_yearly", "Optimization_hourly", "Optimization_yearly"]
-        # delete the rows in case one of them is saved (eg. optimization is not here but reference is)
-        for table_name in result_table_names:
-            try:
-                DB(connection=config.results_connection).delete_row_from_table(table_name=table_name,
-                                                                               column_name_plus_value={
-                                                                                   "scenario_id": scenario_id})
-            except sqlalchemy.exc.OperationalError:
-                continue
-
-        # calculate the results and save them
-        optimization_model = OptOperationModel(scenario)
-        # solve model
-        solved_instance = optimization_model.run()
-        # datacollector
-        hourly_results_optimization_df = OptimizationDataCollector(solved_instance,
-                                                                   scenario.scenario_id).collect_optimization_results_hourly()
-        yearly_results_optimization_df = OptimizationDataCollector(solved_instance,
-                                                                   scenario.scenario_id).collect_optimization_results_yearly()
-        # save results to db
-        OptimizationDataCollector(solved_instance, scenario.scenario_id).save_hourly_results()
-        OptimizationDataCollector(solved_instance, scenario.scenario_id).save_yearly_results()
-
-        reference_model = RefOperationModel(scenario)
-        reference_model.run()
-        hourly_results_reference_df = ReferenceDataCollector(reference_model).collect_reference_results_hourly()
-        yearly_results_reference_df = ReferenceDataCollector(reference_model).collect_reference_results_yearly()
-        # save results to db
-        ReferenceDataCollector(reference_model).save_yearly_results()
-        ReferenceDataCollector(reference_model).save_hourly_results()
+        calculate_single_results(scenario_id)
     # ---------------------------------------------------------------------------------------------------------
-
+    hourly_results_reference_df, yearly_results_reference_df, \
+    hourly_results_optimization_df, yearly_results_optimization_df = read_results(scenario_id)
     show_yearly_comparison_of_SEMS_reference(scenario, yearly_results_optimization_df, yearly_results_reference_df)
     hourly_comparison_SEMS_reference(scenario, hourly_results_reference_df, hourly_results_optimization_df)
