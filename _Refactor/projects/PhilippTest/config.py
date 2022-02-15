@@ -20,7 +20,7 @@ battery_config = {
 
 behavior_config = {
     "temperature_min": 20,
-    "temperature_max": 27,
+    "temperature_max": 27,  # TODO make this function from outside temp
     "night_reduction": 2
 }
 
@@ -50,9 +50,10 @@ electricity_price_config = {
     "start": "20190101",
     "end": "20200101",
     "country_code": "AT",
+    "grid_fee": 20,  # ct/kWh
 
     # fixed price
-    "fixed_price": 20  # C/kWh
+    "fixed_price": 20  # ct/kWh
 }
 
 feed_in_tariff_config = {
@@ -64,7 +65,7 @@ hot_water_tank_config = {
     "size": [0, 400],
     "loss": 0.2,  # W/m2K
     "temperature_start": 28,  # °C
-    "temperature_max": 65,  # °C
+    "temperature_max": 55,  # °C
     "temperature_min": 28,
     "temperature_surrounding": 20  # °C
 }
