@@ -115,8 +115,7 @@ class RefOperationModel(AbstractOperationModel):
                                 SurplusEnergy = EnergyInTank - remaining_heating_Energy
                                 Q_HP[i] = 0  # dhw is provided by tank
                                 Q_tank_out[i] = remaining_heating_Energy
-                                grid_demand_after_tank[i] -= Q_tank_out[i] / cop[
-                                    i]
+                                grid_demand_after_tank[i] -= Q_tank_out[i] / cop[i]
                                 current_tank_temperature[i] = TankMinTemperature + SurplusEnergy / (
                                         TankSize * self.cp_water)
                             # if the energy in the tank is not enough to cover the remaining heating energy:
