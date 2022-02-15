@@ -25,18 +25,18 @@ class RefOperationModel(AbstractOperationModel):
         TankLoss = self.U_ValueTank_DHW
         TankSurroundingTemperature = self.T_TankSurrounding_DHW
         TankStartTemperature = self.T_TankStart_DHW
-        COP_DHW = self.HotWaterHourlyCOP
+        cop = self.HotWaterHourlyCOP
 
-        electricity_surplus_after_DHW = electricity_surplus  # this gets altered through the calculation and returned
+        electricity_surplus_after_tank = np.copy(electricity_surplus)  # this gets altered through the calculation and returned
         electricity_deficit = np.zeros(electricity_surplus.shape)  # extra electricity needed to keep above min temp
-        grid_demand_after_DHW = electricity_grid_demand  # gets altered through  the calculation TODO should be grid demand - surplus + deficit, check!
+        grid_demand_after_tank = np.copy(electricity_grid_demand)  # gets altered through  the calculation
         Q_DHWTank_in = np.zeros(electricity_surplus.shape)  # hot water charged into the tank
         Q_DHWTank_out = np.zeros(electricity_surplus.shape)  # hot water provided by tank
         Q_HP_DHW = np.copy(hot_water_demand)  # hot water produced by HP
         CurrentTankTemperature = np.zeros(electricity_surplus.shape)
         TankLossHourly = np.zeros(electricity_surplus.shape)
 
-        for i, element in enumerate(electricity_surplus_after_DHW):
+        for i, element in enumerate(electricity_surplus_after_tank):
             if i == 0:
                 # calculate hourly temperature loss:
                 TankLossHourly[i] = (TankStartTemperature - TankSurroundingTemperature) * \
@@ -44,18 +44,17 @@ class RefOperationModel(AbstractOperationModel):
                 # surplus of PV electricity is used to charge the tank:
                 CurrentTankTemperature[i] = TankStartTemperature + \
                                                         (electricity_surplus[i] *
-                                                         COP_DHW[i] - TankLossHourly[i]) / \
+                                                         cop[i] - TankLossHourly[i]) / \
                                                         (TankSize * self.cp_water)
                 # Q_HP_DHW is increased:
-                Q_HP_DHW[i] = electricity_surplus[i] * COP_DHW[i] + \
-                                          hot_water_demand[i]
-                Q_DHWTank_in[i] = electricity_surplus[i] * COP_DHW[i]
+                Q_HP_DHW[i] = electricity_surplus[i] * cop[i] + hot_water_demand[i]
+                Q_DHWTank_in[i] = electricity_surplus[i] * cop[i]
 
                 # if temperature exceeds maximum temperature, surplus of electricity is calculated
                 # and temperature is kept at max temperature:
                 if CurrentTankTemperature[i] > TankMaxTemperature:
-                    electricity_surplus_after_DHW[i] = (CurrentTankTemperature[i] - TankMaxTemperature) * (
-                                                                           TankSize * self.cp_water) / COP_DHW[i]  # W
+                    electricity_surplus_after_tank[i] = (CurrentTankTemperature[i] - TankMaxTemperature) * (
+                                                                           TankSize * self.cp_water) / cop[i]  # W
                     CurrentTankTemperature[i] = TankMaxTemperature
                     # Q_HP_DHW and Q_DHWTank_in:
                     Q_HP_DHW[i] = (CurrentTankTemperature[i] - TankMaxTemperature) * \
@@ -67,13 +66,13 @@ class RefOperationModel(AbstractOperationModel):
                 # and necessary electricity is calculated
                 if CurrentTankTemperature[i] <= TankMinTemperature:
                     electricity_deficit[i] = (TankMinTemperature - CurrentTankTemperature[
-                        i]) * (TankSize * self.cp_water) / COP_DHW[i]
+                        i]) * (TankSize * self.cp_water) / cop[i]
                     CurrentTankTemperature[i] = TankMinTemperature
                     # electric energy is raised by the amount the tank has to be heated:
-                    grid_demand_after_DHW[i] += electricity_deficit[i]
+                    grid_demand_after_tank[i] += electricity_deficit[i]
                     # Q_DHW_HP is raised by the amount the tank has to be heated:
-                    Q_HP_DHW[i] = electricity_deficit[i] * COP_DHW[i] + hot_water_demand[i]
-                    Q_DHWTank_in[i] = electricity_deficit[i] * COP_DHW[i]
+                    Q_HP_DHW[i] = electricity_deficit[i] * cop[i] + hot_water_demand[i]
+                    Q_DHWTank_in[i] = electricity_deficit[i] * cop[i]
 
                 # if there is energy in the tank it will be used for heating:
                 if CurrentTankTemperature[i] > TankMinTemperature:
@@ -83,14 +82,13 @@ class RefOperationModel(AbstractOperationModel):
                     # if the PV does not cover the whole electricity in this hour, the tank will cover for dhw
                     if electricity_grid_demand[i] > 0:
                         # if the PV does not cover any energy for the dhw:
-                        if electricity_grid_demand[i] > hot_water_demand[i] / COP_DHW[i]:  # means that the heating is not covered at all by the PV (it covers other things first)
+                        if electricity_grid_demand[i] > hot_water_demand[i] / cop[i]:  # means that the heating is not covered at all by the PV (it covers other things first)
                             # if the Energy in the tank is enough to provide dhw, the hot_water_demand goes to 0
                             if EnergyInTank > hot_water_demand[i]:
                                 SurplusEnergy = EnergyInTank - hot_water_demand[i]
                                 Q_HP_DHW[i] = 0  # DHW is provided by tank
                                 Q_DHWTank_out[i] = hot_water_demand[i]
-                                grid_demand_after_DHW[i] -= Q_DHWTank_out[i] / COP_DHW[
-                                    i]
+                                grid_demand_after_tank[i] -= Q_DHWTank_out[i] / cop[i]
                                 CurrentTankTemperature[i] = TankMinTemperature + SurplusEnergy / (
                                         TankSize * self.cp_water)  # the tank temperature drops to minimal
                                 # temperature + the energy that is left
@@ -99,22 +97,21 @@ class RefOperationModel(AbstractOperationModel):
                                 DeficitEnergy = hot_water_demand[i] - EnergyInTank
                                 Q_HP_DHW[i] = DeficitEnergy  # dhw partly provided by tank
                                 Q_DHWTank_out[i] = EnergyInTank
-                                grid_demand_after_DHW[i] -= Q_DHWTank_out[i] / COP_DHW[
-                                    i]
+                                grid_demand_after_tank[i] -= Q_DHWTank_out[i] / cop[i]
                                 CurrentTankTemperature[i] = TankMinTemperature  # the tank temperature
                                 # drops to minimal energy
 
                         # if the PV does cover part of the dhw demand:
-                        if electricity_surplus[i] <= hot_water_demand[i] / COP_DHW[i]:
+                        if electricity_surplus[i] <= hot_water_demand[i] / cop[i]:
                             # calculate the part that can be covered by the tank:
-                            remaining_heating_Energy = (hot_water_demand[i] / COP_DHW[i] -
-                                                        electricity_surplus[i]) * COP_DHW[i]
+                            remaining_heating_Energy = (hot_water_demand[i] / cop[i] -
+                                                        electricity_surplus[i]) * cop[i]
                             # if the energy in the tank is enough to cover the remaining heating energy:
                             if EnergyInTank > remaining_heating_Energy:
                                 SurplusEnergy = EnergyInTank - remaining_heating_Energy
                                 Q_HP_DHW[i] = 0  # dhw is provided by tank
                                 Q_DHWTank_out[i] = remaining_heating_Energy
-                                grid_demand_after_DHW[i] -= Q_DHWTank_out[i] / COP_DHW[
+                                grid_demand_after_tank[i] -= Q_DHWTank_out[i] / cop[
                                     i]
                                 CurrentTankTemperature[i] = TankMinTemperature + SurplusEnergy / (
                                         TankSize * self.cp_water)
@@ -123,28 +120,28 @@ class RefOperationModel(AbstractOperationModel):
                                 DeficitEnergy = remaining_heating_Energy - EnergyInTank
                                 Q_HP_DHW[i] = DeficitEnergy
                                 Q_DHWTank_out[i] = EnergyInTank
-                                grid_demand_after_DHW[i] -= Q_DHWTank_out[i] / COP_DHW[i]
+                                grid_demand_after_tank[i] -= Q_DHWTank_out[i] / cop[i]
                                 CurrentTankTemperature[i] = TankMinTemperature  # the tank temperature
                                 # drops to minimal energy
 
             if i > 0:
                 # calculate hourly temperature loss:
-                TankLossHourly[i] = (CurrentTankTemperature[i - 1] -
-                                                 TankSurroundingTemperature) * TankSurfaceArea * TankLoss  # W
+                TankLossHourly[i] = (CurrentTankTemperature[i - 1] - TankSurroundingTemperature) * \
+                                    TankSurfaceArea * TankLoss  # W
                 # surplus of PV electricity is used to charge the tank:
                 CurrentTankTemperature[i] = CurrentTankTemperature[i - 1] + \
                                                         (electricity_surplus[i] *
-                                                         COP_DHW[i] - TankLossHourly[i]) / \
+                                                         cop[i] - TankLossHourly[i]) / \
                                                         (TankSize * self.cp_water)
                 # Q_HP_DHW is increased:
-                Q_HP_DHW[i] = electricity_surplus[i] * COP_DHW[i] + hot_water_demand[i]
-                Q_DHWTank_in[i] = electricity_surplus[i] * COP_DHW[i]
+                Q_HP_DHW[i] = electricity_surplus[i] * cop[i] + hot_water_demand[i]
+                Q_DHWTank_in[i] = electricity_surplus[i] * cop[i]
 
                 # if temperature exceeds maximum temperature, surplus of electricity is calculated
                 # and temperature is kept at max temperature:
                 if CurrentTankTemperature[i] > TankMaxTemperature:
-                    electricity_surplus_after_DHW[i] = (CurrentTankTemperature[i] - TankMaxTemperature) * (
-                                                                           TankSize * self.cp_water) / COP_DHW[i]  # W
+                    electricity_surplus_after_tank[i] = (CurrentTankTemperature[i] - TankMaxTemperature) * (
+                                                                           TankSize * self.cp_water) / cop[i]  # W
                     CurrentTankTemperature[i] = TankMaxTemperature
                     # Q_HP_DHW and Q_DHWTank_in:
                     Q_HP_DHW[i] = (CurrentTankTemperature[i] - TankMaxTemperature) * \
@@ -155,14 +152,14 @@ class RefOperationModel(AbstractOperationModel):
                 # if temperature drops below minimum temperature, temperature is kept at minimum temperature
                 # and necessary electricity is calculated
                 if CurrentTankTemperature[i] <= TankMinTemperature:
-                    electricity_deficit[i] = (TankMinTemperature - CurrentTankTemperature[
-                        i]) * (TankSize * self.cp_water) / COP_DHW[i]
+                    electricity_deficit[i] = (TankMinTemperature - CurrentTankTemperature[i]) * \
+                                             (TankSize * self.cp_water) / cop[i]
                     CurrentTankTemperature[i] = TankMinTemperature
                     # electric energy is raised by the amount the tank has to be heated:
-                    grid_demand_after_DHW[i] += electricity_deficit[i]
+                    grid_demand_after_tank[i] += electricity_deficit[i]
                     # Q_DHW_HP is raised by the amount the tank has to be heated:
-                    Q_HP_DHW[i] = electricity_deficit[i] * COP_DHW[i] + hot_water_demand[i]
-                    Q_DHWTank_in[i] = electricity_deficit[i] * COP_DHW[i]
+                    Q_HP_DHW[i] = electricity_deficit[i] * cop[i] + hot_water_demand[i]
+                    Q_DHWTank_in[i] = electricity_deficit[i] * cop[i]
 
                 # if there is energy in the tank it will be used for heating:
                 if CurrentTankTemperature[i] > TankMinTemperature:
@@ -172,14 +169,14 @@ class RefOperationModel(AbstractOperationModel):
                     # if the PV does not cover the whole electricity in this hour, the tank will cover for dhw
                     if electricity_grid_demand[i] > 0:
                         # if the PV does not cover any energy for the dhw:
-                        if electricity_grid_demand[i] > hot_water_demand[i] / COP_DHW[i]:  # means that the heating is not covered at all by the PV (it covers other things first)
+                        if electricity_grid_demand[i] > hot_water_demand[i] / cop[i]:  # means that the heating is not covered at all by the PV (it covers other things first)
                             # if the Energy in the tank is enough to provide dhw, the hot_water_demand goes to 0
                             if EnergyInTank > hot_water_demand[i]:
                                 SurplusEnergy = EnergyInTank - hot_water_demand[i]
                                 Q_HP_DHW[i] = 0  # DHW is provided by tank
                                 Q_DHWTank_out[i] = hot_water_demand[i]
-                                grid_demand_after_DHW[i] -= Q_DHWTank_out[i] / COP_DHW[
-                                    i]
+                                grid_demand_after_tank[i] -= Q_DHWTank_out[i] / cop[i]
+                                if grid_demand_after_tank[i] < 0:
                                 CurrentTankTemperature[i] = TankMinTemperature + SurplusEnergy / (
                                         TankSize * self.cp_water)  # the tank temperature drops to minimal
                                 # temperature + the energy that is left
@@ -188,22 +185,22 @@ class RefOperationModel(AbstractOperationModel):
                                 DeficitEnergy = hot_water_demand[i] - EnergyInTank
                                 Q_HP_DHW[i] = DeficitEnergy  # dhw partly provided by tank
                                 Q_DHWTank_out[i] = EnergyInTank
-                                grid_demand_after_DHW[i] -= Q_DHWTank_out[i] / COP_DHW[i]
+                                grid_demand_after_tank[i] -= Q_DHWTank_out[i] / cop[i]
+                                if grid_demand_after_tank[i] < 0:
                                 CurrentTankTemperature[i] = TankMinTemperature  # the tank temperature
                                 # drops to minimal energy
 
                         # if the PV does cover part of the dhw demand:
-                        if electricity_surplus[i] <= hot_water_demand[i] / COP_DHW[i]:
+                        if hot_water_demand[i] / cop[i] >= electricity_surplus[i] > 0:
                             # calculate the part that can be covered by the tank:
-                            remaining_heating_Energy = (hot_water_demand[i] / COP_DHW[i] -
-                                                        electricity_surplus[i]) * COP_DHW[i]
+                            remaining_heating_Energy = (hot_water_demand[i] / cop[i] - electricity_surplus[i]) * cop[i]
                             # if the energy in the tank is enough to cover the remaining heating energy:
                             if EnergyInTank > remaining_heating_Energy:
                                 SurplusEnergy = EnergyInTank - remaining_heating_Energy
                                 Q_HP_DHW[i] = 0  # dhw is provided by tank
                                 Q_DHWTank_out[i] = remaining_heating_Energy
-                                grid_demand_after_DHW[i] -= Q_DHWTank_out[i] / COP_DHW[
-                                    i]
+                                grid_demand_after_tank[i] -= Q_DHWTank_out[i] / cop[i]
+                                if grid_demand_after_tank[i] < 0:
                                 CurrentTankTemperature[i] = TankMinTemperature + SurplusEnergy / (
                                         TankSize * self.cp_water)
                             # if the energy in the tank is not enough to cover the remaining heating energy:
@@ -211,7 +208,8 @@ class RefOperationModel(AbstractOperationModel):
                                 DeficitEnergy = remaining_heating_Energy - EnergyInTank
                                 Q_HP_DHW[i] = DeficitEnergy
                                 Q_DHWTank_out[i] = EnergyInTank
-                                grid_demand_after_DHW[i] -= Q_DHWTank_out[i] / COP_DHW[i]
+                                grid_demand_after_tank[i] -= Q_DHWTank_out[i] / cop[i]
+                                if grid_demand_after_tank[i] < 0:
                                 CurrentTankTemperature[i] = TankMinTemperature  # the tank temperature
                                 # drops to minimal energy
 
@@ -219,7 +217,7 @@ class RefOperationModel(AbstractOperationModel):
         self.Q_DHWTank_in = Q_DHWTank_in
         self.Q_DHW_HP_out = Q_HP_DHW
         self.E_DHWTank = (CurrentTankTemperature+273.15) * self.cp_water * TankSize
-        return grid_demand_after_DHW, electricity_surplus_after_DHW
+        return grid_demand_after_tank, electricity_surplus_after_tank
 
     def calculate_heating_tank_energy(self, electricity_grid_demand, electricity_surplus, heating_demand):
         """
@@ -495,7 +493,7 @@ class RefOperationModel(AbstractOperationModel):
         # Battery is not charged at the beginning of the simulation
         BatterySOC = np.zeros(electricity_surplus.shape)
         surplus_after_battery = np.zeros(electricity_surplus.shape)
-        Total_load_battery = np.copy(grid_demand)
+        load_after_battery = np.copy(grid_demand)
         Battery2Load = np.zeros(electricity_surplus.shape)
         Battery_charge = np.zeros(electricity_surplus.shape)
 
@@ -545,24 +543,24 @@ class RefOperationModel(AbstractOperationModel):
                     if BatterySOC[i - 1] > 0:
                         # if the power in battery is enough to cover whole electricity demand:
                         if BatterySOC[i - 1] > grid_demand[i] / DischargeEfficiency:
-                            Total_load_battery[i] = 0
+                            load_after_battery[i] = 0
                             BatterySOC[i] = BatterySOC[i - 1] - grid_demand[i] / DischargeEfficiency
                             Battery2Load[i] = grid_demand[i] / DischargeEfficiency
                             # check if maximum discharge power is exceeded:
-                            if Total_load_battery[i] / DischargeEfficiency > MaxDischargePower:
-                                Total_load_battery[i] = grid_demand[i] - MaxDischargePower
+                            if load_after_battery[i] / DischargeEfficiency > MaxDischargePower:
+                                load_after_battery[i] = grid_demand[i] - MaxDischargePower
                                 BatterySOC[i] = BatterySOC[i - 1] - MaxDischargePower / DischargeEfficiency
                                 Battery2Load[i] = MaxDischargePower
 
                         # if the power in the battery is not enough to cover the whole electricity demand:
                         if BatterySOC[i - 1] <= grid_demand[i] / DischargeEfficiency:
-                            Total_load_battery[i] = grid_demand[i] - BatterySOC[i - 1] * DischargeEfficiency
+                            load_after_battery[i] = grid_demand[i] - BatterySOC[i - 1] * DischargeEfficiency
                             BatterySOC[i] = 0
                             Battery2Load[i] = BatterySOC[i - 1] * DischargeEfficiency
                             # check if max discharge power is exceeded:
                             if BatterySOC[i - 1] > MaxDischargePower:
                                 BatterySOC[i] = BatterySOC[i - 1] - MaxDischargePower / DischargeEfficiency
-                                Total_load_battery[i] = grid_demand[i] - MaxDischargePower
+                                load_after_battery[i] = grid_demand[i] - MaxDischargePower
                                 Battery2Load[i] = MaxDischargePower
 
         self.BatCharge = Battery_charge
@@ -570,7 +568,7 @@ class RefOperationModel(AbstractOperationModel):
         self.BatSoC = BatterySOC
         self.BatDischarge = Battery2Load  # as the battery gets only discharged by providing load coverage
         self.Bat2Load = Battery2Load
-        return Total_load_battery, surplus_after_battery, BatterySOC, Battery2Load
+        return load_after_battery, surplus_after_battery, BatterySOC, Battery2Load
 
     def fill_parameter_values(self) -> None:
         """ fills all self parameter values with the input values"""
@@ -690,9 +688,9 @@ class RefOperationModel(AbstractOperationModel):
         # Battery storage:
         # if battery is used:
         if self.scenario.battery_class.capacity > 0:
-            Total_load_battery, Electricity_surplus_Battery, BatterySOC, Battery2Load = \
+            total_load_after_battery, Electricity_surplus_Battery, BatterySOC, Battery2Load = \
                 self.calculate_battery_energy(grid_demand, PV_profile_surplus)
-            grid_demand = Total_load_battery
+            grid_demand = total_load_after_battery
             # amount of electricity from PV to Battery:
             electricity_sold = Electricity_surplus_Battery
         else:
@@ -758,7 +756,7 @@ class RefOperationModel(AbstractOperationModel):
 if __name__ == "__main__":
     from _Refactor.models.operation.data_collector import ReferenceDataCollector
 
-    scenario = AbstractScenario(scenario_id=0)
+    scenario = AbstractScenario(scenario_id=5)
     reference_model = RefOperationModel(scenario)
     reference_model.run()
     hourly_results = ReferenceDataCollector(reference_model).collect_reference_results_hourly()
