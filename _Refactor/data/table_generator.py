@@ -210,13 +210,13 @@ class InputDataGenerator:
             [np.full((8760,), 1),  # ID
              self.id_hour,  # id_hour
              variable_electricity_price,
-             np.full((8760,), "cent/kWh")]
+             np.full((8760,), "cent/Wh")]
         )
         fixed_price_to_db = np.column_stack(
             [np.full((8760,), 2),  # ID
              self.id_hour,
              fixed_price_vector,
-             np.full((8760,), "cent/kWh")]
+             np.full((8760,), "cent/Wh")]
         )
         price_to_db = np.vstack([variable_price_to_db, fixed_price_to_db])
         price_table = pd.DataFrame(price_to_db, columns=list(structure.ElectricityPriceData().__dict__.keys()))
@@ -233,8 +233,8 @@ class InputDataGenerator:
         for i, fixed_feed_in in enumerate(self.input.feed_in_tariff_config["fixed_feed_in_tariff"]):
             feed_in_dict = {"ID_FeedInTariff": np.full((8760,), i + 1),
                             "id_hour": self.id_hour,
-                            "feed_in_tariff": np.full((8760,), fixed_feed_in / 1_000),  # in Wh
-                            "unit": np.full((8760,), "cent/kWh")}
+                            "feed_in_tariff": np.full((8760,), fixed_feed_in / 1_000),  # in ct/Wh
+                            "unit": np.full((8760,), "cent/Wh")}
 
             table = pd.DataFrame(feed_in_dict)
             feed_in_table = pd.concat([feed_in_table, table], axis=0)
