@@ -1,5 +1,6 @@
 from _Refactor.models.operation.abstract import AbstractOperationModel
 from _Refactor.models.operation.data_collector import OptimizationDataCollector
+from _Refactor.data.profile_generator import ProfileGenerator
 from functools import wraps
 import time
 import pyomo.environ as pyo
@@ -19,6 +20,16 @@ def performance_counter(func):
 
 
 class OptOperationModel(AbstractOperationModel):
+    def __init__(self, scenario: 'AbstractScenario'):
+        super().__init__(scenario)
+        # define the maximum temperature for households when there is no cooling (in winter equals to max temp
+        # and in summer the max temperature will be higher to avoid infeasibility)
+
+        self.no_cooling_indoor_temperature_max = ProfileGenerator().generate_maximum_target_indoor_temperature_no_cooling(
+            scenario=self.scenario,
+            temperature_max=self.scenario.behavior_class.indoor_set_temperature_max[0]
+        )
+
 
     def creat_Dict(self, value_list: list) -> dict:
         Dictionary = {}
@@ -494,7 +505,7 @@ class OptOperationModel(AbstractOperationModel):
         if self.scenario.airconditioner_class.power == 0:
             for t in range(1, 8761):
                 instance.Q_RoomCooling[t].fix(0)
-                instance.T_room[t].setub(100)
+                instance.T_room[t].setub(self.no_cooling_indoor_temperature_max[t - 1])
             instance.SumOfLoads_without_cooling_rule.activate()
             instance.SumOfLoads_with_cooling_rule.deactivate()
 
