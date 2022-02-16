@@ -57,7 +57,7 @@ electricity_price_config = {
 }
 
 feed_in_tariff_config = {
-    "fixed_feed_in_tariff": [7.67],  # more feed in tarifs can be provided in list
+    "fixed_feed_in_tariff": [7.67],  # ct/kWh ,more feed in tarifs can be provided in list
     "variable_feed_in_tariff_path": [None]  # for variable feed ins provide path(s)
 }
 
