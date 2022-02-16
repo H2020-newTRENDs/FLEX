@@ -17,7 +17,8 @@ import plotly.graph_objects as go
 
 
 def create_header(Scenario: AbstractScenario) -> str:
-    return f"AC: {int(Scenario.airconditioner_class.power)} W; \n " \
+    return f"Scenario: {Scenario.scenario_id}; \n " \
+           f"AC: {int(Scenario.airconditioner_class.power)} W; \n " \
            f"Battery: {int(Scenario.battery_class.capacity)} W; \n " \
            f"Building id: {Scenario.building_class.ID_Building}; \n " \
            f"Boiler: {Scenario.boiler_class.name}; \n " \
@@ -127,10 +128,11 @@ def read_results(id_scenario) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.D
     return hourly_results_reference_df, yearly_results_reference_df, \
            hourly_results_optimization_df, yearly_results_optimization_df
 
+
 if __name__ == "__main__":
 
     # create scenario:
-    scenario_id = 5
+    scenario_id = 4
     scenario = AbstractScenario(scenario_id=scenario_id)
     try:
         # check if scenario id is in results, if yes, load them instead of calculating them:
@@ -140,7 +142,7 @@ if __name__ == "__main__":
         if len(hourly_results_reference_df) == 0:
             print("creating the tables...")
             calculate_single_results(scenario_id)
-
+    # if table doesn't exist:
     except (sqlite3.OperationalError, sqlalchemy.exc.OperationalError) as error:
         print(error)
         print("creating the tables...")
