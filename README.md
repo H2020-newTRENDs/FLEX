@@ -14,7 +14,7 @@ A long journey between Philipp, Thomas, and Songmin.
 
 - maximum indoor temperature limitation:
   - set a maximum temperature when the reference heating demand is > 0! (this way it is ensured that the SEMS can 
-     not preheat the building in winter) 
+     not preheat the building in winter). When the heating demand == 0 the maximum indoor set temperature rises to 60°C. 
     Drawback: In rare cases the heating energy in Spring and Autumn drops to 0 
      when solar radiation is high, and the SEMS preheats the building up to 30°C.
 
