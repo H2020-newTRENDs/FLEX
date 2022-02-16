@@ -32,6 +32,13 @@ DO YOU GUYS HAVE ANY IDEA HOW TO SOLVE THIS? The optimization should not be able
 maximum indoor set temperature, at the same time, when no cooling system is adapted, the maximum indoor set temperature
 has to be raised, otherwise the model becomes infeasible.
 
+
+- PV generation:
+  - right now the PV systems are all optimally installed to create maximum generation over a year. This way we have 
+  - a very high peak generation at 1pm over a whole country. I wonder if we should also consider PV generation profiles 
+  - where PV systems are oriented east/west. Not sure though how to integrate that into the model as it will affect 
+  - single results for each household.
+
 ### Resources
 
 #### Repos on the Github
