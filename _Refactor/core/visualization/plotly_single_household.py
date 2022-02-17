@@ -70,6 +70,54 @@ class PlotlyVisualize(MotherVisualization):
         fig.update_layout(height=400 * column_number, width=1600, title_text=self.create_header())
         fig.show()
 
+    def investigate_resulting_load_profile(self):
+        x_axis = np.arange(8760)
+        reference_load = self.hourly_results_reference_df.Load.to_numpy() / 1000  # kW
+        optimization_load = self.hourly_results_optimization_df.Load.to_numpy() / 1000  # kW
+        electricity_price = self.hourly_results_reference_df.electricity_price.to_numpy() * 1000  # ct/kWh
+
+        fig = make_subplots(rows=1, cols=1,
+                            shared_xaxes=True, specs=[[{"secondary_y": True}]])
+        fig.add_trace(go.Scatter(x=x_axis, y=reference_load, name="reference"), secondary_y=False)
+        fig.add_trace(go.Scatter(x=x_axis, y=optimization_load, name="SEMS"), secondary_y=False)
+
+        fig.add_trace(go.Scatter(x=x_axis, y=electricity_price, name="electricity price"), secondary_y=True)
+
+        # Set x-axis title
+        fig.update_xaxes(title_text="hours")
+
+        # Set y-axes titles
+        fig.update_yaxes(title_text="total household load (kW)", secondary_y=False)
+        fig.update_yaxes(title_text="electricity price (ct/kWh)", secondary_y=True)
+
+        fig.show()
+
+        # TODO make the figure nicer (quantilen erklären) and try to compare this results with a different household
+        indices_price_10 = np.where(electricity_price < np.quantile(electricity_price, 0.1), True, False)
+        indices_price_25 = np.where(electricity_price < np.quantile(electricity_price, 0.25), True, False)
+        indices_price_75 = np.where(electricity_price > np.quantile(electricity_price, 0.75), True, False)
+        indices_price_90 = np.where(electricity_price > np.quantile(electricity_price, 0.9), True, False)
+
+        name_list = ["below 10%", "below 25%", "above 75%", "above 90%"]
+        load_dict_opt = {}
+        load_dict_ref = {}
+        for i, indices in enumerate([indices_price_10, indices_price_25, indices_price_75, indices_price_90]):
+            ref_load_total = (indices * reference_load).sum()
+            opt_load_total = (indices * optimization_load).sum()
+            load_dict_ref[name_list[i]] = ref_load_total
+            load_dict_opt[name_list[i]] = opt_load_total
+
+        # show load difference in times where price signal is in certain quantile
+        df_ref = pd.DataFrame(load_dict_ref, index=[0]).T
+        df_opt = pd.DataFrame(load_dict_opt, index=[0]).T
+        df = pd.concat([df_opt, df_ref], axis=1)
+        df.columns = ["SEMS", "Reference"]
+        fig = px.bar(df)
+        fig.update_layout(barmode="group", font={"size": 24})
+        fig.show()
+
+        pass
+
 
 if __name__ == "__main__":
 
@@ -77,7 +125,8 @@ if __name__ == "__main__":
     scenario_id = 0
     scenario = AbstractScenario(scenario_id=scenario_id)
     plotly_visualization = PlotlyVisualize(scenario=scenario)
-    plotly_visualization.show_yearly_comparison_of_SEMS_reference()
-    plotly_visualization.hourly_comparison_SEMS_reference()
+    # plotly_visualization.show_yearly_comparison_of_SEMS_reference()
+    # plotly_visualization.hourly_comparison_SEMS_reference()
+    plotly_visualization.investigate_resulting_load_profile()
     # ---------------------------------------------------------------------------------------------------------
 
