@@ -1,7 +1,7 @@
 import sqlite3
-
+from pathlib import Path
 import sqlalchemy.exc
-
+from scipy.stats import norm
 from _Refactor.core.household.abstract_scenario import AbstractScenario
 from _Refactor.models.operation.opt import OptOperationModel
 from _Refactor.models.operation.ref import RefOperationModel
@@ -15,6 +15,7 @@ import numpy as np
 import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+import plotly.figure_factory as ff
 
 
 # -----------------------------------------------------------------------------------------------------------
@@ -89,6 +90,7 @@ class PlotlyVisualize(MotherVisualization):
         # Set y-axes titles
         fig.update_yaxes(title_text="total household load (kW)", secondary_y=False)
         fig.update_yaxes(title_text="electricity price (ct/kWh)", secondary_y=True)
+        fig.update_layout(font={"size": 24})
 
         fig.show()
 
@@ -98,10 +100,14 @@ class PlotlyVisualize(MotherVisualization):
         indices_price_75 = np.where(electricity_price > np.quantile(electricity_price, 0.75), True, False)
         indices_price_90 = np.where(electricity_price > np.quantile(electricity_price, 0.9), True, False)
 
-        name_list = ["below 10%", "below 25%", "above 75%", "above 90%"]
+        indices_price_below_50 = np.where(electricity_price < np.quantile(electricity_price, 0.5), True, False)
+        indices_price_above_50 = np.where(electricity_price > np.quantile(electricity_price, 0.5), True, False)
+
+        name_list = ["below 10%", "below 25%", "below 50%", "above 50%", "above 75%", "above 90%"]
         load_dict_opt = {}
         load_dict_ref = {}
-        for i, indices in enumerate([indices_price_10, indices_price_25, indices_price_75, indices_price_90]):
+        for i, indices in enumerate([indices_price_10, indices_price_25, indices_price_below_50, indices_price_above_50,
+                                     indices_price_75, indices_price_90]):
             ref_load_total = (indices * reference_load).sum()
             opt_load_total = (indices * optimization_load).sum()
             load_dict_ref[name_list[i]] = ref_load_total
@@ -111,12 +117,69 @@ class PlotlyVisualize(MotherVisualization):
         df_ref = pd.DataFrame(load_dict_ref, index=[0]).T
         df_opt = pd.DataFrame(load_dict_opt, index=[0]).T
         df = pd.concat([df_opt, df_ref], axis=1)
-        df.columns = ["SEMS", "Reference"]
-        fig = px.bar(df)
-        fig.update_layout(barmode="group", font={"size": 24})
+
+        df_loads = pd.concat([pd.Series(reference_load), pd.Series(optimization_load)], axis=1).set_index(electricity_price)
+        df_loads.columns = ["Reference", "SEMS"]
+        # df_loads = pd.melt(df_loads, id_vars="price", value_vars=["Reference", "SEMS"])
+        # fig = px.histogram(data_frame=df_loads, x="price", color="variable")
+        # fig.show()
+        # create histograms that will be implemeted in subplots later:
+        fig_z = ff.create_distplot([electricity_price], group_labels=["electricity price"])
+        # fig_z.show()
+        fig_ref = px.histogram(data_frame=df_loads, x=df_loads.index, y=df_loads["Reference"])
+        fig_sems = px.histogram(data_frame=df_loads, x=df_loads.index, y=df_loads["SEMS"])
+
+        # normal distribution curve of price data
+        norm_distribution_elec_price = norm.pdf(electricity_price, np.mean(electricity_price), np.std(electricity_price))
+        norm_distribution_ref_load = norm.pdf(reference_load, np.mean(reference_load), np.std(reference_load))
+        norm_distribution_opt_load = norm.pdf(optimization_load, np.mean(optimization_load), np.std(optimization_load))
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True)
+        # first subplot: the probability distribution of electric load over the electricity price
+        fig.add_trace(go.Histogram(fig_sems["data"][0], opacity=0.3, name="SEMS load"),
+                      col=1, row=1)
+        fig.update_traces(col=1, row=1, marker_color="red")
+
+        fig.add_trace(go.Histogram(fig_ref["data"][0], opacity=0.3, name="Reference load"),
+                      col=1, row=1)
+        fig.update_layout(barmode='overlay')
+
+        # second subplot, the probability distribution of the electricity price:
+        fig.add_trace(go.Histogram(fig_z["data"][0], autobinx=True), col=1, row=2)
+        fig.add_trace(go.Scatter(fig_z["data"][1]), col=1, row=2)
+        for percentage in [0.1, 0.25, 0.5, 0.75, 0.9]:
+            fig.add_vline(x=np.quantile(electricity_price, percentage), line_dash="dash", col=1, row=1)
+            fig.add_vline(x=np.quantile(electricity_price, percentage), line_dash="dash", col=1, row=2)
+            fig.add_annotation(x=np.quantile(electricity_price, percentage), y=0, text="{:.0%}".format(percentage),
+                               col=1, row=2)
+        # x-axes
+        fig.update_xaxes(title="electricity price (ct/kWh)", row=1, col=1)
+        fig.update_xaxes(title="electricity price (ct/kWh)", row=2, col=1)
+        # y-axes
+        fig.update_yaxes(title="summed up electricity load (kWh)", row=1, col=1)
+        fig.update_yaxes(title="probability", row=2, col=1)
+        fig.update_layout(xaxis=dict(tickmode="linear", tick0=round(min(electricity_price)), dtick=0.5))
+        # save image to pdf or svg:
+        image_name = "Electricity_price_and_Load_distribution.pdf"
+        path_to_image_folder = r"C:/Users/mascherbauer/PycharmProjects/NewTrends/Prosumager/_Refactor/projects/PhilippTest/Figures/" + image_name
+        fig.write_image(path_to_image_folder)
         fig.show()
 
-        pass
+        # Distribution probability of load
+        fig = make_subplots(rows=1, cols=1)
+        fig.add_trace(go.Scatter(x=reference_load, y=norm_distribution_ref_load, mode="markers",
+                                 name="Reference load"),
+                      col=1, row=1)
+        fig.add_trace(go.Scatter(x=optimization_load, y=norm_distribution_opt_load, mode="markers",
+                                 name="SEMS load"),
+                      col=1, row=1)
+        fig.update_xaxes(title="electricity load (kWh)", row=1, col=1)
+        # y-axes
+        fig.update_yaxes(title="probability", row=1, col=1)
+        image_name = "Load_probability_distribution.pdf"
+        # TODO make this path a variable that is dependent on the project
+        path_to_image_folder = r"C:/Users/mascherbauer/PycharmProjects/NewTrends/Prosumager/_Refactor/projects/PhilippTest/Figures/" + image_name
+        fig.write_image(path_to_image_folder)
+        fig.show()
 
 
 if __name__ == "__main__":
