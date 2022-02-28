@@ -94,7 +94,7 @@ def load_building_data_from_json(country: str) -> pd.DataFrame:
                                                 "construction_period_end",
                                                 "bc_index",
                                                 "building_categories_index"])
-    if country == "AT":
+    if country_code == "AT":
         show_building_numbers(building_json)
 
     # drop country code from df:
