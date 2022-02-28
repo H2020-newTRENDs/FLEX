@@ -75,13 +75,7 @@ class BuildingData:
         self.ID_Building = sqlalchemy.types.Integer
         self.invert_index = sqlalchemy.types.Integer
         self.name = sqlalchemy.types.String
-        self.construction_period_start = sqlalchemy.types.Integer
-        self.construction_period_end = sqlalchemy.types.Integer
-        self.number_of_dwellings_per_building = sqlalchemy.types.Float
-        self.number_of_persons_per_dwelling = sqlalchemy.types.Float
-        self.horizontal_shading = sqlalchemy.types.Float
-        self.area_windows = sqlalchemy.types.Float
-        self.area_suitable_for_solar = sqlalchemy.types.Float
+        self.construction_period = sqlalchemy.types.Integer
         self.hwb_norm = sqlalchemy.types.Float
         self.effective_window_area_west_east = sqlalchemy.types.Float
         self.effective_window_area_north = sqlalchemy.types.Float
@@ -93,6 +87,9 @@ class BuildingData:
         self.Hve = sqlalchemy.types.Float
         self.CM_factor = sqlalchemy.types.Float
         self.Am_factor = sqlalchemy.types.Float
+        self.number_of_buildings = sqlalchemy.types.Float
+        self.number_of_buildings_with_HP_ground = sqlalchemy.types.Float
+        self.number_of_buildings_with_HP_air = sqlalchemy.types.Float
         self.building_mass_temperature_start = sqlalchemy.types.Float
         self.building_mass_temperature_max = sqlalchemy.types.Float
         self.grid_power_max = sqlalchemy.types.Float
