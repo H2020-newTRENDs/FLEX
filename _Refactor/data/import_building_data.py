@@ -1,272 +1,126 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
+import seaborn as sns
+import matplotlib.pyplot as plt
+import matplotlib.ticker
 
 
-def load_building_data_from_excel():
-    dynamic_data_path = Path(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\_Philipp\inputdata\AUT\001__dynamic_calc_data_bc_2017_AUT.csv")
-    building_segment_path = Path(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\_Philipp\inputdata\AUT\040_aut__3__BASE__1_zz_new_bc_seg__b_building_segment_sh.csv")
-    building_class_path = Path(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\_Philipp\inputdata\AUT\001_Building_Classes_2017.csv")
+def show_building_numbers(building_df: pd.DataFrame) -> None:
+    # create small overview plot
+    plot_df = building_df.copy()
+    plot_df["year"] = ""
+    for index, row in plot_df.iterrows():
+        plot_df.loc[index, "year"] = str(row["construction_period_start"]) + "-" + str(row["construction_period_end"])
+        if "gen" in row["name"].lower():
+            name_extension = "_gen" + row["name"][row["name"].find("gen") + 3]
+        else:
+            name_extension = ""
+        if "denkmalschutz" in row["name"].lower():
+            plot_df.loc[index, "name"] = row["name"][:5] + "_mon" + name_extension
+        else:
+            plot_df.loc[index, "name"] = row["name"][:5] + name_extension
 
-    dynamic_data = pd.read_csv(dynamic_data_path, sep=None, engine="python")
-    building_segment = pd.read_csv(building_segment_path, sep=None, engine="python").drop(
-        index=[0, 1, 2]).reset_index(drop=True)
-    building_class = pd.read_csv(building_class_path, sep=None, engine="python").drop(
-        index=[0, 1, 2]).reset_index(drop=True)
+    plot_df = plot_df.drop(columns=["construction_period_start",
+                                    "construction_period_end",
+                                    "bc_index",
+                                    "building_categories_index", "Af", "Hop", "Htr_w", "Hve", "CM_factor", "Am_factor",
+                                    "average_effective_area_wind_west_east_red_cool",
+                                    "average_effective_area_wind_south_red_cool",
+                                    "average_effective_area_wind_north_red_cool",
+                                    "spec_int_gains_cool_watt", "hwb_norm", "country", "invert_index"])
 
-    # create the data for calculations TODO make these settings accesible through config
-    # for old buildings I use the data of the latest renovation (most likely to have heat pump installed)
-    gen4 = building_class.loc[building_class["name"].str.contains("gen4", case=False)]
-    sfh_gen4 = gen4.loc[gen4["name"].str.contains("sfh", case=False)]
-    rh_gen4 = gen4.loc[gen4["name"].str.contains("rh", case=False)]
+    plot_df = plot_df.melt(id_vars=["name", "year"]).rename(
+        columns={"value": "number of buildings"}
+    )
+    ax = sns.barplot(data=plot_df, x="name", y="number of buildings", hue="variable", ci=None)
+    ax.get_yaxis().set_major_formatter(
+        matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " "))
+    )
+    plt.xticks(rotation=90)
+    plt.tight_layout()
+    plt.show()
 
-    gen3 = building_class.loc[building_class["name"].str.contains("gen3", case=False)]
-    sfh_gen3 = gen3.loc[gen3["name"].str.contains("sfh", case=False)].iloc[-1,
-               :].to_frame().transpose()  # only last one (F-series because no gen4)
-    rh_gen3 = gen3.loc[gen3["name"].str.contains("rh", case=False)].iloc[-1, :].to_frame().transpose()
 
-    gen2 = building_class.loc[building_class["name"].str.contains("gen2", case=False)]
-    sfh_gen2 = gen2.loc[gen2["name"].str.contains("sfh", case=False)].iloc[-1,
-               :].to_frame().transpose()  # only last one (G-series because no gen3)
-    rh_gen2 = gen2.loc[gen2["name"].str.contains("rh", case=False)].iloc[-1, :].to_frame().transpose()
+def convert_2_digit_country_code_into_3_digit(country_code: str) -> str:
+    country_abbreviations = [
+         ['Austria', 'AUT', 'AT'],
+         ['Belgium', 'BEL', 'BE'],
+         ['Bulgaria', 'BGR', 'BG'],
+         ['Croatia', 'HRV', 'HR'],
+         ['Cyprus', 'CYP', 'CY'],
+         ['Czech Republic', 'CZE', 'CZ'],
+         ['Denmark', 'DNK', 'DK'],
+         ['Estonia', 'EST', 'EE'],
+         ['Finland', 'FIN', 'FI'],
+         ['France', 'FRA', 'FR'],
+         ['Germany', 'DEU', 'DE'],
+         ['Greece', 'GRC', 'GR'],
+         ['Hungary', 'HUN', 'HU'],
+         ['Ireland', 'IRL', 'IE'],
+         ['Italy', 'ITA', 'IT'],
+         ['Latvia', 'LVA', 'LV'],
+         ['Lithuania', 'LTU', 'LT'],
+         ['Luxembourg', 'LUX', 'LU'],
+         ['Malta', 'MLT', 'MT'],
+         ['Netherlands', 'NLD', 'NL'],
+         ['Poland', 'POL', 'PL'],
+         ['Portugal', 'PRT', 'PT'],
+         ['Romania', 'ROU', 'RO'],
+         ['Slovakia', 'SVK', 'SK'],
+         ['Slovenia', 'SVN', 'SI'],
+         ['Spain', 'ESP', 'ES'],
+         ['Sweden', 'SWE', 'SE'],
+         ['United Kingdom', 'GBR', 'UK'],
+    ]
+    for country_list in country_abbreviations:
+        if country_list[2] == country_code:
+            return country_list[1]
+        else:
+            print("country code is not in country list \n")
 
-    modern_sfh = building_class.loc[building_class["name"].str.contains("sfh", case=False)].iloc[-2:, :]
-    modern_rh = building_class.loc[building_class["name"].str.contains("rh", case=False)].iloc[-2:, :]
 
-    # all_classes = pd.concat([modern_sfh, sfh_gen2, sfh_gen3, sfh_gen4, modern_rh,
-    #                          rh_gen2, rh_gen3, rh_gen4]).set_index("index", drop=True).sort_index()
-    # no RH
-    # all_classes = pd.concat([modern_sfh, sfh_gen2, sfh_gen3, sfh_gen4]
-    #                         ).set_index("index", drop=True).sort_index()
-    # only moder nbuildings:
-    all_classes = pd.concat([modern_sfh]
-                            ).set_index("index", drop=True).sort_index()
-    indices = all_classes.index.to_numpy().astype(int)
+def load_building_data_from_json(country: str) -> pd.DataFrame:
 
-    all_dynamic_data = dynamic_data.set_index("bc_index").loc[indices, :]
+    absolut_path = Path("__file__").parent.parent.resolve() / Path(f"_Refactor/data/SFH_building_data.json")
+    absolut_path = Path("__file__").parent.parent.resolve() / Path(f"SFH_building_data.json")
 
-    df_database = pd.concat([all_classes, all_dynamic_data], axis=1)
-    # remove duplicate columns
-    df_database = df_database.loc[:, ~df_database.columns.duplicated()]
-    df_database = df_database.drop(columns=[
-        "building_life_time_index",
-        "length_of_building",
-        "width_of_building",
-        "number_of_floors",
-        "room_height",
-        "building_geometry_special_index",
-        "percentage_of_building_surface_attached_length",
-        "percentage_of_building_surface_attached_width",
-        "share_of_window_area_on_gross_surface_area",
-        "share_of_windows_oriented_to_south",
-        "share_of_windows_oriented_to_north",
-        "gebaudebauweise_fbw",
-        "renovation_facade_year_start",
-        "renovation_facade_year_end",
-        "f_x3_facade",
-        "f_x2_facade",
-        "f_x1_facade",
-        "f_x0_facade",
-        "renovation_windows_year_start",
-        "renovation_windows_year_end",
-        "f_x3_windows",
-        "f_x2_windows",
-        "f_x1_windows",
-        "f_x0_windows",
-        "envelope_quality_def_index",
-        "mech_ventilation_system_index",
-        "user_profiles_index",
-        "climate_region_index",
-        "agent_mixes_index",
-        "bc_specific_userfactor",
-        "INPUT_DATA_STOP",
-        "grossfloor_area",  # ist = Af
-        "heated_area",
-        "total_vertical_surface_area",
-        "aewd",
-        "areafloor",
-        "areadoors",
-        "grossvolume",
-        "heatedvolume",
-        "heated_norm_volume",
-        "characteristic_length",
-        "A_V_ratio",
-        "LEK",
-        "hwb",
-        "hlpb",
-        "orig_hlpb",
-        "hlpb_dhw",
-        "t_indoor_eff_factor",
-        "effective_indoor_temp_jan",
-        "prev_index",
-        "last_action",
-        "last_action_year",
-        "mean_construction_period",
-        "uedh_sh_norm",
-        "uedh_sh_effective",
-        "uedh_sh_original",
-        "climate_change_factor1",
-        "uedh_sh_climate1",
-        "climate_change_factor1a",
-        "uedh_sh_climate1a",
-        "climate_change_factor1b",
-        "uedh_sh_climate1b",
-        "climate_change_factor2",
-        "uedh_sh_climate2",
-        "ued_cool",
-        "ued_cool_climate1",
-        "ued_cool_climate1a",
-        "ued_cool_climate1b",
-        "ued_cool_climate2",
-        "ued_cool_no_int_gains",
-        "uedh_sh_savings_mech_vent",
-        "effective_heating_hours",
-        "effective_operation_hours_solar",
-        "boiler_operation_hours_dhw",
-        "distribution_operation_hours_dhw",
-        "rand_number_1",
-        "rand_number_2",
-        "rand_number_3",
-        "u_value_ceiling",
-        "u_value_exterior_walls",
-        "u_value_windows1",
-        "u_value_windows2",
-        "u_value_roof",
-        "u_value_zangendecke",
-        "u_value_floor",
-        "seam_loss_windows",
-        "n_50",
-        "envelope_quality_add_data_idx",
-        "add_building_life_time",
-        "facade_life_time_factor",
-        "windows_life_time_factor",
-        "envelope_lifetime_index",
-        "trans_loss_walls",
-        "trans_loss_ceil",
-        "trans_loss_wind",
-        "trans_loss_doors",
-        "trans_loss_floor",
-        "trans_loss_therm_bridge",
-        "trans_loss_ventilation",
-        "total_heat_losses",
-        "uedh_sh_effective_gains",
-        "uedh_sh_effective_gains_solar",
-        "uedh_sh_effective_gains_lighting",
-        "uedh_sh_effective_gains_internal_other",
-        "uedh_sh_effective_gains_internal_people",
-        "uedh_sh_norm_gains_solar_transparent",
-        "ued_cool_gains_solar_transparent",
-        "ued_cool_gains_solar_opaque",
-        "ued_cool_gains_lighting",
-        "ued_cool_gains_internal_other",
-        "ued_cool_gains_internal_people",
-        "internal_cool_gains_lighting",
-        "internal_gains_lighting",
-        "internal_cool_gains_other_appliances",
-        "internal_gains_other_appliances",
-        "internal_cool_gains_people",
-        "internal_gains_people",
-        "uedh_sh_effective_losses_before_gains",
-        "estimated_electricity_internal_gains",
-        "estimated_electricity_not_internal_gains",
-        "uedh_sh_effective_jan",
-        "uedh_sh_effective_feb",
-        "uedh_sh_effective_mar",
-        "uedh_sh_effective_apr",
-        "uedh_sh_effective_may",
-        "uedh_sh_effective_jun",
-        "uedh_sh_effective_jul",
-        "uedh_sh_effective_aug",
-        "uedh_sh_effective_sep",
-        "uedh_sh_effective_oct",
-        "uedh_sh_effective_nov",
-        "uedh_sh_effective_dec",
-        "uedh_sh_effective_gains_solar_jan",
-        "uedh_sh_effective_gains_solar_feb",
-        "uedh_sh_effective_gains_solar_mar",
-        "uedh_sh_effective_gains_solar_apr",
-        "uedh_sh_effective_gains_solar_may",
-        "uedh_sh_effective_gains_solar_jun",
-        "uedh_sh_effective_gains_solar_jul",
-        "uedh_sh_effective_gains_solar_aug",
-        "uedh_sh_effective_gains_solar_sep",
-        "uedh_sh_effective_gains_solar_oct",
-        "uedh_sh_effective_gains_solar_nov",
-        "uedh_sh_effective_gains_solar_dec",
-        "annual_mech_vent_volume_heat_recovery_mode",
-        "annual_mech_vent_volume_non_heat_recovery_mode",
-        "ued_cooling_jan",
-        "ued_cooling_feb",
-        "ued_cooling_mar",
-        "ued_cooling_apr",
-        "ued_cooling_may",
-        "ued_cooling_jun",
-        "ued_cooling_jul",
-        "ued_cooling_aug",
-        "ued_cooling_sep",
-        "ued_cooling_oct",
-        "ued_cooling_nov",
-        "ued_cooling_dec",
-        "renovation_inv_costs",
-        "of_which_maintenance_inv_costs_part",
-        "target_hwb",
-        "target_hwb_asterix",
-        "hwb_lc_factor",
-        "target_hwb_u_value_adoption_factor",
-        "hwb_original_u_values_using_days",
-        "hwb_using_days",
-        "immissionFlaeche_sommer_nachweis_B8110_3",
-        "immissionsflaechenbezogenerLuftwechsel_sommer_nachweis_B8110_3",
-        "erforderliche_speicherwirksameMasse_sommer_nachweis_B8110_3",
-        "immissionsflaechenbezogene_speicherwirksameMasse_sommer_nachweis_B8110_3",
-        "heatstoragemass_ratio_sommer_nachweis_B8110_3",
-        "start_refurb_obligation_year",
-        "is_unrefurbished",
-        "deep_refurb_level",
-        "delta_hwb_refurb",
-        "average_hwb_unrefurbished_simulation_start",
-        "average_hwb_unrefurbished_current_period",
-        "hwb_ref_climate_zone",
-        "is_unrefurbished_age_not_considered",
-        "cum_inv_env_exist_build",
-        "cum_sub_env_exist_build",
-        "Tset",
-        "user_profile",
-        "building_categories_index",
-        "ued_dhw"
-    ])
-    df_database = df_database.reset_index().rename(columns={"index": "invert_index"})
-    df_database["index"] = np.arange(1, len(df_database)+1)
+    building_data = pd.read_json(absolut_path, orient="table")
+    country_code = convert_2_digit_country_code_into_3_digit(country)
 
-    # for index in indices:
-    #     air_heatpump_buildings = building_segment.loc[
-    #         (building_segment.loc[:, "buildingclasscsvid"] == str(index)) &
-    #         (building_segment.loc[:, "heatingsystem"].str.contains("heatpump\(air/water\)", case=False))]
-    #     number_of_air_heatpumps = air_heatpump_buildings.loc[:, "number_of_buildings"].sum()
-    #
-    #     water_heatpump_buildings = building_segment.loc[
-    #         (building_segment.loc[:, "buildingclasscsvid"] == str(index)) &
-    #         (building_segment.loc[:, "heatingsystem"].str.contains("heatpump\(water/water\)", case=False))]
-    #     number_of_water_heatpumps = water_heatpump_buildings.loc[:, "number_of_buildings"].sum()
-    # print(f"number of air HP: {number_of_air_heatpumps} \n number of ground HP: {number_of_water_heatpumps}")
-    #      # TODO noch die anzahl bestimmen! entweder alle heat pumps von einer gebäudekategorie oder nur die die ich auswähle
+    # filter our data for the country
+    building_data = building_data.loc[building_data.loc[:, "country"] == country_code, :]
+    if country == "AT":
+        show_building_numbers(building_data)
 
-    return df_database
+    return building_data
 
 
 if __name__ == "__main__":
-    building_data = load_building_data_from_excel()
+    building_data = load_building_data_from_json("AT")
     # write to DB
-    column_names = {"index": "INTEGER", "index_invert": "INTEGER", "name": "TEXT",
-                    "construction_period_start": "INTEGER", "construction_period_end": "INTEGER",
-                    "building_categories_index": "INTEGER", "number_of_dwellings_per_building": "REAL",
-                    "number_of_persons_per_dwelling": "REAL", "horizontal_shading_building": "REAL",
-                    "areawindows": "REAL", "area_suitable_solar": "REAL", "hwb_norm": "REAL",
-                    "ued_dhw": "REAL", "average_effective_area_wind_west_east_red_cool": "REAL",
+    column_names = {"index": "INTEGER",
+                    "index_invert": "INTEGER",
+                    "name": "TEXT",
+                    "construction_period_start": "INTEGER",
+                    "construction_period_end": "INTEGER",
+                    "building_categories_index": "INTEGER",
+                    "number_of_dwellings_per_building": "REAL",
+                    "number_of_persons_per_dwelling": "REAL",
+                    "horizontal_shading_building": "REAL",
+                    "areawindows": "REAL",
+                    "area_suitable_solar": "REAL",
+                    "hwb_norm": "REAL",
+                    "ued_dhw": "REAL",
+                    "average_effective_area_wind_west_east_red_cool": "REAL",
                     "average_effective_area_wind_south_red_cool": "REAL",
                     "average_effective_area_wind_north_red_cool": "REAL",
                     "spec_int_gains_cool_watt": "REAL",
-                    "Af": "REAL", "Hop": "REAL", "Htr_w": "REAL", "Hve": "REAL", "CM_factor": "REAL",
+                    "Af": "REAL",
+                    "Hop": "REAL",
+                    "Htr_w": "REAL",
+                    "Hve": "REAL",
+                    "CM_factor": "REAL",
                     "Am_factor": "REAL"}
 
 
