@@ -129,16 +129,17 @@ class InputDataGenerator:
                              if_exists="replace"
                              )
 
-    def create_building_data(self) -> None:  # TODO create link to INVERT
+    def create_building_data(self) -> None:
         """reads building excel table and stores it to root"""
         building_mass_temperature_start = self.input.building_config["building_mass_temperature_start"]  # °C
         building_mass_temperature_max = self.input.building_config["building_mass_temperature_max"]  # °C
         grid_power_max = self.input.building_config["grid_power_max"]  # W
-        building_data = import_building_data.load_building_data_from_excel()
+        building_data = import_building_data.load_building_data_from_json(
+            country=self.input.region_config["country_code"]
+        )
         # rename columns:
         building_data = building_data.rename(
             columns={"index": "ID_Building",
-                     "horizontal_shading_building": "horizontal_shading",
                      "areawindows": "area_windows",
                      "area_suitable_solar": "area_suitable_for_solar",
                      "average_effective_area_wind_west_east_red_cool": "effective_window_area_west_east",
@@ -387,8 +388,7 @@ def main():
     configuration = Config(config_list)
     #
 
-    InputDataGenerator(configuration=configuration).run()
-
+    InputDataGenerator(configuration=configuration).run(skip_region=True)
 
 
 if __name__ == "__main__":
