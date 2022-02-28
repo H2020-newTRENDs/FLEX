@@ -38,6 +38,38 @@ def show_building_numbers(building_df: pd.DataFrame) -> None:
     plt.tight_layout()
     plt.show()
 
+    # show the same graph without total number of buildings:
+    plot_df = plot_df.loc[plot_df.loc[:, "variable"] != "number_of_buildings", :]
+    ax = sns.barplot(data=plot_df, x="name", y="number of buildings", hue="variable", ci=None)
+    ax.get_yaxis().set_major_formatter(
+        matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " "))
+    )
+    plt.xticks(rotation=90)
+    plt.ylim(0, 2000)
+    plt.tight_layout()
+    plt.show()
+    # TODO still work in progress on how to determine which buildings to take
+    # count building types that have less than 2000 HPs
+    threshold = 2_000
+    total_number_hp_air_below_thres = 0
+    total_number_hp_ground_below_thres = 0
+    for index, row in plot_df.iterrows():
+        if row["number of buildings"] < threshold:
+            if row["variable"] == "number_of_buildings_with_HP_ground":
+                total_number_hp_ground_below_thres += row["number of buildings"]
+            elif row["variable"] == "number_of_buildings_with_HP_air":
+                total_number_hp_air_below_thres += row["number of buildings"]
+
+    total_number_hp_air = plot_df.loc[
+        plot_df.loc[:, "variable"] == "number_of_buildings_with_HP_air", "number of buildings"
+    ].sum()
+    total_number_hp_ground = plot_df.loc[
+        plot_df.loc[:, "variable"] == "number_of_buildings_with_HP_ground", "number of buildings"
+    ].sum()
+
+    percent_ignored_air = total_number_hp_air_below_thres / total_number_hp_air
+    percent_ignored_ground = total_number_hp_ground_below_thres / total_number_hp_ground
+
 
 def convert_2_digit_country_code_into_3_digit(country_code: str) -> str:
     country_abbreviations = [
@@ -94,15 +126,18 @@ def load_building_data_from_json(country: str) -> pd.DataFrame:
                                                 "construction_period_end",
                                                 "bc_index",
                                                 "building_categories_index"])
-    if country_code == "AT":
+    if country_code == "AUT":
         show_building_numbers(building_json)
 
     # drop country code from df:
     building_json = building_json.drop(columns=["country"])
+    # TODO selection is not very good jet:
+    # take five buildings with the highest number of heat pumps
+    sorted_df = building_json.sort_values(by=["number_of_buildings_with_HP_air"]).tail(5)
     # add ID_Building:
-    building_json.loc[:, "ID_Building"] = np.arange(1, len(building_json)+1)
+    sorted_df.loc[:, "ID_Building"] = np.arange(1, len(sorted_df)+1)
 
-    return building_json
+    return sorted_df
 
 
 if __name__ == "__main__":
