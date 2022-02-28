@@ -1,6 +1,8 @@
 
 
 # All Power inputs have to be provided in W !!!!
+__country = "AT"
+
 air_conditioner_config = {
     "efficiency": 3,
     "power": [0, 10_000],
@@ -49,7 +51,7 @@ electricity_price_config = {
     "api_key": 'c06ee579-f827-486d-bc1f-8fa0d7ccd3da',
     "start": "20190101",
     "end": "20200101",
-    "country_code": "AT",
+    "country_code": __country,
     "grid_fee": 20,  # ct/kWh
 
     # fixed price
@@ -76,7 +78,7 @@ person_config = {
 
 region_config = {
     "nuts_level": 3,
-    "country_code": "AT",
+    "country_code": __country,
     "start_year": 2010,
     "end_year": 2010,
     "pv_size": [0, 5, 10]  # kWp
