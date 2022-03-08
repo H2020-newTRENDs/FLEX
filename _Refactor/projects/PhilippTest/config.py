@@ -42,8 +42,7 @@ building_config = {
 }
 
 demand_config = {
-    "hot_water_demand_path": r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\_Philipp\inputdata\AUT\Hot_water_profile.xlsx",  # absolute path to the profile
-    "base_load_path": r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\_Philipp\inputdata\AUT\synthload2019.csv"
+    "base_load_year": "2019",  # [2018, 2019, ... 2024]
 }
 
 electricity_price_config = {

@@ -161,17 +161,13 @@ class InputDataGenerator:
                              )
 
     def create_demand_data(self):
-        # Base electricity load
-        baseload = pd.read_csv(Path(self.input.demand_config["base_load_path"]), sep=None, engine="python")
-        baseload_h0 = baseload.loc[baseload["Typnummer"] == 1].set_index("Zeit", drop=True).drop(columns="Typnummer")
-        baseload_h0.index = pd.to_datetime(baseload_h0.index)
-        baseload_h0["Wert"] = pd.to_numeric(baseload_h0["Wert"].str.replace(",", "."))
-        baseload_h0 = baseload_h0[3:].resample("1H").sum()
-        baseload_h0 = baseload_h0.reset_index(drop=True).rename(columns={"Wert": "electricity_demand"})
-        baseload_h0 = baseload_h0.to_numpy() * 1_000  # from kWh in Wh
+        # load json file
+        synthetic_load_path = Path("__file__").parent.parent.resolve() / Path(f"synthetic_load_household.json")
+        baseload = pd.read_json(synthetic_load_path, orient="table")
+        baseload = baseload.loc[:, self.input.demand_config["base_load_year"]].to_numpy()
 
         baseload_dict = {"ID_ElectricityDemand": np.full((8760,), 1),
-                         "electricity_demand": baseload_h0.flatten(),
+                         "electricity_demand": baseload.flatten(),
                          "unit": np.full((8760,), "Wh")}
         baseload_table = pd.DataFrame(baseload_dict)
         assert sorted(list(baseload_table.columns)) == sorted(list(structure.ElectricityDemandData().__dict__.keys()))
@@ -182,9 +178,10 @@ class InputDataGenerator:
                              )
 
         # Hot water demand profile
-        hot_water = pd.read_excel(Path(self.input.demand_config["hot_water_demand_path"]), engine="openpyxl")
+        hot_water_path = Path("__file__").parent.parent.resolve() / Path(f"hot_water_demand.json")
+        hot_water = pd.read_json(hot_water_path, orient="table")
         hot_water_dict = {"ID_HotWaterDemand": np.full((8760,), 1),
-                          "hot_water_demand": hot_water["Profile"].to_numpy() * 1_000,
+                          "hot_water_demand": hot_water["Profile"].to_numpy(),
                           "unit": np.full((8760,), "Wh")}
         hot_water_table = pd.DataFrame(hot_water_dict)
         assert sorted(list(hot_water_table.columns)) == sorted(list(structure.HotWaterDemandData().__dict__.keys()))
