@@ -5,6 +5,7 @@ import sqlalchemy.types
 import geopandas as gpd
 from pyproj import CRS, Transformer
 import urllib.error
+import os
 
 from _Refactor.basic.db import DB
 from _Refactor.basic.reg import Table
@@ -281,28 +282,28 @@ class PVGIS:
             country: european country code 2 digits (eg. DE, AT, ES...)
             nuts_level: int [0, 1, 2, 3]
         """
-        # weighted average over heat demand from hotmaps
-        absolut_path = Path("__file__").parent.parent.resolve() / Path(f"_Refactor/data/heat_demand.json")
-        heat_demand_total = pd.read_json(absolut_path, orient="table")
-        # select the heat demand on the respective nuts level
+        # weighted average over ground floor area from hotmaps
+        absolut_path = Path(os.path.abspath(__file__)).parent.resolve() / Path(f"residential_floor_area.json")
+        floor_area_total = pd.read_json(absolut_path, orient="table")
+        # select the floor area on the respective nuts level
         if nuts_level == 0:
-            mask = heat_demand_total["nuts_id"].str.len() == 2
-            heat_demand = heat_demand_total.loc[mask]
+            mask = floor_area_total["nuts_id"].str.len() == 2
+            floor_area = floor_area_total.loc[mask]
         elif nuts_level == 1:
-            mask = heat_demand_total["nuts_id"].str.len() == 3
-            heat_demand = heat_demand_total.loc[mask]
+            mask = floor_area_total["nuts_id"].str.len() == 3
+            floor_area = floor_area_total.loc[mask]
         elif nuts_level == 2:
-            mask = heat_demand_total["nuts_id"].str.len() == 4
-            heat_demand = heat_demand_total.loc[mask]
+            mask = floor_area_total["nuts_id"].str.len() == 4
+            floor_area = floor_area_total.loc[mask]
         elif nuts_level == 3:
-            mask = heat_demand_total["nuts_id"].str.len() == 5
-            heat_demand = heat_demand_total.loc[mask]
+            mask = floor_area_total["nuts_id"].str.len() == 5
+            floor_area = floor_area_total.loc[mask]
         else:
             assert "nuts level has to be integer of [0, 1, 2, 3]"
-        # select the heat demand for the respective country
-        heat_demand = heat_demand[heat_demand["nuts_id"].str.startswith(country)].reset_index(drop=True)
-        # total sum of heat demand
-        heat_demand_sum = heat_demand.loc[:, "sum"].sum()
+        # select the floor area for the respective country
+        floor_area = floor_area[floor_area["nuts_id"].str.startswith(country)].reset_index(drop=True)
+        # total sum of floor area
+        floor_area_sum = floor_area.loc[:, "sum"].sum()
 
         # create numpy arrays that will be filled inside the loop:
         temperature_weighted_sum = np.zeros((8760, 1))
@@ -318,20 +319,20 @@ class PVGIS:
         )
         # dictionary for different PV types
         PV_weighted_sum = {(id_pv, unique_peak_power[i]): np.zeros((8760, 1)) for i, id_pv in enumerate(unique_PV_id_types)}
-        for index, row in heat_demand.iterrows():
+        for index, row in floor_area.iterrows():
             nuts_id = row["nuts_id"]
-            heat_demand_of_specific_region = row["sum"]
+            floor_area_of_specific_region = row["sum"]
             # Temperature
             temperature_profile = DB().read_dataframe(f"Temperature_NUTS{nuts_level}_{country}",
                                                       *["temperature"],  # *columns
                                                       nuts_id=nuts_id).to_numpy()  # **kwargs
-            temperature_weighted_sum += temperature_profile * heat_demand_of_specific_region / heat_demand_sum
+            temperature_weighted_sum += temperature_profile * floor_area_of_specific_region / floor_area_sum
 
             # Solar radiation
             radiation_profile = DB().read_dataframe(f"Radiation_NUTS{nuts_level}_{country}",
                                                     *["south", "east", "west", "north"],  # *columns
                                                     nuts_id=nuts_id).to_numpy()  # **kwargs
-            radiation_weighted_sum += radiation_profile * heat_demand_of_specific_region / heat_demand_sum
+            radiation_weighted_sum += radiation_profile * floor_area_of_specific_region / floor_area_sum
 
             # PV
             # iterate through different PV types and add each weighted profiles to corresponding dictionary index
@@ -339,8 +340,8 @@ class PVGIS:
                 PV_profile = DB().read_dataframe(f"PV_generation_NUTS{nuts_level}_{country}",
                                                  *["power"],  # *columns
                                                  nuts_id=nuts_id, ID_PV=id_pv).to_numpy()  # **kwargs
-                PV_weighted_sum[(id_pv, unique_peak_power[i])] += PV_profile * heat_demand_of_specific_region / \
-                                                                  heat_demand_sum
+                PV_weighted_sum[(id_pv, unique_peak_power[i])] += PV_profile * floor_area_of_specific_region / \
+                                                                  floor_area_sum
 
         # create table for saving to DB: Temperature and Radiation will be saved in the region table
         # Temperature + Radiation
@@ -392,7 +393,7 @@ class PVGIS:
         print(f"mean tables for country {country} have been saved")
 
     def get_nuts_id_list(self, nuts_level: int, country: str) -> list:
-        absolut_path = Path("__file__").parent.parent.resolve() / Path(f"_Refactor/data/NUTS{nuts_level}.json")
+        absolut_path = Path(os.path.abspath(__file__)).parent.resolve() / Path(f"NUTS{nuts_level}.json")
         all_nuts_ids = pd.read_json(absolut_path, orient="table")
         all_nuts_ids = all_nuts_ids[all_nuts_ids["country"] == country]["nuts_id"]
         return list(all_nuts_ids)
@@ -413,7 +414,7 @@ class PVGIS:
                             start_year=start_year,
                             end_year=end_year,
                             PV_sizes=pv_sizes)
-        # creating a single profile as mean profile for a country weighted by the heat demand of each nuts region:
+        # creating a single profile as mean profile for a country weighted by the floor area of each nuts region:
         self.calculate_single_profile_for_country(country=country_code, nuts_level=nuts_level)
 
 

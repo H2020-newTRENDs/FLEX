@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import sqlalchemy.types
 import itertools
 from pathlib import Path
+import os
 
 from _Refactor.basic.db import DB
 import _Refactor.core.household.components as components
@@ -162,7 +163,7 @@ class InputDataGenerator:
 
     def create_demand_data(self):
         # load json file
-        synthetic_load_path = Path("__file__").parent.parent.resolve() / Path(f"synthetic_load_household.json")
+        synthetic_load_path = Path(os.path.abspath(__file__)).parent.resolve() / Path(f"synthetic_load_household.json")
         baseload = pd.read_json(synthetic_load_path, orient="table")
         baseload = baseload.loc[:, self.input.demand_config["base_load_year"]].to_numpy()
 
@@ -178,7 +179,7 @@ class InputDataGenerator:
                              )
 
         # Hot water demand profile
-        hot_water_path = Path("__file__").parent.parent.resolve() / Path(f"hot_water_demand.json")
+        hot_water_path = Path(os.path.abspath(__file__)).parent.resolve() / Path(f"hot_water_demand.json")
         hot_water = pd.read_json(hot_water_path, orient="table")
         hot_water_dict = {"ID_HotWaterDemand": np.full((8760,), 1),
                           "hot_water_demand": hot_water["Profile"].to_numpy(),
