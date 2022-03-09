@@ -37,7 +37,6 @@ def get_entsoe_prices(api_key: str,
     start = pd.Timestamp(start_time, tz='CET')
     end = pd.Timestamp(end_time, tz='CET')
 
-
     # Get day-ahead prices from ENTSO-E Transparency
     print('Prices in zone ' + country_code)
     DA_prices = client.query_day_ahead_prices(country_code, start=start, end=end)
