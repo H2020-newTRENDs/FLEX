@@ -4,6 +4,7 @@ from pathlib import Path
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.ticker
+import os
 
 
 def show_building_numbers(building_df: pd.DataFrame) -> None:
@@ -111,7 +112,7 @@ def convert_2_digit_country_code_into_3_digit(country_code: str) -> str:
 
 def load_building_data_from_json(country: str) -> pd.DataFrame:
 
-    absolut_path = Path("__file__").parent.parent.resolve() / Path(f"SFH_building_data.json")
+    absolut_path = Path(os.path.abspath(__file__)).parent.resolve() / Path(f"SFH_building_data.json")
 
     building_json = pd.read_json(absolut_path, orient="table")
     country_code = convert_2_digit_country_code_into_3_digit(country)
