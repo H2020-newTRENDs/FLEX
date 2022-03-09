@@ -188,8 +188,8 @@ if __name__ == "__main__":
     scenario_id = 0
     scenario = AbstractScenario(scenario_id=scenario_id)
     plotly_visualization = PlotlyVisualize(scenario=scenario)
-    # plotly_visualization.show_yearly_comparison_of_SEMS_reference()
-    # plotly_visualization.hourly_comparison_SEMS_reference()
+    plotly_visualization.show_yearly_comparison_of_SEMS_reference()
+    plotly_visualization.hourly_comparison_SEMS_reference()
     plotly_visualization.investigate_resulting_load_profile()
     # ---------------------------------------------------------------------------------------------------------
 
