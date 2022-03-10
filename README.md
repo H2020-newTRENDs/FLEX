@@ -2,6 +2,10 @@
 
 A long journey between Philipp, Thomas, and Songmin.
 
+### Refactoring points
+
+- Color: https://florian-dahlitz.de/articles/why-you-should-use-more-enums-in-python
+
 
 ### Next steps and ideas
 
