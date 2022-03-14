@@ -1,5 +1,0 @@
-
-
-# given
-# when
-# then
