@@ -50,8 +50,21 @@ class ProfileGenerator:
             R5C1Model(scenario).calculate_heating_and_cooling_demand()
         # create max temperature array:
         max_temperature_list = []
-        for heat_demand in heating_demand:
-            if heat_demand == 0:
+        for i, heat_demand in enumerate(heating_demand):
+            # if heat demand == 0 and the heat demand in the following 8 hours is also 0 and the heat demand of 3
+            # hours before that is also 0, then the max temperature is raised so model does not become infeasible:
+            if heat_demand == 0 and \
+                    heating_demand[i-3] == 0 and \
+                    heating_demand[i-2] == 0 and \
+                    heating_demand[i-1] == 0 and \
+                    heating_demand[i+1] == 0 and \
+                    heating_demand[i+2] == 0 and \
+                    heating_demand[i+3] == 0 and \
+                    heating_demand[i+4] == 0 and \
+                    heating_demand[i+5] == 0 and \
+                    heating_demand[i+6] == 0 and \
+                    heating_demand[i+7] == 0 and \
+                    heating_demand[i+8] == 0:
                 max_temperature_list.append(60)
             else:
                 max_temperature_list.append(temperature_max)
