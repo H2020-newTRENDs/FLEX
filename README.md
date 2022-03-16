@@ -33,11 +33,7 @@ A long journey between Philipp, Thomas, and Songmin.
     electricity, thus when there is no AC the indoor room temperature will stay below the maximum temperature and 
     the necessary cooling energy to do so is for free. 
     Drawback: In the results the indoor temperature of those scenarios without cooling will not be realistic
-
-DO YOU GUYS HAVE ANY IDEA HOW TO SOLVE THIS? The optimization should not be able to pre-heat the building above 
-maximum indoor set temperature, at the same time, when no cooling system is adapted, the maximum indoor set temperature
-has to be raised, otherwise the model becomes infeasible.
-
+  
 
 - PV generation:
   - right now the PV systems are all optimally installed to create maximum generation over a year. This way we have 
