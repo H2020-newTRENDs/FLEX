@@ -106,8 +106,7 @@ def convert_2_digit_country_code_into_3_digit(country_code: str) -> str:
     for country_list in country_abbreviations:
         if country_list[2] == country_code:
             return country_list[1]
-        else:
-            print("country code is not in country list \n")
+
 
 
 def load_building_data_from_json(country: str) -> pd.DataFrame:
