@@ -32,14 +32,21 @@ def get_entsoe_prices(api_key: str,
                       country_code: str,
                       grid_fee: float) -> np.array:
     # %% parameter definitions
+
+    #ToDo missing for all countries
+    if country_code == "DE":
+        country = "DE_LU"
+    else:
+        country = country_code
+
     client = EntsoePandasClient(api_key=api_key)
 
     start = pd.Timestamp(start_time, tz='CET')
     end = pd.Timestamp(end_time, tz='CET')
 
     # Get day-ahead prices from ENTSO-E Transparency
-    print('Prices in zone ' + country_code)
-    DA_prices = client.query_day_ahead_prices(country_code, start=start, end=end)
+    print('Prices in zone ' + country)
+    DA_prices = client.query_day_ahead_prices(country, start=start, end=end)
     prices = pd.DataFrame(DA_prices).reset_index(drop=True).to_numpy() / 10 / 1_000  # €/MWh in ct/kWh & ct/kWh in ct/Wh
     # add grid fees:
     prices_total = prices + grid_fee / 1_000  # also in ct/Wh
