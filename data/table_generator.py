@@ -202,7 +202,11 @@ class InputDataGenerator:
             grid_fee=self.input.electricity_price_config["grid_fee"]
         )
 
-        fixed_price_vector = np.full((8760,), self.input.electricity_price_config["fixed_price"] / 1_000)  # cent/Wh
+        if self.input.electricity_price_config["fixed_price"] == "avg":
+            # TODO make mean function of variable price
+            pass
+        else:
+            fixed_price_vector = np.full((8760,), self.input.electricity_price_config["fixed_price"] / 1_000)  # cent/Wh
 
         variable_price_to_db = np.column_stack(
             [np.full((8760,), 1),  # ID
