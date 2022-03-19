@@ -21,8 +21,8 @@ class InputDataGenerator:
     def __init__(self, configuration: config.Config):
         self.input = configuration
         self.id_hour = np.arange(1, 8761)
-        self.year = configuration.__year
-
+        # TODO find a way to get the year to here
+        self.year = 2019
     """generates the Household tables"""
 
     def calculate_cylindrical_area_from_volume(self, tank_sizes: list) -> list:
