@@ -18,11 +18,10 @@ import datetime
 
 
 class InputDataGenerator:
-    def __init__(self, configuration: config.Config):
+    def __init__(self, configuration: config.Config, year: int):
         self.input = configuration
         self.id_hour = np.arange(1, 8761)
-        # TODO find a way to get the year to here
-        self.year = 2019
+        self.year = year
     """generates the Household tables"""
 
     def calculate_cylindrical_area_from_volume(self, tank_sizes: list) -> list:
