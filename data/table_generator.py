@@ -164,7 +164,6 @@ class InputDataGenerator:
 
     def create_building_data(self) -> None:
         """reads building excel table and stores it to root"""
-        building_mass_temperature_start = self.input.building_config["building_mass_temperature_start"]  # °C
         building_mass_temperature_max = self.input.building_config["building_mass_temperature_max"]  # °C
         grid_power_max = self.input.building_config["grid_power_max"]  # W
         building_data = import_building_data.load_building_data_from_json(
@@ -180,7 +179,6 @@ class InputDataGenerator:
                      "average_effective_area_wind_south_red_cool": "effective_window_area_south",
                      "spec_int_gains_cool_watt": "internal_gains"
                      })
-        building_data["building_mass_temperature_start"] = building_mass_temperature_start
         building_data["building_mass_temperature_max"] = building_mass_temperature_max
         building_data["grid_power_max"] = grid_power_max
         building_data["grid_power_max_unit"] = "W"

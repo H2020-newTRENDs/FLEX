@@ -30,7 +30,6 @@ class OptOperationModel(AbstractOperationModel):
             temperature_max=self.scenario.behavior_class.indoor_set_temperature_max[0]
         )
 
-
     def creat_Dict(self, value_list: list) -> dict:
         Dictionary = {}
         for index, value in enumerate(value_list, start=1):
@@ -90,7 +89,7 @@ class OptOperationModel(AbstractOperationModel):
                 "Cm": {None: self.calculate_Cm(CM_factor=self.scenario.building_class.CM_factor,
                                                Af=self.scenario.building_class.Af)},
                 "BuildingMassTemperatureStartValue": {
-                    None: self.scenario.building_class.building_mass_temperature_start},
+                    None:  self.thermal_mass_start_temperature},
                 # space heating tank
                 "T_TankStart_heating": {None: self.scenario.spaceheatingtank_class.temperature_start},
                 # min temp is start temp
@@ -661,7 +660,7 @@ class OptOperationModel(AbstractOperationModel):
         instance.Cm = self.calculate_Cm(CM_factor=self.scenario.building_class.CM_factor,
                                         Af=self.scenario.building_class.Af)
 
-        instance.BuildingMassTemperatureStartValue = self.scenario.building_class.building_mass_temperature_start
+        instance.BuildingMassTemperatureStartValue = self.thermal_mass_start_temperature
         # Battery parameters
         instance.ChargeEfficiency = self.scenario.battery_class.charge_efficiency
         instance.DischargeEfficiency = self.scenario.battery_class.discharge_efficiency
