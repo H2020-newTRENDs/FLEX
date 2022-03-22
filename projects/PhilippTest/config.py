@@ -49,12 +49,15 @@ electricity_price_config = {
     # variable price
     "api_key": 'c06ee579-f827-486d-bc1f-8fa0d7ccd3da',
     "start": f"{__year}0101",
-    "end": f"{__year}0101",
+    "end": f"{__year+1}0101",
     "country_code": __country,
     "grid_fee": 20,  # ct/kWh
 
     # fixed price
-    "fixed_price": 20  # ct/kWh
+    "fixed_price": 20,  # ct/kWh
+
+    # extra price scenarios:
+    "extra_price_scenario": True  # False or True (if True, prices have to be provided in an extra json)
 }
 
 feed_in_tariff_config = {
