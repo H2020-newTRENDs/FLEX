@@ -24,22 +24,28 @@ A long journey between Philipp, Thomas, and Songmin.
      power drops also to zero in the following 8 hours and 3 hours before the event. If it is not the case, the set 
      temperature will not be raised to 60°C. 
 
-  - install a shading system in the model that will reduce the solar gains whenever the temperature would rise above 
-    the maximum indoor temperature in the reference model. (not tested jet)
+  - Question: Should we decrease the indoor temperature band width in Summer and winter to 3°C? Right now, the building
+       cam be preheated from 20 to 27°C which is not very comfortable in winter. 
+
+- Install a shading system:
+    - in the model that will reduce the solar gains whenever the temperature would rise above 
+      the maximum indoor temperature in the reference model. (not tested jet)
+    - reduce the radiation gains by 70% whenever the solar gains are above a certain threshold?
     Drawback: Very general decision for manual/automatic shading system. If we want to include a "smart shading system"
-              later, it will not be possible. 
+            later, it will not be possible. 
 
-  - install a "cooling" variable that is only used when cooling is turned off. This cooling variable does not cost
-    electricity, thus when there is no AC the indoor room temperature will stay below the maximum temperature and 
-    the necessary cooling energy to do so is for free. 
-    Drawback: In the results the indoor temperature of those scenarios without cooling will not be realistic
-  
-
+      
 - PV generation:
   - right now the PV systems are all optimally installed to create maximum generation over a year. This way we have 
   - a very high peak generation at 1pm over a whole country. I wonder if we should also consider PV generation profiles 
   - where PV systems are oriented east/west. Not sure though how to integrate that into the model as it will affect 
   - single results for each household.
+
+
+- Should we increase the output temperature of the heat pump when the DHW storage or the heating storage are charged?
+      this would make the operation of the tanks more realistic and decrease their efficiency. I read in several 
+      papers that the usage of storages will result in higher demand because you have to charge the storage with a 
+      higher temperature level. Not sure though how easy it would be to implement this in our model.
 
 ### Resources
 

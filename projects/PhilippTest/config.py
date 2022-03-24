@@ -2,6 +2,7 @@
 
 # All Power inputs have to be provided in W !!!!
 __country = "AT"
+__year = 2019
 
 air_conditioner_config = {
     "efficiency": 3,
@@ -36,25 +37,27 @@ boiler_config = {
 }
 
 building_config = {
-    "building_mass_temperature_start": 15,  # °C
     "building_mass_temperature_max": 60,  # °C
     "grid_power_max": 21_000,  # W
 }
 
 demand_config = {
-    "base_load_year": "2019",  # [2018, 2019, ... 2024]
+    "base_load_year": str(__year),  # [2018, 2019, ... 2024]
 }
 
 electricity_price_config = {
     # variable price
     "api_key": 'c06ee579-f827-486d-bc1f-8fa0d7ccd3da',
-    "start": "20190101",
-    "end": "20200101",
+    "start": f"{__year}0101",
+    "end": f"{__year+1}0101",
     "country_code": __country,
     "grid_fee": 20,  # ct/kWh
 
     # fixed price
-    "fixed_price": 20  # ct/kWh
+    "fixed_price": 20,  # ct/kWh
+
+    # extra price scenarios:
+    "extra_price_scenario": True  # False or True (if True, prices have to be provided in an extra json)
 }
 
 feed_in_tariff_config = {
@@ -78,8 +81,8 @@ person_config = {
 region_config = {
     "nuts_level": 3,
     "country_code": __country,
-    "start_year": 2010,
-    "end_year": 2010,
+    "start_year": __year,
+    "end_year": __year,
     "pv_size": [0, 5, 10]  # kWp
 }
 

@@ -26,7 +26,6 @@ class Building(Component):
         self.Hve: float = None
         self.CM_factor: float = None
         self.Am_factor: float = None
-        self.building_mass_temperature_start: float = None
         self.building_mass_temperature_max: float = None
         self.grid_power_max: float = None
         self.grid_power_max_unit: float = None
