@@ -5,6 +5,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# sqlite
+*.sqlite
+
 # C extensions
 *.so
 
@@ -134,7 +137,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# pytype static type analyzer
+# pytype static type visualization
 .pytype/
 
 # Cython debug symbols
