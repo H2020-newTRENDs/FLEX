@@ -14,13 +14,14 @@ from data import input_data_structure as structure
 from data.profile_generator import ProfileGenerator
 from data.download_price_data_entsoe import get_entsoe_prices
 from data.download_pv_gis_data import PVGIS
+import datetime
 
 
 class InputDataGenerator:
-    def __init__(self, configuration: config.Config):
+    def __init__(self, configuration: config.Config, year: int):
         self.input = configuration
         self.id_hour = np.arange(1, 8761)
-
+        self.year = year
     """generates the Household tables"""
 
     def calculate_cylindrical_area_from_volume(self, tank_sizes: list) -> list:
@@ -36,6 +37,38 @@ class InputDataGenerator:
             radius = [(2 * volume / 1_000 / 4 / np.pi) ** (1. / 3) for volume in tank_sizes]
             surface_area = [2 * np.pi * r ** 2 + 2 * tank_sizes[i] / 1_000 / r for i, r in enumerate(radius)]
             return surface_area
+
+    def adapt_hotmaps_profile_to_year(self, hotmaps_hot_water_profile: np.array) -> np.array:
+        """
+        Checks what the first day of the year is and changes the HOTMAPS profile accordingly.
+        Args:
+            year: int
+            hotmaps_hot_water_profile: numpy array
+
+        Returns: the profile with the right day of the week in the beginning
+
+        """
+        # Return the day of the week as an integer, where Monday is 0 and Sunday is 6.
+        first_day_of_year = datetime.datetime(self.year, 1, 1).weekday()
+        # standardized profiles are shifted to the respective weekday
+        # HotMaps profile starts on a friday:
+        if first_day_of_year == 4:
+            # return the profile without changing anything
+            return hotmaps_hot_water_profile
+        elif first_day_of_year == 5:  # year starts on saturday, add friday to the end of the year
+            return np.append(hotmaps_hot_water_profile[24:], hotmaps_hot_water_profile[0:24])
+        elif first_day_of_year == 6:  # sunday, add friday and saturday to the end of the year
+            return np.append(hotmaps_hot_water_profile[48:], hotmaps_hot_water_profile[0:48])
+        elif first_day_of_year == 3:  # thursday, add the friday profile to the beginning and delete the last day
+            return np.append(hotmaps_hot_water_profile[0:24], hotmaps_hot_water_profile[:8736])
+        elif first_day_of_year == 2:  # wednesday, add the monday+tuesday profile to beginning and delete last 2 days
+            return np.append(hotmaps_hot_water_profile[72:120], hotmaps_hot_water_profile[:8712])
+        elif first_day_of_year == 1:  # tuesday, add monday+tuesday+wednesday profile and delete last 3 days
+            return np.append(hotmaps_hot_water_profile[72:144], hotmaps_hot_water_profile[:8688])
+        elif first_day_of_year == 0:  # monday, add 4 days from following week and delete last 4 days
+            return np.append(hotmaps_hot_water_profile[72:168], hotmaps_hot_water_profile[:8664])
+        else:
+            assert "no valid day"
 
     def create_air_conditioner_data(self) -> None:
         """creates the ID_SpaceCooling table in the Database"""
@@ -131,7 +164,6 @@ class InputDataGenerator:
 
     def create_building_data(self) -> None:
         """reads building excel table and stores it to root"""
-        building_mass_temperature_start = self.input.building_config["building_mass_temperature_start"]  # °C
         building_mass_temperature_max = self.input.building_config["building_mass_temperature_max"]  # °C
         grid_power_max = self.input.building_config["grid_power_max"]  # W
         building_data = import_building_data.load_building_data_from_json(
@@ -147,7 +179,6 @@ class InputDataGenerator:
                      "average_effective_area_wind_south_red_cool": "effective_window_area_south",
                      "spec_int_gains_cool_watt": "internal_gains"
                      })
-        building_data["building_mass_temperature_start"] = building_mass_temperature_start
         building_data["building_mass_temperature_max"] = building_mass_temperature_max
         building_data["grid_power_max"] = grid_power_max
         building_data["grid_power_max_unit"] = "W"
@@ -180,8 +211,9 @@ class InputDataGenerator:
         # Hot water demand profile
         hot_water_path = Path(os.path.abspath(__file__)).parent.resolve() / Path(f"hot_water_demand.json")
         hot_water = pd.read_json(hot_water_path, orient="table")
+        hot_water_profile = self.adapt_hotmaps_profile_to_year(hot_water["Profile"].to_numpy())
         hot_water_dict = {"ID_HotWaterDemand": np.full((8760,), 1),
-                          "hot_water_demand": hot_water["Profile"].to_numpy(),
+                          "hot_water_demand": hot_water_profile,
                           "unit": np.full((8760,), "Wh")}
         hot_water_table = pd.DataFrame(hot_water_dict)
         assert sorted(list(hot_water_table.columns)) == sorted(list(structure.HotWaterDemandData().__dict__.keys()))

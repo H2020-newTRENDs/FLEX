@@ -376,7 +376,9 @@ class RefOperationModel(AbstractOperationModel):
         self.fill_parameter_values()  # set input parameters to self values
         # calculate the heating and cooling energy and indoor air + thermal mass temperature:
         heating_demand, cooling_demand, T_Room, Tm_t = \
-            R5C1Model(self.scenario).calculate_heating_and_cooling_demand()
+            R5C1Model(self.scenario).calculate_heating_and_cooling_demand(
+                thermal_start_temperature=self.thermal_mass_start_temperature,
+                static=False)
         room_heating = heating_demand
         self.Tm_t = Tm_t
         self.T_room = T_Room

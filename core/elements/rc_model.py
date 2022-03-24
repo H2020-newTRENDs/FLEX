@@ -58,28 +58,53 @@ class R5C1Model(RCModel):
         Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
         return Q_solar
 
-    def calculate_heating_and_cooling_demand(self) -> (np.array, np.array, np.array, np.array):
+    def calculate_heating_and_cooling_demand(self,
+                                             thermal_start_temperature: float = 15,
+                                             static=False) -> (np.array, np.array, np.array, np.array):
         """
+        if "static" is True, then the RC model will calculate a static heat demand calculation for the first hour of
+        the year by using this hour 100 times. This way a good approximation of the thermal mass temperature of the
+        building in the beginning of the calculation is achieved. Solar gains are set to 0.
         Returns: heating demand, cooling demand, indoor air temperature, temperature of the thermal mass
         """
         heating_power_10 = self.Af * 10
-        Tm_t = np.zeros(shape=(8760,))  # thermal mass temperature
-        T_sup = np.zeros(shape=(8760,))
-        heating_demand = np.zeros(shape=(8760,))
-        cooling_demand = np.zeros(shape=(8760,))
-        room_temperature = np.zeros(shape=(8760,))
-        T_outside = self.scenario.region_class.temperature
-        T_air_min = self.scenario.behavior_class.indoor_set_temperature_min
+
         if self.scenario.airconditioner_class.power == 0:
             T_air_max = np.full((8760,), 100)  # if no cooling is adopted --> raise max air temperature to 100 so it will never cool:
         else:
             T_air_max = self.scenario.behavior_class.indoor_set_temperature_max
-        for t in np.arange(8760):  # t is the index for each time step
+
+        if static:
+            Q_solar = np.array([0] * 100)
+            T_outside = np.array([self.scenario.region_class.temperature[0]] * 100)
+            T_air_min = np.array([self.scenario.behavior_class.indoor_set_temperature_min[0]] * 100)
+            time = np.arange(100)
+
+            Tm_t = np.zeros(shape=(100,))  # thermal mass temperature
+            T_sup = np.zeros(shape=(100,))
+            heating_demand = np.zeros(shape=(100,))
+            cooling_demand = np.zeros(shape=(100,))
+            room_temperature = np.zeros(shape=(100,))
+
+        else:
+            Q_solar = self.Q_solar
+            T_outside = self.scenario.region_class.temperature
+            T_air_min = self.scenario.behavior_class.indoor_set_temperature_min
+            time = np.arange(8760)
+
+            Tm_t = np.zeros(shape=(8760,))  # thermal mass temperature
+            T_sup = np.zeros(shape=(8760,))
+            heating_demand = np.zeros(shape=(8760,))
+            cooling_demand = np.zeros(shape=(8760,))
+            room_temperature = np.zeros(shape=(8760,))
+
+        # RC-Model
+        for t in time:  # t is the index for each time step
             # Equ. C.2
-            PHI_m = self.Am / self.Atot * (0.5 * self.Qi + self.Q_solar[t])
+            PHI_m = self.Am / self.Atot * (0.5 * self.Qi + Q_solar[t])
             # Equ. C.3
             PHI_st = (1 - self.Am / self.Atot - self.Htr_w / 9.1 / self.Atot) * \
-                     (0.5 * self.Qi + self.Q_solar[t])
+                     (0.5 * self.Qi + Q_solar[t])
 
             # (T_sup = T_outside because incoming air is not preheated)
             T_sup[t] = T_outside[t]
@@ -100,7 +125,7 @@ class R5C1Model(RCModel):
                     ((self.PHI_ia - heating_power_10) / self.Hve) + T_sup[t])) / self.Htr_2
 
             if t == 0:
-                Tm_t_prev = self.scenario.building_class.building_mass_temperature_start
+                Tm_t_prev = thermal_start_temperature
             else:
                 Tm_t_prev = Tm_t[t - 1]
 
