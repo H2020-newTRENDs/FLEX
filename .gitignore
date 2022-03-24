@@ -407,3 +407,5 @@ TSWLatexianTemp*
 #*.spl
 *.npz
 /C_Model_Operation/C2_OperationOptimization/log.txt
+
+*.pdf
