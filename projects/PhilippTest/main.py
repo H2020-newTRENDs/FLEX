@@ -1,3 +1,4 @@
+
 import numpy as np
 
 from core.household.abstract_scenario import AbstractScenario
@@ -11,10 +12,10 @@ from basic.db import DB
 # for loop over all the scenarios
 scenario_ids = len(DB().read_dataframe("Scenarios", *["ID_Scenarios"]).to_numpy())
 
-for id in range(scenario_ids):
-    print(f"scenario: {id}")
+for scenario_id in range(scenario_ids):
+    print(f"scenario: {scenario_id}")
     # create scenario:
-    scenario = AbstractScenario(scenario_id=id)
+    scenario = AbstractScenario(scenario_id=scenario_id)
 
     optimization_model = OptOperationModel(scenario)
     # solve model
@@ -28,6 +29,13 @@ for id in range(scenario_ids):
     # save results to db
     ReferenceDataCollector(reference_model).save_yearly_results()
     ReferenceDataCollector(reference_model).save_hourly_results()
+
+# Total Operation Cost: 154738.54
+# Total Operation Cost reference: 172290.96
+
+
+
+
 
 
 
