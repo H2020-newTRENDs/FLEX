@@ -411,3 +411,5 @@ TSWLatexianTemp*
 data/root.sqlite
 
 data/results.sqlite
+
+.DS_Store
