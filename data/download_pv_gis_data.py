@@ -58,7 +58,7 @@ class PVGIS:
         optimalAngles = 1  # Calculate the optimum inclination AND orientation angles. Value of 1 for "yes".
         # All other values (or no value) mean "no". Not relevant for tracking planes.
 
-        req = f"https://re.jrc.ec.europa.eu/api/seriescalc?lat={lat}&" \
+        req = f"https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?lat={lat}&" \
               f"lon={lon}&" \
               f"startyear={startyear}&" \
               f"endyear={endyear}&" \
@@ -106,7 +106,7 @@ class PVGIS:
         optimalAngles = 0  # Calculate the optimum inclination AND orientation angles. Value of 1 for "yes".
         # All other values (or no value) mean "no". Not relevant for tracking planes.
 
-        req = f"https://re.jrc.ec.europa.eu/api/seriescalc?lat={lat}&" \
+        req = f"https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?lat={lat}&" \
               f"lon={lon}&" \
               f"startyear={startyear}&" \
               f"endyear={endyear}&" \

@@ -12,5 +12,5 @@ config_list = [{config_name: value} for (config_name, value) in configurations._
 configuration = Config(config_list)
 year = configurations.__year
 # create all the data for the calculations:
-InputDataGenerator(configuration, year).run(skip_region=False)
+InputDataGenerator(configuration, year).run(skip_region=True)
 
