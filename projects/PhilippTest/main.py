@@ -30,8 +30,8 @@ for scenario_id in range(scenario_ids):
     ReferenceDataCollector(reference_model).save_yearly_results()
     ReferenceDataCollector(reference_model).save_hourly_results()
 
-# Total Operation Cost: 154738.54
-# Total Operation Cost reference: 172290.96
+# Total Operation Cost: 54590.28
+# Total Operation Cost reference: 67816.73
 
 
 

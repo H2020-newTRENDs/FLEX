@@ -6,7 +6,7 @@ __year = 2019
 
 air_conditioner_config = {
     "efficiency": 3,
-    "power": [0, 10_000],
+    "power": [10_000],
 }
 
 appliance_config = {
@@ -14,7 +14,7 @@ appliance_config = {
 }
 
 battery_config = {
-    "capacity": [0, 7_000],
+    "capacity": [7_000],
     "charge_efficiency":  0.95,
     "discharge_efficiency": 0.95,
     "charge_power_max": 4_500,
@@ -28,10 +28,10 @@ behavior_config = {
 }
 
 boiler_config = {
-    "name": ["Air_HP", "Ground_HP"],
+    "name": ["Air_HP"],
     "thermal_power_max": 15_000,   # W
     "heating_element_power": 7_500,
-    "carnot_efficiency_factor": [0.4, 0.35],  # for the heat pumps respectively
+    "carnot_efficiency_factor": [0.35],  # for the heat pumps respectively
     "heating_supply_temperature": 35,
     "hot_water_supply_temperature":  55
 }
@@ -66,7 +66,7 @@ feed_in_tariff_config = {
 }
 
 hot_water_tank_config = {
-    "size": [0, 400],
+    "size": [400],
     "loss": 0.2,  # W/m2K
     "temperature_start": 28,  # °C
     "temperature_max": 55,  # °C
@@ -83,11 +83,11 @@ region_config = {
     "country_code": __country,
     "start_year": __year,
     "end_year": __year,
-    "pv_size": [0, 5, 10]  # kWp
+    "pv_size": [5]  # kWp
 }
 
 space_heating_tank_config = {
-    "size": [0, 750],
+    "size": [750],
     "loss": 0.2,  # W/m2K
     "temperature_start": 28,  # °C
     "temperature_max": 45,  # °C

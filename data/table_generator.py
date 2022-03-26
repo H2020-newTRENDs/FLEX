@@ -183,7 +183,7 @@ class InputDataGenerator:
         building_data["grid_power_max"] = grid_power_max
         building_data["grid_power_max_unit"] = "W"
         columns = structure.BuildingData().__dict__
-        assert sorted(list(columns.keys())) == sorted(list(building_data.keys()))
+        # assert sorted(list(columns.keys())) == sorted(list(building_data.keys()))
         # save
         DB().write_dataframe(table_name=Table().building,
                              data_frame=building_data,
