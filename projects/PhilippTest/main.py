@@ -8,7 +8,6 @@ from models.operation.data_collector import OptimizationDataCollector, Reference
 from basic.db import DB
 
 
-
 # for loop over all the scenarios
 scenario_ids = len(DB().read_dataframe("Scenarios", *["ID_Scenarios"]).to_numpy())
 
@@ -33,7 +32,7 @@ for scenario_id in range(scenario_ids):
 # Total Operation Cost: 54590.28
 # Total Operation Cost reference: 67816.73
 
-
+# test
 
 
 

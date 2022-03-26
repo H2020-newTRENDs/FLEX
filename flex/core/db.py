@@ -1,16 +1,20 @@
+import os
 import sqlalchemy
 import pandas as pd
+from typing import TYPE_CHECKING
 
-import basic.config as config
+if TYPE_CHECKING:
+    from .config import Config
 
 
 class DB:
 
-    def __init__(self,
-                 connection: sqlalchemy.engine.Engine = config.root_connection):
-        """the default connection will be the root connection, for a different connection,
-        the "create_connection function from the config file can be used"""
-        self.connection = connection
+    def __init__(self, config: 'Config'):
+        self.folder_path = config.database_folder
+        self.connection = self.create_connection(config.project_name)
+
+    def create_connection(self, database_name) -> sqlalchemy.engine.Engine:
+        return sqlalchemy.create_engine(f'sqlite:///{os.path.join(self.folder_path, database_name + ".sqlite")}')
 
     def get_engine(self):
         return self.connection
@@ -25,7 +29,7 @@ class DB:
     def write_dataframe(self,
                         table_name: str,
                         data_frame: pd.DataFrame,
-                        data_types: dict=None,
+                        data_types: dict = None,
                         if_exists='append'):  # if_exists: {'replace', 'fail', 'append'}
         data_frame.to_sql(table_name, self.connection, index=False, dtype=data_types, if_exists=if_exists,
                           chunksize=10_000)
@@ -80,3 +84,12 @@ class DB:
 
     def query(self, sql) -> pd.DataFrame:
         return pd.read_sql(sql, self.connection)
+
+
+def create_db_conn(config: 'Config') -> DB:
+    """
+    create a Database by current config
+    :return:
+    """
+    return DB(config)
+
