@@ -43,9 +43,10 @@ class AbstractScenario:
                     class_name = key
                     # get the class
                     # print(f"{class_name} exists")
-            class_filled = getattr(components, class_name)(component_id=component_id)  # all classes take the component_id as parameter to initialize their values
+            instance = getattr(components, class_name)(component_id=component_id)  # all classes take the component_id as parameter to initialize their values
             # create self variable of the class with the filled class
-            setattr(self, name + "_class", class_filled)
+            setattr(self, name + "_class", instance)
+
 
 
 

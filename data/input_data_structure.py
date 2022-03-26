@@ -1,3 +1,4 @@
+
 import sqlalchemy.types
 
 
@@ -10,7 +11,6 @@ class PVData:
         self.unit = sqlalchemy.types.String
         self.peak_power = sqlalchemy.types.Float
         self.peak_power_unit = sqlalchemy.types.String
-
 
 class ElectricityPriceData:
     def __init__(self):

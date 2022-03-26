@@ -8,6 +8,7 @@ from data.table_generator import InputDataGenerator
 # create list of all configurations defined in configurations
 config_list = [{config_name: value} for (config_name, value) in configurations.__dict__.items()
                if not config_name.startswith("__")]
+
 # define scenario:
 configuration = Config(config_list)
 year = configurations.__year

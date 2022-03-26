@@ -86,8 +86,7 @@ class InputDataGenerator:
         DB().write_dataframe(table_name=Table().air_conditioner,
                              data_frame=table,
                              data_types=columns,
-                             if_exists="replace"
-                             )
+                             if_exists="replace")
 
     def create_appliance_data(self):
         pass
@@ -114,8 +113,7 @@ class InputDataGenerator:
         DB().write_dataframe(table_name=Table().battery,
                              data_frame=table,
                              data_types=columns,
-                             if_exists="replace"
-                             )
+                             if_exists="replace")
 
     def create_behavior_data(self):
         minimum_indoor_temperature, maximum_indoor_temperature = ProfileGenerator().generate_target_indoor_temperature_fixed(
