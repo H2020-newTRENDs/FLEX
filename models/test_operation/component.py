@@ -1,0 +1,144 @@
+import numpy as np
+from typing import Optional
+from dataclasses import dataclass
+from flex.core.component import Component
+
+
+@dataclass
+class Building(Component):
+    Af: Optional[float] = None
+    Hop: Optional[float] = None
+    Htr_w: Optional[float] = None
+    Hve: Optional[float] = None
+    CM_factor: Optional[float] = None
+    Am_factor: Optional[float] = None
+    internal_gains: Optional[float] = None
+    effective_window_area_west_east: Optional[float] = None
+    effective_window_area_south: Optional[float] = None
+    effective_window_area_north: Optional[float] = None
+
+
+@dataclass
+class Boiler(Component):
+    type: Optional[str] = None
+    thermal_power_max: Optional[float] = None
+    thermal_power_max_unit: Optional[str] = None
+    heating_element_power: Optional[float] = None
+    heating_element_power_unit: Optional[str] = None
+    carnot_efficiency_factor: Optional[float] = None
+    heating_supply_temperature: Optional[float] = None
+    hot_water_supply_temperature: Optional[float] = None
+
+
+@dataclass
+class SpaceHeatingTank(Component):
+    size: Optional[float] = None
+    size_unit: Optional[str] = None
+    surface_area: Optional[float] = None
+    surface_area_unit: Optional[str] = None
+    loss: Optional[float] = None
+    loss_unit: Optional[str] = None
+    temperature_start: Optional[float] = None
+    temperature_max: Optional[float] = None
+    temperature_min: Optional[float] = None
+    temperature_surrounding: Optional[float] = None
+    temperature_unit: Optional[str] = None
+
+
+@dataclass
+class HotWaterTank(Component):
+    size: Optional[float] = None
+    size_unit: Optional[str] = None
+    surface_area: Optional[float] = None
+    surface_area_unit: Optional[str] = None
+    loss: Optional[float] = None
+    loss_unit: Optional[str] = None
+    temperature_start: Optional[float] = None
+    temperature_max: Optional[float] = None
+    temperature_min: Optional[float] = None
+    temperature_surrounding: Optional[float] = None
+    temperature_unit: Optional[str] = None
+
+
+@dataclass
+class SpaceCoolingTechnology(Component):
+    efficiency: Optional[float] = None
+    power: Optional[float] = None
+    power_unit: Optional[str] = None
+
+
+@dataclass
+class PV(Component):
+    peak_power: Optional[float] = None
+    peak_power_unit: Optional[str] = None
+    direction: Optional[str] = None
+    angle: Optional[float] = None
+    angle_unit: Optional[str] = None
+
+
+@dataclass
+class Battery(Component):
+    capacity: Optional[float] = None
+    capacity_unit: Optional[str] = None
+    charge_efficiency: Optional[float] = None
+    discharge_efficiency: Optional[float] = None
+    charge_power_max: Optional[float] = None
+    charge_power_max_unit: Optional[str] = None
+    discharge_power_max: Optional[float] = None
+    discharge_power_max_unit: Optional[str] = None
+
+
+@dataclass
+class Vehicle(Component):
+    type: Optional[str] = None
+    capacity: Optional[float] = None
+    capacity_unit: Optional[str] = None
+    consumption_rate: Optional[float] = None
+    consumption_rate_unit: Optional[str] = None
+    charge_efficiency: Optional[float] = None
+    charge_power_max: Optional[float] = None
+    charge_power_max_unit: Optional[str] = None
+    discharge_efficiency: Optional[float] = None
+    discharge_power_max: Optional[float] = None
+    discharge_power_max_unit: Optional[str] = None
+
+
+@dataclass
+class SEMS(Component):
+    adoption: Optional[int] = None
+
+
+@dataclass
+class Weather(Component):
+    temperature: Optional[np.ndarray] = None
+    temperature_unit: Optional[str] = None
+    radiation_north: Optional[np.ndarray] = None
+    radiation_south: Optional[np.ndarray] = None
+    radiation_east: Optional[np.ndarray] = None
+    radiation_west: Optional[np.ndarray] = None
+    radiation_unit: Optional[str] = None
+
+
+@dataclass
+class EnergyPrice(Component):
+    electricity_consume: Optional[np.ndarray] = None
+    electricity_produce: Optional[np.ndarray] = None
+    electricity_unit: Optional[str] = None
+    natural_gas: Optional[np.ndarray] = None
+    natural_gas_unit: Optional[str] = None
+    gasoline: Optional[np.ndarray] = None
+    gasoline_unit: Optional[str] = None
+
+
+@dataclass
+class Behavior(Component):
+    indoor_temperature_max: Optional[np.ndarray] = None
+    indoor_temperature_min: Optional[np.ndarray] = None
+    indoor_temperature_unit: Optional[str] = None
+    vehicle_at_home_profile: Optional[np.ndarray] = None
+    vehicle_distance_profile: Optional[np.ndarray] = None
+    vehicle_distance_unit: Optional[str] = None
+    hot_water_demand: Optional[np.ndarray] = None
+    hot_water_demand_unit: Optional[str] = None
+    appliance_electricity_demand: Optional[np.ndarray] = None
+    appliance_electricity_demand_unit: Optional[str] = None
