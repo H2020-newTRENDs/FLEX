@@ -46,7 +46,6 @@ class InputDataGenerator:
             hotmaps_hot_water_profile: numpy array
 
         Returns: the profile with the right day of the week in the beginning
-
         """
         # Return the day of the week as an integer, where Monday is 0 and Sunday is 6.
         first_day_of_year = datetime.datetime(self.year, 1, 1).weekday()

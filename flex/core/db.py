@@ -56,6 +56,14 @@ class DB:
         DataFrame = pd.read_sql('select ' + columns2extract + ' from ' + table_name + condition, con=self.connection)
         return DataFrame
 
+    def read_dataframe_new(self, table_name: str, filter: dict = None, column_names: list = None) -> pd.DataFrame:
+        df = pd.read_sql(f'select * from {table_name}', self.connection)
+        if filter is not None:
+            df = df.loc[(df[list(filter)] == pd.Series(filter)).all(axis=1)]
+        if column_names is not None:
+            df = df[column_names]
+        return df
+
     def drop_table(self, table_name: str) -> None:
         """
 
