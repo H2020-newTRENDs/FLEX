@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Optional
+from typing import Optional, List
 from dataclasses import dataclass
 from flex.core.component import Component
 
@@ -110,35 +110,81 @@ class SEMS(Component):
 
 @dataclass
 class Weather(Component):
+    region: Optional[List[str]] = None
     temperature: Optional[np.ndarray] = None
-    temperature_unit: Optional[str] = None
+    temperature_unit: Optional[List[str]] = None
     radiation_north: Optional[np.ndarray] = None
     radiation_south: Optional[np.ndarray] = None
     radiation_east: Optional[np.ndarray] = None
     radiation_west: Optional[np.ndarray] = None
-    radiation_unit: Optional[str] = None
+    radiation_unit: Optional[List[str]] = None
 
 
 @dataclass
-class EnergyPrice(Component):
-    electricity_consume: Optional[np.ndarray] = None
-    electricity_produce: Optional[np.ndarray] = None
-    electricity_unit: Optional[str] = None
-    natural_gas: Optional[np.ndarray] = None
-    natural_gas_unit: Optional[str] = None
+class Electricity(Component):
+    region: Optional[List[str]] = None
+    consumption_price: Optional[np.ndarray] = None
+    feed_in_tariff: Optional[np.ndarray] = None
+    price_unit: Optional[List[str]] = None
+
+
+@dataclass
+class DistrictHeating(Component):
+    region: Optional[List[str]] = None
+    price: Optional[np.ndarray] = None
+    price_unit: Optional[List[str]] = None
+
+
+@dataclass
+class NaturalGas(Component):
+    region: Optional[List[str]] = None
+    price: Optional[np.ndarray] = None
+    price_unit: Optional[List[str]] = None
+
+
+@dataclass
+class HeatingOil(Component):
+    region: Optional[List[str]] = None
+    price: Optional[np.ndarray] = None
+    price_unit: Optional[List[str]] = None
+
+
+@dataclass
+class Biomass(Component):
+    region: Optional[List[str]] = None
+    price: Optional[np.ndarray] = None
+    price_unit: Optional[List[str]] = None
+
+
+@dataclass
+class GasolinePrice(Component):
+    region: Optional[List[str]] = None
     gasoline: Optional[np.ndarray] = None
-    gasoline_unit: Optional[str] = None
+    gasoline_unit: Optional[List[str]] = None
 
 
 @dataclass
-class Behavior(Component):
-    indoor_temperature_max: Optional[np.ndarray] = None
-    indoor_temperature_min: Optional[np.ndarray] = None
-    indoor_temperature_unit: Optional[str] = None
-    vehicle_at_home_profile: Optional[np.ndarray] = None
-    vehicle_distance_profile: Optional[np.ndarray] = None
-    vehicle_distance_unit: Optional[str] = None
-    hot_water_demand: Optional[np.ndarray] = None
-    hot_water_demand_unit: Optional[str] = None
-    appliance_electricity_demand: Optional[np.ndarray] = None
-    appliance_electricity_demand_unit: Optional[str] = None
+class BehaviorTargetTemperature(Component):
+    range_max: Optional[np.ndarray] = None
+    range_min: Optional[np.ndarray] = None
+    temperature_unit: Optional[List[str]] = None
+
+
+@dataclass
+class BehaviorVehicle(Component):
+    at_home: Optional[np.ndarray] = None
+    distance: Optional[np.ndarray] = None
+    distance_unit: Optional[List[str]] = None
+
+
+@dataclass
+class BehaviorHotWater(Component):
+    demand: Optional[np.ndarray] = None
+    demand_unit: Optional[List[str]] = None
+
+
+@dataclass
+class BehaviorApplianceElectricity(Component):
+    demand: Optional[np.ndarray] = None
+    demand_unit: Optional[List[str]] = None
+
