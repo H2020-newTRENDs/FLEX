@@ -22,7 +22,7 @@ class DBInitializer:
         self.component_scenario_ids: Dict[str, np.ndarray] = {}
 
     @staticmethod
-    def convert_datatype_py2sql(datatypes: dict) -> dict:
+    def convert_datatype_py2sql(data_types: dict) -> dict:
         type_py2sql_dict: dict = {
             int: sqlalchemy.types.BigInteger,
             Union[int, None]: sqlalchemy.types.BigInteger,
@@ -31,12 +31,12 @@ class DBInitializer:
             float: sqlalchemy.types.Float,
             Union[float, None]: sqlalchemy.types.Float,
         }
-        for key, value in datatypes.items():
-            datatypes[key] = type_py2sql_dict[value]
-        return datatypes
+        for key, value in data_types.items():
+            data_types[key] = type_py2sql_dict[value]
+        return data_types
 
     @staticmethod
-    def generate_params_combination_dataframe(params_values: dict) -> pd.DataFrame:
+    def generate_params_combination_df(params_values: dict) -> pd.DataFrame:
         keys, values = zip(*params_values.items())
         permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
         return pd.DataFrame(permutations_dicts)
@@ -46,8 +46,8 @@ class DBInitializer:
         data_types = self.convert_datatype_py2sql(get_type_hints(component_cls))
         assert data_types.keys() == component_scenarios.keys(), \
             print(f'ComponentAttributeNameError in db_initializer: {component_cls.__name__}')
-        component_scenarios_dataframe = self.setup_component_scenario(component_cls.__name__, component_scenarios)
-        self.db.write_dataframe(table_name, component_scenarios_dataframe, data_types=data_types, if_exists='replace')
+        component_scenario_df = self.setup_component_scenario(component_cls.__name__, component_scenarios)
+        self.db.write_dataframe(table_name, component_scenario_df, data_types=data_types, if_exists='replace')
 
     @abstractmethod
     def setup_component_scenarios(self):
@@ -57,20 +57,21 @@ class DBInitializer:
         self.component_scenario_ids['ID_' + component_cls_name] = component_scenario_ids
 
     def setup_component_scenario(self, component_cls_name: str, component_scenarios: Dict[str, list]) -> pd.DataFrame:
-        component_scenario_dataframe = pd.DataFrame(component_scenarios)
-        component_scenario_ids = np.array(range(1, 1 + len(component_scenario_dataframe)))
-        component_scenario_dataframe.insert(0, 'ID_' + component_cls_name, component_scenario_ids)
+        component_scenario_df = pd.DataFrame(component_scenarios)
+        component_scenario_ids = np.array(range(1, 1 + len(component_scenario_df)))
+        component_scenario_df.insert(0, 'ID_' + component_cls_name, component_scenario_ids)
         self.register_component_scenario_ids(component_cls_name, component_scenario_ids)
-        return component_scenario_dataframe
+        return component_scenario_df
 
     def setup_scenario(self):
-        scenario_dataframe = self.generate_params_combination_dataframe(self.component_scenario_ids)
-        scenario_ids = np.array(range(1, 1 + len(scenario_dataframe)))
-        scenario_dataframe.insert(0, 'ID_Scenario', scenario_ids)
-        data_types = {name: sqlalchemy.types.Integer for name in scenario_dataframe.columns}
-        self.db.write_dataframe(self.scenario_table_name, scenario_dataframe,
+        scenario_df = self.generate_params_combination_df(self.component_scenario_ids)
+        scenario_ids = np.array(range(1, 1 + len(scenario_df)))
+        scenario_df.insert(0, 'ID_Scenario', scenario_ids)
+        data_types = {name: sqlalchemy.types.Integer for name in scenario_df.columns}
+        self.db.write_dataframe(self.scenario_table_name, scenario_df,
                                 data_types=data_types, if_exists='replace')
 
     def setup_project_database(self):
         self.setup_component_scenarios()
         self.setup_scenario()
+
