@@ -1,10 +1,7 @@
-
-import numpy as np
-
 from core.household.abstract_scenario import AbstractScenario
-from models.operation.opt import OptOperationModel
-from models.operation.ref import RefOperationModel
-from models.operation.data_collector import OptimizationDataCollector, ReferenceDataCollector
+from flex.models.operation.opt import OptOperationModel
+from flex.models.operation import RefOperationModel
+from flex.models.operation import OptimizationDataCollector, ReferenceDataCollector
 from basic.db import DB
 
 

@@ -1,5 +1,5 @@
-from models.operation.abstract import AbstractOperationModel
-from models.operation.data_collector import OptimizationDataCollector
+from flex.models.operation.abstract import AbstractOperationModel
+from flex.models.operation.data_collector import OptimizationDataCollector
 from data.profile_generator import ProfileGenerator
 from functools import wraps
 import time

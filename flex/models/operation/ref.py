@@ -1,4 +1,4 @@
-from models.operation.abstract import AbstractOperationModel
+from flex.models.operation.abstract import AbstractOperationModel
 from core.household.abstract_scenario import AbstractScenario
 from core.elements.rc_model import R5C1Model
 
@@ -525,7 +525,7 @@ class RefOperationModel(AbstractOperationModel):
 
 
 if __name__ == "__main__":
-    from models.operation.data_collector import ReferenceDataCollector
+    from flex.models.operation.data_collector import ReferenceDataCollector
 
     scenario = AbstractScenario(scenario_id=5)
     reference_model = RefOperationModel(scenario)
