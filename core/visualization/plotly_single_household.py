@@ -1,11 +1,6 @@
-from pathlib import Path
-import sqlalchemy.exc
 from scipy.stats import norm
 from core.household.abstract_scenario import AbstractScenario
-from models.operation.opt import OptOperationModel
 from core.visualization.Visualization_class import MotherVisualization
-from basic.db import DB
-import basic.config as config
 
 import pandas as pd
 import numpy as np

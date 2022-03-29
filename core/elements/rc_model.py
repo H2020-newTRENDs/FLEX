@@ -3,14 +3,7 @@ from core.household.abstract_scenario import AbstractScenario
 import numpy as np
 
 
-class RCModel(ABC):
-    # @abstractmethod
-    # def thermal_mass_temperature_rc(self):
-    #     pass
-    pass
-
-
-class R5C1Model(RCModel):
+class R5C1Model:
     def __init__(self, scenario: 'AbstractScenario'):
         self.scenario = scenario
         self.Af = scenario.building_class.Af
@@ -41,7 +34,6 @@ class R5C1Model(RCModel):
 
         # Equ. C.1
         self.PHI_ia = 0.5 * self.internal_gains
-
         self.Q_solar = self.calculate_solar_gains()
 
     def calculate_solar_gains(self) -> np.array:
@@ -216,4 +208,3 @@ if __name__ == "__main__":
     RC_model = R5C1Model(scenario)
     heating, cooling, air_temp, mass_temp = RC_model.calculate_heating_and_cooling_demand()
 
-    pass

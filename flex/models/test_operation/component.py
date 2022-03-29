@@ -1,7 +1,19 @@
-import numpy as np
-from typing import Optional, List
 from dataclasses import dataclass
-from flex.core.component import Component
+from typing import Optional, List
+
+import numpy as np
+
+from flex.core.component import Component, ComponentEnum
+
+
+@dataclass
+class Region(Component):
+    nuts: Optional[str] = None
+
+
+@dataclass
+class Year(Component):
+    year: Optional[int] = None
 
 
 @dataclass
@@ -157,7 +169,7 @@ class Biomass(Component):
 
 
 @dataclass
-class GasolinePrice(Component):
+class Gasoline(Component):
     region: Optional[List[str]] = None
     gasoline: Optional[np.ndarray] = None
     gasoline_unit: Optional[List[str]] = None
@@ -188,3 +200,31 @@ class BehaviorApplianceElectricity(Component):
     demand: Optional[np.ndarray] = None
     demand_unit: Optional[List[str]] = None
 
+
+class OperationComponentEnum(ComponentEnum):
+    Region = "region"
+    Year = "year"
+    Building = "building"
+    Boiler = "boiler"
+    SpaceHeatingTank = "space_heating_tank"
+    HotWaterTank = "hot_water_tank"
+    SpaceCoolingTechnology = "space_cooling_technology"
+    PV = "pv"
+    Battery = "battery"
+    Vehicle = "vehicle"
+    SEMS = "sems"
+    Weather = "weather"
+    Electricity = "electricity"
+    DistrictHeating = "district_heating"
+    NaturalGas = "natural_gas"
+    HeatingOil = "heating_oil"
+    Biomass = "biomass"
+    Gasoline = "gasoline"
+    BehaviorTargetTemperature = "behavior_target_temperature"
+    BehaviorVehicle = "behavior_vehicle"
+    BehaviorHotWater = "behavior_hot_water"
+    BehaviorApplianceElectricity = "behavior_appliance_electricity"
+
+    @property
+    def table_name(self):
+        return "OperationScenario_" + self.name

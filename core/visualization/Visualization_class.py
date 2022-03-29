@@ -2,9 +2,9 @@ import pandas as pd
 import sqlalchemy.exc
 import sqlite3
 from core.household.abstract_scenario import AbstractScenario
-from models.operation.data_collector import OptimizationDataCollector, ReferenceDataCollector
-from models.operation.opt import OptOperationModel
-from models.operation.ref import RefOperationModel
+from flex.models.operation import OptimizationDataCollector, ReferenceDataCollector
+from flex.models.operation.opt import OptOperationModel
+from flex.models.operation import RefOperationModel
 from basic.db import DB
 import basic.config as config
 
