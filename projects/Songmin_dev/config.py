@@ -94,11 +94,8 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
         self.add_component(
             component_cls=PV,
             component_scenarios={
-                'peak_power': [3],
-                'peak_power_unit': ['W'],
-                'direction': ['south'],
-                'angle': [30],
-                'angle_unit': ['degree']
+                'size': [5],
+                'size_unit': ['kW_peak'],
             })
 
         self.add_component(

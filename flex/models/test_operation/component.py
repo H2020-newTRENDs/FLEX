@@ -81,11 +81,10 @@ class SpaceCoolingTechnology(Component):
 
 @dataclass
 class PV(Component):
-    peak_power: Optional[float] = None
-    peak_power_unit: Optional[str] = None
-    direction: Optional[str] = None
-    angle: Optional[float] = None
-    angle_unit: Optional[str] = None
+    size: Optional[float] = None
+    size_unit: Optional[str] = None
+    generation: Optional[np.ndarray] = None
+    generation_unit: Optional[str] = None
 
 
 @dataclass

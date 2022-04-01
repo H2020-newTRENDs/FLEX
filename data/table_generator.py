@@ -1,20 +1,21 @@
+import datetime
+import itertools
+import os
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import sqlalchemy.types
-import itertools
-from pathlib import Path
-import os
 
-from basic.db import DB
-import core.household.components as components
-from basic.reg import Table
 import basic.config as config
+import core.household.components as components
+from basic.db import DB
+from basic.reg import Table
 from data import import_building_data
 from data import input_data_structure as structure
+from flex.data.setup_energy_price import get_entsoe_prices
+from data.download_weather_and_pv import PVGIS
 from data.profile_generator import ProfileGenerator
-from data.download_price_data_entsoe import get_entsoe_prices
-from data.download_pv_gis_data import PVGIS
-import datetime
 
 
 class InputDataGenerator:
@@ -22,6 +23,7 @@ class InputDataGenerator:
         self.input = configuration
         self.id_hour = np.arange(1, 8761)
         self.year = year
+
     """generates the Household tables"""
 
     def calculate_cylindrical_area_from_volume(self, tank_sizes: list) -> list:
@@ -218,8 +220,7 @@ class InputDataGenerator:
         DB().write_dataframe(table_name=Table().hot_water_demand,
                              data_frame=hot_water_table,
                              data_types=structure.HotWaterDemandData().__dict__,
-                             if_exists="replace"
-                             )
+                             if_exists="replace")
 
     def create_electricity_price_data(self):
         # load electricity price # TODO implement possibility of more than 2 price scenarios
@@ -406,25 +407,33 @@ class InputDataGenerator:
         self.generate_scenarios_table()
 
 
-
-
-
 def main():
+    config_list = [{'region_config': {"nuts_level": 3,
+                                      "country_code": '',
+                                      "start_year": 2019,
+                                      "end_year": 2019,
+                                      "pv_size": [5, 7.5, 10]}}]
+    for country in ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR',
+                    'EL', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL',
+                    'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
+                    'CH', 'IS', 'LI', 'NO', 'UK', 'TR']:
+        config_list[0]['region_config']['country_code'] = country
+        configuration = Config(config_list)
+        try:
+            InputDataGenerator(configuration=configuration, year=2019).run(skip_region=False)
+        except Exception as e:
+            print(e)
 
     # create list of all configurations defined in configurations
-    config_list = [{config_name: value} for (config_name, value) in configurations.__dict__.items()
-                   if not config_name.startswith("__")]
+    # config_list = [{config_name: value} for (config_name, value) in configurations.__dict__.items()
+    #                if not config_name.startswith("__")]
     # define scenario:
-    configuration = Config(config_list)
+    # configuration = Config(config_list)
     #
-
-    InputDataGenerator(configuration=configuration).run(skip_region=True)
+    # InputDataGenerator(configuration=configuration, year=2019).run(skip_region=False)
 
 
 if __name__ == "__main__":
-    import projects.PhilippTest.config as configurations
     from basic.config import Config
+
     main()
-
-
-

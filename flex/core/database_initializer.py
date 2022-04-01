@@ -41,6 +41,7 @@ class DatabaseInitializer(ABC):
             float: sqlalchemy.types.Float,
             Union[float, None]: sqlalchemy.types.Float,
             Union[List[float], None]: sqlalchemy.types.Float,
+            Union[np.ndarray, None]: sqlalchemy.types.Float,
         }
         for key, value in data_types.items():
             data_types[key] = type_py2sql_dict[value]
@@ -56,7 +57,7 @@ class DatabaseInitializer(ABC):
         name = component_cls.__name__
         table_name = self.component_enum.__dict__[name].table_name
         data_types = self.convert_datatype_py2sql(get_type_hints(component_cls))
-        assert data_types.keys() == component_scenarios.keys(), \
+        assert all(key in list(data_types.keys()) for key in list(component_scenarios.keys())), \
             print(f'ComponentAttributeNameError in db_initializer: {name}')
         component_scenario_df = self.setup_component_scenario_df(name, component_scenarios)
         self.db.write_dataframe(table_name, component_scenario_df, data_types=data_types, if_exists='replace')
@@ -71,7 +72,7 @@ class DatabaseInitializer(ABC):
     def setup_component_scenarios(self):
         pass
 
-    def get_component_scenario_ids(self):
+    def get_component_scenario_ids(self) -> Dict[str, int]:
         component_scenario_ids = {}
         engine = self.db.get_engine().connect()
         for item in self.component_enum.__members__.items():
