@@ -282,11 +282,8 @@ def process_pv_gis(countries: List[str]):
 
 if __name__ == "__main__":
     country_list = [
-        'BE', 'BG', 'CZ',
-        # 'DK',
-        'DE', 'EE', 'IE', 'EL', 'ES', 'FR',
-        'HR', 'IT', 'CY',
-        # 'LV',
+        # 'BE',
+        'BG', 'CZ', 'DK', 'DE', 'EE', 'IE', 'EL', 'ES', 'FR', 'HR', 'IT', 'CY', 'LV',
         'LT', 'LU', 'HU', 'MT', 'NL', 'AT',
         'PL', 'PT', 'RO', 'SI', 'SK', 'FI', 'SE', 'UK', 'IS', 'LI',
         'NO', 'CH', 'ME', 'MK', 'AL', 'RS', 'TR'
