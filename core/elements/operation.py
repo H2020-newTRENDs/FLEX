@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 
 """
-abstract operation model
+abstract flex_operation_old model
 """
 class AbstractOperationStrategy(ABC):
 
@@ -14,7 +14,7 @@ class AbstractOperationStrategy(ABC):
         pass
 
 """
-concrete reference operation model
+concrete reference flex_operation_old model
 """
 class RefOperationStrategy(AbstractOperationStrategy):
     pass
@@ -23,7 +23,7 @@ class RefOperationStrategy(AbstractOperationStrategy):
 
 
 """
-concrete optimization operation model
+concrete optimization flex_operation_old model
 """
 class OptOperationStrategy(AbstractOperationStrategy):
     pass

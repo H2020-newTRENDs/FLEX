@@ -1,27 +1,24 @@
-import os
-from pathlib import Path
-import pandas as pd
+import sqlalchemy
 
-
-def read_source(file_name: str, sheet_name: str = None):
-    source_folder = Path(os.path.abspath(__file__)).parent.resolve() / Path(f"source/")
-    if sheet_name is None:
-        df = pd.read_excel(source_folder / Path(file_name + ".xlsx"))
-    else:
-        df = pd.read_excel(source_folder / Path(file_name + ".xlsx"), sheet_name=sheet_name)
-    return df
-
-
-def read_result(file_name: str, sheet_name: str = None):
-    result_folder = Path(os.path.abspath(__file__)).parent.resolve() / Path(f"result/")
-    if sheet_name is None:
-        df = pd.read_excel(result_folder / Path(file_name + ".xlsx"))
-    else:
-        df = pd.read_excel(result_folder / Path(file_name + ".xlsx"), sheet_name=sheet_name)
-    return df
-
-
-def save_result(df: pd.DataFrame, file_name: str):
-    result_folder = Path(os.path.abspath(__file__)).parent.resolve() / Path(f"result/")
-    df.to_excel(result_folder / Path(file_name + ".xlsx"), index=False)
-
+source_data_types = {
+    'region': sqlalchemy.types.Unicode,
+    'year': sqlalchemy.types.BigInteger,
+    'id_hour': sqlalchemy.types.BigInteger,
+    'pv_generation': sqlalchemy.types.Float,
+    'pv_generation_unit': sqlalchemy.types.Unicode,
+    'temperature': sqlalchemy.types.Float,
+    'temperature_unit': sqlalchemy.types.Unicode,
+    'radiation_south': sqlalchemy.types.Float,
+    'radiation_east': sqlalchemy.types.Float,
+    'radiation_west': sqlalchemy.types.Float,
+    'radiation_north': sqlalchemy.types.Float,
+    'radiation_unit': sqlalchemy.types.Unicode,
+    'people_at_home': sqlalchemy.types.BigInteger,
+    'vehicle_at_home': sqlalchemy.types.BigInteger,
+    'vehicle_distance': sqlalchemy.types.Float,
+    'vehicle_distance_unit': sqlalchemy.types.Unicode,
+    'hot_water_demand': sqlalchemy.types.Float,
+    'hot_water_demand_unit': sqlalchemy.types.Unicode,
+    'appliance_electricity': sqlalchemy.types.Float,
+    'appliance_electricity_unit': sqlalchemy.types.Unicode,
+}

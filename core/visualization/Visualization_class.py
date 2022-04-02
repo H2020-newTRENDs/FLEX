@@ -2,9 +2,9 @@ import pandas as pd
 import sqlalchemy.exc
 import sqlite3
 from core.household.abstract_scenario import AbstractScenario
-from flex.models.operation import OptimizationDataCollector, ReferenceDataCollector
-from flex.models.operation.opt import OptOperationModel
-from flex.models.operation import RefOperationModel
+from flex.flex_operation_old import OptimizationDataCollector, ReferenceDataCollector
+from flex.flex_operation_old import OptOperationModel
+from flex.flex_operation_old import RefOperationModel
 from basic.db import DB
 import basic.config as config
 
@@ -19,13 +19,13 @@ class MotherVisualization:
                f"AC: {int(self.scenario.airconditioner_class.power)} W; \n " \
                f"Battery: {int(self.scenario.battery_class.capacity)} W; \n " \
                f"Building id: {self.scenario.building_class.ID_Building}; \n " \
-               f"Boiler: {self.scenario.boiler_class.name}; \n " \
+               f"Boiler: {self.scenario.boiler_class.db_name}; \n " \
                f"DHW Tank: {self.scenario.hotwatertank_class.size} l; \n " \
                f"PV: {self.scenario.pv_class.peak_power[0]} kWp; \n " \
                f"Heating Tank: {self.scenario.spaceheatingtank_class.size} l"
 
     def calculate_single_results(self):
-        # list of result tables:
+        # list of data tables:
         result_table_names = ["Reference_hourly", "Reference_yearly", "Optimization_hourly", "Optimization_yearly"]
         # delete the rows in case one of them is saved (eg. optimization is not here but reference is)
         for table_name in result_table_names:
