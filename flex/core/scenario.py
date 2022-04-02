@@ -10,7 +10,7 @@ class Scenario(ABC):
     db: 'DB'
 
     def get_scenario_data_dict(self, table_name: str, scenario_filter: dict) -> Dict[str, Any]:
-        table = self.db.read_dataframe_new(table_name, filter=scenario_filter)
+        table = self.db.read_dataframe(table_name, filter=scenario_filter)
         assert not table.empty, f'No data found in Table {table_name} for the selected scenario.'
         if len(table) == 1:  # if it's a single row, then the values should not be packed into lists
             table_dict = table.to_dict("records")[0]

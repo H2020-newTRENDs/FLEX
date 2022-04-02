@@ -13,7 +13,7 @@ from basic.db import DB
 from basic.reg import Table
 from data import import_building_data
 from data import input_data_structure as structure
-from flex.data.setup_energy_price import get_entsoe_prices
+from flex.core.data_prep.setup_energy_price import get_entsoe_prices
 from data.download_weather_and_pv import PVGIS
 from data.profile_generator import ProfileGenerator
 
@@ -204,8 +204,7 @@ class InputDataGenerator:
         DB().write_dataframe(table_name=Table().electricity_demand,
                              data_frame=baseload_table,
                              data_types=structure.ElectricityDemandData().__dict__,
-                             if_exists="replace"
-                             )
+                             if_exists="replace")
 
         # Hot water demand profile
         hot_water_path = Path(os.path.abspath(__file__)).parent.resolve() / Path(f"hot_water_demand.json")
