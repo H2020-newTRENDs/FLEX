@@ -75,7 +75,7 @@ class OperationScenario(Scenario):
         self.region.radiation_south = df["radiation_south"].to_numpy()
         self.region.radiation_east = df["radiation_east"].to_numpy()
         self.region.radiation_west = df["radiation_west"].to_numpy()
-        self.pv.generation = df["pv_generation"].to_numpy()
+        self.pv.generation = df["pv_generation"].to_numpy() * self.pv.size
 
     def setup_energy_price(self):
         energy_carrier_prices: dict = copy.deepcopy(self.energy_price.__dict__)
