@@ -56,8 +56,9 @@ class DatabaseInitializer(ABC):
         return pd.DataFrame(permutations_dicts)
 
     def load_table(self, table_name: str):
-        print(f"Table {table_name} is imported from the data folder to the project database.")
+        print(f'Loading table {table_name} from the data folder...')
         self.db.load_source_table_to_project_db(table_name)
+        print(f"Table {table_name} is imported to the project database.")
 
     @abstractmethod
     def load_source_table(self):
