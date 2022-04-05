@@ -32,16 +32,16 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
                 'effective_window_area_west_east': [8.819],
                 'effective_window_area_south': [4.724],
                 'effective_window_area_north': [2.205],
-                'grid_power_max':[64_000_000]
+                'grid_power_max':[64_000]
             })
 
         self.add_component(
             component_cls=Boiler,
             component_scenarios={
                 'type': ["heat_pump"],
-                'thermal_power_max': [15_000_000],
+                'thermal_power_max': [15_000],
                 'thermal_power_max_unit': ['W'],
-                'heating_element_power': [7_500_000],
+                'heating_element_power': [7_500],
                 'heating_element_power_unit': ['W'],
                 'carnot_efficiency_factor': [0.35],
                 'heating_supply_temperature': [35],
@@ -85,7 +85,7 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
             component_cls=SpaceCoolingTechnology,
             component_scenarios={
                 'efficiency': [3],
-                'power': [10_000_000],
+                'power': [10_000],
                 'power_unit': ['W']
             })
 
@@ -147,9 +147,9 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
         self.add_component(
             component_cls=Behavior,
             component_scenarios={
-                'target_temperature_at_home_max': [27],
-                'target_temperature_at_home_min': [18],
-                'target_temperature_not_at_home_max': [50],
+                'target_temperature_at_home_max': [45],
+                'target_temperature_at_home_min': [10],
+                'target_temperature_not_at_home_max': [45],
                 'target_temperature_not_at_home_min': [10],
                 'target_temperature_unit': ['°C'],
                 'vehicle_distance_annual': [27],
