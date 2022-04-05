@@ -1,7 +1,8 @@
 from core.household.abstract_scenario import AbstractScenario
-from flex.flex_operation_old import OptOperationModel
-from flex.flex_operation_old import RefOperationModel
-from flex.flex_operation_old import OptimizationDataCollector, ReferenceDataCollector
+from flex.flex_operation_old.opt import OptOperationModel
+#from flex.flex_operation_old.opt import RefOperationModel
+#from flex.flex_operation_old.opt import OptimizationDataCollector, ReferenceDataCollector
+from flex.flex_operation_old.opt import OptimizationDataCollector
 from basic.db import DB
 
 
@@ -20,11 +21,11 @@ for scenario_id in range(scenario_ids):
     OptimizationDataCollector(solved_instance, scenario.scenario_id).save_yearly_results()
     OptimizationDataCollector(solved_instance, scenario.scenario_id).save_hourly_results()
 
-    reference_model = RefOperationModel(scenario)
-    reference_model.run()
+#   reference_model = RefOperationModel(scenario)
+#    reference_model.run()
     # save results to db
-    ReferenceDataCollector(reference_model).save_yearly_results()
-    ReferenceDataCollector(reference_model).save_hourly_results()
+#    ReferenceDataCollector(reference_model).save_yearly_results()
+#    ReferenceDataCollector(reference_model).save_hourly_results()
 
 # Total Operation Cost: 54590.28
 # Total Operation Cost reference: 67816.73

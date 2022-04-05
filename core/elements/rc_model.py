@@ -6,13 +6,13 @@ import numpy as np
 class R5C1Model:
     def __init__(self, scenario: 'AbstractScenario'):
         self.scenario = scenario
-        self.Af = scenario.building_class.Af
-        self.Hop = scenario.building_class.Hop
-        self.Htr_w = scenario.building_class.Htr_w
-        self.Hve = scenario.building_class.Hve
-        self.CM_factor = scenario.building_class.CM_factor
-        self.Am_factor = scenario.building_class.Am_factor
-        self.internal_gains = scenario.building_class.internal_gains
+        self.Af = scenario.building.Af
+        self.Hop = scenario.building.Hop
+        self.Htr_w = scenario.building.Htr_w
+        self.Hve = scenario.building.Hve
+        self.CM_factor = scenario.building.CM_factor
+        self.Am_factor = scenario.building.Am_factor
+        self.internal_gains = scenario.building.internal_gains
 
         self.Atot = 4.5 * self.Af  # 7.2.2.2: Area of all surfaces facing the building zone
         self.Cm = self.CM_factor * self.Af
@@ -39,14 +39,14 @@ class R5C1Model:
     def calculate_solar_gains(self) -> np.array:
         """calculates the solar gains through solar radiation through the effective window area
         returns the solar gains for all considered building IDs with 8760 rows. Each columns represents a building ID"""
-        AreaWindowEastWest = self.scenario.building_class.effective_window_area_west_east
-        AreaWindowSouth = self.scenario.building_class.effective_window_area_south
-        AreaWindowNorth = self.scenario.building_class.effective_window_area_north
+        AreaWindowEastWest = self.scenario.building.effective_window_area_west_east
+        AreaWindowSouth = self.scenario.building.effective_window_area_south
+        AreaWindowNorth = self.scenario.building.effective_window_area_north
 
-        Q_sol_north = np.outer(np.array(self.scenario.region_class.north), AreaWindowNorth)
-        Q_sol_east = np.outer(np.array(self.scenario.region_class.east), AreaWindowEastWest / 2)
-        Q_sol_south = np.outer(np.array(self.scenario.region_class.south), AreaWindowSouth)
-        Q_sol_west = np.outer(np.array(self.scenario.region_class.west), AreaWindowEastWest / 2)
+        Q_sol_north = np.outer(np.array(self.scenario.region.north), AreaWindowNorth)
+        Q_sol_east = np.outer(np.array(self.scenario.region.east), AreaWindowEastWest / 2)
+        Q_sol_south = np.outer(np.array(self.scenario.region.south), AreaWindowSouth)
+        Q_sol_west = np.outer(np.array(self.scenario.region.west), AreaWindowEastWest / 2)
         Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
         return Q_solar
 
@@ -61,15 +61,15 @@ class R5C1Model:
         """
         heating_power_10 = self.Af * 10
 
-        if self.scenario.airconditioner_class.power == 0:
+        if self.scenario.space_cooling_technology.power == 0:
             T_air_max = np.full((8760,), 100)  # if no cooling is adopted --> raise max air temperature to 100 so it will never cool:
         else:
-            T_air_max = self.scenario.behavior_class.indoor_set_temperature_max
+            T_air_max = self.scenario.behavior.target_temperature_array_max
 
         if static:
             Q_solar = np.array([0] * 100)
-            T_outside = np.array([self.scenario.region_class.temperature[0]] * 100)
-            T_air_min = np.array([self.scenario.behavior_class.indoor_set_temperature_min[0]] * 100)
+            T_outside = np.array([self.scenario.region.temperature[0]] * 100)
+            T_air_min = self.scenario.behavior.target_temperature_array_min * 100
             time = np.arange(100)
 
             Tm_t = np.zeros(shape=(100,))  # thermal mass temperature
@@ -80,8 +80,8 @@ class R5C1Model:
 
         else:
             Q_solar = self.Q_solar
-            T_outside = self.scenario.region_class.temperature
-            T_air_min = self.scenario.behavior_class.indoor_set_temperature_min
+            T_outside = self.scenario.region.temperature
+            T_air_min = self.scenario.behavior.target_temperature_array_min
             time = np.arange(8760)
 
             Tm_t = np.zeros(shape=(8760,))  # thermal mass temperature

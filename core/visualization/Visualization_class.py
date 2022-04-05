@@ -16,13 +16,13 @@ class MotherVisualization:
 
     def create_header(self) -> str:
         return f"Scenario: {self.scenario.scenario_id}; \n " \
-               f"AC: {int(self.scenario.airconditioner_class.power)} W; \n " \
-               f"Battery: {int(self.scenario.battery_class.capacity)} W; \n " \
-               f"Building id: {self.scenario.building_class.ID_Building}; \n " \
-               f"Boiler: {self.scenario.boiler_class.db_name}; \n " \
-               f"DHW Tank: {self.scenario.hotwatertank_class.size} l; \n " \
-               f"PV: {self.scenario.pv_class.peak_power[0]} kWp; \n " \
-               f"Heating Tank: {self.scenario.spaceheatingtank_class.size} l"
+               f"AC: {int(self.scenario.space_cooling_technology.power)} W; \n " \
+               f"Battery: {int(self.scenario.battery.capacity)} W; \n " \
+               f"Building id: {self.scenario.building.ID_Building}; \n " \
+               f"Boiler: {self.scenario.boiler.db_name}; \n " \
+               f"DHW Tank: {self.scenario.hot_water_tank.size} l; \n " \
+               f"PV: {self.scenario.pv.peak_power[0]} kWp; \n " \
+               f"Heating Tank: {self.scenario.space_heating_tank.size} l"
 
     def calculate_single_results(self):
         # list of data tables:

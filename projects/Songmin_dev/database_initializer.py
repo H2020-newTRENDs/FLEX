@@ -31,20 +31,22 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
                 'internal_gains': [3.4],
                 'effective_window_area_west_east': [8.819],
                 'effective_window_area_south': [4.724],
-                'effective_window_area_north': [2.205]
+                'effective_window_area_north': [2.205],
+                'grid_power_max':[64_000_000]
             })
 
         self.add_component(
             component_cls=Boiler,
             component_scenarios={
-                'type': ["gas", "heat_pump"],
-                'thermal_power_max': [15_000, 15_000],
-                'thermal_power_max_unit': ['W', 'W'],
-                'heating_element_power': [7_500, 7_500],
-                'heating_element_power_unit': ['W', 'W'],
-                'carnot_efficiency_factor': [0.35, 0.35],
-                'heating_supply_temperature': [35, 35],
-                'hot_water_supply_temperature': [55, 55]
+                'type': ["heat_pump"],
+                'thermal_power_max': [15_000_000],
+                'thermal_power_max_unit': ['W'],
+                'heating_element_power': [7_500_000],
+                'heating_element_power_unit': ['W'],
+                'carnot_efficiency_factor': [0.35],
+                'heating_supply_temperature': [35],
+                'hot_water_supply_temperature': [55],
+                'db_name': ['Air_HP']           #Air_HP pr Ground_HP
             })
 
         self.add_component(
@@ -83,7 +85,7 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
             component_cls=SpaceCoolingTechnology,
             component_scenarios={
                 'efficiency': [3],
-                'power': [10000],
+                'power': [10_000_000],
                 'power_unit': ['W']
             })
 
@@ -100,10 +102,10 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
                 'capacity': [7_000],
                 'capacity_unit': ['Wh'],
                 'charge_efficiency': [0.95],
-                'charge_power_max': [4500],
+                'charge_power_max': [4_500],
                 'charge_power_max_unit': ['W'],
                 'discharge_efficiency': [0.95],
-                'discharge_power_max': [4500],
+                'discharge_power_max': [4_500],
                 'discharge_power_max_unit': ['W'],
             })
 
@@ -111,15 +113,15 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
             component_cls=Vehicle,
             component_scenarios={
                 'type': ['electricity'],
-                'capacity': [15_000],
+                'capacity': [50_000],
                 'capacity_unit': ['Wh'],
                 'consumption_rate': [100],
                 'consumption_rate_unit': ['Wh/km'],
                 'charge_efficiency': [0.95],
-                'charge_power_max': [4500],
+                'charge_power_max': [11_000],
                 'charge_power_max_unit': ['W'],
                 'discharge_efficiency': [0.95],
-                'discharge_power_max': [4500],
+                'discharge_power_max': [11_000],
                 'discharge_power_max_unit': ['W'],
             })
 
@@ -152,9 +154,9 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
                 'target_temperature_unit': ['°C'],
                 'vehicle_distance_annual': [27],
                 'vehicle_distance_unit': ['km'],
-                'hot_water_demand_annual': [1000],
+                'hot_water_demand_annual': [1000_000],
                 'hot_water_demand_unit': ['Wh'],
-                'appliance_electricity_demand_annual': [1000],
+                'appliance_electricity_demand_annual': [1000_000],
                 'appliance_electricity_demand_unit': ['Wh'],
             })
 

@@ -221,11 +221,11 @@ class RefOperationModel(AbstractOperationModel):
         """
         Assumption: The battery is not discharging itself.
         """
-        Capacity = self.scenario.battery_class.capacity  # kWh
-        MaxChargePower = self.scenario.battery_class.charge_power_max  # kW
-        MaxDischargePower = self.scenario.battery_class.discharge_power_max  # kW
-        ChargeEfficiency = self.scenario.battery_class.charge_efficiency
-        DischargeEfficiency = self.scenario.battery_class.discharge_efficiency
+        Capacity = self.scenario.battery.capacity  # kWh
+        MaxChargePower = self.scenario.battery.charge_power_max  # kW
+        MaxDischargePower = self.scenario.battery.discharge_power_max  # kW
+        ChargeEfficiency = self.scenario.battery.charge_efficiency
+        DischargeEfficiency = self.scenario.battery.discharge_efficiency
 
         # Battery is not charged at the beginning of the simulation
         BatterySOC = np.zeros(electricity_surplus.shape)
@@ -316,53 +316,53 @@ class RefOperationModel(AbstractOperationModel):
         # solar gains:
         self.Q_Solar = self.calculate_solar_gains()  # W
         # outside temperature
-        self.T_outside = self.scenario.region_class.temperature  # °C
+        self.T_outside = self.scenario.region.temperature  # °C
         # COP of heatpump
-        self.SpaceHeatingHourlyCOP = self.COP_HP(self.scenario.region_class.temperature, 35,
-                                                 self.scenario.boiler_class.carnot_efficiency_factor,
-                                                 self.scenario.boiler_class.db_name)  # 35 °C supply temperature
+        self.SpaceHeatingHourlyCOP = self.COP_HP(self.scenario.region.temperature, 35,
+                                                 self.scenario.boiler.carnot_efficiency_factor,
+                                                 self.scenario.boiler.db_name)  # 35 °C supply temperature
         # COP of cooling
-        self.CoolingCOP = self.scenario.airconditioner_class.efficiency  # single value because it is not dependent on time
+        self.CoolingCOP = self.scenario.space_cooling_technology.efficiency  # single value because it is not dependent on time
         # electricity load profile
         self.BaseLoadProfile = self.scenario.electricitydemand_class.electricity_demand
         # PV profile
-        self.PhotovoltaicProfile = self.scenario.pv_class.power
+        self.PhotovoltaicProfile = self.scenario.pv.power
         # HotWater
         self.HotWaterProfile = self.scenario.hotwaterdemand_class.hot_water_demand
-        self.HotWaterHourlyCOP = self.COP_HP(self.scenario.region_class.temperature, 55,
-                                             self.scenario.boiler_class.carnot_efficiency_factor,
-                                             self.scenario.boiler_class.db_name)  # 55 °C supply temperature
+        self.HotWaterHourlyCOP = self.COP_HP(self.scenario.region.temperature, 55,
+                                             self.scenario.boiler.carnot_efficiency_factor,
+                                             self.scenario.boiler.db_name)  # 55 °C supply temperature
 
         # building data: is not saved in results (to much and not useful)
 
         # Heating Tank data
         # Mass of water in tank
-        self.M_WaterTank_heating = self.scenario.spaceheatingtank_class.size
+        self.M_WaterTank_heating = self.scenario.space_heating_tank.size
         # Surface of Tank in m2
-        self.A_SurfaceTank_heating = self.scenario.spaceheatingtank_class.surface_area
+        self.A_SurfaceTank_heating = self.scenario.space_heating_tank.surface_area
         # insulation of tank, for calc of losses
-        self.U_ValueTank_heating = self.scenario.spaceheatingtank_class.loss
-        self.T_TankStart_heating = self.scenario.spaceheatingtank_class.temperature_start
+        self.U_ValueTank_heating = self.scenario.space_heating_tank.loss
+        self.T_TankStart_heating = self.scenario.space_heating_tank.temperature_start
         # surrounding temp of tank
-        self.T_TankSurrounding_heating = self.scenario.spaceheatingtank_class.temperature_surrounding
+        self.T_TankSurrounding_heating = self.scenario.space_heating_tank.temperature_surrounding
 
         # DHW Tank data
         # Mass of water in tank
-        self.M_WaterTank_DHW = self.scenario.hotwatertank_class.size
+        self.M_WaterTank_DHW = self.scenario.hot_water_tank.size
         # Surface of Tank in m2
-        self.A_SurfaceTank_DHW = self.scenario.hotwatertank_class.surface_area
+        self.A_SurfaceTank_DHW = self.scenario.hot_water_tank.surface_area
         # insulation of tank, for calc of losses
-        self.U_ValueTank_DHW = self.scenario.hotwatertank_class.loss
-        self.T_TankStart_DHW = self.scenario.hotwatertank_class.temperature_start
+        self.U_ValueTank_DHW = self.scenario.hot_water_tank.loss
+        self.T_TankStart_DHW = self.scenario.hot_water_tank.temperature_start
         # surrounding temp of tank
-        self.T_TankSurrounding_DHW = self.scenario.hotwatertank_class.temperature_surrounding
+        self.T_TankSurrounding_DHW = self.scenario.hot_water_tank.temperature_surrounding
 
         # heat pump
-        self.SpaceHeating_HeatPumpMaximalThermalPower = self.scenario.boiler_class.thermal_power_max
+        self.SpaceHeating_HeatPumpMaximalThermalPower = self.scenario.boiler.thermal_power_max
 
         # Battery data
-        self.ChargeEfficiency = self.scenario.battery_class.charge_efficiency
-        self.DischargeEfficiency = self.scenario.battery_class.discharge_efficiency
+        self.ChargeEfficiency = self.scenario.battery.charge_efficiency
+        self.DischargeEfficiency = self.scenario.battery.discharge_efficiency
 
     def run(self):
         """
@@ -386,9 +386,9 @@ class RefOperationModel(AbstractOperationModel):
         # check if heating element has to be used for the HP:
         heating_element = np.zeros(heating_demand.shape)
         for index, element in enumerate(heating_demand):
-            if element > self.scenario.boiler_class.thermal_power_max:
-                heating_demand[index] = self.scenario.boiler_class.thermal_power_max
-                heating_element[index] = element - self.scenario.boiler_class.thermal_power_max
+            if element > self.scenario.boiler.thermal_power_max:
+                heating_demand[index] = self.scenario.boiler.thermal_power_max
+                heating_element[index] = element - self.scenario.boiler.thermal_power_max
 
         self.Q_HeatingElement = heating_element
         # electricity for hot water:
@@ -425,7 +425,7 @@ class RefOperationModel(AbstractOperationModel):
 
         # Battery storage:
         # if battery is used:
-        if self.scenario.battery_class.capacity > 0:
+        if self.scenario.battery.capacity > 0:
             total_load_after_battery, Electricity_surplus_Battery, BatterySOC, Battery2Load = \
                 self.calculate_battery_energy(grid_demand, PV_profile_surplus)
             grid_demand = total_load_after_battery
@@ -439,16 +439,16 @@ class RefOperationModel(AbstractOperationModel):
             self.Bat2Load = np.full((8760,), 0)
 
         # DHW storage:
-        if self.scenario.hotwatertank_class.size > 0:
+        if self.scenario.hot_water_tank.size > 0:
             grid_demand_after_DHW, electricity_surplus_after_DHW, Q_tank_out_DHW, Q_tank_in_DHW, Q_HP_DHW, E_tank_DHW = \
                 self.calculate_tank_energy(
                     electricity_grid_demand=grid_demand,
                     electricity_surplus=electricity_sold,
                     hot_water_demand=self.HotWaterProfile,
-                    TankMinTemperature=self.scenario.hotwatertank_class.temperature_min,
-                    TankMaxTemperature=self.scenario.hotwatertank_class.temperature_max,
-                    TankSize=self.scenario.hotwatertank_class.size,
-                    TankSurfaceArea=self.scenario.hotwatertank_class.surface_area,
+                    TankMinTemperature=self.scenario.hot_water_tank.temperature_min,
+                    TankMaxTemperature=self.scenario.hot_water_tank.temperature_max,
+                    TankSize=self.scenario.hot_water_tank.size,
+                    TankSurfaceArea=self.scenario.hot_water_tank.surface_area,
                     TankLoss=self.U_ValueTank_DHW,
                     TankSurroundingTemperature=self.T_TankSurrounding_DHW,
                     TankStartTemperature=self.T_TankStart_DHW,
@@ -468,14 +468,14 @@ class RefOperationModel(AbstractOperationModel):
 
         # When there is PV surplus energy it either goes to a storage or is sold to the grid:
         # Water Tank as storage:
-        if self.scenario.spaceheatingtank_class.size > 0:
+        if self.scenario.space_heating_tank.size > 0:
             grid_demand_after_heating, electricity_surplus_after_heating, Q_tank_out_heating, Q_tank_in_heating, \
             Q_HP_heating, E_tank_heating = self.calculate_tank_energy(
                 electricity_grid_demand=grid_demand,
                 electricity_surplus=electricity_sold,
                 hot_water_demand=heating_demand,
-                TankMinTemperature=self.scenario.spaceheatingtank_class.temperature_min,
-                TankMaxTemperature=self.scenario.spaceheatingtank_class.temperature_max,
+                TankMinTemperature=self.scenario.space_heating_tank.temperature_min,
+                TankMaxTemperature=self.scenario.space_heating_tank.temperature_max,
                 TankSize=self.M_WaterTank_heating,
                 TankSurfaceArea=self.A_SurfaceTank_heating,
                 TankLoss=self.U_ValueTank_heating,

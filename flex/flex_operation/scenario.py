@@ -71,10 +71,10 @@ class OperationScenario(Scenario):
         df = self.db.read_dataframe("region_pv_gis", filter={"region": self.region.code,
                                                              "year": self.region.year})
         self.region.temperature = df["temperature"].to_numpy()
-        self.region.radiation_north = df["radiation_north"].to_numpy()
-        self.region.radiation_south = df["radiation_south"].to_numpy()
-        self.region.radiation_east = df["radiation_east"].to_numpy()
-        self.region.radiation_west = df["radiation_west"].to_numpy()
+        self.region.north = df["radiation_north"].to_numpy()
+        self.region.south = df["radiation_south"].to_numpy()
+        self.region.east = df["radiation_east"].to_numpy()
+        self.region.west = df["radiation_west"].to_numpy()
         self.pv.generation = df["pv_generation"].to_numpy() * self.pv.size
 
     def setup_energy_price(self):
