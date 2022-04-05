@@ -11,6 +11,7 @@ x = scenario.behavior.target_temperature_array_min
 print(scenario.boiler.thermal_power_max)
 y = scenario.energy_price.electricity_consumption
 y= scenario.boiler.db_name
+print(scenario.building.internal_gains)
 
 
 

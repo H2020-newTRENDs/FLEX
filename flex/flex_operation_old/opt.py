@@ -7,6 +7,7 @@ import pyomo.environ as pyo
 import numpy as np
 
 
+
 def performance_counter(func):
     @wraps(func)
     def wrapper(*args):
@@ -30,11 +31,15 @@ class OptOperationModel(AbstractOperationModel):
             temperature_max=self.scenario.behavior.target_temperature_array_max[0]
         )
 
+
     def creat_Dict(self, value_list: list) -> dict:
         Dictionary = {}
         for index, value in enumerate(value_list, start=1):
             Dictionary[index] = value
         return Dictionary
+
+
+
 
     def create_pyomo_dict(self) -> dict:
         pyomo_dict = {
@@ -50,7 +55,7 @@ class OptOperationModel(AbstractOperationModel):
                                 supply_temperature=self.scenario.boiler.heating_supply_temperature,
                                 efficiency=self.scenario.boiler.carnot_efficiency_factor,
                                 source=self.scenario.boiler.db_name)),
-                "BaseLoadProfile": self.creat_Dict(self.scenario.behavior.appliance_electricity_demand),  # W
+                "BaseLoadProfile": self.creat_Dict(self.scenario.behavior.appliance_electricity_demand),  # Wh
                 "HotWaterProfile": self.creat_Dict(self.scenario.behavior.hot_water_demand),
                 "HotWaterHourlyCOP": self.creat_Dict(
                     self.COP_HP(outside_temperature=self.scenario.region.temperature,
