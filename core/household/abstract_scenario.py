@@ -8,20 +8,20 @@ class AbstractScenario:
 
     def __init__(self, scenario_id: int):
         self.scenario_id = scenario_id
-        self.region_class = None
+        self.region = None
         self.person_class = None
         self.personlist_class = None
-        self.building_class = None
+        self.building = None
         self.appliance_class = None
         self.appliancelist_class = None
-        self.boiler_class = None
-        self.spaceheatingtank_class = None
-        self.airconditioner_class = None
-        self.hotwatertank_class = None
-        self.pv_class = None
-        self.battery_class = None
+        self.boiler = None
+        self.space_heating_tank = None
+        self.space_cooling_technology = None
+        self.hot_water_tank = None
+        self.pv = None
+        self.battery = None
         self.vehicle_class = None
-        self.behavior_class = None
+        self.behavior = None
         self.hotwaterdemand_class = None
         self.electricitydemand_class = None
         self.electricityprice_class = None
