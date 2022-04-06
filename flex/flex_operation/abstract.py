@@ -78,6 +78,10 @@ class AbstractOperationModel(ABC):
         self.ChargeEfficiency = None
         self.DischargeEfficiency = None
 
+        #EV
+        self.vehicle_at_home = None
+        self.vehicle_demand = None
+
         # ----------------------------
         # Variables
         # ----------------------------
@@ -108,11 +112,13 @@ class AbstractOperationModel(ABC):
         self.Grid = None
         self.Grid2Load = None
         self.Grid2Bat = None
+        self.Grid2EV = None
 
         # PV variables
         self.PV2Load = None
         self.PV2Bat = None
         self.PV2Grid = None
+        self.PV2EV = None
 
         # Electric Load and Electricity fed back to the grid
         self.Load = None
@@ -123,8 +129,18 @@ class AbstractOperationModel(ABC):
         self.BatCharge = None
         self.BatDischarge = None
         self.Bat2Load = None
+        self.Bat2EV = None
 
         # electric vehicle (EV)
+        self.EVSoC = None
+        self.EVCharge = None
+        self.EVDischarge = None
+
+        self.EV2Bat = None
+        self.EV2Grid = None
+        self.EV2Load = None
+
+
 
         # Objective:
         self.total_operation_cost = None
@@ -168,8 +184,6 @@ class AbstractOperationModel(ABC):
         Q_sol_west = np.outer(np.array(self.scenario.region.west), AreaWindowEastWest / 2)
         Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
         return Q_solar
-
-
 
     def calculate_Atot(self, Af: float) -> float:
         return 4.5 * Af  # 7.2.2.2: Area of all surfaces facing the building zone

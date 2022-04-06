@@ -3,23 +3,22 @@ from config import config
 from flex.flex_operation.opt import OptOperationModel
 from flex.flex_operation.opt import OptimizationDataCollector
 
-
-
 scenario = OperationScenario(scenario_id=1, config=config)
 
 #print(scenario.behavior.vehicle_distance)
 #x = scenario.behavior.target_temperature_array_min
 
 #print(scenario.boiler.thermal_power_max)
-#y = scenario.energy_price.electricity_consumption
 #y= scenario.boiler.db_name
 #print(scenario.building.internal_gains)
+
+y = scenario.energy_price.electricity_consumption
+a = scenario.behavior.vehicle_at_home
+b = scenario.behavior.vehicle_distance
+c = scenario.behavior.vehicle_demand
 
 optimization_model = OptOperationModel(scenario)
 solved_instance = optimization_model.run()
 
-OptimizationDataCollector(solved_instance, scenario.scenario_id).save_yearly_results()
-OptimizationDataCollector(solved_instance, scenario.scenario_id).save_hourly_results()
-
-
-
+#OptimizationDataCollector(solved_instance, scenario.scenario_id).save_yearly_results()
+#OptimizationDataCollector(solved_instance, scenario.scenario_id).save_hourly_results()
