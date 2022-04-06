@@ -1,8 +1,8 @@
 from core.household.abstract_scenario import AbstractScenario
-from flex.flex_operation_old.opt import OptOperationModel
+from flex.flex_operation.opt import OptOperationModel
 #from flex.flex_operation_old.opt import RefOperationModel
 #from flex.flex_operation_old.opt import OptimizationDataCollector, ReferenceDataCollector
-from flex.flex_operation_old.opt import OptimizationDataCollector
+from flex.flex_operation.opt import OptimizationDataCollector
 from basic.db import DB
 
 
