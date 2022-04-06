@@ -119,6 +119,7 @@ class OperationScenario(Scenario):
         self.behavior.vehicle_at_home = behavior["vehicle_at_home"].to_numpy()
         self.behavior.vehicle_distance = self.gen_profile_with_annual_amount(self.behavior.vehicle_distance_annual,
                                                                              behavior["vehicle_distance"].to_numpy())
+        self.behavior.vehicle_demand = self.behavior.vehicle_distance*self.vehicle.consumption_rate
 
     def setup_behavior_hot_water_demand(self, behavior: pd.DataFrame):
         self.behavior.hot_water_demand = self.gen_profile_with_annual_amount(self.behavior.hot_water_demand_annual,

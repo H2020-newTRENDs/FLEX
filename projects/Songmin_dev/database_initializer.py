@@ -109,6 +109,8 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
                 'discharge_power_max_unit': ['W'],
             })
 
+        #V2B mode missing, at the moment always active
+
         self.add_component(
             component_cls=Vehicle,
             component_scenarios={
@@ -152,7 +154,7 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
                 'target_temperature_not_at_home_max': [27],
                 'target_temperature_not_at_home_min': [20],
                 'target_temperature_unit': ['°C'],
-                'vehicle_distance_annual': [27],
+                'vehicle_distance_annual': [11_000],
                 'vehicle_distance_unit': ['km'],
                 'hot_water_demand_annual': [2500_000],
                 'hot_water_demand_unit': ['Wh'],
