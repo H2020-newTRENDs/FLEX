@@ -154,9 +154,9 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
                 'target_temperature_unit': ['°C'],
                 'vehicle_distance_annual': [27],
                 'vehicle_distance_unit': ['km'],
-                'hot_water_demand_annual': [1000_000],
+                'hot_water_demand_annual': [2500_000],
                 'hot_water_demand_unit': ['Wh'],
-                'appliance_electricity_demand_annual': [1000_000],
+                'appliance_electricity_demand_annual': [4000_000],
                 'appliance_electricity_demand_unit': ['Wh'],
             })
 
