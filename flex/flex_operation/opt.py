@@ -351,7 +351,7 @@ class OptOperationModel(AbstractOperationModel):
         # (8a) EV SOC
         def calc_EVSoC(m, t):
             if t == 1:
-                return m.EVSoC[t] == 0  # start of simulation, battery is empty
+                return m.EVSoC[t] == 0  # start of simulation, EV is empty
             else:
                 return m.EVSoC[t] == m.EVSoC[t - 1] + m.EVCharge[t] * m.ChargeEfficiency - \
                        m.EVDischarge[t] * (1 + (1 - m.DischargeEfficiency))
