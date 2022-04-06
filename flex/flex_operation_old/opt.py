@@ -33,6 +33,7 @@ class OptOperationModel(AbstractOperationModel):
 
 
     def creat_Dict(self, value_list: list) -> dict:
+        print(self.thermal_mass_start_temperature)
         Dictionary = {}
         for index, value in enumerate(value_list, start=1):
             Dictionary[index] = value

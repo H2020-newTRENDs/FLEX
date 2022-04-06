@@ -147,10 +147,10 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
         self.add_component(
             component_cls=Behavior,
             component_scenarios={
-                'target_temperature_at_home_max': [45],
-                'target_temperature_at_home_min': [10],
-                'target_temperature_not_at_home_max': [45],
-                'target_temperature_not_at_home_min': [10],
+                'target_temperature_at_home_max': [27],
+                'target_temperature_at_home_min': [20],
+                'target_temperature_not_at_home_max': [27],
+                'target_temperature_not_at_home_min': [20],
                 'target_temperature_unit': ['°C'],
                 'vehicle_distance_annual': [27],
                 'vehicle_distance_unit': ['km'],

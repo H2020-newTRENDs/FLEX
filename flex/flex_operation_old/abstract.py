@@ -20,7 +20,8 @@ class AbstractOperationModel(ABC):
         self.DayHour = np.tile(np.arange(1, 25), 365)
         self.cp_water = 4200 / 3600
         _, _, _, mass_temperature = R5C1Model(scenario).calculate_heating_and_cooling_demand(static=True)
-        self.thermal_mass_start_temperature = mass_temperature[-1]
+        #self.thermal_mass_start_temperature = mass_temperature[-1]
+        self.thermal_mass_start_temperature = 10
 
         # Result variables: CAREFUL, THESE NAMES HAVE TO BE IDENTICAL TO THE ONES IN THE PYOMO OPTIMIZATION
         # -----------
