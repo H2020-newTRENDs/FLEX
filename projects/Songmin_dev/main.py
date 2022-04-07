@@ -12,9 +12,8 @@ scenario = OperationScenario(scenario_id=1, config=config)
 #y= scenario.boiler.db_name
 #print(scenario.building.internal_gains)
 
-y = scenario.energy_price.electricity_consumption
+x = scenario.behavior.hot_water_demand
 a = scenario.behavior.vehicle_at_home
-b = scenario.behavior.vehicle_distance
 c = scenario.behavior.vehicle_demand
 
 optimization_model = OptOperationModel(scenario)
