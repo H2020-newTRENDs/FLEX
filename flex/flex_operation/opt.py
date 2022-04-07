@@ -310,8 +310,10 @@ class OptOperationModel(AbstractOperationModel):
 
         # (6a) EV charge
         def calc_EVCharge(m, t):
-            return m.EVCharge[t] == m.PV2EV[t] * m.vehicle_at_home[t] + m.Grid2EV[t] * m.vehicle_at_home[t] \
-                   + m.Bat2EV[t] * m.vehicle_at_home[t] #
+            #return m.EVCharge[t] == m.PV2EV[t] * m.vehicle_at_home[t] + m.Grid2EV[t] * m.vehicle_at_home[t] \
+            #       + m.Bat2EV[t] * m.vehicle_at_home[t]
+
+            return m.EVCharge[t] == m.PV2EV[t] + m.Grid2EV[t] + m.Bat2EV[t]
 
         m.EVCharge_rule = pyo.Constraint(m.t, rule=calc_EVCharge)
 
@@ -333,8 +335,9 @@ class OptOperationModel(AbstractOperationModel):
             elif m.t[t] == m.t[-1]:
                 return m.EVDischarge[t] == 0  # at the end of simulation Battery will be empty, so no discharge
             else:
-                return m.EVDischarge[t] == m.EV2Load[t] * m.vehicle_at_home[t] + m.EV2Bat[t] * m.vehicle_at_home[t] \
-                       + m.vehicle_demand[t]
+     #           return m.EVDischarge[t] == m.EV2Load[t] * m.vehicle_at_home[t] + m.EV2Bat[t] * m.vehicle_at_home[t] \
+     #                  + m.vehicle_demand[t]
+                return m.EVDischarge[t] == m.EV2Load[t] + m.EV2Bat[t]
 
         m.EVDischarge_rule = pyo.Constraint(m.t, rule=calc_EVDischarge)
 
@@ -526,8 +529,8 @@ class OptOperationModel(AbstractOperationModel):
             instance.T_outside[t] = self.scenario.region.temperature[index]
             instance.SpaceHeatingHourlyCOP[t] = space_heating_hourly_COP[index]
 
-            instance.vehicle_at_home[t] = self.behavior.vehicle_at_home[index]
-            instance.vehicle_demand[t] = self.behavior.vehicle_demand[index]
+            #instance.vehicle_at_home[t] = self.scenario.behavior.vehicle_at_home[index]
+            #instance.vehicle_demand[t] = self.scenario.behavior.vehicle_demand[index]
 
 
             input_parameters = 1
