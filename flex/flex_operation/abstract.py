@@ -79,8 +79,8 @@ class AbstractOperationModel(ABC):
         self.DischargeEfficiency = None
 
         #EV
-        self.vehicle_at_home = None
-        self.vehicle_demand = None
+        self.EVDemandProfile = None
+        self.EVAtHomeStatus = None
 
         # ----------------------------
         # Variables

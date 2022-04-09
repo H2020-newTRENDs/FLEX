@@ -51,6 +51,8 @@ class OptOperationModel(AbstractOperationModel):
                 "Q_Solar": self.creat_Dict(self.calculate_solar_gains()),  # W
                 "PhotovoltaicProfile": self.creat_Dict(self.scenario.pv.generation),
                 "T_outside": self.creat_Dict(self.scenario.region.temperature),  # °C
+                "EVDemandProfile": self.creat_Dict(self.scenario.behavior.vehicle_demand),  # Wh
+                "EVAtHomeStatus": self.creat_Dict(self.scenario.behavior.vehicle_at_home),  # 0 or 1
                 "SpaceHeatingHourlyCOP": self.creat_Dict(
                     self.COP_HP(outside_temperature=self.scenario.region.temperature,
                                 supply_temperature=self.scenario.boiler.heating_supply_temperature,
@@ -194,8 +196,8 @@ class OptOperationModel(AbstractOperationModel):
         m.DischargeEfficiency = pyo.Param(mutable=True)
 
         #EV
-        m.vehicle_at_home = pyo.Param(mutable=True)
-        m.vehicle_demand = pyo.Param(mutable=True)
+        m.EVDemandProfile = pyo.Param(m.t, mutable=True)
+        m.EVAtHomeStatus = pyo.Param(m.t, mutable=True)
 
         # ----------------------------
         # 2. Variables
@@ -261,13 +263,13 @@ class OptOperationModel(AbstractOperationModel):
 
         # (1) grid balance
         def calc_UseOfGrid(m, t):
-            return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t] + m.Grid2EV[t]
+            return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t] + m.Grid2EV[t] * m.EVAtHomeStatus[t]
 
         m.UseOfGrid_rule = pyo.Constraint(m.t, rule=calc_UseOfGrid)
 
         # (2) PV balance
         def calc_UseOfPV(m, t):
-            return m.PV2EV[t] + m.PV2Load[t] + m.PV2Bat[t] + m.PV2Grid[t] == m.PhotovoltaicProfile[t]
+            return m.PV2EV[t] * m.EVAtHomeStatus[t] + m.PV2Load[t] + m.PV2Bat[t] + m.PV2Grid[t] == m.PhotovoltaicProfile[t]
 
         m.UseOfPV_rule = pyo.Constraint(m.t, rule=calc_UseOfPV)
 
@@ -297,23 +299,23 @@ class OptOperationModel(AbstractOperationModel):
 
         # (5) load coverage
         def calc_SupplyOfLoads(m, t):
-            return m.EV2Load[t] + m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] == m.Load[t]
+            return m.EV2Load[t] * m.EVAtHomeStatus[t] + m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] == m.Load[t]
 
         m.SupplyOfLoads_rule = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
 
         # Battery:
         # (6) Battery charge
         def calc_BatCharge(m, t):
-            return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] + m.EV2Bat[t]  # * Household.Battery.Grid2Battery
+            return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] + m.EV2Bat[t] * m.EVAtHomeStatus[t]  # * Household.Battery.Grid2Battery
 
         m.BatCharge_rule = pyo.Constraint(m.t, rule=calc_BatCharge)
 
         # (6a) EV charge
         def calc_EVCharge(m, t):
-            #return m.EVCharge[t] == m.PV2EV[t] * m.vehicle_at_home[t] + m.Grid2EV[t] * m.vehicle_at_home[t] \
-            #       + m.Bat2EV[t] * m.vehicle_at_home[t]
+            return m.EVCharge[t] == m.PV2EV[t] * m.EVAtHomeStatus[t] + m.Grid2EV[t] * m.EVAtHomeStatus[t] \
+                   + m.Bat2EV[t] * m.EVAtHomeStatus[t]
 
-            return m.EVCharge[t] == m.PV2EV[t] + m.Grid2EV[t] + m.Bat2EV[t]
+            #return m.EVCharge[t] == m.PV2EV[t] + m.Grid2EV[t] + m.Bat2EV[t]
 
         m.EVCharge_rule = pyo.Constraint(m.t, rule=calc_EVCharge)
 
@@ -324,7 +326,7 @@ class OptOperationModel(AbstractOperationModel):
             elif m.t[t] == m.t[-1]:
                 return m.BatDischarge[t] == 0  # at the end of simulation Battery will be empty, so no discharge
             else:
-                return m.BatDischarge[t] == m.Bat2Load[t] + m.Bat2EV[t]
+                return m.BatDischarge[t] == m.Bat2Load[t] + m.Bat2EV[t] * m.EVAtHomeStatus[t]
 
         m.BatDischarge_rule = pyo.Constraint(m.t, rule=calc_BatDischarge)
 
@@ -335,9 +337,9 @@ class OptOperationModel(AbstractOperationModel):
             elif m.t[t] == m.t[-1]:
                 return m.EVDischarge[t] == 0  # at the end of simulation Battery will be empty, so no discharge
             else:
-     #           return m.EVDischarge[t] == m.EV2Load[t] * m.vehicle_at_home[t] + m.EV2Bat[t] * m.vehicle_at_home[t] \
-     #                  + m.vehicle_demand[t]
-                return m.EVDischarge[t] == m.EV2Load[t] + m.EV2Bat[t]
+                return m.EVDischarge[t] == m.EV2Load[t] * m.EVAtHomeStatus[t] + m.EV2Bat[t] * m.EVAtHomeStatus[t] \
+                       + m.EVDemandProfile[t]
+                #return m.EVDischarge[t] == m.EV2Load[t] + m.EV2Bat[t]
 
         m.EVDischarge_rule = pyo.Constraint(m.t, rule=calc_EVDischarge)
 
@@ -356,7 +358,7 @@ class OptOperationModel(AbstractOperationModel):
             if t == 1:
                 return m.EVSoC[t] == 0  # start of simulation, EV is empty
             else:
-                return m.EVSoC[t] == m.EVSoC[t - 1] + m.EVCharge[t] * m.ChargeEfficiency - \
+                return m.EVSoC[t] == m.EVSoC[t - 1] + m.EVCharge[t] * m.ChargeEfficiency * m.EVAtHomeStatus[t] - \
                        m.EVDischarge[t] * (1 + (1 - m.DischargeEfficiency))
 
         m.EVSoC_rule = pyo.Constraint(m.t, rule=calc_EVSoC)
@@ -529,8 +531,8 @@ class OptOperationModel(AbstractOperationModel):
             instance.T_outside[t] = self.scenario.region.temperature[index]
             instance.SpaceHeatingHourlyCOP[t] = space_heating_hourly_COP[index]
 
-            #instance.vehicle_at_home[t] = self.scenario.behavior.vehicle_at_home[index]
-            #instance.vehicle_demand[t] = self.scenario.behavior.vehicle_demand[index]
+            instance.EVDemandProfile[t] = self.scenario.behavior.vehicle_demand[index]
+            instance.EVAtHomeStatus[t] = self.scenario.behavior.vehicle_at_home[index]
 
 
             input_parameters = 1
@@ -675,10 +677,13 @@ class OptOperationModel(AbstractOperationModel):
                 # fix the parameters to 0
                 instance.Grid2EV[t].fix(0)
                 instance.Bat2EV[t].fix(0)
+                instance.PV2EV[t].fix(0)
                 instance.EVSoC[t].fix(0)
                 instance.EVCharge[t].fix(0)
                 instance.EVDischarge[t].fix(0)
-                instance.PV2EV[t].fix(0)
+                instance.EV2Load[t].fix(0)
+                instance.EV2Bat[t].fix(0)
+
             instance.EVCharge_rule.deactivate()
             instance.EVDischarge_rule.deactivate()
             instance.EVSoC_rule.deactivate()
@@ -687,10 +692,13 @@ class OptOperationModel(AbstractOperationModel):
                 # variables have to be unfixed in case they were fixed in a previous run
                 instance.Grid2EV[t].fixed = False
                 instance.EV2Load[t].fixed = False
+                instance.PV2EV[t].fixed = False
                 instance.EVSoC[t].fixed = False
                 instance.EVCharge[t].fixed = False
                 instance.EVDischarge[t].fixed = False
-                instance.PV2EV[t].fixed = False
+                instance.EV2Load[t].fixed = False
+                instance.EV2Bat[t].fixed = False
+
                 # set upper bounds
                 instance.Grid2EV[t].setub(self.scenario.vehicle.charge_power_max)
 
