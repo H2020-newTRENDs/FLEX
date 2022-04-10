@@ -330,7 +330,7 @@ class OptOperationModel(AbstractOperationModel):
 
         m.BatDischarge_rule = pyo.Constraint(m.t, rule=calc_BatDischarge)
 
-        # (7a) EV discharge
+        # (7a) EV discharge with bidirectional charge --> V2B
         def calc_EVDischarge(m, t):
             if m.t[t] == 1:
                 return m.EVDischarge[t] == 0  # start of simulation, battery is empty
@@ -342,6 +342,18 @@ class OptOperationModel(AbstractOperationModel):
                 #return m.EVDischarge[t] == m.EV2Load[t] + m.EV2Bat[t]
 
         m.EVDischarge_rule = pyo.Constraint(m.t, rule=calc_EVDischarge)
+
+        # (7b) EV discharge without bidirectional charge --> no V2B
+        def calc_EVDischarge_noV2B(m, t):
+            if m.t[t] == 1:
+                return m.EVDischarge[t] == 0  # start of simulation, battery is empty
+            elif m.t[t] == m.t[-1]:
+                return m.EVDischarge[t] == 0  # at the end of simulation Battery will be empty, so no discharge
+            else:
+                return m.EVDischarge[t] == + m.EVDemandProfile[t]
+                #return m.EVDischarge[t] == m.EV2Load[t] + m.EV2Bat[t]
+
+        m.EVDischarge_noV2B_rule = pyo.Constraint(m.t, rule=calc_EVDischarge_noV2B)
 
         # (8) Battery SOC
         def calc_BatSoC(m, t):
@@ -683,10 +695,39 @@ class OptOperationModel(AbstractOperationModel):
                 instance.EVDischarge[t].fix(0)
                 instance.EV2Load[t].fix(0)
                 instance.EV2Bat[t].fix(0)
+                instance.EV2Grid[t].fix(0)
 
             instance.EVCharge_rule.deactivate()
             instance.EVDischarge_rule.deactivate()
             instance.EVSoC_rule.deactivate()
+            instance.EVDischarge_noV2B_rule.deactivate()
+
+        elif self.scenario.vehicle.charge_bidirectional == 0:
+            for t in range(1, 8761):
+                # variables have to be unfixed in case they were fixed in a previous run
+                instance.Grid2EV[t].fixed = False
+                instance.EV2Load[t].fixed = False
+                instance.PV2EV[t].fixed = False
+                instance.EVSoC[t].fixed = False
+                instance.EVCharge[t].fixed = False
+                instance.EVDischarge[t].fixed = False
+                instance.EV2Load[t].fix(0)
+                instance.EV2Bat[t].fix(0)
+                instance.EV2Grid[t].fix(0)
+                # set upper bounds
+                instance.Grid2EV[t].setub(self.scenario.vehicle.charge_power_max)
+                instance.EV2Load[t].setub(self.scenario.vehicle.discharge_power_max)
+                instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
+                instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
+                instance.EVDischarge[t].setub(self.scenario.vehicle.discharge_power_max)
+
+            instance.EVCharge_rule.activate()
+            instance.EVDischarge_rule.deactivate()
+            instance.EVSoC_rule.activate()
+            instance.EVDischarge_noV2B_rule.activate()
+
+
+
         else:
             for t in range(1, 8761):
                 # variables have to be unfixed in case they were fixed in a previous run
@@ -698,6 +739,7 @@ class OptOperationModel(AbstractOperationModel):
                 instance.EVDischarge[t].fixed = False
                 instance.EV2Load[t].fixed = False
                 instance.EV2Bat[t].fixed = False
+                instance.EV2Grid[t].fix(0)
 
                 # set upper bounds
                 instance.Grid2EV[t].setub(self.scenario.vehicle.charge_power_max)
@@ -709,6 +751,7 @@ class OptOperationModel(AbstractOperationModel):
             instance.EVCharge_rule.activate()
             instance.EVDischarge_rule.activate()
             instance.EVSoC_rule.activate()
+            instance.EVDischarge_noV2B_rule.deactivate()
 
         # PV
         if self.scenario.pv.size == 0:

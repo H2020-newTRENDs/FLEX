@@ -116,7 +116,7 @@ class OperationScenario(Scenario):
         return profile
 
     def setup_behavior_vehicle(self, behavior: pd.DataFrame):
-        self.behavior.vehicle_at_home = behavior["vehicle_at_home"].to_numpy()
+        self.behavior.vehicle_at_home = behavior["vehicle_at_home"].to_numpy() + 0.0000001 #pyomo Problem with 0
         self.behavior.vehicle_distance = self.gen_profile_with_annual_amount(self.behavior.vehicle_distance_annual,
                                                                              behavior["vehicle_distance"].to_numpy())
         self.behavior.vehicle_demand = self.behavior.vehicle_distance*self.vehicle.consumption_rate
