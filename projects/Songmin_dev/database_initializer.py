@@ -92,7 +92,7 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
         self.add_component(
             component_cls=PV,
             component_scenarios={
-                'size': [5],
+                'size': [10],
                 'size_unit': ['kW_peak'],
             })
 
@@ -115,7 +115,7 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
             component_cls=Vehicle,
             component_scenarios={
                 'type': ['electricity'],
-                'capacity': [50_000],
+                'capacity': [100_000],
                 'capacity_unit': ['Wh'],
                 'consumption_rate': [100],
                 'consumption_rate_unit': ['Wh/km'],
@@ -125,6 +125,7 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
                 'discharge_efficiency': [0.95],
                 'discharge_power_max': [11_000],
                 'discharge_power_max_unit': ['W'],
+                'charge_bidirectional': [0],
             })
 
         self.add_component(

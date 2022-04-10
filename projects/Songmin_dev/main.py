@@ -17,6 +17,8 @@ x = scenario.behavior.hot_water_demand
 a = scenario.behavior.vehicle_at_home
 c = scenario.behavior.vehicle_demand
 
+print(scenario.vehicle.charge_bidirectional)
+
 optimization_model = OptOperationModel(scenario)
 solved_instance = optimization_model.run()
 

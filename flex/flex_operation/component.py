@@ -117,6 +117,7 @@ class Vehicle(Component):
     discharge_efficiency: Optional[float] = None
     discharge_power_max: Optional[float] = None
     discharge_power_max_unit: Optional[str] = None
+    charge_bidirectional: Optional[float] = None
 
 
 @dataclass
