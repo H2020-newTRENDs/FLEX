@@ -717,14 +717,17 @@ class OptOperationModel(AbstractOperationModel):
                 # set upper bounds
                 instance.Grid2EV[t].setub(self.scenario.vehicle.charge_power_max)
                 instance.EV2Load[t].setub(self.scenario.vehicle.discharge_power_max)
+                instance.EV2Bat[t].setub(self.scenario.vehicle.discharge_power_max)
                 instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
                 instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
-                instance.EVDischarge[t].setub(self.scenario.vehicle.discharge_power_max)
+                #instance.EVDischarge[t].setub(self.scenario.vehicle.discharge_power_max)
 
             instance.EVCharge_rule.activate()
             instance.EVDischarge_rule.deactivate()
             instance.EVSoC_rule.activate()
             instance.EVDischarge_noV2B_rule.activate()
+
+            #ToDo: Cases for EV mit V2B mit und ohne Batterie anlegen
 
 
 
