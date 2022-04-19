@@ -71,7 +71,7 @@ class DB:
 
     def load_source_table_to_project_db(self, file_name: str):
         folder = self.config.source_data_folder
-        df = pd.read_excel(folder / Path(file_name + ".xlsx"))
+        df = pd.read_excel(folder / Path(file_name + ".xlsx"), engine="openpyxl")
         self.write_dataframe(file_name, df, data_types=source_data_types, if_exists='replace')
 
     def drop_table(self, table_name: str) -> None:
