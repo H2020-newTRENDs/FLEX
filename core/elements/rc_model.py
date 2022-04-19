@@ -69,7 +69,7 @@ class R5C1Model:
         if static:
             Q_solar = np.array([0] * 100)
             T_outside = np.array([self.scenario.region.temperature[0]] * 100)
-            T_air_min = np.array([self.scenario.behavior.target_temperature_array_min] * 100)
+            T_air_min = np.array([self.scenario.behavior.target_temperature_array_min[0]] * 100)
             time = np.arange(100)
 
             Tm_t = np.zeros(shape=(100,))  # thermal mass temperature
