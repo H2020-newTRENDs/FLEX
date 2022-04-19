@@ -33,7 +33,7 @@ class R5C1Model:
         self.Htr_3 = 1 / (1 / self.Htr_2 + 1 / self.Htr_ms)  # Equ.C.8
 
         # Equ. C.1
-        self.PHI_ia = 0.5 * self.internal_gains
+        self.PHI_ia = 0.5 * self.Qi
         self.Q_solar = self.calculate_solar_gains()
 
     def calculate_solar_gains(self) -> np.array:
@@ -69,7 +69,7 @@ class R5C1Model:
         if static:
             Q_solar = np.array([0] * 100)
             T_outside = np.array([self.scenario.region.temperature[0]] * 100)
-            T_air_min = self.scenario.behavior.target_temperature_array_min * 100
+            T_air_min = np.array([self.scenario.behavior.target_temperature_array_min] * 100)
             time = np.arange(100)
 
             Tm_t = np.zeros(shape=(100,))  # thermal mass temperature
