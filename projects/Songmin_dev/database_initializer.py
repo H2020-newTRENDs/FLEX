@@ -38,7 +38,7 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
         self.add_component(
             component_cls=Boiler,
             component_scenarios={
-                'type': ["heat_pump"],
+                'type': ["Air_HP"],
                 'thermal_power_max': [15_000],
                 'thermal_power_max_unit': ['W'],
                 'heating_element_power': [7_500],
