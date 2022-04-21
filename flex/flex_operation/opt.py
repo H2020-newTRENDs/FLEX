@@ -528,8 +528,8 @@ class OptOperationModel(AbstractOperationModel):
         for t in range(1, 8761):
             index = t - 1  # pyomo starts at index 1
             # time dependent parameters are updated:
-            instance.electricity_price[t] = self.scenario.electricityprice_class.electricity_consumption[index]  # TODO check this, can't be right
-            instance.FiT[t] = self.scenario.electricityprice_class.electricity_feed_in[index]
+            instance.electricity_price[t] = self.scenario.energy_price.electricity_consumption[index]  # TODO check this, can't be right
+            instance.FiT[t] = self.scenario.energy_price.electricity_feed_in[index]
             instance.Q_Solar[t] = solar_gains[index]
             instance.PhotovoltaicProfile[t] = self.scenario.pv.generation[index]
             instance.T_outside[t] = self.scenario.region.temperature[index]
