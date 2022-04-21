@@ -39,8 +39,8 @@ class ProjectOperationDatabaseInitializer(OperationDatabaseInitializer):
             component_cls=Boiler,
             component_scenarios={
                 'type': ["Air_HP"],
-                'thermal_power_max': [15_000],
-                'thermal_power_max_unit': ['W'],
+                'power_max': [15_000],
+                'power_max_unit': ['W'],
                 'heating_element_power': [7_500],
                 'heating_element_power_unit': ['W'],
                 'carnot_efficiency_factor': [0.35],
