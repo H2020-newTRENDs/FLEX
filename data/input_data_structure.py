@@ -12,6 +12,7 @@ class PVData:
         self.peak_power = sqlalchemy.types.Float
         self.peak_power_unit = sqlalchemy.types.String
 
+
 class ElectricityPriceData:
     def __init__(self):
         self.ID_ElectricityPrice = sqlalchemy.types.Integer
@@ -60,8 +61,8 @@ class BoilerData:
     def __init__(self):
         self.ID_Boiler = sqlalchemy.types.Integer
         self.name = sqlalchemy.types.String
-        self.thermal_power_max = sqlalchemy.types.Float
-        self.thermal_power_max_unit = sqlalchemy.types.String
+        self.power_max = sqlalchemy.types.Float
+        self.power_max_unit = sqlalchemy.types.String
         self.heating_element_power = sqlalchemy.types.Float
         self.heating_element_power_unit = sqlalchemy.types.String
         self.carnot_efficiency_factor = sqlalchemy.types.Float
@@ -90,7 +91,6 @@ class BuildingData:
         self.number_of_buildings = sqlalchemy.types.Float
         self.number_of_buildings_with_HP_ground = sqlalchemy.types.Float
         self.number_of_buildings_with_HP_air = sqlalchemy.types.Float
-        self.building_mass_temperature_start = sqlalchemy.types.Float
         self.building_mass_temperature_max = sqlalchemy.types.Float
         self.grid_power_max = sqlalchemy.types.Float
         self.grid_power_max_unit = sqlalchemy.types.String
