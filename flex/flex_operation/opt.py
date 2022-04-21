@@ -106,7 +106,7 @@ class OptOperationModel(AbstractOperationModel):
                 "U_ValueTank_DHW": {None: self.scenario.hot_water_tank.loss},
                 "T_TankSurrounding_DHW": {None: self.scenario.hot_water_tank.temperature_surrounding},
                 "A_SurfaceTank_DHW": {None: self.scenario.hot_water_tank.surface_area},
-                "SpaceHeating_HeatPumpMaximalThermalPower": {
+                "SpaceHeating_HeatPumpMaximalElectricPower": {
                     None: self.scenario.boiler.power_max}
             }
         }
@@ -819,7 +819,7 @@ class OptOperationModel(AbstractOperationModel):
         instance.T_TankSurrounding_DHW = self.scenario.hot_water_tank.temperature_surrounding
         instance.A_SurfaceTank_DHW = self.scenario.hot_water_tank.surface_area
         # HP
-        instance.SpaceHeating_HeatPumpMaximalThermalPower = self.scenario.boiler.power_max
+        instance.SpaceHeating_HeatPumpMaximalElectricPower = self.scenario.boiler.power_max
         # Cooling
         instance.CoolingCOP = self.scenario.space_cooling_technology.efficiency  # is a single value, no index
 
