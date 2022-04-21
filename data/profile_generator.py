@@ -46,7 +46,7 @@ class ProfileGenerator:
 
         """
         # calculate the heating demand in reference mode:
-        heating_demand, _, _, _ = \
+        heating_demand, _, T_room, _ = \
             R5C1Model(scenario).calculate_heating_and_cooling_demand()
         # create max temperature array:
         max_temperature_list = []
@@ -65,7 +65,8 @@ class ProfileGenerator:
                     heating_demand[i+6] == 0 and \
                     heating_demand[i+7] == 0 and \
                     heating_demand[i+8] == 0:
-                max_temperature_list.append(60)
+                # append the temperature of the reference model + 0.5°C to make sure it is feasible
+                max_temperature_list.append(T_room[i] + 0.5)
             else:
                 max_temperature_list.append(temperature_max)
         return np.array(max_temperature_list)

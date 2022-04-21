@@ -37,8 +37,8 @@ class Building(Component):
 @dataclass
 class Boiler(Component):
     type: Optional[str] = None
-    thermal_power_max: Optional[float] = None
-    thermal_power_max_unit: Optional[str] = None
+    power_max: Optional[float] = None
+    power_max_unit: Optional[str] = None
     heating_element_power: Optional[float] = None
     heating_element_power_unit: Optional[str] = None
     carnot_efficiency_factor: Optional[float] = None
@@ -127,7 +127,7 @@ class SEMS(Component):
 
 @dataclass
 class EnergyPrice(Component):
-    electricity_consumption: Optional[Union[float, np.ndarray]] = None
+    electricity_consumption: Optional[Union[float, np.ndarray]] = None  # TODO consumption??
     electricity_feed_in: Optional[Union[float, np.ndarray]] = None
     district_heating: Optional[Union[float, np.ndarray]] = None
     natural_gas: Optional[Union[float, np.ndarray]] = None
