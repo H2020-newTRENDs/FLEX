@@ -14,6 +14,5 @@ class Boiler(Component):
         self.carnot_efficiency_factor: float = None
         self.heating_supply_temperature = None
         self.hot_water_supply_temperature = None
-        self.db_name: str = None
 
         self.set_parameters(component_id)
