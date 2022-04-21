@@ -25,22 +25,22 @@ class AbstractOperationModel(ABC):
         self.SpaceHeatingHourlyCOP = self.COP_HP(self.scenario.region.temperature,
                                                  self.scenario.boiler.heating_supply_temperature,
                                                  self.scenario.boiler.carnot_efficiency_factor,
-                                                 self.scenario.boiler.name)
+                                                 self.scenario.boiler.type)
         # COP for space heating tank charging (10°C increase in supply temperature):
         self.SpaceHeatingHourlyCOP_tank = self.COP_HP(self.scenario.region.temperature,
                                                       self.scenario.boiler.heating_supply_temperature + 10,
                                                       self.scenario.boiler.carnot_efficiency_factor,
-                                                      self.scenario.boiler.name)
+                                                      self.scenario.boiler.type)
         # COP DHW:
         self.HotWaterHourlyCOP = self.COP_HP(self.scenario.region.temperature,
                                              self.scenario.boiler.hot_water_supply_temperature,
                                              self.scenario.boiler.carnot_efficiency_factor,
-                                             self.scenario.boiler.name)
+                                             self.scenario.boiler.type)
         # COP DHW tank charging (10°C increase in supply temperature):
         self.HotWaterHourlyCOP_tank = self.COP_HP(self.scenario.region.temperature,
                                                   self.scenario.boiler.hot_water_supply_temperature + 10,
                                                   self.scenario.boiler.carnot_efficiency_factor,
-                                                  self.scenario.boiler.name)
+                                                  self.scenario.boiler.type)
 
         # Result variables: CAREFUL, THESE NAMES HAVE TO BE IDENTICAL TO THE ONES IN THE PYOMO OPTIMIZATION
         # -----------
