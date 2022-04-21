@@ -21,9 +21,26 @@ class AbstractOperationModel(ABC):
         self.cp_water = 4200 / 3600
         _, _, _, mass_temperature = R5C1Model(scenario).calculate_heating_and_cooling_demand(static=True)
         self.thermal_mass_start_temperature = mass_temperature[-1]
-
-
-        #self.thermal_mass_start_temperature = 10
+        # COP for space heating:
+        self.SpaceHeatingHourlyCOP = self.COP_HP(self.scenario.region.temperature,
+                                                 self.scenario.boiler.heating_supply_temperature,
+                                                 self.scenario.boiler.carnot_efficiency_factor,
+                                                 self.scenario.boiler.name)
+        # COP for space heating tank charging (10°C increase in supply temperature):
+        self.SpaceHeatingHourlyCOP_tank = self.COP_HP(self.scenario.region.temperature,
+                                                      self.scenario.boiler.heating_supply_temperature + 10,
+                                                      self.scenario.boiler.carnot_efficiency_factor,
+                                                      self.scenario.boiler.name)
+        # COP DHW:
+        self.HotWaterHourlyCOP = self.COP_HP(self.scenario.region.temperature,
+                                             self.scenario.boiler.hot_water_supply_temperature,
+                                             self.scenario.boiler.carnot_efficiency_factor,
+                                             self.scenario.boiler.name)
+        # COP DHW tank charging (10°C increase in supply temperature):
+        self.HotWaterHourlyCOP_tank = self.COP_HP(self.scenario.region.temperature,
+                                                  self.scenario.boiler.hot_water_supply_temperature + 10,
+                                                  self.scenario.boiler.carnot_efficiency_factor,
+                                                  self.scenario.boiler.name)
 
         # Result variables: CAREFUL, THESE NAMES HAVE TO BE IDENTICAL TO THE ONES IN THE PYOMO OPTIMIZATION
         # -----------
@@ -37,8 +54,6 @@ class AbstractOperationModel(ABC):
         self.Q_Solar = None  # W
         # outside temperature
         self.T_outside = None  # °C
-        # COP of heatpump
-        self.SpaceHeatingHourlyCOP = None
         # COP of cooling
         self.CoolingCOP = None  # single value because it is not dependent on time
         # electricity load profile
@@ -47,7 +62,6 @@ class AbstractOperationModel(ABC):
         self.PhotovoltaicProfile = None
         # HotWater
         self.HotWaterProfile = None
-        self.HotWaterHourlyCOP = None
 
         # building data: not saved to DB
 
@@ -74,7 +88,7 @@ class AbstractOperationModel(ABC):
         self.T_TankSurrounding_DHW = None
 
         # heat pump
-        self.SpaceHeating_HeatPumpMaximalThermalPower = None
+        self.SpaceHeating_HeatPumpMaximalElectricPower = None
 
         # Battery data
         self.ChargeEfficiency = None
@@ -93,14 +107,14 @@ class AbstractOperationModel(ABC):
         self.Q_HeatingTank_out = None
         self.E_HeatingTank = None  # energy in the tank
         self.Q_HeatingTank_bypass = None
-        self.Q_Heating_HP_out = None
+        self.E_Heating_HP_out = None
         self.Q_room_heating = None
 
         # Variables DHW
         self.Q_DHWTank_out = None
         self.E_DHWTank = None  # energy in the tank
         self.Q_DHWTank_in = None
-        self.Q_DHW_HP_out = None
+        self.E_DHW_HP_out = None
         self.Q_DHWTank_bypass = None
 
         # Variable space cooling
