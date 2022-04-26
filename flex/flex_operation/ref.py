@@ -369,9 +369,6 @@ class RefOperationModel(AbstractOperationModel):
         # surrounding temp of tank
         self.T_TankSurrounding_DHW = self.scenario.hot_water_tank.temperature_surrounding
 
-        # heat pump
-        self.SpaceHeating_HeatPumpMaximalElectricPower = self.scenario.boiler.power_max
-
         # Battery data
         self.ChargeEfficiency = self.scenario.battery.charge_efficiency
         self.DischargeEfficiency = self.scenario.battery.discharge_efficiency
@@ -398,10 +395,10 @@ class RefOperationModel(AbstractOperationModel):
         # check if heating element has to be used for the HP:
         heating_element = np.zeros(heating_demand.shape)
         for index, element in enumerate(heating_demand):
-            if element > self.scenario.boiler.power_max * self.SpaceHeatingHourlyCOP[index]:
-                heating_demand[index] = self.scenario.boiler.power_max * \
+            if element > self.SpaceHeating_HeatPumpMaximalElectricPower * self.SpaceHeatingHourlyCOP[index]:
+                heating_demand[index] = self.SpaceHeating_HeatPumpMaximalElectricPower * \
                                         self.SpaceHeatingHourlyCOP[index]
-                heating_element[index] = element - self.scenario.boiler.power_max * \
+                heating_element[index] = element - self.SpaceHeating_HeatPumpMaximalElectricPower * \
                                          self.SpaceHeatingHourlyCOP[index]
 
         self.Q_HeatingElement = heating_element

@@ -25,22 +25,16 @@ class OptOperationModel(AbstractOperationModel):
         super().__init__(scenario)
         # define the maximum temperature for households when there is no cooling (in winter equals to max temp
         # and in summer the max temperature will be higher to avoid infeasibility)
-
-        self.no_cooling_indoor_temperature_max = ProfileGenerator().generate_maximum_target_indoor_temperature_no_cooling(
-            scenario=self.scenario,
-            temperature_max=23  #self.scenario.behavior.target_temperature_array_max[0]
+        self.no_cooling_indoor_temperature_max = ProfileGenerator(
+            scenario=scenario).generate_maximum_target_indoor_temperature_no_cooling(
+            temperature_max=23  # TODO take this temp to config
         )
 
-
     def creat_Dict(self, value_list: list) -> dict:
-        print(self.thermal_mass_start_temperature)
         Dictionary = {}
         for index, value in enumerate(value_list, start=1):
             Dictionary[index] = value
         return Dictionary
-
-
-
 
     def create_pyomo_dict(self) -> dict:
         pyomo_dict = {
@@ -107,7 +101,7 @@ class OptOperationModel(AbstractOperationModel):
                 "T_TankSurrounding_DHW": {None: self.scenario.hot_water_tank.temperature_surrounding},
                 "A_SurfaceTank_DHW": {None: self.scenario.hot_water_tank.surface_area},
                 "SpaceHeating_HeatPumpMaximalElectricPower": {
-                    None: self.scenario.boiler.power_max}
+                    None: self.SpaceHeating_HeatPumpMaximalElectricPower}
             }
         }
         return pyomo_dict
@@ -588,8 +582,7 @@ class OptOperationModel(AbstractOperationModel):
                 instance.Q_HeatingTank_out[t].fix(0)
                 instance.Q_HeatingTank_in[t].fix(0)
 
-                instance.E_Heating_HP_out[t].setub(self.scenario.boiler.power_max +
-                                                   self.scenario.boiler.heating_element_power)
+                instance.E_Heating_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
 
             instance.tank_energy_rule_heating.deactivate()
         else:
@@ -597,7 +590,6 @@ class OptOperationModel(AbstractOperationModel):
                 instance.E_HeatingTank[t].fixed = False
                 instance.Q_HeatingTank_out[t].fixed = False
                 instance.Q_HeatingTank_in[t].fixed = False
-
 
                 instance.E_HeatingTank[t].setlb(
                     CPWater * self.scenario.space_heating_tank.size *
@@ -608,9 +600,7 @@ class OptOperationModel(AbstractOperationModel):
                     CPWater * self.scenario.space_heating_tank.size *
                     (273.15 + self.scenario.space_heating_tank.temperature_max)
                 )
-                instance.E_Heating_HP_out[t].setub(
-                    self.scenario.boiler.power_max + self.scenario.boiler.heating_element_power
-                )
+                instance.E_Heating_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
 
             instance.tank_energy_rule_heating.activate()
 
@@ -621,9 +611,7 @@ class OptOperationModel(AbstractOperationModel):
                 instance.Q_DHWTank_out[t].fix(0)
                 instance.Q_DHWTank_in[t].fix(0)
 
-                instance.E_DHW_HP_out[t].setub(
-                    self.scenario.boiler.power_max + self.scenario.boiler.heating_element_power
-                )
+                instance.E_DHW_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
             instance.tank_energy_rule_DHW.deactivate()
         else:
             for t in range(1, 8761):
@@ -638,9 +626,7 @@ class OptOperationModel(AbstractOperationModel):
                     CPWater * self.scenario.hot_water_tank.size *
                     (273.15 + self.scenario.hot_water_tank.temperature_max)
                 )
-                instance.E_DHW_HP_out[t].setub(
-                    self.scenario.boiler.power_max + self.scenario.boiler.heating_element_power
-                )
+                instance.E_DHW_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
             instance.tank_energy_rule_DHW.activate()
 
         # Battery
@@ -819,7 +805,7 @@ class OptOperationModel(AbstractOperationModel):
         instance.T_TankSurrounding_DHW = self.scenario.hot_water_tank.temperature_surrounding
         instance.A_SurfaceTank_DHW = self.scenario.hot_water_tank.surface_area
         # HP
-        instance.SpaceHeating_HeatPumpMaximalElectricPower = self.scenario.boiler.power_max
+        instance.SpaceHeating_HeatPumpMaximalElectricPower = self.SpaceHeating_HeatPumpMaximalElectricPower
         # Cooling
         instance.CoolingCOP = self.scenario.space_cooling_technology.efficiency  # is a single value, no index
 

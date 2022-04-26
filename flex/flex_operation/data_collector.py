@@ -122,19 +122,25 @@ class OptimizationDataCollector:
         for column_name in hourly_results.columns:
             d_types_dict[column_name] = sqlalchemy.types.Float
 
-        # save the dataframes to the data database
+        # save the dataframes to the result database
         DB(connection=config.results_connection).write_dataframe(table_name="Optimization_hourly",
                                                                  data_frame=hourly_results,
                                                                  data_types=d_types_dict,
                                                                  if_exists=if_exists)
 
     def save_yearly_results(self, if_exists: str = "append") -> None:
+        """
+        Args:
+            if_exists: ['replace', 'fail', 'append' (default)]
+        Returns: None
+
+        """
         yearly_results = self.collect_optimization_results_yearly()
         # set the datatype to float:
         d_types_dict = {}
         for column_name in yearly_results.columns:
             d_types_dict[column_name] = sqlalchemy.types.Float
-        # save the dataframes to the data database
+        # save the dataframes to the result database
         DB(connection=config.results_connection).write_dataframe(table_name="Optimization_yearly",
                                                                  data_frame=yearly_results,
                                                                  data_types=d_types_dict,
@@ -246,7 +252,7 @@ class ReferenceDataCollector:
         for column_name in hourly_results.columns:
             d_types_dict[column_name] = sqlalchemy.types.Float
 
-        # save the dataframes to the data database
+        # save the dataframes to the result database
         DB(connection=config.results_connection).write_dataframe(table_name="Reference_hourly",
                                                                  data_frame=hourly_results,
                                                                  data_types=d_types_dict,
@@ -258,7 +264,7 @@ class ReferenceDataCollector:
         d_types_dict = {}
         for column_name in yearly_results.columns:
             d_types_dict[column_name] = sqlalchemy.types.Float
-        # save the dataframes to the data database
+        # save the dataframes to the result database
         DB(connection=config.results_connection).write_dataframe(table_name="Reference_yearly",
                                                                  data_frame=yearly_results,
                                                                  data_types=d_types_dict,
