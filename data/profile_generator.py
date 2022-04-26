@@ -5,9 +5,15 @@ from core.household.abstract_scenario import AbstractScenario
 
 
 class ProfileGenerator:
-    def __init__(self):
+    def __init__(self,
+                 scenario: AbstractScenario):
         self.id_day_hour = np.tile(np.arange(1, 25), 365)
+        self.scenario = scenario
+        # calculate the heating demand in reference mode:
+        self.heating_demand, _, self.T_room, _ = R5C1Model(scenario).calculate_heating_and_cooling_demand()
 
+
+    @staticmethod
     def generate_target_indoor_temperature_fixed(self,
                                                  temperature_min: int,
                                                  temperature_max: int,
@@ -31,7 +37,6 @@ class ProfileGenerator:
         return minimum_temperature, maximum_temperature
 
     def generate_maximum_target_indoor_temperature_no_cooling(self,
-                                                              scenario: AbstractScenario,
                                                               temperature_max: int) -> np.array:
         """
         calculates an array of the maximum temperature that will be equal to the provided max temperature if
@@ -45,28 +50,25 @@ class ProfileGenerator:
         Returns: array of the maximum temperature
 
         """
-        # calculate the heating demand in reference mode:
-        heating_demand, _, T_room, _ = \
-            R5C1Model(scenario).calculate_heating_and_cooling_demand()
         # create max temperature array:
         max_temperature_list = []
-        for i, heat_demand in enumerate(heating_demand):
+        for i, heat_demand in enumerate(self.heating_demand):
             # if heat demand == 0 and the heat demand in the following 8 hours is also 0 and the heat demand of 3
             # hours before that is also 0, then the max temperature is raised so model does not become infeasible:
             if heat_demand == 0 and \
-                    heating_demand[i-3] == 0 and \
-                    heating_demand[i-2] == 0 and \
-                    heating_demand[i-1] == 0 and \
-                    heating_demand[i+1] == 0 and \
-                    heating_demand[i+2] == 0 and \
-                    heating_demand[i+3] == 0 and \
-                    heating_demand[i+4] == 0 and \
-                    heating_demand[i+5] == 0 and \
-                    heating_demand[i+6] == 0 and \
-                    heating_demand[i+7] == 0 and \
-                    heating_demand[i+8] == 0:
+                   self.heating_demand[i - 3] == 0 and \
+                   self.heating_demand[i - 2] == 0 and \
+                   self.heating_demand[i - 1] == 0 and \
+                   self.heating_demand[i + 1] == 0 and \
+                   self.heating_demand[i + 2] == 0 and \
+                   self.heating_demand[i + 3] == 0 and \
+                   self.heating_demand[i + 4] == 0 and \
+                   self.heating_demand[i + 5] == 0 and \
+                   self.heating_demand[i + 6] == 0 and \
+                   self.heating_demand[i + 7] == 0 and \
+                   self.heating_demand[i + 8] == 0:
                 # append the temperature of the reference model + 0.5°C to make sure it is feasible
-                max_temperature_list.append(T_room[i] + 0.5)
+                max_temperature_list.append(self.T_room[i] + 1)
             else:
                 max_temperature_list.append(temperature_max)
         return np.array(max_temperature_list)
@@ -107,10 +109,9 @@ class ProfileGenerator:
 
         scenario = AbstractScenario(scenario_id=0)
         self.generate_maximum_target_indoor_temperature_no_cooling(scenario=scenario,
-                                                                   temperature_max=27)
+                                                                   temperature_max=23)
 
-
-
+        self.generate_maximum_heat_pump_power(scenario=scenario)
 
 
 if __name__ == "__main__":

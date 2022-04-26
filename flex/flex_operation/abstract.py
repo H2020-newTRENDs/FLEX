@@ -4,7 +4,7 @@ import numpy as np
 
 from core.household.abstract_scenario import AbstractScenario
 from core.elements.rc_model import R5C1Model
-
+from data.profile_generator import ProfileGenerator
 
 """
 abstract flex_operation_old model
@@ -22,25 +22,36 @@ class AbstractOperationModel(ABC):
         _, _, _, mass_temperature = R5C1Model(scenario).calculate_heating_and_cooling_demand(static=True)
         self.thermal_mass_start_temperature = mass_temperature[-1]
         # COP for space heating:
-        self.SpaceHeatingHourlyCOP = self.COP_HP(self.scenario.region.temperature,
-                                                 self.scenario.boiler.heating_supply_temperature,
-                                                 self.scenario.boiler.carnot_efficiency_factor,
-                                                 self.scenario.boiler.type)
+        self.SpaceHeatingHourlyCOP = self.COP_HP(
+            outside_temperature=self.scenario.region.temperature,
+            supply_temperature=self.scenario.boiler.heating_supply_temperature,
+            efficiency=self.scenario.boiler.carnot_efficiency_factor,
+            source=self.scenario.boiler.name
+        )
         # COP for space heating tank charging (10°C increase in supply temperature):
-        self.SpaceHeatingHourlyCOP_tank = self.COP_HP(self.scenario.region.temperature,
-                                                      self.scenario.boiler.heating_supply_temperature + 10,
-                                                      self.scenario.boiler.carnot_efficiency_factor,
-                                                      self.scenario.boiler.type)
+        self.SpaceHeatingHourlyCOP_tank = self.COP_HP(
+            outside_temperature=self.scenario.region.temperature,
+            supply_temperature=self.scenario.boiler.heating_supply_temperature + 10,
+            efficiency=self.scenario.boiler.carnot_efficiency_factor,
+            source=self.scenario.boiler.name
+        )
         # COP DHW:
-        self.HotWaterHourlyCOP = self.COP_HP(self.scenario.region.temperature,
-                                             self.scenario.boiler.hot_water_supply_temperature,
-                                             self.scenario.boiler.carnot_efficiency_factor,
-                                             self.scenario.boiler.type)
+        self.HotWaterHourlyCOP = self.COP_HP(
+            outside_temperature=self.scenario.region.temperature,
+            supply_temperature=self.scenario.boiler.hot_water_supply_temperature,
+            efficiency=self.scenario.boiler.carnot_efficiency_factor,
+            source=self.scenario.boiler.name
+        )
         # COP DHW tank charging (10°C increase in supply temperature):
-        self.HotWaterHourlyCOP_tank = self.COP_HP(self.scenario.region.temperature,
-                                                  self.scenario.boiler.hot_water_supply_temperature + 10,
-                                                  self.scenario.boiler.carnot_efficiency_factor,
-                                                  self.scenario.boiler.type)
+        self.HotWaterHourlyCOP_tank = self.COP_HP(
+            outside_temperature=self.scenario.region.temperature,
+            supply_temperature=self.scenario.boiler.hot_water_supply_temperature + 10,
+            efficiency=self.scenario.boiler.carnot_efficiency_factor,
+            source=self.scenario.boiler.name
+        )
+
+        # heat pump maximal electric power
+        self.SpaceHeating_HeatPumpMaximalElectricPower = self.generate_maximum_electric_heat_pump_power()
 
         # Result variables: CAREFUL, THESE NAMES HAVE TO BE IDENTICAL TO THE ONES IN THE PYOMO OPTIMIZATION
         # -----------
@@ -161,8 +172,8 @@ class AbstractOperationModel(ABC):
         # Objective:
         self.total_operation_cost = None
 
-    def COP_HP(self,
-               outside_temperature: np.array,
+    @staticmethod
+    def COP_HP(outside_temperature: np.array,
                supply_temperature: float,
                efficiency: float,
                source: str) -> np.array:
@@ -186,6 +197,36 @@ class AbstractOperationModel(ABC):
         else:
             assert "only >>air<< and >>ground<< are valid arguments"
         return COP
+
+    def generate_maximum_electric_heat_pump_power(self):
+        # TODO we could add different supply temperatures for different buildings to make COP more accurate
+        """
+        Calculates the necessary HP power for each building through the 5R1C reference model. The maximum heating power
+        then will be rounded to the next 500 W. Then we divide the thermal power by the worst COP of the HP
+        which is calculated at design conditions (-12°C) and the respective source and supply temperature.
+
+        Args:
+            scenario: AbstractScenario
+
+        Returns: maximum heat pump electric power (float)
+
+        """
+        # calculate the heating demand in reference mode:
+        heating_demand, _, _, _ = R5C1Model(self.scenario).calculate_heating_and_cooling_demand()
+        max_heating_demand = heating_demand.max()
+        # round to the next 500 W
+        max_thermal_power = np.ceil(max_heating_demand / 500) * 500
+        # calculate the design condition COP (-12°C)
+        worst_COP = AbstractOperationModel.COP_HP(
+            outside_temperature=[-12],
+            supply_temperature=self.scenario.boiler_class.heating_supply_temperature,
+            efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
+            source=self.scenario.boiler_class.name
+        )
+        max_electric_power_float = max_thermal_power / worst_COP
+        # round the maximum electric power to the next 100 W:
+        max_electric_power = np.ceil(max_electric_power_float[0] / 100) * 100
+        return max_electric_power
 
     def calculate_solar_gains(self) -> np.array:
         """calculates the solar gains through solar radiation through the effective window area
