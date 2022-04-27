@@ -22,5 +22,5 @@ print(scenario.vehicle.charge_bidirectional)
 optimization_model = OptOperationModel(scenario)
 solved_instance = optimization_model.run()
 
-OptimizationDataCollector(solved_instance, scenario.scenario_id).save_yearly_results()
-OptimizationDataCollector(solved_instance, scenario.scenario_id).save_hourly_results()
+# OptimizationDataCollector(solved_instance, scenario.scenario_id).save_yearly_results()
+# OptimizationDataCollector(solved_instance, scenario.scenario_id).save_hourly_results()
