@@ -26,28 +26,28 @@ class AbstractOperationModel(ABC):
             outside_temperature=self.scenario.region.temperature,
             supply_temperature=self.scenario.boiler.heating_supply_temperature,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
-            source=self.scenario.boiler.name
+            source=self.scenario.boiler.type
         )
         # COP for space heating tank charging (10°C increase in supply temperature):
         self.SpaceHeatingHourlyCOP_tank = self.COP_HP(
             outside_temperature=self.scenario.region.temperature,
             supply_temperature=self.scenario.boiler.heating_supply_temperature + 10,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
-            source=self.scenario.boiler.name
+            source=self.scenario.boiler.type
         )
         # COP DHW:
         self.HotWaterHourlyCOP = self.COP_HP(
             outside_temperature=self.scenario.region.temperature,
             supply_temperature=self.scenario.boiler.hot_water_supply_temperature,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
-            source=self.scenario.boiler.name
+            source=self.scenario.boiler.type
         )
         # COP DHW tank charging (10°C increase in supply temperature):
         self.HotWaterHourlyCOP_tank = self.COP_HP(
             outside_temperature=self.scenario.region.temperature,
             supply_temperature=self.scenario.boiler.hot_water_supply_temperature + 10,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
-            source=self.scenario.boiler.name
+            source=self.scenario.boiler.type
         )
 
         # heat pump maximal electric power
@@ -97,9 +97,6 @@ class AbstractOperationModel(ABC):
         self.T_TankStart_DHW = None
         # surrounding temp of tank
         self.T_TankSurrounding_DHW = None
-
-        # heat pump
-        self.SpaceHeating_HeatPumpMaximalElectricPower = None
 
         # Battery data
         self.ChargeEfficiency = None
@@ -219,9 +216,9 @@ class AbstractOperationModel(ABC):
         # calculate the design condition COP (-12°C)
         worst_COP = AbstractOperationModel.COP_HP(
             outside_temperature=[-12],
-            supply_temperature=self.scenario.boiler_class.heating_supply_temperature,
-            efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
-            source=self.scenario.boiler_class.name
+            supply_temperature=self.scenario.boiler.heating_supply_temperature,
+            efficiency=self.scenario.boiler.carnot_efficiency_factor,
+            source=self.scenario.boiler.type
         )
         max_electric_power_float = max_thermal_power / worst_COP
         # round the maximum electric power to the next 100 W:
