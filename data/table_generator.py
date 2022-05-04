@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import pandas as pd
 import sqlalchemy.types
@@ -6,6 +8,7 @@ from pathlib import Path
 import os
 
 from basic.db import DB
+from core.household.abstract_scenario import AbstractScenario
 import core.household.components as components
 from basic.reg import Table
 import basic.config as config
@@ -71,7 +74,8 @@ class InputDataGenerator:
             assert "no valid day"
 
     def create_air_conditioner_data(self) -> None:
-        """creates the ID_SpaceCooling table in the Database"""
+        """creates the AirConditioner table in the Database"""
+        print(f"create {Table().air_conditioner} table")
         cooling_power = self.input.air_conditioner_config["power"]  # W
         cooling_efficiency = np.full((len(cooling_power),), self.input.air_conditioner_config["efficiency"])
         columns = structure.AirConditionerData().__dict__
@@ -93,7 +97,8 @@ class InputDataGenerator:
         pass
 
     def create_battery_data(self) -> None:
-        """creates the ID_Battery table in the Database"""
+        """creates the Battery table in the Database"""
+        print(f"create {Table().battery} table")
         battery_capacity = self.input.battery_config["capacity"]  # W
         columns = structure.BatteryData().__dict__
         table_dict = {
@@ -118,7 +123,9 @@ class InputDataGenerator:
                              )
 
     def create_behavior_data(self):
-        minimum_indoor_temperature, maximum_indoor_temperature = ProfileGenerator().generate_target_indoor_temperature_fixed(
+        """Creates the Behaviour table in the database"""
+        print(f"create {Table().behavior} table")
+        minimum_indoor_temperature, maximum_indoor_temperature = ProfileGenerator.generate_target_indoor_temperature_fixed(
             temperature_min=self.input.behavior_config["temperature_min"],
             temperature_max=self.input.behavior_config["temperature_max"],
             night_reduction=self.input.behavior_config["night_reduction"]
@@ -136,18 +143,19 @@ class InputDataGenerator:
                              )
 
     def create_boiler_data(self) -> None:
-        """creates the space heating system table in the Database"""
+        """creates the Boiler table in the Database"""
+        print(f"create {Table().boiler} table")
         heating_system = self.input.boiler_config["name"]
         carnot_factor = self.input.boiler_config["carnot_efficiency_factor"]
         columns = structure.BoilerData().__dict__
         table_dict = {
             "ID_Boiler": np.arange(1, len(heating_system) + 1),
             "name": heating_system,
-            "thermal_power_max": np.full((len(heating_system),), self.input.boiler_config["thermal_power_max"]),
-            "thermal_power_max_unit": np.full((len(heating_system),), "W"),
+            "electric_power_max": np.full((len(heating_system),), self.input.boiler_config["electric_power_max"]),
+            "electric_power_max_unit": np.full((len(heating_system),), "W"),
             "heating_element_power": np.full((len(heating_system),), self.input.boiler_config["heating_element_power"]),
             "heating_element_power_unit": np.full((len(heating_system),), "W"),
-            "carnot_efficiency_factor": carnot_factor,
+            "carnot_efficiency_factor": np.full((len(heating_system),), carnot_factor),
             "heating_supply_temperature": np.full((len(heating_system),),
                                                   self.input.boiler_config["heating_supply_temperature"]),
             "hot_water_supply_temperature": np.full((len(heating_system),),
@@ -163,7 +171,8 @@ class InputDataGenerator:
                              )
 
     def create_building_data(self) -> None:
-        """reads building excel table and stores it to root"""
+        """reads building json table and stores it to root"""
+        print(f"create {Table().building} table")
         building_mass_temperature_max = self.input.building_config["building_mass_temperature_max"]  # °C
         grid_power_max = self.input.building_config["grid_power_max"]  # W
         building_data = import_building_data.load_building_data_from_json(
@@ -179,9 +188,9 @@ class InputDataGenerator:
                      "average_effective_area_wind_south_red_cool": "effective_window_area_south",
                      "spec_int_gains_cool_watt": "internal_gains"
                      })
-        building_data["building_mass_temperature_max"] = building_mass_temperature_max
-        building_data["grid_power_max"] = grid_power_max
-        building_data["grid_power_max_unit"] = "W"
+        building_data.loc[:, "building_mass_temperature_max"] = building_mass_temperature_max
+        building_data.loc[:, "grid_power_max"] = grid_power_max
+        building_data.loc[:, "grid_power_max_unit"] = "W"
         columns = structure.BuildingData().__dict__
         assert sorted(list(columns.keys())) == sorted(list(building_data.keys()))
         # save
@@ -192,6 +201,8 @@ class InputDataGenerator:
                              )
 
     def create_demand_data(self):
+        """Creates the ElectricityDemand and HotWaterDemand database"""
+        print(f"create {Table().electricity_demand} table")
         # load json file
         synthetic_load_path = Path(os.path.abspath(__file__)).parent.resolve() / Path(f"synthetic_load_household.json")
         baseload = pd.read_json(synthetic_load_path, orient="table")
@@ -209,6 +220,7 @@ class InputDataGenerator:
                              )
 
         # Hot water demand profile
+        print(f"create {Table().hot_water_demand} table")
         hot_water_path = Path(os.path.abspath(__file__)).parent.resolve() / Path(f"hot_water_demand.json")
         hot_water = pd.read_json(hot_water_path, orient="table")
         hot_water_profile = self.adapt_hotmaps_profile_to_year(hot_water["Profile"].to_numpy())
@@ -255,7 +267,6 @@ class InputDataGenerator:
         price_to_db = np.vstack([variable_price_to_db, fixed_price_to_db])
         price_table = pd.DataFrame(price_to_db, columns=list(structure.ElectricityPriceData().__dict__.keys()))
         # save to database
-
         DB().write_dataframe(table_name=Table().electricity_price,
                              data_frame=price_table,
                              data_types=structure.ElectricityPriceData().__dict__,
@@ -263,6 +274,8 @@ class InputDataGenerator:
                              )
 
     def create_feed_in_tariff_data(self):
+        """Creates the FeedInTariff table in the database"""
+        print(f"create {Table().feedin_tariff} table")
         feed_in_table = pd.DataFrame(columns=["ID_FeedInTariff", "id_hour", "feed_in_tariff", "unit"])
         for i, fixed_feed_in in enumerate(self.input.feed_in_tariff_config["fixed_feed_in_tariff"]):
             feed_in_dict = {"ID_FeedInTariff": np.full((8760,), i + 1),
@@ -286,7 +299,8 @@ class InputDataGenerator:
                              )
 
     def create_hot_water_tank_data(self) -> None:
-        """creates the ID_DHWTank table in the Database"""
+        """creates the HotWaterTank table in the Database"""
+        print(f"create {Table().hot_water_tank} table")
         tank_sizes = self.input.hot_water_tank_config["size"]  # liter
         columns = structure.HotWaterTankData().__dict__
         # tank is designed as Cylinder with minimal surface area:
@@ -322,6 +336,12 @@ class InputDataGenerator:
         pass
 
     def create_region_data(self) -> None:
+        """
+        Creates the regional data which includes the Temperature Profiles, Radiation and PV Generation profiles.
+        Returns: None
+
+        """
+        print(f"create {Table().region} table")
         PVGIS().run(nuts_level=self.input.region_config["nuts_level"],
                     country_code=self.input.region_config["country_code"],
                     start_year=self.input.region_config["start_year"],
@@ -330,6 +350,7 @@ class InputDataGenerator:
 
     def create_space_heating_tank_data(self) -> None:
         """creates the space heating tank table in the Database"""
+        print(f"create {Table().space_heating_tank} table")
         tank_size = self.input.space_heating_tank_config["size"]  # liter
         columns = structure.SpaceHeatingTankData().__dict__
         # tank is designed as Cylinder with minimal surface area:
@@ -362,7 +383,7 @@ class InputDataGenerator:
 
     def generate_scenarios_table(self) -> None:
         """
-        Creates big table for optimization with everything included.
+        Creates big table for optimization with every ID for each scenario.
         """
         # check which of the tables exist for the project:
         engine = config.root_connection.connect()
@@ -394,6 +415,72 @@ class InputDataGenerator:
                              data_types=dtypes_dict,
                              if_exists="replace"
                              )
+        print("Scenario Table saved to database")
+
+        # call the scenario overview function:
+        self.generate_scenario_overview(scenarios_table)
+
+    def generate_scenario_overview(self, table_of_scenarios: pd.DataFrame) -> None:
+        """
+        Creates a table that gives an overview of the Parameters of each scenario ID. This table is only
+        used as an overview and will not be used in any further calculations. This function is quite slow,
+        should only be run for once when the final set up for a project is done.
+        Returns: None
+
+        """
+        print("creating an overview table of all scenarios. \n Model is ready for use")
+        # create the column names for the overview table
+        column_name_list = [column_name.replace("ID_", "") for column_name in table_of_scenarios.columns]
+        # create the overview table:
+        overview_table = pd.DataFrame(columns=column_name_list, index=np.arange(len(table_of_scenarios)))
+        # fill the overview table with one representative value (eg Battery -> capacity)
+        for scenario_id, row in enumerate(table_of_scenarios.iterrows()):
+            scenario = AbstractScenario(scenario_id=scenario_id)
+            for column in overview_table.columns:
+                if column == "Region":
+                    variable_to_add = scenario.region_class.ID_Region
+                elif column == "Building":
+                    variable_to_add = scenario.building_class.ID_Building
+                elif column == "Boiler":
+                    variable_to_add = f"{scenario.boiler_class.name}"
+                elif column == "SpaceHeatingTank":
+                    variable_to_add = f"{scenario.spaceheatingtank_class.size} l"
+                elif column == "AirConditioner":
+                    variable_to_add = f"{scenario.airconditioner_class.power} W"
+                elif column == "HotWaterTank":
+                    variable_to_add = f"{scenario.hotwatertank_class.size} l"
+                elif column == "PV":
+                    variable_to_add = f"{scenario.pv_class.peak_power[0]} kWp"
+                elif column == "Battery":
+                    variable_to_add = f"{scenario.battery_class.capacity} Wh"
+                elif column == "Behaviour":
+                    variable_to_add = scenario.behavior_class.ID_Behavior
+                elif column == "HotWaterDemand":
+                    variable_to_add = scenario.hotwaterdemand_class.ID_HotWaterDemand
+                elif column == "ElectricityDemand":
+                    variable_to_add = scenario.electricitydemand_class.ID_Electricity_Demand
+                elif column == "ElectricityPrice":
+                    variable_to_add = scenario.electricityprice_class.ID_ElectricityPrice
+                elif column == "FeedInTariff":
+                    variable_to_add = scenario.feedintariff_class.ID_FeedInTariff
+                elif column == "Scenarios":
+                    variable_to_add = scenario.scenario_id
+                else:
+                    variable_to_add = None
+                if variable_to_add:
+                    if type(variable_to_add) == list:  # if its a list take first element
+                        variable_to_add = variable_to_add[0]
+                    overview_table.loc[overview_table.index[scenario_id], column] = variable_to_add
+        # make nans to zero:
+        overview_table = overview_table.fillna(0)
+        # dtypes are all "String":
+        dtypes_dict = {name: sqlalchemy.types.String for name in overview_table.columns}
+        # save to root db:
+        DB().write_dataframe(table_name="Scenario Overview",
+                             data_frame=overview_table,
+                             data_types=dtypes_dict,
+                             if_exists="replace"
+                             )
 
     def run(self, skip_region: bool = False):
         # TODO implement what to do when inputs are None
@@ -409,9 +496,6 @@ class InputDataGenerator:
         self.generate_scenarios_table()
 
 
-
-
-
 def main():
 
     # create list of all configurations defined in configurations
@@ -420,14 +504,16 @@ def main():
     # define scenario:
     configuration = Config(config_list)
     #
-
-    InputDataGenerator(configuration=configuration).run(skip_region=True)
+    year = 2019
+    InputDataGenerator(configuration=configuration, year=year).run(skip_region=True)
 
 
 if __name__ == "__main__":
     import projects.PhilippTest.config as configurations
     from basic.config import Config
     main()
+
+
 
 
 

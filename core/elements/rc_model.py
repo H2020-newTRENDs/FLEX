@@ -40,7 +40,7 @@ class R5C1Model(RCModel):
         self.Htr_3 = 1 / (1 / self.Htr_2 + 1 / self.Htr_ms)  # Equ.C.8
 
         # Equ. C.1
-        self.PHI_ia = 0.5 * self.internal_gains
+        self.PHI_ia = 0.5 * self.Qi
 
         self.Q_solar = self.calculate_solar_gains()
 

@@ -409,3 +409,9 @@ TSWLatexianTemp*
 /C_Model_Operation/C2_OperationOptimization/log.txt
 
 *.pdf
+
+*.xlsx
+
+*.svg
+
+*.png

@@ -4,7 +4,7 @@ import numpy as np
 
 from core.household.abstract_scenario import AbstractScenario
 from core.elements.rc_model import R5C1Model
-
+from data.profile_generator import ProfileGenerator
 
 """
 abstract operation model
@@ -12,7 +12,6 @@ abstract operation model
 
 
 class AbstractOperationModel(ABC):
-
     def __init__(self,
                  scenario: 'AbstractScenario'):
 
@@ -21,6 +20,37 @@ class AbstractOperationModel(ABC):
         self.cp_water = 4200 / 3600
         _, _, _, mass_temperature = R5C1Model(scenario).calculate_heating_and_cooling_demand(static=True)
         self.thermal_mass_start_temperature = mass_temperature[-1]
+        # COP for space heating:
+        self.SpaceHeatingHourlyCOP = self.COP_HP(
+            outside_temperature=self.scenario.region_class.temperature,
+            supply_temperature=self.scenario.boiler_class.heating_supply_temperature,
+            efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
+            source=self.scenario.boiler_class.name
+        )
+        # COP for space heating tank charging (10°C increase in supply temperature):
+        self.SpaceHeatingHourlyCOP_tank = self.COP_HP(
+            outside_temperature=self.scenario.region_class.temperature,
+            supply_temperature=self.scenario.boiler_class.heating_supply_temperature + 10,
+            efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
+            source=self.scenario.boiler_class.name
+        )
+        # COP DHW:
+        self.HotWaterHourlyCOP = self.COP_HP(
+            outside_temperature=self.scenario.region_class.temperature,
+            supply_temperature=self.scenario.boiler_class.hot_water_supply_temperature,
+            efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
+            source=self.scenario.boiler_class.name
+        )
+        # COP DHW tank charging (10°C increase in supply temperature):
+        self.HotWaterHourlyCOP_tank = self.COP_HP(
+            outside_temperature=self.scenario.region_class.temperature,
+            supply_temperature=self.scenario.boiler_class.hot_water_supply_temperature + 10,
+            efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
+            source=self.scenario.boiler_class.name
+        )
+
+        # heat pump maximal electric power
+        self.SpaceHeating_HeatPumpMaximalElectricPower = self.generate_maximum_electric_heat_pump_power()
 
         # Result variables: CAREFUL, THESE NAMES HAVE TO BE IDENTICAL TO THE ONES IN THE PYOMO OPTIMIZATION
         # -----------
@@ -34,8 +64,6 @@ class AbstractOperationModel(ABC):
         self.Q_Solar = None  # W
         # outside temperature
         self.T_outside = None  # °C
-        # COP of heatpump
-        self.SpaceHeatingHourlyCOP = None
         # COP of cooling
         self.CoolingCOP = None  # single value because it is not dependent on time
         # electricity load profile
@@ -44,7 +72,6 @@ class AbstractOperationModel(ABC):
         self.PhotovoltaicProfile = None
         # HotWater
         self.HotWaterProfile = None
-        self.HotWaterHourlyCOP = None
 
         # building data: not saved to DB
 
@@ -70,9 +97,6 @@ class AbstractOperationModel(ABC):
         # surrounding temp of tank
         self.T_TankSurrounding_DHW = None
 
-        # heat pump
-        self.SpaceHeating_HeatPumpMaximalThermalPower = None
-
         # Battery data
         self.ChargeEfficiency = None
         self.DischargeEfficiency = None
@@ -86,14 +110,14 @@ class AbstractOperationModel(ABC):
         self.Q_HeatingTank_out = None
         self.E_HeatingTank = None  # energy in the tank
         self.Q_HeatingTank_bypass = None
-        self.Q_Heating_HP_out = None
+        self.E_Heating_HP_out = None
         self.Q_room_heating = None
 
         # Variables DHW
         self.Q_DHWTank_out = None
         self.E_DHWTank = None  # energy in the tank
         self.Q_DHWTank_in = None
-        self.Q_DHW_HP_out = None
+        self.E_DHW_HP_out = None
         self.Q_DHWTank_bypass = None
 
         # Variable space cooling
@@ -128,8 +152,8 @@ class AbstractOperationModel(ABC):
         # Objective:
         self.total_operation_cost = None
 
-    def COP_HP(self,
-               outside_temperature: np.array,
+    @staticmethod
+    def COP_HP(outside_temperature: np.array,
                supply_temperature: float,
                efficiency: float,
                source: str) -> np.array:
@@ -154,6 +178,36 @@ class AbstractOperationModel(ABC):
             assert "only >>air<< and >>ground<< are valid arguments"
         return COP
 
+    def generate_maximum_electric_heat_pump_power(self):
+        # TODO we could add different supply temperatures for different buildings to make COP more accurate
+        """
+        Calculates the necessary HP power for each building through the 5R1C reference model. The maximum heating power
+        then will be rounded to the next 500 W. Then we divide the thermal power by the worst COP of the HP
+        which is calculated at design conditions (-12°C) and the respective source and supply temperature.
+
+        Args:
+            scenario: AbstractScenario
+
+        Returns: maximum heat pump electric power (float)
+
+        """
+        # calculate the heating demand in reference mode:
+        heating_demand, _, _, _ = R5C1Model(self.scenario).calculate_heating_and_cooling_demand()
+        max_heating_demand = heating_demand.max()
+        # round to the next 500 W
+        max_thermal_power = np.ceil(max_heating_demand / 500) * 500
+        # calculate the design condition COP (-12°C)
+        worst_COP = AbstractOperationModel.COP_HP(
+            outside_temperature=[-12],
+            supply_temperature=self.scenario.boiler_class.heating_supply_temperature,
+            efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
+            source=self.scenario.boiler_class.name
+        )
+        max_electric_power_float = max_thermal_power / worst_COP
+        # round the maximum electric power to the next 100 W:
+        max_electric_power = np.ceil(max_electric_power_float[0] / 100) * 100
+        return max_electric_power
+
     def calculate_solar_gains(self) -> np.array:
         """calculates the solar gains through solar radiation through the effective window area
         returns the solar gains for all considered building IDs with 8760 rows. Each columns represents a building ID"""
@@ -167,8 +221,6 @@ class AbstractOperationModel(ABC):
         Q_sol_west = np.outer(np.array(self.scenario.region_class.west), AreaWindowEastWest / 2)
         Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
         return Q_solar
-
-
 
     def calculate_Atot(self, Af: float) -> float:
         return 4.5 * Af  # 7.2.2.2: Area of all surfaces facing the building zone
@@ -191,7 +243,7 @@ class AbstractOperationModel(ABC):
     def calculate_hms(self):
         return np.float_(9.1)  # [W / m2K] from Equ.C.3 (from 12.2.2) - (coupling between mass and central node s)
 
-    def calculate_Htr_ms(self,  Am_factor: float, Af: float) -> float:
+    def calculate_Htr_ms(self, Am_factor: float, Af: float) -> float:
         return self.calculate_hms() * self.calculate_Am(Am_factor, Af)  # from 12.2.2 Equ. (64)
 
     def calculate_Htr_em(self, Hop: float, Am_factor: float, Af: float) -> float:
@@ -201,7 +253,7 @@ class AbstractOperationModel(ABC):
     def calculate_Htr_is(self, Af) -> float:
         return self.calculate_his() * self.calculate_Atot(Af=Af)
 
-    def calculate_PHI_ia(self,specific_internal_gains: float, Af: float) -> float:
+    def calculate_PHI_ia(self, specific_internal_gains: float, Af: float) -> float:
         return 0.5 * self.calculate_Qi(specific_internal_gains, Af)  # Equ. C.1
 
     def calculate_Htr_1(self, Hve: float, Af: float) -> float:
@@ -210,5 +262,5 @@ class AbstractOperationModel(ABC):
     def calculate_Htr_2(self, Hve: float, Af: float, Htr_w: float) -> float:
         return self.calculate_Htr_1(Hve, Af) + Htr_w  # Equ. C.7
 
-    def calculate_Htr_3(self,  Hve: float, Af: float, Htr_w: float, Am_factor: float) -> float:
+    def calculate_Htr_3(self, Hve: float, Af: float, Htr_w: float, Am_factor: float) -> float:
         return 1 / (1 / self.calculate_Htr_2(Hve, Af, Htr_w) + 1 / self.calculate_Htr_ms(Am_factor, Af))  # Equ.C.8
