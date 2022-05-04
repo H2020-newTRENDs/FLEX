@@ -61,7 +61,7 @@ electricity_price_config = {
 }
 
 feed_in_tariff_config = {
-    "fixed_feed_in_tariff": [7.67],  # ct/kWh ,more feed in tarifs can be provided in list
+    "fixed_feed_in_tariff": [7.67],  # ct/kWh ,more feed in tariffs can be provided in list
     "variable_feed_in_tariff_path": [None]  # for variable feed ins provide path(s)
 }
 
@@ -69,7 +69,7 @@ hot_water_tank_config = {
     "size": [0, 400],
     "loss": 0.2,  # W/m2K
     "temperature_start": 28,  # °C
-    "temperature_max": 55,  # °C
+    "temperature_max": 65,  # °C
     "temperature_min": 28,
     "temperature_surrounding": 20  # °C
 }

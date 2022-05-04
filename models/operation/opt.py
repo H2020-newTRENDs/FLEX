@@ -24,10 +24,9 @@ class OptOperationModel(AbstractOperationModel):
         super().__init__(scenario)
         # define the maximum temperature for households when there is no cooling (in winter equals to max temp
         # and in summer the max temperature will be higher to avoid infeasibility)
-
-        self.no_cooling_indoor_temperature_max = ProfileGenerator().generate_maximum_target_indoor_temperature_no_cooling(
-            scenario=self.scenario,
-            temperature_max=self.scenario.behavior_class.indoor_set_temperature_max[0]
+        self.no_cooling_indoor_temperature_max = ProfileGenerator(
+            scenario=scenario).generate_maximum_target_indoor_temperature_no_cooling(
+            temperature_max=23  # TODO take this temp to config
         )
 
     def creat_Dict(self, value_list: list) -> dict:
@@ -45,18 +44,12 @@ class OptOperationModel(AbstractOperationModel):
                 "Q_Solar": self.creat_Dict(self.calculate_solar_gains()),  # W
                 "PhotovoltaicProfile": self.creat_Dict(self.scenario.pv_class.power),
                 "T_outside": self.creat_Dict(self.scenario.region_class.temperature),  # °C
-                "SpaceHeatingHourlyCOP": self.creat_Dict(
-                    self.COP_HP(outside_temperature=self.scenario.region_class.temperature,
-                                supply_temperature=self.scenario.boiler_class.heating_supply_temperature,
-                                efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
-                                source=self.scenario.boiler_class.name)),
+                "SpaceHeatingHourlyCOP": self.creat_Dict(self.SpaceHeatingHourlyCOP),
+                "SpaceHeatingHourlyCOP_tank": self.creat_Dict(self.SpaceHeatingHourlyCOP_tank),
                 "BaseLoadProfile": self.creat_Dict(self.scenario.electricitydemand_class.electricity_demand),  # W
                 "HotWaterProfile": self.creat_Dict(self.scenario.hotwaterdemand_class.hot_water_demand),
-                "HotWaterHourlyCOP": self.creat_Dict(
-                    self.COP_HP(outside_temperature=self.scenario.region_class.temperature,
-                                supply_temperature=self.scenario.boiler_class.hot_water_supply_temperature,
-                                efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
-                                source=self.scenario.boiler_class.name)),
+                "HotWaterHourlyCOP": self.creat_Dict(self.HotWaterHourlyCOP),
+                "HotWaterHourlyCOP_tank": self.creat_Dict(self.HotWaterHourlyCOP_tank),
                 "DayHour": self.creat_Dict(self.DayHour),
                 "CoolingCOP": {None: self.scenario.airconditioner_class.efficiency},
                 "ChargeEfficiency": {None: self.scenario.battery_class.charge_efficiency},
@@ -89,7 +82,7 @@ class OptOperationModel(AbstractOperationModel):
                 "Cm": {None: self.calculate_Cm(CM_factor=self.scenario.building_class.CM_factor,
                                                Af=self.scenario.building_class.Af)},
                 "BuildingMassTemperatureStartValue": {
-                    None:  self.thermal_mass_start_temperature},
+                    None: self.thermal_mass_start_temperature},
                 # space heating tank
                 "T_TankStart_heating": {None: self.scenario.spaceheatingtank_class.temperature_start},
                 # min temp is start temp
@@ -104,8 +97,8 @@ class OptOperationModel(AbstractOperationModel):
                 "U_ValueTank_DHW": {None: self.scenario.hotwatertank_class.loss},
                 "T_TankSurrounding_DHW": {None: self.scenario.hotwatertank_class.temperature_surrounding},
                 "A_SurfaceTank_DHW": {None: self.scenario.hotwatertank_class.surface_area},
-                "SpaceHeating_HeatPumpMaximalThermalPower": {
-                    None: self.scenario.boiler_class.thermal_power_max}
+                "SpaceHeating_HeatPumpMaximalElectricPower": {
+                    None: self.SpaceHeating_HeatPumpMaximalElectricPower}
             }
         }
         return pyomo_dict
@@ -129,6 +122,8 @@ class OptOperationModel(AbstractOperationModel):
         m.T_outside = pyo.Param(m.t, mutable=True)  # °C
         # COP of heatpump
         m.SpaceHeatingHourlyCOP = pyo.Param(m.t, mutable=True)
+        # COP of heatpump for charging buffer storage
+        m.SpaceHeatingHourlyCOP_tank = pyo.Param(m.t, mutable=True)
         # COP of cooling
         m.CoolingCOP = pyo.Param(mutable=True)  # single value because it is not dependent on time
         # electricity load profile
@@ -138,6 +133,8 @@ class OptOperationModel(AbstractOperationModel):
         # HotWater
         m.HotWaterProfile = pyo.Param(m.t, mutable=True)
         m.HotWaterHourlyCOP = pyo.Param(m.t, mutable=True)
+        # COP for hot water when charging DHW storage
+        m.HotWaterHourlyCOP_tank = pyo.Param(m.t, mutable=True)
 
         # Smart Technologies
         m.DayHour = pyo.Param(m.t, mutable=True)
@@ -181,7 +178,7 @@ class OptOperationModel(AbstractOperationModel):
         m.T_TankSurrounding_DHW = pyo.Param(mutable=True)
 
         # heat pump
-        m.SpaceHeating_HeatPumpMaximalThermalPower = pyo.Param(mutable=True)
+        m.SpaceHeating_HeatPumpMaximalElectricPower = pyo.Param(mutable=True)
 
         # Battery data
         m.ChargeEfficiency = pyo.Param(mutable=True)
@@ -196,14 +193,14 @@ class OptOperationModel(AbstractOperationModel):
         m.Q_HeatingTank_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.E_HeatingTank = pyo.Var(m.t, within=pyo.NonNegativeReals)  # energy in the tank
         m.Q_HeatingTank_bypass = pyo.Var(m.t, within=pyo.NonNegativeReals)
-        m.Q_Heating_HP_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.E_Heating_HP_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Q_room_heating = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # Variables DHW
         m.Q_DHWTank_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.E_DHWTank = pyo.Var(m.t, within=pyo.NonNegativeReals)  # energy in the tank
         m.Q_DHWTank_in = pyo.Var(m.t, within=pyo.NonNegativeReals)
-        m.Q_DHW_HP_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.E_DHW_HP_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Q_DHWTank_bypass = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # Variable space cooling
@@ -258,18 +255,18 @@ class OptOperationModel(AbstractOperationModel):
         # (4) Sum of Loads
         def calc_SumOfLoads_with_cooling(m, t):
             return m.Load[t] == m.BaseLoadProfile[t] \
-                   + m.Q_Heating_HP_out[t] / m.SpaceHeatingHourlyCOP[t] \
+                   + m.E_Heating_HP_out[t] \
                    + m.Q_HeatingElement[t] \
                    + m.Q_RoomCooling[t] / m.CoolingCOP \
-                   + m.Q_DHW_HP_out[t] / m.HotWaterHourlyCOP[t]
+                   + m.E_DHW_HP_out[t]
 
         m.SumOfLoads_with_cooling_rule = pyo.Constraint(m.t, rule=calc_SumOfLoads_with_cooling)
 
         def calc_SumOfLoads_without_cooling(m, t):
             return m.Load[t] == m.BaseLoadProfile[t] \
-                   + m.Q_Heating_HP_out[t] / m.SpaceHeatingHourlyCOP[t] \
+                   + m.E_Heating_HP_out[t] \
                    + m.Q_HeatingElement[t] \
-                   + m.Q_DHW_HP_out[t] / m.HotWaterHourlyCOP[t]
+                   + m.E_DHW_HP_out[t]
 
         m.SumOfLoads_without_cooling_rule = pyo.Constraint(m.t, rule=calc_SumOfLoads_without_cooling)
 
@@ -329,7 +326,8 @@ class OptOperationModel(AbstractOperationModel):
 
         # (11) supply for space heating
         def calc_supply_of_space_heating(m, t):
-            return m.Q_HeatingTank_bypass[t] + m.Q_HeatingTank_in[t] == m.Q_Heating_HP_out[t]
+            return m.Q_HeatingTank_bypass[t] / m.SpaceHeatingHourlyCOP[t] + \
+                   m.Q_HeatingTank_in[t] / m.SpaceHeatingHourlyCOP_tank[t] == m.E_Heating_HP_out[t]
 
         m.calc_use_of_HP_power_DHW_rule = pyo.Constraint(m.t, rule=calc_supply_of_space_heating)
 
@@ -354,14 +352,15 @@ class OptOperationModel(AbstractOperationModel):
 
         # (14) supply for the hot water
         def calc_supply_of_DHW(m, t):
-            return m.Q_DHWTank_bypass[t] + m.Q_DHWTank_in[t] == m.Q_DHW_HP_out[t]
+            return m.Q_DHWTank_bypass[t] / m.HotWaterHourlyCOP[t] + \
+                   m.Q_DHWTank_in[t] / m.HotWaterHourlyCOP_tank[t] == m.E_DHW_HP_out[t]
 
         m.bypass_DHW_rule = pyo.Constraint(m.t, rule=calc_supply_of_DHW)
 
         # Heat Pump
         # (13) restrict heat pump power
         def constrain_heating_max_power(m, t):
-            return m.Q_DHW_HP_out[t] + m.Q_Heating_HP_out[t] <= m.SpaceHeating_HeatPumpMaximalThermalPower
+            return m.E_DHW_HP_out[t] + m.E_Heating_HP_out[t] <= m.SpaceHeating_HeatPumpMaximalElectricPower
 
         m.max_HP_power_rule = pyo.Constraint(m.t, rule=constrain_heating_max_power)
 
@@ -457,14 +456,6 @@ class OptOperationModel(AbstractOperationModel):
         # update the instance
         solar_gains = self.calculate_solar_gains()
 
-        space_heating_hourly_COP = self.COP_HP(outside_temperature=np.array(self.scenario.region_class.temperature),
-                                               supply_temperature=self.scenario.boiler_class.heating_supply_temperature,
-                                               efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
-                                               source=self.scenario.boiler_class.name)
-        hot_water_hourly_COP = self.COP_HP(outside_temperature=np.array(self.scenario.region_class.temperature),
-                                           supply_temperature=self.scenario.boiler_class.hot_water_supply_temperature,
-                                           efficiency=self.scenario.boiler_class.carnot_efficiency_factor,
-                                           source=self.scenario.boiler_class.name)
         for t in range(1, 8761):
             index = t - 1  # pyomo starts at index 1
             # time dependent parameters are updated:
@@ -473,15 +464,16 @@ class OptOperationModel(AbstractOperationModel):
             instance.Q_Solar[t] = solar_gains[index]
             instance.PhotovoltaicProfile[t] = self.scenario.pv_class.power[index]
             instance.T_outside[t] = self.scenario.region_class.temperature[index]
-            instance.SpaceHeatingHourlyCOP[t] = space_heating_hourly_COP[index]
-
+            instance.SpaceHeatingHourlyCOP[t] = self.SpaceHeatingHourlyCOP[index]
+            instance.SpaceHeatingHourlyCOP_tank[t] = self.SpaceHeatingHourlyCOP_tank[index]
 
             input_parameters = 1
             HeatingTargetTemperature = 1
             # instance.CoolingCOP[t] = self.household.airconditioner_class.efficiency  # is a single value, no index
             instance.BaseLoadProfile[t] = self.scenario.electricitydemand_class.electricity_demand[index]
             instance.HotWaterProfile[t] = self.scenario.hotwaterdemand_class.hot_water_demand[index]
-            instance.HotWaterHourlyCOP[t] = hot_water_hourly_COP[index]
+            instance.HotWaterHourlyCOP[t] = self.HotWaterHourlyCOP[index]
+            instance.HotWaterHourlyCOP_tank[t] = self.HotWaterHourlyCOP_tank[index]
             instance.DayHour[t] = self.DayHour[index]
 
             # Boundaries:
@@ -523,8 +515,7 @@ class OptOperationModel(AbstractOperationModel):
                 instance.Q_HeatingTank_out[t].fix(0)
                 instance.Q_HeatingTank_in[t].fix(0)
 
-                instance.Q_Heating_HP_out[t].setub(self.scenario.boiler_class.thermal_power_max +
-                                                   self.scenario.boiler_class.heating_element_power)
+                instance.E_Heating_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
 
             instance.tank_energy_rule_heating.deactivate()
         else:
@@ -532,7 +523,6 @@ class OptOperationModel(AbstractOperationModel):
                 instance.E_HeatingTank[t].fixed = False
                 instance.Q_HeatingTank_out[t].fixed = False
                 instance.Q_HeatingTank_in[t].fixed = False
-
 
                 instance.E_HeatingTank[t].setlb(
                     CPWater * self.scenario.spaceheatingtank_class.size *
@@ -543,9 +533,7 @@ class OptOperationModel(AbstractOperationModel):
                     CPWater * self.scenario.spaceheatingtank_class.size *
                     (273.15 + self.scenario.spaceheatingtank_class.temperature_max)
                 )
-                instance.Q_Heating_HP_out[t].setub(
-                    self.scenario.boiler_class.thermal_power_max + self.scenario.boiler_class.heating_element_power
-                )
+                instance.E_Heating_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
 
             instance.tank_energy_rule_heating.activate()
 
@@ -556,9 +544,7 @@ class OptOperationModel(AbstractOperationModel):
                 instance.Q_DHWTank_out[t].fix(0)
                 instance.Q_DHWTank_in[t].fix(0)
 
-                instance.Q_DHW_HP_out[t].setub(
-                    self.scenario.boiler_class.thermal_power_max + self.scenario.boiler_class.heating_element_power
-                )
+                instance.E_DHW_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
             instance.tank_energy_rule_DHW.deactivate()
         else:
             for t in range(1, 8761):
@@ -573,9 +559,7 @@ class OptOperationModel(AbstractOperationModel):
                     CPWater * self.scenario.hotwatertank_class.size *
                     (273.15 + self.scenario.hotwatertank_class.temperature_max)
                 )
-                instance.Q_DHW_HP_out[t].setub(
-                    self.scenario.boiler_class.thermal_power_max + self.scenario.boiler_class.heating_element_power
-                )
+                instance.E_DHW_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
             instance.tank_energy_rule_DHW.activate()
 
         # Battery
@@ -677,13 +661,14 @@ class OptOperationModel(AbstractOperationModel):
         instance.T_TankSurrounding_DHW = self.scenario.hotwatertank_class.temperature_surrounding
         instance.A_SurfaceTank_DHW = self.scenario.hotwatertank_class.surface_area
         # HP
-        instance.SpaceHeating_HeatPumpMaximalThermalPower = self.scenario.boiler_class.thermal_power_max
+        instance.SpaceHeating_HeatPumpMaximalElectricPower = self.SpaceHeating_HeatPumpMaximalElectricPower
         # Cooling
         instance.CoolingCOP = self.scenario.airconditioner_class.efficiency  # is a single value, no index
 
         return instance
 
     def solve_optimization(self, instance2solve):
+        print("solving optimization...")
         Opt = pyo.SolverFactory("gurobi")
         starttime = time.perf_counter()
         result = Opt.solve(instance2solve, tee=False)
@@ -708,8 +693,9 @@ if __name__ == "__main__":
     # solve model
     solved_instance = model_class.run()
     # data collector
-    hourly_results_df = OptimizationDataCollector(solved_instance, scenario.scenario_id).collect_optimization_results_hourly()
-    yearly_results_df = OptimizationDataCollector(solved_instance, scenario.scenario_id).collect_optimization_results_yearly()
+    hourly_results_df = OptimizationDataCollector(solved_instance,
+                                                  scenario.scenario_id).collect_optimization_results_hourly()
+    yearly_results_df = OptimizationDataCollector(solved_instance,
+                                                  scenario.scenario_id).collect_optimization_results_yearly()
 
     pass
-

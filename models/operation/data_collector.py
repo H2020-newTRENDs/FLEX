@@ -129,6 +129,12 @@ class OptimizationDataCollector:
                                                                  if_exists=if_exists)
 
     def save_yearly_results(self, if_exists: str = "append") -> None:
+        """
+        Args:
+            if_exists: ['replace', 'fail', 'append' (default)]
+        Returns: None
+
+        """
         yearly_results = self.collect_optimization_results_yearly()
         # set the datatype to float:
         d_types_dict = {}
