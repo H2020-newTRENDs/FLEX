@@ -66,7 +66,8 @@ class OperationScenario:
         self.pv.generation = df["pv_generation"].to_numpy() * self.pv.size
 
     def setup_energy_price(self):
-        df = self.db.read_dataframe(TableEnum.EnergyPriceProfile.value)
+        df = self.db.read_dataframe(TableEnum.EnergyPriceProfile.value,
+                                    filter={"region": self.region.code, "year": self.region.year})
         for key, value in self.energy_price.__dict__.items():
             if key.startswith("id_") and value is not None:
                 energy_carrier = key.replace("id_", "")
