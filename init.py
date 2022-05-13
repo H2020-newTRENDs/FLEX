@@ -27,4 +27,4 @@ class ProjectDatabaseInitializer(DatabaseInitializer):
 
 if __name__ == "__main__":
     init = ProjectDatabaseInitializer(config, enums=ScenarioEnum)
-    init.run()
+    init.main()
