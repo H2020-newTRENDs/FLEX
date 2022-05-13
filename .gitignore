@@ -411,7 +411,7 @@ TSWLatexianTemp*
 data/root.sqlite
 
 data/results.sqlite
-flex/core/data_prep/data/*_nuts3.xlsx
+data/source/*_nuts3.xlsx
 flex/data/result/*.sqlite
 .DS_Store
 *.xlsx
