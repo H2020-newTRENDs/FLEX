@@ -127,7 +127,7 @@ class OptOperationModel(AbstractOperationModel):
         # Smart Technologies
         m.DayHour = pyo.Param(m.t, mutable=True)
 
-        # building source:
+        # building data:
         m.Am = pyo.Param(mutable=True)
         m.Atot = pyo.Param(mutable=True)
         m.Qi = pyo.Param(mutable=True)
@@ -143,7 +143,7 @@ class OptOperationModel(AbstractOperationModel):
         m.Cm = pyo.Param(mutable=True)
         m.BuildingMassTemperatureStartValue = pyo.Param(mutable=True)
 
-        # Heating Tank source
+        # Heating Tank data
         # Mass of water in tank
         m.M_WaterTank_heating = pyo.Param(mutable=True)
         # Surface of Tank in m2
@@ -154,7 +154,7 @@ class OptOperationModel(AbstractOperationModel):
         # surrounding temp of tank
         m.T_TankSurrounding_heating = pyo.Param(mutable=True)
 
-        # DHW Tank source
+        # DHW Tank data
         # Mass of water in tank
         m.M_WaterTank_DHW = pyo.Param(mutable=True)
         # Surface of Tank in m2
@@ -168,7 +168,7 @@ class OptOperationModel(AbstractOperationModel):
         # heat pump
         m.SpaceHeating_HeatPumpMaximalElectricPower = pyo.Param(mutable=True)
 
-        # Battery source
+        # Battery data
         m.ChargeEfficiency = pyo.Param(mutable=True)
         m.DischargeEfficiency = pyo.Param(mutable=True)
 
@@ -231,7 +231,7 @@ class OptOperationModel(AbstractOperationModel):
         m.EVDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         m.EV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals)
-        m.EV2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        # m.EV2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.EV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # -------------------------------------
@@ -284,8 +284,7 @@ class OptOperationModel(AbstractOperationModel):
         # Battery:
         # (6) Battery charge
         def calc_BatCharge(m, t):
-            return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] + m.EV2Bat[t] * m.EVAtHomeStatus[
-                t]  # * Household.Battery.Grid2Battery
+            return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] + m.EV2Bat[t] * m.EVAtHomeStatus[t]  # * Household.Battery.Grid2Battery
 
         m.BatCharge_rule = pyo.Constraint(m.t, rule=calc_BatCharge)
 
@@ -509,8 +508,7 @@ class OptOperationModel(AbstractOperationModel):
         for t in range(1, 8761):
             index = t - 1  # pyomo starts at index 1
             # time dependent parameters are updated:
-            instance.electricity_price[t] = self.scenario.energy_price.electricity_consumption[
-                index]  # TODO check this, can't be right
+            instance.electricity_price[t] = self.scenario.energy_price.electricity_consumption[index]
             instance.FiT[t] = self.scenario.energy_price.electricity_feed_in[index]
             instance.Q_Solar[t] = solar_gains[index]
             instance.PhotovoltaicProfile[t] = self.scenario.pv.generation[index]
@@ -521,8 +519,6 @@ class OptOperationModel(AbstractOperationModel):
             instance.EVDemandProfile[t] = self.scenario.behavior.vehicle_demand[index]
             instance.EVAtHomeStatus[t] = self.scenario.behavior.vehicle_at_home[index]
 
-            input_parameters = 1
-            HeatingTargetTemperature = 1
             # instance.CoolingCOP[t] = self.household.airconditioner_class.efficiency  # is a single value, no index
             instance.BaseLoadProfile[t] = self.scenario.behavior.appliance_electricity_demand[index]
             instance.HotWaterProfile[t] = self.scenario.behavior.hot_water_demand[index]
@@ -640,7 +636,6 @@ class OptOperationModel(AbstractOperationModel):
                 instance.PV2Bat[t].fixed = False
                 # set upper bounds
                 instance.Grid2Bat[t].setub(self.scenario.battery.charge_power_max)
-
                 instance.Bat2Load[t].setub(self.scenario.battery.discharge_power_max)
                 instance.BatSoC[t].setub(self.scenario.battery.capacity)
                 instance.BatCharge[t].setub(self.scenario.battery.charge_power_max)
@@ -650,7 +645,7 @@ class OptOperationModel(AbstractOperationModel):
             instance.BatSoC_rule.activate()
 
         # EV
-
+        # no EV is implemented
         if self.scenario.vehicle.capacity == 0:
             for t in range(1, 8761):
                 # fix the parameters to 0
@@ -662,66 +657,82 @@ class OptOperationModel(AbstractOperationModel):
                 instance.EVDischarge[t].fix(0)
                 instance.EV2Load[t].fix(0)
                 instance.EV2Bat[t].fix(0)
-                instance.EV2Grid[t].fix(0)
 
             instance.EVCharge_rule.deactivate()
             instance.EVDischarge_rule.deactivate()
             instance.EVSoC_rule.deactivate()
             instance.EVDischarge_noV2B_rule.deactivate()
 
-        elif self.scenario.vehicle.charge_bidirectional == 0:
+        # EV is implemented but is can not provide electricity to the household
+        elif self.scenario.vehicle.charge_bidirectional == 0 and self.scenario.vehicle.capacity > 0:
             for t in range(1, 8761):
                 # variables have to be unfixed in case they were fixed in a previous run
                 instance.Grid2EV[t].fixed = False
-                instance.EV2Load[t].fixed = False
                 instance.PV2EV[t].fixed = False
                 instance.EVSoC[t].fixed = False
                 instance.EVCharge[t].fixed = False
                 instance.EVDischarge[t].fixed = False
                 instance.EV2Load[t].fix(0)
                 instance.EV2Bat[t].fix(0)
-                instance.EV2Grid[t].fix(0)
                 # set upper bounds
                 instance.Grid2EV[t].setub(self.scenario.vehicle.charge_power_max)
-                instance.EV2Load[t].setub(self.scenario.vehicle.discharge_power_max)
-                instance.EV2Bat[t].setub(self.scenario.vehicle.discharge_power_max)
+                instance.PV2EV[t].setub(self.scenario.vehicle.charge_power_max)
                 instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
                 instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
-                # instance.EVDischarge[t].setub(self.scenario.vehicle.discharge_power_max)
 
             instance.EVCharge_rule.activate()
             instance.EVDischarge_rule.deactivate()
             instance.EVSoC_rule.activate()
             instance.EVDischarge_noV2B_rule.activate()
 
-            # ToDo: Cases for EV mit V2B mit und ohne Batterie anlegen
-
-
-
+        # EV can charge battery and supply electricity to house
         else:
-            for t in range(1, 8761):
-                # variables have to be unfixed in case they were fixed in a previous run
-                instance.Grid2EV[t].fixed = False
-                instance.EV2Load[t].fixed = False
-                instance.PV2EV[t].fixed = False
-                instance.EVSoC[t].fixed = False
-                instance.EVCharge[t].fixed = False
-                instance.EVDischarge[t].fixed = False
-                instance.EV2Load[t].fixed = False
-                instance.EV2Bat[t].fixed = False
-                instance.EV2Grid[t].fix(0)
+            # in case there is a stationary battery available:
+            if self.scenario.battery.capacity > 0:
+                for t in range(1, 8761):
+                    # variables have to be unfixed in case they were fixed in a previous run
+                    instance.Grid2EV[t].fixed = False
+                    instance.EV2Load[t].fixed = False
+                    instance.PV2EV[t].fixed = False
+                    instance.EVSoC[t].fixed = False
+                    instance.EVCharge[t].fixed = False
+                    instance.EVDischarge[t].fixed = False
+                    instance.EV2Bat[t].fixed = False
 
-                # set upper bounds
-                instance.Grid2EV[t].setub(self.scenario.vehicle.charge_power_max)
+                    # set upper bounds
+                    instance.Grid2EV[t].setub(self.scenario.vehicle.charge_power_max)
+                    instance.EV2Load[t].setub(self.scenario.vehicle.discharge_power_max)
+                    instance.PV2EV[t].setub(self.scenario.vehicle.charge_power_max)
+                    instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
+                    instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
+                    instance.EVDischarge[t].setub(self.scenario.vehicle.discharge_power_max)
+                instance.EVCharge_rule.activate()
+                instance.EVDischarge_rule.activate()
+                instance.EVSoC_rule.activate()
+                instance.EVDischarge_noV2B_rule.deactivate()
+            # in case there is no stationary battery available:
+            if self.scenario.battery.capacity == 0:
+                for t in range(1, 8761):
+                    # variables have to be unfixed in case they were fixed in a previous run
+                    instance.Grid2EV[t].fixed = False
+                    instance.EV2Load[t].fixed = False
+                    instance.PV2EV[t].fixed = False
+                    instance.EVSoC[t].fixed = False
+                    instance.EVCharge[t].fixed = False
+                    instance.EVDischarge[t].fixed = False
+                    instance.EV2Bat[t].fix(0)
 
-                instance.EV2Load[t].setub(self.scenario.vehicle.discharge_power_max)
-                instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
-                instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
-                instance.EVDischarge[t].setub(self.scenario.vehicle.discharge_power_max)
-            instance.EVCharge_rule.activate()
-            instance.EVDischarge_rule.activate()
-            instance.EVSoC_rule.activate()
-            instance.EVDischarge_noV2B_rule.deactivate()
+                    # set upper bounds
+                    instance.Grid2EV[t].setub(self.scenario.vehicle.charge_power_max)
+                    instance.EV2Load[t].setub(self.scenario.vehicle.discharge_power_max)
+                    instance.PV2EV[t].setub(self.scenario.vehicle.charge_power_max)
+                    instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
+                    instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
+                    instance.EVDischarge[t].setub(self.scenario.vehicle.discharge_power_max)
+                instance.EVCharge_rule.activate()
+                instance.EVDischarge_rule.activate()
+                instance.EVSoC_rule.activate()
+                instance.EVDischarge_noV2B_rule.deactivate()
 
         # PV
         if self.scenario.pv.size == 0:
@@ -799,6 +810,7 @@ class OptOperationModel(AbstractOperationModel):
         return instance
 
     def solve_optimization(self, instance2solve):
+        print("solving optimization...")
         Opt = pyo.SolverFactory("gurobi")
         starttime = time.perf_counter()
         result = Opt.solve(instance2solve, tee=False)
