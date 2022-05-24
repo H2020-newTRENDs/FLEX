@@ -229,6 +229,35 @@ class AbstractOperationModel(ABC):
         Q_solar = ((Q_sol_north + Q_sol_south + Q_sol_east + Q_sol_west).squeeze())
         return Q_solar
 
+    def create_upper_bound_EV_discharge(self) -> np.array:
+        """
+
+        Returns: array that limits the discharge of the EV when it is at home and can use all capacity in one hour
+        when not at home (unlimited if not at home because this is endogenously derived)
+
+        """
+        # test if the vehicle driving profile can be achieved by vehicle capacity:
+        counter = 0
+        for i, status in enumerate(self.scenario.behavior.vehicle_at_home):
+            # add vehicle demand while driving up:
+            if round(status) == 0:
+                counter += self.scenario.behavior.vehicle_demand[i]
+                # check if counter exceeds capacity:
+                assert counter <= self.scenario.vehicle.capacity, "the driving profile exceeds the total capacity of " \
+                                                                  "the EV. The EV will run out of electricity before" \
+                                                                  "returning home."
+            else:  # vehicle returns home -> counter is set to 0
+                counter = 0
+
+        upper_discharge_bound_array = []
+        for i, status in enumerate(self.scenario.behavior.vehicle_at_home):
+
+            if round(status) == 1:  # when vehicle at home, discharge power is limited
+                upper_discharge_bound_array.append(self.scenario.vehicle.discharge_power_max)
+            else:  # when vehicle is not at home discharge power is limited to max capacity of vehicle
+                upper_discharge_bound_array.append(self.scenario.vehicle.capacity)
+        return np.array(upper_discharge_bound_array)
+
     def calculate_Atot(self, Af: float) -> float:
         return 4.5 * Af  # 7.2.2.2: Area of all surfaces facing the building zone
 
