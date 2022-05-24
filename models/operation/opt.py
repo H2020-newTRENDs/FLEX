@@ -679,6 +679,7 @@ class OptOperationModel(AbstractOperationModel):
                 instance.PV2EV[t].setub(self.scenario.vehicle.charge_power_max)
                 instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
                 instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
+                # vehicle does not get discharged at home -> no upper bound
 
             instance.EVCharge_rule.activate()
             instance.EVDischarge_rule.deactivate()
@@ -689,6 +690,7 @@ class OptOperationModel(AbstractOperationModel):
         else:
             # in case there is a stationary battery available:
             if self.scenario.battery.capacity > 0:
+                max_discharge_EV = self.create_upper_bound_EV_discharge()
                 for t in range(1, 8761):
                     # variables have to be unfixed in case they were fixed in a previous run
                     instance.Grid2EV[t].fixed = False
@@ -705,13 +707,14 @@ class OptOperationModel(AbstractOperationModel):
                     instance.PV2EV[t].setub(self.scenario.vehicle.charge_power_max)
                     instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
                     instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
-                    instance.EVDischarge[t].setub(self.scenario.vehicle.discharge_power_max)
+                    instance.EVDischarge[t].setub(max_discharge_EV[t-1])
                 instance.EVCharge_rule.activate()
                 instance.EVDischarge_rule.activate()
                 instance.EVSoC_rule.activate()
                 instance.EVDischarge_noV2B_rule.deactivate()
             # in case there is no stationary battery available:
             if self.scenario.battery.capacity == 0:
+                max_discharge_EV = self.create_upper_bound_EV_discharge()
                 for t in range(1, 8761):
                     # variables have to be unfixed in case they were fixed in a previous run
                     instance.Grid2EV[t].fixed = False
@@ -728,7 +731,7 @@ class OptOperationModel(AbstractOperationModel):
                     instance.PV2EV[t].setub(self.scenario.vehicle.charge_power_max)
                     instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
                     instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
-                    instance.EVDischarge[t].setub(self.scenario.vehicle.discharge_power_max)
+                    instance.EVDischarge[t].setub(max_discharge_EV[t-1])
                 instance.EVCharge_rule.activate()
                 instance.EVDischarge_rule.activate()
                 instance.EVSoC_rule.activate()
