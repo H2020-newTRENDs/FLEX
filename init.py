@@ -26,5 +26,5 @@ class ProjectDatabaseInitializer(DatabaseInitializer):
 
 
 if __name__ == "__main__":
-    init = ProjectDatabaseInitializer(config, scenario_enums=ScenarioEnum)
+    init = ProjectDatabaseInitializer(config=config, scenario_enums=ScenarioEnum)
     init.main()
