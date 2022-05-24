@@ -244,7 +244,7 @@ class AbstractOperationModel(ABC):
                 counter += self.scenario.behavior.vehicle_demand[i]
                 # check if counter exceeds capacity:
                 assert counter <= self.scenario.vehicle.capacity, "the driving profile exceeds the total capacity of " \
-                                                                  "the EV. The EV will run out of electricity before" \
+                                                                  "the EV. The EV will run out of electricity before " \
                                                                   "returning home."
             else:  # vehicle returns home -> counter is set to 0
                 counter = 0
