@@ -236,6 +236,15 @@ class AbstractOperationModel(ABC):
         when not at home (unlimited if not at home because this is endogenously derived)
 
         """
+        upper_discharge_bound_array = []
+        for i, status in enumerate(self.scenario.behavior.vehicle_at_home):
+            if round(status) == 1:  # when vehicle at home, discharge power is limited
+                upper_discharge_bound_array.append(self.scenario.vehicle.discharge_power_max)
+            else:  # when vehicle is not at home discharge power is limited to max capacity of vehicle
+                upper_discharge_bound_array.append(self.scenario.vehicle.capacity)
+        return np.array(upper_discharge_bound_array)
+
+    def test_vehicle_profile(self) -> None:
         # test if the vehicle driving profile can be achieved by vehicle capacity:
         counter = 0
         for i, status in enumerate(self.scenario.behavior.vehicle_at_home):
@@ -248,15 +257,6 @@ class AbstractOperationModel(ABC):
                                                                   "returning home."
             else:  # vehicle returns home -> counter is set to 0
                 counter = 0
-
-        upper_discharge_bound_array = []
-        for i, status in enumerate(self.scenario.behavior.vehicle_at_home):
-
-            if round(status) == 1:  # when vehicle at home, discharge power is limited
-                upper_discharge_bound_array.append(self.scenario.vehicle.discharge_power_max)
-            else:  # when vehicle is not at home discharge power is limited to max capacity of vehicle
-                upper_discharge_bound_array.append(self.scenario.vehicle.capacity)
-        return np.array(upper_discharge_bound_array)
 
     def calculate_Atot(self, Af: float) -> float:
         return 4.5 * Af  # 7.2.2.2: Area of all surfaces facing the building zone
