@@ -209,7 +209,7 @@ class ReferenceDataCollector:
                     or result_name == "thermal_mass_start_temperature":  # do not save scenario and cp_water, total cost
                 continue
             # exclude the building parameters from the results (too much)
-            if result_name in list(self.reference_model.scenario.building_class.__dict__.keys()):
+            if result_name in list(self.reference_model.scenario.building.__dict__.keys()):
                 continue
 
             result_class = getattr(self.reference_model, result_name)
@@ -233,7 +233,7 @@ class ReferenceDataCollector:
                     or result_name == "thermal_mass_start_temperature":  # do not save scenario and cp_water and day_hour
                 continue
             # exclude the building parameters from the results (too much)
-            if result_name in list(self.reference_model.scenario.building_class.__dict__.keys()):
+            if result_name in list(self.reference_model.scenario.building.__dict__.keys()):
                 continue
 
             result_class = getattr(self.reference_model, result_name)

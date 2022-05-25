@@ -339,8 +339,8 @@ class RefOperationModel(AbstractOperationModel):
         home_status = np.array(self.scenario.behavior.vehicle_at_home, dtype=int)
         MaxChargePower = self.scenario.vehicle.charge_power_max  # kW
         MaxDischargePower = self.scenario.vehicle.discharge_power_max  # kW
-        ChargeEfficiency = self.scenario.battery.charge_efficiency
-        DischargeEfficiency = self.scenario.battery.discharge_efficiency
+        ChargeEfficiency = self.scenario.vehicle.charge_efficiency
+        DischargeEfficiency = self.scenario.vehicle.discharge_efficiency
 
         # Battery is not charged at the beginning of the simulation
         EV_SOC = np.zeros(electricity_surplus.shape)
@@ -466,6 +466,10 @@ class RefOperationModel(AbstractOperationModel):
         # Battery data
         self.ChargeEfficiency = self.scenario.battery.charge_efficiency
         self.DischargeEfficiency = self.scenario.battery.discharge_efficiency
+
+        # EV data
+        self.EVChargeEfficiency = self.scenario.vehicle.charge_efficiency
+        self.EVDischargeEfficiency = self.scenario.vehicle.discharge_efficiency
 
     def run(self):
         """

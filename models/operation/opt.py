@@ -35,8 +35,12 @@ class OptOperationModel(AbstractOperationModel):
                 "Q_Solar": self.create_dict(self.calculate_solar_gains()),  # W
                 "PhotovoltaicProfile": self.create_dict(self.scenario.pv.generation),
                 "T_outside": self.create_dict(self.scenario.region.temperature),  # °C
+                # EV
                 "EVDemandProfile": self.create_dict(self.scenario.behavior.vehicle_demand),  # Wh
                 "EVAtHomeStatus": self.create_dict(self.scenario.behavior.vehicle_at_home),  # 0 or 1
+                "EVChargeEfficiency": {None: self.scenario.vehicle.charge_efficiency},
+                "EVDischargeEfficiency": {None: self.scenario.vehicle.discharge_efficiency},
+                # COP
                 "SpaceHeatingHourlyCOP": self.create_dict(self.SpaceHeatingHourlyCOP),
                 "SpaceHeatingHourlyCOP_tank": self.create_dict(self.SpaceHeatingHourlyCOP_tank),
                 "BaseLoadProfile": self.create_dict(self.scenario.behavior.appliance_electricity_demand),  # Wh
@@ -177,8 +181,8 @@ class OptOperationModel(AbstractOperationModel):
         # EV
         m.EVDemandProfile = pyo.Param(m.t, mutable=True)
         m.EVAtHomeStatus = pyo.Param(m.t, mutable=True)
-        m.EVChargeEfficiency = pyo.Param(m.t, mutable=True)
-        m.EVDischargeEfficiency = pyo.Param(m.t, mutable=True)
+        m.EVChargeEfficiency = pyo.Param(mutable=True)
+        m.EVDischargeEfficiency = pyo.Param(mutable=True)
 
         # ----------------------------
         # 2. Variables
@@ -352,8 +356,8 @@ class OptOperationModel(AbstractOperationModel):
             if t == 1:
                 return m.EVSoC[t] == 0  # start of simulation, EV is empty
             else:
-                return m.EVSoC[t] == m.EVSoC[t - 1] + m.EVCharge[t] * m.ChargeEfficiency * m.EVAtHomeStatus[t] - \
-                       m.EVDischarge[t] * (1 + (1 - m.DischargeEfficiency))
+                return m.EVSoC[t] == m.EVSoC[t - 1] + m.EVCharge[t] * m.EVChargeEfficiency * m.EVAtHomeStatus[t] - \
+                       m.EVDischarge[t] * (1 + (1 - m.EVDischargeEfficiency))
 
         m.EVSoC_rule = pyo.Constraint(m.t, rule=calc_EVSoC)
 
@@ -669,6 +673,13 @@ class OptOperationModel(AbstractOperationModel):
 
         # EV is implemented but is can not provide electricity to the household
         elif self.scenario.vehicle.charge_bidirectional == 0 and self.scenario.vehicle.capacity > 0:
+            # check if building has battery:
+            if self.scenario.battery.capacity == 0:  # no battery to EV possible
+                for t in range(1, 8760):
+                    instance.Bat2EV[t].fix(0)
+            else:  # battery to EV is possible
+                for t in range(1, 8760):
+                    instance.Bat2EV[t].fixed = False
             for t in range(1, 8761):
                 # variables have to be unfixed in case they were fixed in a previous run
                 instance.Grid2EV[t].fixed = False
@@ -704,6 +715,7 @@ class OptOperationModel(AbstractOperationModel):
                     instance.EVCharge[t].fixed = False
                     instance.EVDischarge[t].fixed = False
                     instance.EV2Bat[t].fixed = False
+                    instance.Bat2EV[t].fixed = False
 
                     # set upper bounds
                     instance.Grid2EV[t].setub(self.scenario.vehicle.charge_power_max)
@@ -728,6 +740,7 @@ class OptOperationModel(AbstractOperationModel):
                     instance.EVCharge[t].fixed = False
                     instance.EVDischarge[t].fixed = False
                     instance.EV2Bat[t].fix(0)
+                    instance.Bat2EV[t].fix(0)
 
                     # set upper bounds
                     instance.Grid2EV[t].setub(self.scenario.vehicle.charge_power_max)
@@ -797,6 +810,9 @@ class OptOperationModel(AbstractOperationModel):
         # Battery parameters
         instance.ChargeEfficiency = self.scenario.battery.charge_efficiency
         instance.DischargeEfficiency = self.scenario.battery.discharge_efficiency
+        # EV parameters
+        instance.EVChargeEfficiency = self.scenario.vehicle.charge_efficiency
+        instance.EVDischargeEfficiency = self.scenario.vehicle.discharge_efficiency
         # Thermal storage heating parameters
         instance.T_TankStart_heating = self.scenario.space_heating_tank.temperature_start
         instance.M_WaterTank_heating = self.scenario.space_heating_tank.size
