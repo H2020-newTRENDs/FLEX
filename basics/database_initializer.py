@@ -24,7 +24,7 @@ class DatabaseInitializer:
 
     def clear_db(self):
         logger.info(f'clearing database {self.config.project_name}.sqlite.')
-        self.db.clear_table_from_database()
+        self.db.clear_database()
 
     def load_component_scenario_tables(self):
         pass
@@ -71,6 +71,7 @@ class DatabaseInitializer:
         return pd.DataFrame(permutations_dicts)
 
     def setup_scenario(self):
+        self.db.drop_table(self.scenario_enums.Scenario.table_name)  # drop the table
         scenario_df = self.generate_params_combination_df(self.get_component_scenario_ids())
         scenario_ids = np.array(range(1, 1 + len(scenario_df)))
         scenario_df[self.scenario_enums.Scenario.id] = scenario_ids
@@ -79,7 +80,7 @@ class DatabaseInitializer:
                                 data_types=data_types, if_exists='replace')
 
     def main(self):
-        self.clear_db()
+        # self.clear_db()
         self.load_component_scenario_tables()
         self.load_other_source_tables()
         self.setup_scenario()
