@@ -16,6 +16,8 @@ class OptOperationModel(AbstractOperationModel):
             scenario=scenario).generate_maximum_target_indoor_temperature_no_cooling(
             temperature_max=23  # TODO take this temp to config
         )
+        if self.scenario.vehicle.capacity > 0:
+            self.test_vehicle_profile()  # test if vehicle makes model infeasible
 
     @staticmethod
     def create_dict(values) -> dict:
@@ -175,6 +177,8 @@ class OptOperationModel(AbstractOperationModel):
         # EV
         m.EVDemandProfile = pyo.Param(m.t, mutable=True)
         m.EVAtHomeStatus = pyo.Param(m.t, mutable=True)
+        m.EVChargeEfficiency = pyo.Param(m.t, mutable=True)
+        m.EVDischargeEfficiency = pyo.Param(m.t, mutable=True)
 
         # ----------------------------
         # 2. Variables
