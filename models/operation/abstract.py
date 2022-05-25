@@ -93,9 +93,11 @@ class AbstractOperationModel(ABC):
         self.ChargeEfficiency = None
         self.DischargeEfficiency = None
 
-        #EV
+        # EV
         self.EVDemandProfile = None
         self.EVAtHomeStatus = None
+        self.EVChargeEfficiency = None
+        self.EVDischargeEfficiency = None
 
         # ----------------------------
         # Variables
@@ -154,8 +156,6 @@ class AbstractOperationModel(ABC):
         self.EV2Bat = None
         self.EV2Grid = None
         self.EV2Load = None
-
-
 
         # Objective:
         self.total_operation_cost = None
