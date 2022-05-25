@@ -9,6 +9,11 @@ A long journey between Philipp, Thomas, and Songmin.
 
 ### Next steps and ideas
 
+- Integrate Reference 
+- Integrate Boiler: Gas, Oil etc. 
+- Integrate gasoline vehicle
+- Option V2G?
+
 - behavior generator
 - investment decision modeling
 - more building types, e.g. multi-family building
