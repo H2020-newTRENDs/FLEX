@@ -8,7 +8,7 @@ import pandas as pd
 from basics.config import Config
 from basics.db import create_db_conn
 from models.operation.components import Region, Building, Boiler, SpaceHeatingTank, HotWaterTank, \
-    SpaceCoolingTechnology, PV, Battery, Vehicle, SEMS, EnergyPrice, Behavior
+    SpaceCoolingTechnology, PV, Battery, Vehicle, EnergyPrice, Behavior
 from models.operation.enums import ScenarioEnum, TableEnum
 
 
@@ -25,7 +25,6 @@ class OperationScenario:
     pv: Optional['PV'] = None
     battery: Optional['Battery'] = None
     vehicle: Optional['Vehicle'] = None
-    sems: Optional['SEMS'] = None
     energy_price: Optional['EnergyPrice'] = None
     behavior: Optional['Behavior'] = None
 

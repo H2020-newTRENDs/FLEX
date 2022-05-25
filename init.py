@@ -15,14 +15,13 @@ class ProjectDatabaseInitializer(DatabaseInitializer):
         self.load_component_table(ScenarioEnum.PV)
         self.load_component_table(ScenarioEnum.Battery)
         self.load_component_table(ScenarioEnum.Vehicle)
-        self.load_component_table(ScenarioEnum.SEMS)
         self.load_component_table(ScenarioEnum.EnergyPrice)
         self.load_component_table(ScenarioEnum.Behavior)
 
     def load_other_source_tables(self):
         self.load_source_table(TableEnum.BehaviorProfile)
         self.load_source_table(TableEnum.EnergyPriceProfile)
-        self.load_source_table(TableEnum.RegionWeatherProfile)
+        # self.load_source_table(TableEnum.RegionWeatherProfile)
 
 
 if __name__ == "__main__":

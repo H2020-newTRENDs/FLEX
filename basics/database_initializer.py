@@ -74,13 +74,12 @@ class DatabaseInitializer:
         self.db.drop_table(self.scenario_enums.Scenario.table_name)  # drop the table
         scenario_df = self.generate_params_combination_df(self.get_component_scenario_ids())
         scenario_ids = np.array(range(1, 1 + len(scenario_df)))
-        scenario_df[self.scenario_enums.Scenario.id] = scenario_ids
+        scenario_df.insert(loc=0, column=self.scenario_enums.Scenario.id, value=scenario_ids)
         data_types = {name: sqlalchemy.types.Integer for name in scenario_df.columns}
         self.db.write_dataframe(self.scenario_enums.Scenario.table_name, scenario_df,
                                 data_types=data_types, if_exists='replace')
 
     def main(self):
-        # self.clear_db()
         self.load_component_scenario_tables()
         self.load_other_source_tables()
         self.setup_scenario()
