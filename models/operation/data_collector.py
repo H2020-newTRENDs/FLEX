@@ -1,17 +1,19 @@
+from typing import TYPE_CHECKING
 import pandas as pd
-
-from core.elements.data_collector import MotherDataCollector
-import basic.config as config
-from basic.db import DB
 import numpy as np
 import sqlalchemy.types
+from basics.db import create_db_conn
+
+if TYPE_CHECKING:
+    from basics.config import Config
 
 
 class OptimizationDataCollector:
 
-    def __init__(self, instance, scenario_id: int):
+    def __init__(self, instance, scenario_id: int, config: 'Config'):
         self.instance = instance
         self.scenario_id = scenario_id
+        self.db = create_db_conn(config)
 
     def extend_to_array(self, array_or_value: np.array) -> np.array:
         # check if array_or_value is an array or a single value:
@@ -123,10 +125,10 @@ class OptimizationDataCollector:
             d_types_dict[column_name] = sqlalchemy.types.Float
 
         # save the dataframes to the result database
-        DB(connection=config.results_connection).write_dataframe(table_name="Optimization_hourly",
-                                                                 data_frame=hourly_results,
-                                                                 data_types=d_types_dict,
-                                                                 if_exists=if_exists)
+        self.db.write_dataframe(table_name="Optimization_hourly",
+                                data_frame=hourly_results,
+                                data_types=d_types_dict,
+                                if_exists=if_exists)
 
     def save_yearly_results(self, if_exists: str = "append") -> None:
         """
@@ -141,16 +143,17 @@ class OptimizationDataCollector:
         for column_name in yearly_results.columns:
             d_types_dict[column_name] = sqlalchemy.types.Float
         # save the dataframes to the result database
-        DB(connection=config.results_connection).write_dataframe(table_name="Optimization_yearly",
-                                                                 data_frame=yearly_results,
-                                                                 data_types=d_types_dict,
-                                                                 if_exists=if_exists)
+        self.db.write_dataframe(table_name="Optimization_yearly",
+                                data_frame=yearly_results,
+                                data_types=d_types_dict,
+                                if_exists=if_exists)
 
 
 class ReferenceDataCollector:
 
-    def __init__(self, reference_model):
+    def __init__(self, reference_model, config: 'Config'):
         self.reference_model = reference_model
+        self.db = create_db_conn(config)
 
     def check_type_hourly(self, value) -> np.array:
         if isinstance(value, float) or isinstance(value, int):  # if its a single float, int return array of same value
@@ -253,10 +256,10 @@ class ReferenceDataCollector:
             d_types_dict[column_name] = sqlalchemy.types.Float
 
         # save the dataframes to the result database
-        DB(connection=config.results_connection).write_dataframe(table_name="Reference_hourly",
-                                                                 data_frame=hourly_results,
-                                                                 data_types=d_types_dict,
-                                                                 if_exists=if_exists)
+        self.db.write_dataframe(table_name="Reference_hourly",
+                                data_frame=hourly_results,
+                                data_types=d_types_dict,
+                                if_exists=if_exists)
 
     def save_yearly_results(self, if_exists: str = "append") -> None:
         yearly_results = self.collect_reference_results_yearly()
@@ -265,7 +268,7 @@ class ReferenceDataCollector:
         for column_name in yearly_results.columns:
             d_types_dict[column_name] = sqlalchemy.types.Float
         # save the dataframes to the result database
-        DB(connection=config.results_connection).write_dataframe(table_name="Reference_yearly",
-                                                                 data_frame=yearly_results,
-                                                                 data_types=d_types_dict,
-                                                                 if_exists=if_exists)
+        self.db.write_dataframe(table_name="Reference_yearly",
+                                data_frame=yearly_results,
+                                data_types=d_types_dict,
+                                if_exists=if_exists)
