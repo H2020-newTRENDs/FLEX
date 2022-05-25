@@ -23,9 +23,12 @@ class DB:
     def close(self):
         self.connection.dispose()
 
-    def clear_table_from_database(self):
+    def clear_database(self):
         for table_name in self.connection.table_names():
             self.connection.execute(f"drop table {table_name}")
+
+    def drop_table(self, table_name: str):
+        self.connection.execute(f"drop table {table_name}")
 
     def write_dataframe(self,
                         table_name: str,
