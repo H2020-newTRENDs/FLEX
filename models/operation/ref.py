@@ -422,7 +422,7 @@ class RefOperationModel(AbstractOperationModel):
     def fill_parameter_values(self) -> None:
         """ fills all self parameter values with the input values"""
         # price
-        self.electricity_price = self.scenario.energy_price.electricity_consumption  # C/Wh
+        self.electricity_price = self.scenario.energy_price.electricity  # C/Wh
         # Feed in Tariff of Photovoltaic
         self.FiT = self.scenario.energy_price.electricity_feed_in  # C/Wh
         # solar gains:
@@ -616,7 +616,7 @@ class RefOperationModel(AbstractOperationModel):
             self.E_HeatingTank = np.full((8760,), 0)
 
         # calculate the electricity cost:
-        price_hourly = self.scenario.energy_price.electricity_consumption
+        price_hourly = self.scenario.energy_price.electricity
         FIT = self.scenario.energy_price.electricity_feed_in
         self.total_operation_cost = price_hourly * grid_demand - electricity_sold * FIT
         print('Total Operation Cost reference: ' + str(round(self.total_operation_cost.sum(), 2)))

@@ -126,13 +126,8 @@ class Vehicle(Component):
 
 
 @dataclass
-class SEMS(Component):
-    adoption: Optional[int] = None
-
-
-@dataclass
 class EnergyPrice(Component):
-    id_electricity_consumption: Optional[int] = None
+    id_electricity: Optional[int] = None
     id_electricity_feed_in: Optional[int] = None
     id_solids: Optional[int] = None
     id_liquids: Optional[int] = None
@@ -140,7 +135,7 @@ class EnergyPrice(Component):
     id_district_heating: Optional[int] = None
     id_gasoline: Optional[int] = None
     price_unit: Optional[str] = None
-    electricity_consumption: Optional[np.ndarray] = None
+    electricity: Optional[np.ndarray] = None
     electricity_feed_in: Optional[np.ndarray] = None
     solids: Optional[np.ndarray] = None
     liquids: Optional[np.ndarray] = None

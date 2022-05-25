@@ -13,7 +13,6 @@ class ScenarioEnum(Enum):
     PV = "pv"
     Battery = "battery"
     Vehicle = "vehicle"
-    SEMS = "sems"
     EnergyPrice = "energy_price"
     Behavior = "behavior"
 
