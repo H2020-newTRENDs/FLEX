@@ -27,7 +27,6 @@ class RefOperationModel(AbstractOperationModel):
         heat pump input into the DHW tank must be in accordance with the output of the DHW tank + losses.
 
         Returns: grid_demand_after_DHW, electricity_surplus_after_DHW
-
         """
         # this gets altered through the calculation and returned
         electricity_surplus_after_tank = np.copy(electricity_surplus)
@@ -234,9 +233,18 @@ class RefOperationModel(AbstractOperationModel):
         E_tank = (current_tank_temperature + 273.15) * self.cp_water * TankSize
         return grid_demand_after_tank, electricity_surplus_after_tank, Q_tank_out, Q_tank_in, Q_HP, E_HP, E_tank
 
-    def calculate_battery_energy(self, grid_demand, electricity_surplus):
+    def calculate_battery_energy(self,
+                                 grid_demand: np.array,
+                                 electricity_surplus: np.array
+                                 ):
         """
-        Assumption: The battery is not discharging itself.
+        calculates the SOC of a battery (stationary)
+        Args:
+            grid_demand:
+            electricity_surplus:
+
+        Returns:
+
         """
         Capacity = self.scenario.battery.capacity  # kWh
         MaxChargePower = self.scenario.battery.charge_power_max  # kW
@@ -324,12 +332,99 @@ class RefOperationModel(AbstractOperationModel):
         self.Bat2Load = Battery2Load
         return load_after_battery, surplus_after_battery, BatterySOC, Battery2Load
 
+    def calculate_EV_energy(self, grid_demand, electricity_surplus):
+        Capacity = self.scenario.vehicle.capacity  # kWh
+        EV_demand = self.scenario.behavior.vehicle_demand
+        # convert home_status to int otherwise it can throw error in if condition:
+        home_status = np.array(self.scenario.behavior.vehicle_at_home, dtype=int)
+        MaxChargePower = self.scenario.vehicle.charge_power_max  # kW
+        MaxDischargePower = self.scenario.vehicle.discharge_power_max  # kW
+        ChargeEfficiency = self.scenario.battery.charge_efficiency
+        DischargeEfficiency = self.scenario.battery.discharge_efficiency
+
+        # Battery is not charged at the beginning of the simulation
+        EV_SOC = np.zeros(electricity_surplus.shape)
+        surplus_after_EV = np.copy(electricity_surplus)
+        load_after_EV = np.copy(grid_demand)
+        EV_charge = np.zeros(electricity_surplus.shape)
+
+        for i, element in enumerate(EV_SOC):
+            if i == 0:  # there will be no charging at 01:00 clock in the morning of the 1st january:
+                # EV will always be charged if it is at home and not fully charged:
+                if EV_SOC[i] < Capacity:
+                    # check how much capacity is missing:
+                    missing_capacity = Capacity - EV_SOC[i]
+                    # if missing capacity is greater than max charge power, only charge with max charge power
+                    if missing_capacity > MaxDischargePower:
+                        EV_SOC[i] += MaxChargePower  # charge with max charge power
+                        load_after_EV[i] += MaxChargePower / ChargeEfficiency  # load is increased
+                        EV_charge[i] = MaxChargePower / ChargeEfficiency
+                    # if missing capacity is smaller than max charge power, charge the remainder:
+                    else:
+                        EV_SOC[i] += missing_capacity
+                        load_after_EV[i] += missing_capacity / ChargeEfficiency  # load is increased
+                        EV_charge[i] = missing_capacity / ChargeEfficiency
+
+            if i > 0:
+                if i == 13:
+                    a=1
+                # check if the EV is at home:
+                if home_status[i] == 1:  # if it is at home it can be charged
+                    # check if the EV is already fully charged:
+                    if EV_SOC[i - 1] >= Capacity:
+                        EV_SOC[i] = EV_SOC[i - 1]
+                    else:  # EV is not fully charged and needs to be charged:
+                        # determine the energy that needs to be charged:
+                        missing_capacity = Capacity - EV_SOC[i - 1]
+                        # check if the missing capacity is greater than the maximum charging power
+                        # and determine the electricity that will be charged this hour:
+                        if missing_capacity > MaxChargePower:
+                            charging_energy = MaxChargePower / ChargeEfficiency  # electricity that is charged
+                            EV_SOC[i] = EV_SOC[i-1] + MaxChargePower  # EV is being charged
+                            load_after_EV[i] += charging_energy  # load is increased
+                            EV_charge[i] = charging_energy
+                        else:
+                            charging_energy = missing_capacity / ChargeEfficiency  # electricity that is charged
+                            EV_SOC[i] = EV_SOC[i-1] + charging_energy  # EV is fully charged
+                            load_after_EV[i] += charging_energy  # load is increased
+                            EV_charge[i] = charging_energy
+
+                else:  # EV is not at home and looses power
+                    # calculate the Battery SOC
+                    EV_SOC[i] = EV_SOC[i - 1] - EV_demand[i]
+                    # check if Battery SOC ever drops below 0:
+                    if EV_SOC[i] < 0:
+                        print("EV Battery dropped below 0. Reference model is infeasible")
+
+        # check if the resulting load that has been increased through the EV can be covered partly by remaining
+        # PV generation:
+        for index, surplus in enumerate(surplus_after_EV):
+            # check if surplus is available:
+            if surplus > 0:
+                # check if load demand has risen in this time due to the EV:
+                if load_after_EV[index] > 0:
+                    # check if the surplus is larger than the load:
+                    if surplus > load_after_EV[index]:
+                        # only part of the surplus is used to cover the demand
+                        surplus_after_EV[index] -= load_after_EV[index]  # surplus is reduced by load
+                        load_after_EV[index] = 0  # load goes to 0
+                    else:  # surplus is smaller than the load that needs to be covered
+                        # only part of the load is covered by the surplus
+                        load_after_EV[index] -= surplus  # load gets reduced by surplus
+                        surplus_after_EV[index] = 0  # surplus drops to 0
+
+        self.EVCharge = EV_charge
+        self.EV2Load = None
+        self.EVSoC = EV_SOC
+        self.EVDischarge = EV_demand  # as the EV does not provide electricity to the house in any case
+        return load_after_EV, surplus_after_EV, EV_SOC
+
     def fill_parameter_values(self) -> None:
         """ fills all self parameter values with the input values"""
         # price
-        self.electricity_price = self.scenario.electricityprice_class.electricity_price  # C/Wh
+        self.electricity_price = self.scenario.energy_price.electricity_consumption  # C/Wh
         # Feed in Tariff of Photovoltaic
-        self.FiT = self.scenario.feedintariff_class.feed_in_tariff  # C/Wh
+        self.FiT = self.scenario.energy_price.electricity_feed_in  # C/Wh
         # solar gains:
         self.Q_Solar = self.calculate_solar_gains()  # W
         # outside temperature
@@ -338,15 +433,15 @@ class RefOperationModel(AbstractOperationModel):
         # COP of cooling
         self.CoolingCOP = self.scenario.space_cooling_technology.efficiency  # single value because it is not dependent on time
         # electricity load profile
-        self.BaseLoadProfile = self.scenario.electricitydemand_class.electricity_demand
+        self.BaseLoadProfile = self.scenario.behavior.appliance_electricity_demand
         # PV profile
-        self.PhotovoltaicProfile = self.scenario.pv.power
+        self.PhotovoltaicProfile = self.scenario.pv.generation
         # HotWater
-        self.HotWaterProfile = self.scenario.hotwaterdemand_class.hot_water_demand
+        self.HotWaterProfile = self.scenario.behavior.hot_water_demand
 
-        # building source: is not saved in results (to much and not useful)
+        # building data: is not saved in results (to much and not useful)
 
-        # Heating Tank source
+        # Heating Tank data
         # Mass of water in tank
         self.M_WaterTank_heating = self.scenario.space_heating_tank.size
         # Surface of Tank in m2
@@ -357,7 +452,7 @@ class RefOperationModel(AbstractOperationModel):
         # surrounding temp of tank
         self.T_TankSurrounding_heating = self.scenario.space_heating_tank.temperature_surrounding
 
-        # DHW Tank source
+        # DHW Tank data
         # Mass of water in tank
         self.M_WaterTank_DHW = self.scenario.hot_water_tank.size
         # Surface of Tank in m2
@@ -368,7 +463,7 @@ class RefOperationModel(AbstractOperationModel):
         # surrounding temp of tank
         self.T_TankSurrounding_DHW = self.scenario.hot_water_tank.temperature_surrounding
 
-        # Battery source
+        # Battery data
         self.ChargeEfficiency = self.scenario.battery.charge_efficiency
         self.DischargeEfficiency = self.scenario.battery.discharge_efficiency
 
@@ -409,7 +504,7 @@ class RefOperationModel(AbstractOperationModel):
         cooling_electricity_demand = cooling_demand / self.CoolingCOP
 
         # add up all electric loads but without Heating:
-        total_electricity_load = self.scenario.electricitydemand_class.electricity_demand + \
+        total_electricity_load = self.scenario.energy_price.electricity_consumption + \
                                  hot_water_electricity_demand + \
                                  heating_electricity_demand + \
                                  cooling_electricity_demand + \
@@ -430,14 +525,14 @@ class RefOperationModel(AbstractOperationModel):
 
         # if neither battery nor hot water tank are used:
         grid_demand = np.copy(total_load_minus_pv)
-        # electricity surplus is the energy that is sold back to the grid because it can not be used:
+        # electricity_sold is the energy that is sold back to the grid because it can not be used:
         electricity_sold = np.copy(PV_profile_surplus)  # kW
 
         # Battery storage:
         # if battery is used:
         if self.scenario.battery.capacity > 0:
             total_load_after_battery, Electricity_surplus_Battery, BatterySOC, Battery2Load = \
-                self.calculate_battery_energy(grid_demand, PV_profile_surplus)
+                self.calculate_battery_energy(grid_demand, electricity_sold)
             grid_demand = total_load_after_battery
             # amount of electricity from PV to Battery:
             electricity_sold = Electricity_surplus_Battery
@@ -448,23 +543,35 @@ class RefOperationModel(AbstractOperationModel):
             self.BatDischarge = np.full((8760,), 0)
             self.Bat2Load = np.full((8760,), 0)
 
+        # EV:
+        # if EV is used:
+        if self.scenario.vehicle.capacity > 0:
+            load_after_EV, surplus_after_EV, EV_SOC = self.calculate_EV_energy(grid_demand, electricity_sold)
+            grid_demand = load_after_EV  # grid demand is changed through EV
+            electricity_sold = surplus_after_EV  # surplus of electricity is smaller after EV
+        else:
+            self.EVSoC = np.full((8760,), 0)
+            self.EVCharge = np.full((8760,), 0)
+            self.EV2Load = None
+            self.EVDischarge = np.full((8760,), 0)
+
         # DHW storage:
         if self.scenario.hot_water_tank.size > 0:
             grid_demand_after_DHW, electricity_surplus_after_DHW, Q_tank_out_DHW, Q_tank_in_DHW, Q_HP_DHW, \
             E_HP_DHW, E_tank_DHW = self.calculate_tank_energy(
-                    electricity_grid_demand=grid_demand,
-                    electricity_surplus=electricity_sold,
-                    hot_water_demand=self.HotWaterProfile,
-                    TankMinTemperature=self.scenario.hot_water_tank.temperature_min,
-                    TankMaxTemperature=self.scenario.hot_water_tank.temperature_max,
-                    TankSize=self.scenario.hot_water_tank.size,
-                    TankSurfaceArea=self.scenario.hot_water_tank.surface_area,
-                    TankLoss=self.U_ValueTank_DHW,
-                    TankSurroundingTemperature=self.T_TankSurrounding_DHW,
-                    TankStartTemperature=self.T_TankStart_DHW,
-                    cop=self.HotWaterHourlyCOP,
-                    cop_tank=self.HotWaterHourlyCOP_tank
-                )
+                electricity_grid_demand=grid_demand,
+                electricity_surplus=electricity_sold,
+                hot_water_demand=self.HotWaterProfile,
+                TankMinTemperature=self.scenario.hot_water_tank.temperature_min,
+                TankMaxTemperature=self.scenario.hot_water_tank.temperature_max,
+                TankSize=self.scenario.hot_water_tank.size,
+                TankSurfaceArea=self.scenario.hot_water_tank.surface_area,
+                TankLoss=self.U_ValueTank_DHW,
+                TankSurroundingTemperature=self.T_TankSurrounding_DHW,
+                TankStartTemperature=self.T_TankStart_DHW,
+                cop=self.HotWaterHourlyCOP,
+                cop_tank=self.HotWaterHourlyCOP_tank
+            )
             electricity_sold = electricity_surplus_after_DHW
             grid_demand = grid_demand_after_DHW
             self.Q_DHWTank_out = Q_tank_out_DHW
@@ -509,8 +616,8 @@ class RefOperationModel(AbstractOperationModel):
             self.E_HeatingTank = np.full((8760,), 0)
 
         # calculate the electricity cost:
-        price_hourly = self.scenario.electricityprice_class.electricity_price
-        FIT = self.scenario.feedintariff_class.feed_in_tariff
+        price_hourly = self.scenario.energy_price.electricity_consumption
+        FIT = self.scenario.energy_price.electricity_feed_in
         self.total_operation_cost = price_hourly * grid_demand - electricity_sold * FIT
         print('Total Operation Cost reference: ' + str(round(self.total_operation_cost.sum(), 2)))
 
@@ -534,4 +641,5 @@ class RefOperationModel(AbstractOperationModel):
 
         # DHW
         self.Q_DHWTank_bypass = self.HotWaterProfile - self.Q_DHWTank_out
+
 
