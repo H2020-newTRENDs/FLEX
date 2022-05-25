@@ -504,7 +504,7 @@ class RefOperationModel(AbstractOperationModel):
         cooling_electricity_demand = cooling_demand / self.CoolingCOP
 
         # add up all electric loads but without Heating:
-        total_electricity_load = self.scenario.energy_price.electricity_consumption + \
+        total_electricity_load = self.scenario.behavior.appliance_electricity_demand + \
                                  hot_water_electricity_demand + \
                                  heating_electricity_demand + \
                                  cooling_electricity_demand + \
