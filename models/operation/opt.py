@@ -1,8 +1,5 @@
 from models.operation.abstract import OperationModel
-from models.operation.profile_generator import ProfileGenerator
-from models.operation.scenario import OperationScenario
 import numpy as np
-import time
 import pyomo.environ as pyo
 from basics.kit import performance_counter, get_logger
 
@@ -10,16 +7,6 @@ logger = get_logger(__name__)
 
 
 class OptOperationModel(OperationModel):
-    def __init__(self, scenario: 'OperationScenario'):
-        super().__init__(scenario)
-        # define the maximum temperature for households when there is no cooling (in winter equals to max temp
-        # and in summer the max temperature will be higher to avoid infeasibility)
-        self.no_cooling_indoor_temperature_max = ProfileGenerator(
-            scenario=scenario).generate_maximum_target_indoor_temperature_no_cooling(
-            temperature_max=23  # TODO take this temp to config
-        )
-        if self.scenario.vehicle.capacity > 0:
-            self.test_vehicle_profile()  # test if vehicle makes model infeasible
 
     @staticmethod
     def create_dict(values) -> dict:
@@ -520,9 +507,12 @@ class OptOperationModel(OperationModel):
         # special cases:
         # Room Cooling:
         if self.scenario.space_cooling_technology.power == 0:
+            no_cooling_target_temperature_max = self.generate_maximum_target_indoor_temperature_no_cooling(
+                temperature_max=23  # TODO take this temp to config
+            )
             for t in range(1, 8761):
                 instance.Q_RoomCooling[t].fix(0)
-                instance.T_room[t].setub(self.no_cooling_indoor_temperature_max[t - 1])
+                instance.T_room[t].setub(no_cooling_target_temperature_max[t - 1])
             instance.SumOfLoads_without_cooling_rule.activate()
             instance.SumOfLoads_with_cooling_rule.deactivate()
 
