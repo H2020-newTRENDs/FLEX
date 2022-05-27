@@ -17,10 +17,10 @@ class RefOperationModel(OperationModel):
                               TankSize: float,
                               TankSurfaceArea: float,
                               TankLoss: float,
-                              TankSurroundingTemperature,
+                              TankSurroundingTemperature: float,
                               TankStartTemperature: float,
-                              cop: float,
-                              cop_tank
+                              cop: np.array,
+                              cop_tank: np.array
                               ):
         """
         calculates the usage and the energy in the domestic hot water tank. The tank is charged by the heat pump
@@ -53,8 +53,8 @@ class RefOperationModel(OperationModel):
                                               / (TankSize * self.cp_water)
                 # Q_HP_DHW is increased:
                 Q_HP[i] = electricity_surplus[i] * cop_tank[i] + hot_water_demand[i]
-                E_HP[i] = electricity_surplus[i] + hot_water_demand[i] / cop[
-                    i]  # electric consumption is increased by surplus
+                # electric consumption is increased by surplus
+                E_HP[i] = electricity_surplus[i] + hot_water_demand[i] / cop[i]
                 Q_tank_in[i] = electricity_surplus[i] * cop_tank[i]
 
                 # if temperature exceeds maximum temperature, surplus of electricity is calculated
@@ -68,8 +68,8 @@ class RefOperationModel(OperationModel):
                               (TankSize * self.cp_water) + hot_water_demand[i]
                     Q_tank_in[i] = (current_tank_temperature[i] - TankMaxTemperature) * \
                                    (TankSize * self.cp_water)
-                    E_HP[i] = ((current_tank_temperature[i] - TankMaxTemperature) * \
-                               (TankSize * self.cp_water)) / cop_tank[i] + hot_water_demand / cop[i]
+                    E_HP[i] = ((current_tank_temperature[i] - TankMaxTemperature) * (TankSize * self.cp_water)) / \
+                              cop_tank[i] + hot_water_demand / cop[i]
 
                 # if temperature drops below minimum temperature, temperature is kept at minimum temperature
                 # and necessary electricity is calculated
