@@ -300,8 +300,6 @@ class OptOperationModel(OperationModel):
             return m.EVCharge[t] == m.PV2EV[t] * m.EVAtHomeStatus[t] + m.Grid2EV[t] * m.EVAtHomeStatus[t] \
                    + m.Bat2EV[t] * m.EVAtHomeStatus[t]
 
-            # return m.EVCharge[t] == m.PV2EV[t] + m.Grid2EV[t] + m.Bat2EV[t]
-
         m.EVCharge_rule = pyo.Constraint(m.t, rule=calc_EVCharge)
 
         # (7) Battery discharge
@@ -324,7 +322,6 @@ class OptOperationModel(OperationModel):
             else:
                 return m.EVDischarge[t] == m.EV2Load[t] * m.EVAtHomeStatus[t] + m.EV2Bat[t] * m.EVAtHomeStatus[t] \
                        + m.EVDemandProfile[t]
-                # return m.EVDischarge[t] == m.EV2Load[t] + m.EV2Bat[t]
 
         m.EVDischarge_rule = pyo.Constraint(m.t, rule=calc_EVDischarge)
 
@@ -335,8 +332,7 @@ class OptOperationModel(OperationModel):
             elif m.t[t] == m.t[-1]:
                 return m.EVDischarge[t] == 0  # at the end of simulation Battery will be empty, so no discharge
             else:
-                return m.EVDischarge[t] == + m.EVDemandProfile[t]
-                # return m.EVDischarge[t] == m.EV2Load[t] + m.EV2Bat[t]
+                return m.EVDischarge[t] == m.EVDemandProfile[t]
 
         m.EVDischarge_noV2B_rule = pyo.Constraint(m.t, rule=calc_EVDischarge_noV2B)
 
@@ -499,7 +495,6 @@ class OptOperationModel(OperationModel):
             return rule
 
         m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
-        # return the model
         return m
 
     @performance_counter
@@ -829,12 +824,10 @@ class OptOperationModel(OperationModel):
 
         return instance
 
+    @performance_counter
     def solve_optimization(self, instance2solve):
         logger.info("Solving optimization...")
-        Opt = pyo.SolverFactory("gurobi")
-        starttime = time.perf_counter()
-        result = Opt.solve(instance2solve, tee=False)
-        logger.info(f"Optimization time: {round(time.perf_counter() - starttime, 2)}s.")
+        pyo.SolverFactory("gurobi").solve(instance2solve, tee=False)
         return instance2solve
 
     def run(self):

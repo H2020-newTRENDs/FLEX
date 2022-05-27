@@ -13,28 +13,28 @@ class OperationModel(ABC):
         _, _, _, mass_temperature = R5C1Model(scenario).calculate_heating_and_cooling_demand(static=True)
         self.thermal_mass_start_temperature = mass_temperature[-1]
         # COP for space heating:
-        self.SpaceHeatingHourlyCOP = self.COP_HP(
+        self.SpaceHeatingHourlyCOP = self.calc_cop(
             outside_temperature=self.scenario.region.temperature,
             supply_temperature=self.scenario.boiler.heating_supply_temperature,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
             source=self.scenario.boiler.type
         )
         # COP for space heating tank charging (10°C increase in supply temperature):
-        self.SpaceHeatingHourlyCOP_tank = self.COP_HP(
+        self.SpaceHeatingHourlyCOP_tank = self.calc_cop(
             outside_temperature=self.scenario.region.temperature,
             supply_temperature=self.scenario.boiler.heating_supply_temperature + 10,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
             source=self.scenario.boiler.type
         )
         # COP DHW:
-        self.HotWaterHourlyCOP = self.COP_HP(
+        self.HotWaterHourlyCOP = self.calc_cop(
             outside_temperature=self.scenario.region.temperature,
             supply_temperature=self.scenario.boiler.hot_water_supply_temperature,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
             source=self.scenario.boiler.type
         )
         # COP DHW tank charging (10°C increase in supply temperature):
-        self.HotWaterHourlyCOP_tank = self.COP_HP(
+        self.HotWaterHourlyCOP_tank = self.calc_cop(
             outside_temperature=self.scenario.region.temperature,
             supply_temperature=self.scenario.boiler.hot_water_supply_temperature + 10,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
@@ -161,10 +161,10 @@ class OperationModel(ABC):
         self.total_operation_cost = None
 
     @staticmethod
-    def COP_HP(outside_temperature: np.array,
-               supply_temperature: float,
-               efficiency: float,
-               source: str) -> np.array:
+    def calc_cop(outside_temperature: np.array,
+                 supply_temperature: float,
+                 efficiency: float,
+                 source: str) -> np.array:
         """
         Args:
             outside_temperature:
@@ -196,7 +196,6 @@ class OperationModel(ABC):
             scenario: AbstractScenario
 
         Returns: maximum heat pump electric power (float)
-
         """
         # calculate the heating demand in reference mode:
         heating_demand, _, _, _ = R5C1Model(self.scenario).calculate_heating_and_cooling_demand()
@@ -204,7 +203,7 @@ class OperationModel(ABC):
         # round to the next 500 W
         max_thermal_power = np.ceil(max_heating_demand / 500) * 500
         # calculate the design condition COP (-12°C)
-        worst_COP = OperationModel.COP_HP(
+        worst_COP = OperationModel.calc_cop(
             outside_temperature=[-12],
             supply_temperature=self.scenario.boiler.heating_supply_temperature,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
@@ -231,10 +230,8 @@ class OperationModel(ABC):
 
     def create_upper_bound_EV_discharge(self) -> np.array:
         """
-
         Returns: array that limits the discharge of the EV when it is at home and can use all capacity in one hour
         when not at home (unlimited if not at home because this is endogenously derived)
-
         """
         upper_discharge_bound_array = []
         for i, status in enumerate(self.scenario.behavior.vehicle_at_home):
