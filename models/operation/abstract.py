@@ -11,6 +11,29 @@ class OperationModel(ABC):
         self.init_rc_params()
         self.init_pyomo_params()
 
+    def init_rc_params(self):
+        # TODO: add the norm name and link, so the users can find the equations following their numbers.
+        # 7.2.2.2: Area of all surfaces facing the building zone
+        self.Atot = 4.5 * self.building.Af
+        self.Cm = self.building.CM_factor * self.building.Af
+        # Effective mass related area [m^2]
+        self.Am = self.building.Am_factor * self.building.Af
+        # internal gains
+        self.Qi = self.building.internal_gains * self.building.Af
+        # Coupling Temp Air with Temp Surface Node s
+        self.his = np.float_(3.45)  # 7.2.2.2
+        # coupling between mass and central node s (surface)
+        self.hms = np.float_(9.1)  # W / m2K from Equ.C.3 (from 12.2.2)
+        self.Htr_ms = self.hms * self.Am  # from 12.2.2 Equ. (64)
+        self.Htr_em = 1 / (1 / self.building.Hop - 1 / self.Htr_ms)  # from 12.2.2 Equ. (63)
+        # Thermal coupling value W/K
+        self.Htr_is = self.his * self.Atot
+        self.Htr_1 = np.float_(1) / (np.float_(1) / self.building.Hve + np.float_(1) / self.Htr_is)  # Equ. C.6
+        self.Htr_2 = self.Htr_1 + self.building.Htr_w  # Equ. C.7
+        self.Htr_3 = 1 / (1 / self.Htr_2 + 1 / self.Htr_ms)  # Equ.C.8
+        # Equ. C.1
+        self.PHI_ia = 0.5 * self.Qi
+        self.Q_solar = self.calculate_solar_gains()
 
     def init_pyomo_params(self):
         self.SpaceHeatingHourlyCOP = self.calc_cop(
@@ -49,35 +72,6 @@ class OperationModel(ABC):
         self.thermal_mass_start_temperature = mass_temperature[-1]
         if self.scenario.vehicle.capacity > 0:
             self.test_vehicle_profile()  # test if vehicle makes model infeasible
-
-
-
-
-
-    def init_rc_params(self):
-        # TODO: add the norm name and link, so the users can find the equations following their numbers.
-        # 7.2.2.2: Area of all surfaces facing the building zone
-        self.Atot = 4.5 * self.building.Af
-        self.Cm = self.building.CM_factor * self.building.Af
-        # Effective mass related area [m^2]
-        self.Am = self.building.Am_factor * self.building.Af
-        # internal gains
-        self.Qi = self.building.internal_gains * self.building.Af
-        # Coupling Temp Air with Temp Surface Node s
-        self.his = np.float_(3.45)  # 7.2.2.2
-        # coupling between mass and central node s (surface)
-        self.hms = np.float_(9.1)  # W / m2K from Equ.C.3 (from 12.2.2)
-        self.Htr_ms = self.hms * self.Am  # from 12.2.2 Equ. (64)
-        self.Htr_em = 1 / (1 / self.building.Hop - 1 / self.Htr_ms)  # from 12.2.2 Equ. (63)
-        # Thermal coupling value W/K
-        self.Htr_is = self.his * self.Atot
-        self.Htr_1 = np.float_(1) / (np.float_(1) / self.building.Hve + np.float_(1) / self.Htr_is)  # Equ. C.6
-        self.Htr_2 = self.Htr_1 + self.building.Htr_w  # Equ. C.7
-        self.Htr_3 = 1 / (1 / self.Htr_2 + 1 / self.Htr_ms)  # Equ.C.8
-        # Equ. C.1
-        self.PHI_ia = 0.5 * self.Qi
-        self.Q_solar = self.calculate_solar_gains()
-
 
     def calculate_heating_and_cooling_demand(self,
                                              thermal_start_temperature: float = 15,
@@ -268,21 +262,6 @@ class OperationModel(ABC):
                 max_temperature_list.append(temperature_max)
         return np.array(max_temperature_list)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     @staticmethod
     def calc_cop(outside_temperature: np.array,
                  supply_temperature: float,
@@ -377,48 +356,17 @@ class OperationModel(ABC):
             else:  # vehicle returns home -> counter is set to 0
                 counter = 0
 
-    def calculate_Atot(self, Af: float) -> float:
-        return 4.5 * Af  # 7.2.2.2: Area of all surfaces facing the building zone
 
-    def calculate_Cm(self, CM_factor: float, Af: float) -> float:
-        return CM_factor * Af
 
-    def calculate_Am(self, Am_factor: float, Af: float) -> float:
-        # (Effective mass related area) [m^2]
-        return Am_factor * Af
 
-    def calculate_Qi(self, specific_internal_gains: float, Af: float) -> float:
-        # internal gains
-        return specific_internal_gains * Af
 
-    # Coupling values
-    def calculate_his(self) -> float:
-        return np.float_(3.45)  # 7.2.2.2 Coupling Temp Air with Temp Surface node s
 
-    def calculate_hms(self):
-        return np.float_(9.1)  # [W / m2K] from Equ.C.3 (from 12.2.2) - (coupling between mass and central node s)
 
-    def calculate_Htr_ms(self,  Am_factor: float, Af: float) -> float:
-        return self.calculate_hms() * self.calculate_Am(Am_factor, Af)  # from 12.2.2 Equ. (64)
 
-    def calculate_Htr_em(self, Hop: float, Am_factor: float, Af: float) -> float:
-        return 1 / (1 / Hop - 1 / self.calculate_Htr_ms(Am_factor, Af))  # from 12.2.2 Equ. (63)
 
-    # thermal coupling values [W/K]
-    def calculate_Htr_is(self, Af) -> float:
-        return self.calculate_his() * self.calculate_Atot(Af=Af)
 
-    def calculate_PHI_ia(self,specific_internal_gains: float, Af: float) -> float:
-        return 0.5 * self.calculate_Qi(specific_internal_gains, Af)  # Equ. C.1
 
-    def calculate_Htr_1(self, Hve: float, Af: float) -> float:
-        return 1 / (1 / Hve + 1 / self.calculate_Htr_is(Af))  # Equ. C.6
 
-    def calculate_Htr_2(self, Hve: float, Af: float, Htr_w: float) -> float:
-        return self.calculate_Htr_1(Hve, Af) + Htr_w  # Equ. C.7
-
-    def calculate_Htr_3(self,  Hve: float, Af: float, Htr_w: float, Am_factor: float) -> float:
-        return 1 / (1 / self.calculate_Htr_2(Hve, Af, Htr_w) + 1 / self.calculate_Htr_ms(Am_factor, Af))  # Equ.C.8
 
     def set_result_variables(self):
         # Result variables: CAREFUL, THESE NAMES HAVE TO BE IDENTICAL TO THE ONES IN THE PYOMO OPTIMIZATION
