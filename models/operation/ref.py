@@ -1,6 +1,5 @@
 import numpy as np
 from models.operation.abstract import OperationModel
-from models.operation.rc_model import R5C1Model
 from basics.kit import get_logger
 
 logger = get_logger(__name__)
@@ -486,7 +485,7 @@ class RefOperationModel(OperationModel):
         self.fill_parameter_values()  # set input parameters to self values
         # calculate the heating and cooling energy and indoor air + thermal mass temperature:
         heating_demand, cooling_demand, T_Room, Tm_t = \
-            R5C1Model(self.scenario).calculate_heating_and_cooling_demand(
+            self.calculate_heating_and_cooling_demand(
                 thermal_start_temperature=self.thermal_mass_start_temperature,
                 static=False)
         room_heating = heating_demand
