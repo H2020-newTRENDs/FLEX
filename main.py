@@ -4,7 +4,7 @@ from models.operation.ref import RefOperationModel
 from models.operation.data_collector import OptimizationDataCollector, ReferenceDataCollector
 from config import config
 
-scenario = OperationScenario(scenario_id=2, config=config)
+scenario = OperationScenario(scenario_id=1, config=config)
 
 optimization_model = OptOperationModel(scenario).run()
 OptimizationDataCollector(optimization_model, scenario.scenario_id, config).save_yearly_results()
