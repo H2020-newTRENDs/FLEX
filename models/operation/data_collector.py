@@ -3,9 +3,12 @@ import pandas as pd
 import numpy as np
 import sqlalchemy.types
 from basics.db import create_db_conn
+from basics.kit import get_logger
 
 if TYPE_CHECKING:
     from basics.config import Config
+
+logger = get_logger(__name__)
 
 
 class OptimizationDataCollector:
@@ -125,6 +128,7 @@ class OptimizationDataCollector:
             d_types_dict[column_name] = sqlalchemy.types.Float
 
         # save the dataframes to the result database
+        logger.info(f'OptimizationHourly has {len(hourly_results.columns)} columns.')
         self.db.write_dataframe(table_name="Optimization_hourly",
                                 data_frame=hourly_results,
                                 data_types=d_types_dict,
@@ -201,6 +205,7 @@ class ReferenceDataCollector:
     def collect_reference_results_hourly(self) -> pd.DataFrame:
         # empty dataframe
         dataframe = pd.DataFrame()
+        dataframe["scenario_id"] = self.reference_model.scenario.scenario_id
         # iterate over all variables in the instance
         for result_name in self.reference_model.__dict__.keys():
             if result_name == "scenario" \
@@ -218,8 +223,6 @@ class ReferenceDataCollector:
             result_array = self.check_type_hourly(result_class)
             # save to df
             dataframe[result_name] = result_array
-            # add the scenario id to the results
-            dataframe["scenario_id"] = self.reference_model.scenario.scenario_id
         return dataframe
 
     def collect_reference_results_yearly(self) -> pd.DataFrame:
@@ -256,6 +259,7 @@ class ReferenceDataCollector:
             d_types_dict[column_name] = sqlalchemy.types.Float
 
         # save the dataframes to the result database
+        logger.info(f'ReferenceHourly has {len(hourly_results.columns)} columns.')
         self.db.write_dataframe(table_name="Reference_hourly",
                                 data_frame=hourly_results,
                                 data_types=d_types_dict,
