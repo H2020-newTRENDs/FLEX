@@ -31,7 +31,7 @@ class DatabaseInitializer:
 
     def load_component_table(self, component: ClassVar['Enum']):
         file = self.config.input_folder / Path(component.table_name + ".xlsx")
-        logger.info(f'loading component table -> {component.table_name}')
+        logger.info(f'loading table -> {component.table_name}')
         df = pd.read_excel(file, engine="openpyxl").dropna(axis=1)  # drop column that contains nan
         data_types = kit.convert_datatype_py2sql(get_type_hints(component.class_var))
         assert all(key in list(data_types.keys()) for key in list(df.columns[1:])), \
@@ -44,7 +44,7 @@ class DatabaseInitializer:
 
     def load_source_table(self, table: ClassVar['Enum']):
         file = self.config.input_folder / Path(table.value + ".xlsx")
-        logger.info(f'loading component table -> {table.value}')
+        logger.info(f'loading table -> {table.value}')
         df = pd.read_excel(file, engine="openpyxl")
         self.db.write_dataframe(table.value, df, if_exists='replace')
 
