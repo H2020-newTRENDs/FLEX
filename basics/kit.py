@@ -6,13 +6,30 @@ from functools import wraps
 import time
 
 
+def get_logger(name, level=logging.INFO, file_name: str = None):
+    logging.basicConfig()
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+
+    if file_name:
+        file_handler = logging.FileHandler(file_name)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    return logger
+
+
+logger = get_logger(__name__)
+
+
 def performance_counter(func):
     @wraps(func)
     def wrapper(*args):
         t_start = time.perf_counter()
         result = func(*args)
         t_end = time.perf_counter()
-        print("function >>{}<< time for execution: {}".format(func.__name__, t_end - t_start))
+        logger.info(f"function >>{func.__name__}<< time for execution: {t_end - t_start}")
         return result
 
     return wrapper
@@ -38,15 +55,3 @@ def convert_datatype_py2sql(data_types: dict) -> dict:
     return data_types
 
 
-def get_logger(name, level=logging.INFO, file_name: str = None):
-    logging.basicConfig()
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-    formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-
-    if file_name:
-        file_handler = logging.FileHandler(file_name)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-    return logger
