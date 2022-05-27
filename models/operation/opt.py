@@ -40,32 +40,19 @@ class OptOperationModel(OperationModel):
                 "CoolingCOP": {None: self.scenario.space_cooling_technology.efficiency},
                 "ChargeEfficiency": {None: self.scenario.battery.charge_efficiency},
                 "DischargeEfficiency": {None: self.scenario.battery.discharge_efficiency},
-                "Am": {None: self.calculate_Am(Am_factor=self.scenario.building.Am_factor,
-                                               Af=self.scenario.building.Af)},
-                "Atot": {None: self.calculate_Atot(Af=self.scenario.building.Af)},
-                "Qi": {None: self.calculate_Qi(specific_internal_gains=self.scenario.building.internal_gains,
-                                               Af=self.scenario.building.Af)},
+                "Am": {None: self.Am},
+                "Atot": {None: self.Atot},
+                "Qi": {None: self.Qi},
                 "Htr_w": {None: self.scenario.building.Htr_w},
-                "Htr_em": {None: self.calculate_Htr_em(Hop=self.scenario.building.Hop,
-                                                       Am_factor=self.scenario.building.Am_factor,
-                                                       Af=self.scenario.building.Af)},
-                "Htr_3": {None: self.calculate_Htr_3(Hve=self.scenario.building.Hve,
-                                                     Af=self.scenario.building.Af,
-                                                     Htr_w=self.scenario.building.Htr_w,
-                                                     Am_factor=self.scenario.building.Am_factor)},
-                "Htr_1": {None: self.calculate_Htr_1(Hve=self.scenario.building.Hve,
-                                                     Af=self.scenario.building.Af)},
-                "Htr_2": {None: self.calculate_Htr_2(Hve=self.scenario.building.Hve,
-                                                     Af=self.scenario.building.Af,
-                                                     Htr_w=self.scenario.building.Htr_w)},
+                "Htr_em": {None: self.Htr_em},
+                "Htr_3": {None: self.Htr_3},
+                "Htr_1": {None: self.Htr_1},
+                "Htr_2": {None: self.Htr_2},
                 "Hve": {None: self.scenario.building.Hve},
-                "Htr_ms": {None: self.calculate_Htr_ms(Am_factor=self.scenario.building.Am_factor,
-                                                       Af=self.scenario.building.Af)},
-                "Htr_is": {None: self.calculate_Htr_is(Af=self.scenario.building.Af)},
-                "PHI_ia": {None: self.calculate_PHI_ia(specific_internal_gains=self.scenario.building.internal_gains,
-                                                       Af=self.scenario.building.Af)},
-                "Cm": {None: self.calculate_Cm(CM_factor=self.scenario.building.CM_factor,
-                                               Af=self.scenario.building.Af)},
+                "Htr_ms": {None: self.Htr_ms},
+                "Htr_is": {None: self.Htr_is},
+                "PHI_ia": {None: self.PHI_ia},
+                "Cm": {None: self.Cm},
                 "BuildingMassTemperatureStartValue": {None: self.thermal_mass_start_temperature},
                 # space heating tank
                 "T_TankStart_heating": {None: self.scenario.space_heating_tank.temperature_start},
@@ -741,28 +728,16 @@ class OptOperationModel(OperationModel):
         instance.Hve = self.scenario.building.Hve
         instance.Htr_w = self.scenario.building.Htr_w
         # parameters that have to be calculated:
-        instance.Atot = self.calculate_Atot(Af=self.scenario.building.Af)
-        instance.Qi = self.calculate_Qi(specific_internal_gains=self.scenario.building.internal_gains,
-                                        Af=self.scenario.building.Af)
-        instance.Htr_em = self.calculate_Htr_em(Hop=self.scenario.building.Hop,
-                                                Am_factor=self.scenario.building.Am_factor,
-                                                Af=self.scenario.building.Af)
-        instance.Htr_3 = self.calculate_Htr_3(Hve=self.scenario.building.Hve,
-                                              Af=self.scenario.building.Af,
-                                              Htr_w=self.scenario.building.Htr_w,
-                                              Am_factor=self.scenario.building.Am_factor)
-        instance.Htr_1 = self.calculate_Htr_1(Hve=self.scenario.building.Hve,
-                                              Af=self.scenario.building.Af)
-        instance.Htr_2 = self.calculate_Htr_2(Hve=self.scenario.building.Hve,
-                                              Af=self.scenario.building.Af,
-                                              Htr_w=self.scenario.building.Htr_w)
-        instance.Htr_ms = self.calculate_Htr_ms(Am_factor=self.scenario.building.Am_factor,
-                                                Af=self.scenario.building.Af)
-        instance.Htr_is = self.calculate_Htr_is(Af=self.scenario.building.Af)
-        instance.PHI_ia = self.calculate_PHI_ia(specific_internal_gains=self.scenario.building.internal_gains,
-                                                Af=self.scenario.building.Af)
-        instance.Cm = self.calculate_Cm(CM_factor=self.scenario.building.CM_factor,
-                                        Af=self.scenario.building.Af)
+        instance.Atot = self.Atot
+        instance.Qi = self.Qi
+        instance.Htr_em = self.Htr_em
+        instance.Htr_3 = self.Htr_3
+        instance.Htr_1 = self.Htr_1
+        instance.Htr_2 = self.Htr_2
+        instance.Htr_ms = self.Htr_ms
+        instance.Htr_is = self.Htr_is
+        instance.PHI_ia = self.PHI_ia
+        instance.Cm = self.Cm
 
         instance.BuildingMassTemperatureStartValue = self.thermal_mass_start_temperature
         # Battery parameters
