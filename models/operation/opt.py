@@ -422,67 +422,44 @@ class OptOperationModel(OperationModel):
 
         def thermal_mass_temperature_rc(m, t):
             if t == 1:
-                # Equ. C.2
-                PHI_m = m.Am / m.Atot * (0.5 * m.Qi + m.Q_Solar[t])
-                # Equ. C.3
-                PHI_st = (1 - m.Am / m.Atot - m.Htr_w / 9.1 / m.Atot) * (0.5 * m.Qi + m.Q_Solar[t])
-                # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
-                T_sup = m.T_outside[t]
-                # Equ. C.5
-                PHI_mtot = PHI_m + m.Htr_em * m.T_outside[t] + m.Htr_3 * (
-                        PHI_st + m.Htr_w * m.T_outside[t] + m.Htr_1 * (
-                        ((m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / m.Hve) + T_sup)) / m.Htr_2
-                # Equ. C.4
-                return m.Tm_t[t] == (m.BuildingMassTemperatureStartValue *
-                                     ((m.Cm / 3600) - 0.5 * (m.Htr_3 + m.Htr_em)) + PHI_mtot) / (
-                               (m.Cm / 3600) + 0.5 * (m.Htr_3 + m.Htr_em))
-
+                Tm_start = m.BuildingMassTemperatureStartValue
             else:
-                # Equ. C.2
-                PHI_m = m.Am / m.Atot * (0.5 * m.Qi + m.Q_Solar[t])
-                # Equ. C.3
-                PHI_st = (1 - m.Am / m.Atot - m.Htr_w / 9.1 / m.Atot) * (0.5 * m.Qi + m.Q_Solar[t])
-                # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
-                T_sup = m.T_outside[t]
-                # Equ. C.5
-                PHI_mtot = PHI_m + m.Htr_em * m.T_outside[t] + m.Htr_3 * (
-                        PHI_st + m.Htr_w * m.T_outside[t] + m.Htr_1 * (
-                        ((m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / m.Hve) + T_sup)) / m.Htr_2
-                # Equ. C.4
-                return m.Tm_t[t] == (m.Tm_t[t - 1] * ((m.Cm / 3600) - 0.5 * (m.Htr_3 + m.Htr_em)) + PHI_mtot) / (
-                        (m.Cm / 3600) + 0.5 * (m.Htr_3 + m.Htr_em))
+                Tm_start = m.Tm_t[t - 1]
+            # Equ. C.2
+            PHI_m = m.Am / m.Atot * (0.5 * m.Qi + m.Q_Solar[t])
+            # Equ. C.3
+            PHI_st = (1 - m.Am / m.Atot - m.Htr_w / 9.1 / m.Atot) * (0.5 * m.Qi + m.Q_Solar[t])
+            # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
+            T_sup = m.T_outside[t]
+            # Equ. C.5
+            PHI_mtot = PHI_m + m.Htr_em * m.T_outside[t] + m.Htr_3 * \
+                       (PHI_st + m.Htr_w * m.T_outside[t] +
+                        m.Htr_1 * (((m.PHI_ia + m.Q_room_heating[t] -
+                                     m.Q_RoomCooling[t]) / m.Hve) + T_sup)) / m.Htr_2
+            # Equ. C.4
+            return m.Tm_t[t] == (Tm_start * ((m.Cm / 3600) - 0.5 * (m.Htr_3 + m.Htr_em)) + PHI_mtot) / (
+                           (m.Cm / 3600) + 0.5 * (m.Htr_3 + m.Htr_em))
 
         m.thermal_mass_temperature_rule = pyo.Constraint(m.t, rule=thermal_mass_temperature_rc)
 
         def room_temperature_rc(m, t):
             if t == 1:
-                # Equ. C.3
-                PHI_st = (1 - m.Am / m.Atot - m.Htr_w / 9.1 / m.Atot) * (0.5 * m.Qi + m.Q_Solar[t])
-                # Equ. C.9
-                T_m = (m.Tm_t[t] + m.BuildingMassTemperatureStartValue) / 2
-                T_sup = m.T_outside[t]
-                # Euq. C.10
-                T_s = (m.Htr_ms * T_m + PHI_st + m.Htr_w * m.T_outside[t] + m.Htr_1 * (
-                        T_sup + (m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / m.Hve)) / (
-                              m.Htr_ms + m.Htr_w + m.Htr_1)
-                # Equ. C.11
-                T_air = (m.Htr_is * T_s + m.Hve * T_sup + m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / (
-                        m.Htr_is + m.Hve)
-                return m.T_room[t] == T_air
+                Tm_start = m.BuildingMassTemperatureStartValue
             else:
-                # Equ. C.3
-                PHI_st = (1 - m.Am / m.Atot - m.Htr_w / 9.1 / m.Atot) * (0.5 * m.Qi + m.Q_Solar[t])
-                # Equ. C.9
-                T_m = (m.Tm_t[t] + m.Tm_t[t - 1]) / 2
-                T_sup = m.T_outside[t]
-                # Euq. C.10
-                T_s = (m.Htr_ms * T_m + PHI_st + m.Htr_w * m.T_outside[t] + m.Htr_1 * (
-                        T_sup + (m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / m.Hve)) / (
-                              m.Htr_ms + m.Htr_w + m.Htr_1)
-                # Equ. C.11
-                T_air = (m.Htr_is * T_s + m.Hve * T_sup + m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / (
-                        m.Htr_is + m.Hve)
-                return m.T_room[t] == T_air
+                Tm_start = m.Tm_t[t - 1]
+            # Equ. C.3
+            PHI_st = (1 - m.Am / m.Atot - m.Htr_w / 9.1 / m.Atot) * (0.5 * m.Qi + m.Q_Solar[t])
+            # Equ. C.9
+            T_m = (m.Tm_t[t] + Tm_start) / 2
+            T_sup = m.T_outside[t]
+            # Euq. C.10
+            T_s = (m.Htr_ms * T_m + PHI_st + m.Htr_w * m.T_outside[t] + m.Htr_1 *
+                   (T_sup + (m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / m.Hve)) / \
+                  (m.Htr_ms + m.Htr_w + m.Htr_1)
+            # Equ. C.11
+            T_air = (m.Htr_is * T_s + m.Hve * T_sup + m.PHI_ia + m.Q_room_heating[t] - m.Q_RoomCooling[t]) / \
+                    (m.Htr_is + m.Hve)
+            return m.T_room[t] == T_air
 
         m.room_temperature_rule = pyo.Constraint(m.t, rule=room_temperature_rc)
 
@@ -503,7 +480,6 @@ class OptOperationModel(OperationModel):
         Function takes the instance and updates its parameters as well as fixes various parameters to 0 if they are
         not used because there is no storage available for example. Solves the instance and returns the solved instance.
         """
-
         solar_gains = self.calculate_solar_gains()
         for t in range(1, 8761):
             index = t - 1  # pyomo starts at index 1
@@ -663,7 +639,7 @@ class OptOperationModel(OperationModel):
             instance.EVSoC_rule.deactivate()
             instance.EVDischarge_noV2B_rule.deactivate()
 
-        # EV is implemented but is can not provide electricity to the household
+        # EV is implemented but can not provide electricity to the household
         elif self.scenario.vehicle.charge_bidirectional == 0 and self.scenario.vehicle.capacity > 0:
             # check if building has battery:
             if self.scenario.battery.capacity == 0:  # no battery to EV possible
