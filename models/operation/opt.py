@@ -4,7 +4,9 @@ from models.operation.scenario import OperationScenario
 import numpy as np
 import time
 import pyomo.environ as pyo
-from basics.kit import performance_counter
+from basics.kit import performance_counter, get_logger
+
+logger = get_logger(__name__)
 
 
 class OptOperationModel(AbstractOperationModel):
@@ -102,10 +104,10 @@ class OptOperationModel(AbstractOperationModel):
         CPWater = 4200 / 3600
         m = pyo.AbstractModel()
         m.t = pyo.Set()
+
         # -------------
         # 1. Parameters
         # -------------
-
         # price
         m.electricity_price = pyo.Param(m.t, mutable=True)  # C/Wh
         # Feed in Tariff of Photovoltaic
@@ -129,10 +131,8 @@ class OptOperationModel(AbstractOperationModel):
         m.HotWaterHourlyCOP = pyo.Param(m.t, mutable=True)
         # COP for hot water when charging DHW storage
         m.HotWaterHourlyCOP_tank = pyo.Param(m.t, mutable=True)
-
         # Smart Technologies
         m.DayHour = pyo.Param(m.t, mutable=True)
-
         # building data:
         m.Am = pyo.Param(mutable=True)
         m.Atot = pyo.Param(mutable=True)
@@ -292,7 +292,8 @@ class OptOperationModel(AbstractOperationModel):
         # Battery:
         # (6) Battery charge
         def calc_BatCharge(m, t):
-            return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] + m.EV2Bat[t] * m.EVAtHomeStatus[t]  # * Household.Battery.Grid2Battery
+            return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] + m.EV2Bat[t] * m.EVAtHomeStatus[
+                t]  # * Household.Battery.Grid2Battery
 
         m.BatCharge_rule = pyo.Constraint(m.t, rule=calc_BatCharge)
 
@@ -500,7 +501,7 @@ class OptOperationModel(AbstractOperationModel):
             return rule
 
         m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
-        # return the household model
+        # return the model
         return m
 
     @performance_counter
@@ -723,7 +724,7 @@ class OptOperationModel(AbstractOperationModel):
                     instance.PV2EV[t].setub(self.scenario.vehicle.charge_power_max)
                     instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
                     instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
-                    instance.EVDischarge[t].setub(max_discharge_EV[t-1])
+                    instance.EVDischarge[t].setub(max_discharge_EV[t - 1])
                 instance.EVCharge_rule.activate()
                 instance.EVDischarge_rule.activate()
                 instance.EVSoC_rule.activate()
@@ -748,7 +749,7 @@ class OptOperationModel(AbstractOperationModel):
                     instance.PV2EV[t].setub(self.scenario.vehicle.charge_power_max)
                     instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
                     instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
-                    instance.EVDischarge[t].setub(max_discharge_EV[t-1])
+                    instance.EVDischarge[t].setub(max_discharge_EV[t - 1])
                 instance.EVCharge_rule.activate()
                 instance.EVDischarge_rule.activate()
                 instance.EVSoC_rule.activate()
@@ -833,11 +834,11 @@ class OptOperationModel(AbstractOperationModel):
         return instance
 
     def solve_optimization(self, instance2solve):
-        print("solving optimization...")
+        logger.info("solving optimization...")
         Opt = pyo.SolverFactory("gurobi")
         starttime = time.perf_counter()
         result = Opt.solve(instance2solve, tee=False)
-        print("time for optimization: {}".format(time.perf_counter() - starttime))
+        logger.info(f"time for optimization: {time.perf_counter() - starttime}")
         return instance2solve
 
     def run(self):
@@ -845,5 +846,5 @@ class OptOperationModel(AbstractOperationModel):
         pyomo_instance = abstract_model.create_instance(data=self.create_pyomo_dict())
         updated_instance = self.update_instance(pyomo_instance)
         solved_instance = self.solve_optimization(updated_instance)
-        print('Total Operation Cost: ' + str(round(solved_instance.total_operation_cost_rule(), 2)))
+        logger.info(f'Total Operation Cost: {round(solved_instance.total_operation_cost_rule(), 2)}')
         return solved_instance
