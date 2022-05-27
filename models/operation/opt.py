@@ -18,28 +18,56 @@ class OptOperationModel(OperationModel):
     def create_pyomo_dict(self) -> dict:
         pyomo_dict = {
             None: {
+                # time
                 "t": {None: np.arange(1, 8761)},
-                "ElectricityPrice": self.create_dict(self.scenario.energy_price.electricity),  # C/Wh
-                "FiT": self.create_dict(self.scenario.energy_price.electricity_feed_in),  # C/Wh
-                "Q_Solar": self.create_dict(self.calculate_solar_gains()),  # W
-                "PhotovoltaicProfile": self.create_dict(self.scenario.pv.generation),
+                "DayHour": self.create_dict(self.DayHour),
+
+                # region
                 "T_outside": self.create_dict(self.scenario.region.temperature),  # °C
+                "Q_Solar": self.create_dict(self.calculate_solar_gains()),  # W
+
+                # space heating
+                "SpaceHeatingHourlyCOP": self.create_dict(self.SpaceHeatingHourlyCOP),
+                "SpaceHeatingHourlyCOP_tank": self.create_dict(self.SpaceHeatingHourlyCOP_tank),
+                "T_TankStart_heating": {None: self.scenario.space_heating_tank.temperature_start},
+                "M_WaterTank_heating": {None: self.scenario.space_heating_tank.size},
+                "U_ValueTank_heating": {None: self.scenario.space_heating_tank.loss},
+                "T_TankSurrounding_heating": {None: self.scenario.space_heating_tank.temperature_surrounding},
+                "A_SurfaceTank_heating": {None: self.scenario.space_heating_tank.surface_area},
+                "SpaceHeating_HeatPumpMaximalElectricPower": {None: self.SpaceHeating_HeatPumpMaximalElectricPower},
+
+                # hot water
+                "HotWaterHourlyCOP": self.create_dict(self.HotWaterHourlyCOP),
+                "HotWaterHourlyCOP_tank": self.create_dict(self.HotWaterHourlyCOP_tank),
+                "T_TankStart_DHW": {None: self.scenario.hot_water_tank.temperature_start},
+                "M_WaterTank_DHW": {None: self.scenario.hot_water_tank.size},
+                "U_ValueTank_DHW": {None: self.scenario.hot_water_tank.loss},
+                "T_TankSurrounding_DHW": {None: self.scenario.hot_water_tank.temperature_surrounding},
+                "A_SurfaceTank_DHW": {None: self.scenario.hot_water_tank.surface_area},
+
+                # space cooling
+                "CoolingCOP": {None: self.scenario.space_cooling_technology.efficiency},
+
+                # PV and battery
+                "PhotovoltaicProfile": self.create_dict(self.scenario.pv.generation),
+                "ChargeEfficiency": {None: self.scenario.battery.charge_efficiency},
+                "DischargeEfficiency": {None: self.scenario.battery.discharge_efficiency},
+
                 # EV
                 "EVDemandProfile": self.create_dict(self.scenario.behavior.vehicle_demand),  # Wh
                 "EVAtHomeStatus": self.create_dict(self.scenario.behavior.vehicle_at_home),  # 0 or 1
                 "EVChargeEfficiency": {None: self.scenario.vehicle.charge_efficiency},
                 "EVDischargeEfficiency": {None: self.scenario.vehicle.discharge_efficiency},
-                # COP
-                "SpaceHeatingHourlyCOP": self.create_dict(self.SpaceHeatingHourlyCOP),
-                "SpaceHeatingHourlyCOP_tank": self.create_dict(self.SpaceHeatingHourlyCOP_tank),
-                "BaseLoadProfile": self.create_dict(self.scenario.behavior.appliance_electricity_demand),  # Wh
+
+                # energy price
+                "ElectricityPrice": self.create_dict(self.scenario.energy_price.electricity),  # C/Wh
+                "FiT": self.create_dict(self.scenario.energy_price.electricity_feed_in),  # C/Wh
+
+                # behavior
                 "HotWaterProfile": self.create_dict(self.scenario.behavior.hot_water_demand),
-                "HotWaterHourlyCOP": self.create_dict(self.HotWaterHourlyCOP),
-                "HotWaterHourlyCOP_tank": self.create_dict(self.HotWaterHourlyCOP_tank),
-                "DayHour": self.create_dict(self.DayHour),
-                "CoolingCOP": {None: self.scenario.space_cooling_technology.efficiency},
-                "ChargeEfficiency": {None: self.scenario.battery.charge_efficiency},
-                "DischargeEfficiency": {None: self.scenario.battery.discharge_efficiency},
+                "BaseLoadProfile": self.create_dict(self.scenario.behavior.appliance_electricity_demand),  # Wh
+
+                # RC model parameters
                 "Am": {None: self.Am},
                 "Atot": {None: self.Atot},
                 "Qi": {None: self.Qi},
@@ -54,21 +82,6 @@ class OptOperationModel(OperationModel):
                 "PHI_ia": {None: self.PHI_ia},
                 "Cm": {None: self.Cm},
                 "BuildingMassTemperatureStartValue": {None: self.thermal_mass_start_temperature},
-                # space heating tank
-                "T_TankStart_heating": {None: self.scenario.space_heating_tank.temperature_start},
-                # min temp is start temp
-                "M_WaterTank_heating": {None: self.scenario.space_heating_tank.size},
-                "U_ValueTank_heating": {None: self.scenario.space_heating_tank.loss},
-                "T_TankSurrounding_heating": {None: self.scenario.space_heating_tank.temperature_surrounding},
-                "A_SurfaceTank_heating": {None: self.scenario.space_heating_tank.surface_area},
-                # DHW Tank
-                "T_TankStart_DHW": {None: self.scenario.hot_water_tank.temperature_start},
-                # min temp is start temp
-                "M_WaterTank_DHW": {None: self.scenario.hot_water_tank.size},
-                "U_ValueTank_DHW": {None: self.scenario.hot_water_tank.loss},
-                "T_TankSurrounding_DHW": {None: self.scenario.hot_water_tank.temperature_surrounding},
-                "A_SurfaceTank_DHW": {None: self.scenario.hot_water_tank.surface_area},
-                "SpaceHeating_HeatPumpMaximalElectricPower": {None: self.SpaceHeating_HeatPumpMaximalElectricPower}
             }
         }
         return pyomo_dict
@@ -106,20 +119,21 @@ class OptOperationModel(OperationModel):
         m.HotWaterHourlyCOP_tank = pyo.Param(m.t, mutable=True)
         # Smart Technologies
         m.DayHour = pyo.Param(m.t, mutable=True)
-        # building data:
+
+        # RC parameters
         m.Am = pyo.Param(mutable=True)
         m.Atot = pyo.Param(mutable=True)
+        m.Cm = pyo.Param(mutable=True)
         m.Qi = pyo.Param(mutable=True)
         m.Htr_w = pyo.Param(mutable=True)
         m.Htr_em = pyo.Param(mutable=True)
-        m.Htr_3 = pyo.Param(mutable=True)
         m.Htr_1 = pyo.Param(mutable=True)
         m.Htr_2 = pyo.Param(mutable=True)
+        m.Htr_3 = pyo.Param(mutable=True)
         m.Hve = pyo.Param(mutable=True)
         m.Htr_ms = pyo.Param(mutable=True)
         m.Htr_is = pyo.Param(mutable=True)
         m.PHI_ia = pyo.Param(mutable=True)
-        m.Cm = pyo.Param(mutable=True)
         m.BuildingMassTemperatureStartValue = pyo.Param(mutable=True)
 
         # Heating Tank data
