@@ -101,7 +101,6 @@ class OptOperationModel(OperationModel):
 
     @performance_counter
     def create_abstract_model(self):
-        CPWater = 4200 / 3600
         m = pyo.AbstractModel()
         m.t = pyo.Set()
 
@@ -292,8 +291,7 @@ class OptOperationModel(OperationModel):
         # Battery:
         # (6) Battery charge
         def calc_BatCharge(m, t):
-            return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] + m.EV2Bat[t] * m.EVAtHomeStatus[
-                t]  # * Household.Battery.Grid2Battery
+            return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] + m.EV2Bat[t] * m.EVAtHomeStatus[t]
 
         m.BatCharge_rule = pyo.Constraint(m.t, rule=calc_BatCharge)
 
@@ -366,12 +364,12 @@ class OptOperationModel(OperationModel):
         # (9) energy in the tank
         def tank_energy_heating(m, t):
             if t == 1:
-                return m.E_HeatingTank[t] == CPWater * m.M_WaterTank_heating * (273.15 + m.T_TankStart_heating) - \
+                return m.E_HeatingTank[t] == self.cp_water * m.M_WaterTank_heating * (273.15 + m.T_TankStart_heating) - \
                        m.Q_HeatingTank_out[t]
             else:
                 return m.E_HeatingTank[t] == m.E_HeatingTank[t - 1] - m.Q_HeatingTank_out[t] + m.Q_HeatingTank_in[t] \
                        - m.U_ValueTank_heating * m.A_SurfaceTank_heating * (
-                               (m.E_HeatingTank[t] / (m.M_WaterTank_heating * CPWater)) -
+                               (m.E_HeatingTank[t] / (m.M_WaterTank_heating * self.cp_water)) -
                                (m.T_TankSurrounding_heating + 273.15))
 
         m.tank_energy_rule_heating = pyo.Constraint(m.t, rule=tank_energy_heating)
@@ -393,11 +391,11 @@ class OptOperationModel(OperationModel):
         # (12) energy in DHW tank
         def tank_energy_DHW(m, t):
             if t == 1:
-                return m.E_DHWTank[t] == CPWater * m.M_WaterTank_DHW * (273.15 + m.T_TankStart_DHW) - m.Q_DHWTank_out[t]
+                return m.E_DHWTank[t] == self.cp_water * m.M_WaterTank_DHW * (273.15 + m.T_TankStart_DHW) - m.Q_DHWTank_out[t]
             else:
                 return m.E_DHWTank[t] == m.E_DHWTank[t - 1] - m.Q_DHWTank_out[t] + m.Q_DHWTank_in[t] - \
                        m.U_ValueTank_DHW * m.A_SurfaceTank_DHW * (
-                               m.E_DHWTank[t] / (m.M_WaterTank_DHW * CPWater) - (m.T_TankSurrounding_DHW + 273.15)
+                               m.E_DHWTank[t] / (m.M_WaterTank_DHW * self.cp_water) - (m.T_TankSurrounding_DHW + 273.15)
                        )
 
         m.tank_energy_rule_DHW = pyo.Constraint(m.t, rule=tank_energy_DHW)
@@ -510,10 +508,8 @@ class OptOperationModel(OperationModel):
         Function takes the instance and updates its parameters as well as fixes various parameters to 0 if they are
         not used because there is no storage available for example. Solves the instance and returns the solved instance.
         """
-        CPWater = 4200 / 3600
-        # update the instance
-        solar_gains = self.calculate_solar_gains()
 
+        solar_gains = self.calculate_solar_gains()
         for t in range(1, 8761):
             index = t - 1  # pyomo starts at index 1
             # time dependent parameters are updated:
@@ -584,12 +580,12 @@ class OptOperationModel(OperationModel):
                 instance.Q_HeatingTank_in[t].fixed = False
 
                 instance.E_HeatingTank[t].setlb(
-                    CPWater * self.scenario.space_heating_tank.size *
+                    self.cp_water * self.scenario.space_heating_tank.size *
                     (273.15 + self.scenario.space_heating_tank.temperature_min)
                 )
 
                 instance.E_HeatingTank[t].setub(
-                    CPWater * self.scenario.space_heating_tank.size *
+                    self.cp_water * self.scenario.space_heating_tank.size *
                     (273.15 + self.scenario.space_heating_tank.temperature_max)
                 )
                 instance.E_Heating_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
@@ -611,11 +607,11 @@ class OptOperationModel(OperationModel):
                 instance.Q_DHWTank_out[t].fixed = False
                 instance.Q_DHWTank_in[t].fixed = False
                 instance.E_DHWTank[t].setlb(
-                    CPWater * self.scenario.hot_water_tank.size *
+                    self.cp_water * self.scenario.hot_water_tank.size *
                     (273.15 + self.scenario.hot_water_tank.temperature_min)
                 )
                 instance.E_DHWTank[t].setub(
-                    CPWater * self.scenario.hot_water_tank.size *
+                    self.cp_water * self.scenario.hot_water_tank.size *
                     (273.15 + self.scenario.hot_water_tank.temperature_max)
                 )
                 instance.E_DHW_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
