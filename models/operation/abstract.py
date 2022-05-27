@@ -4,7 +4,7 @@ from models.operation.scenario import OperationScenario
 from models.operation.rc_model import R5C1Model
 
 
-class AbstractOperationModel(ABC):
+class OperationModel(ABC):
 
     def __init__(self, scenario: 'OperationScenario'):
         self.scenario = scenario
@@ -204,7 +204,7 @@ class AbstractOperationModel(ABC):
         # round to the next 500 W
         max_thermal_power = np.ceil(max_heating_demand / 500) * 500
         # calculate the design condition COP (-12°C)
-        worst_COP = AbstractOperationModel.COP_HP(
+        worst_COP = OperationModel.COP_HP(
             outside_temperature=[-12],
             supply_temperature=self.scenario.boiler.heating_supply_temperature,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
