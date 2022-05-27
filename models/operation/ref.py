@@ -1,12 +1,12 @@
 import numpy as np
-from models.operation.abstract import AbstractOperationModel
+from models.operation.abstract import OperationModel
 from models.operation.rc_model import R5C1Model
 from basics.kit import get_logger
 
 logger = get_logger(__name__)
 
 
-class RefOperationModel(AbstractOperationModel):
+class RefOperationModel(OperationModel):
 
     def calculate_tank_energy(self,
                               electricity_grid_demand: np.array,
@@ -626,7 +626,7 @@ class RefOperationModel(AbstractOperationModel):
         price_hourly = self.scenario.energy_price.electricity
         FIT = self.scenario.energy_price.electricity_feed_in
         self.total_operation_cost = price_hourly * grid_demand - electricity_sold * FIT
-        logger.info(f'Total Operation Cost reference: {round(self.total_operation_cost.sum(), 2)}')
+        logger.info(f'Reference operation cost: {round(self.total_operation_cost.sum(), 2)}')
 
         # grid variables
         self.Grid = grid_demand
@@ -648,5 +648,7 @@ class RefOperationModel(AbstractOperationModel):
 
         # DHW
         self.Q_DHWTank_bypass = self.HotWaterProfile - self.Q_DHWTank_out
+
+        return self
 
 

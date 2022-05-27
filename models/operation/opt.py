@@ -1,4 +1,4 @@
-from models.operation.abstract import AbstractOperationModel
+from models.operation.abstract import OperationModel
 from models.operation.profile_generator import ProfileGenerator
 from models.operation.scenario import OperationScenario
 import numpy as np
@@ -9,7 +9,7 @@ from basics.kit import performance_counter, get_logger
 logger = get_logger(__name__)
 
 
-class OptOperationModel(AbstractOperationModel):
+class OptOperationModel(OperationModel):
     def __init__(self, scenario: 'OperationScenario'):
         super().__init__(scenario)
         # define the maximum temperature for households when there is no cooling (in winter equals to max temp
@@ -834,11 +834,11 @@ class OptOperationModel(AbstractOperationModel):
         return instance
 
     def solve_optimization(self, instance2solve):
-        logger.info("solving optimization...")
+        logger.info("Solving optimization...")
         Opt = pyo.SolverFactory("gurobi")
         starttime = time.perf_counter()
         result = Opt.solve(instance2solve, tee=False)
-        logger.info(f"time for optimization: {time.perf_counter() - starttime}")
+        logger.info(f"Optimization time: {round(time.perf_counter() - starttime, 2)}s.")
         return instance2solve
 
     def run(self):
@@ -846,5 +846,5 @@ class OptOperationModel(AbstractOperationModel):
         pyomo_instance = abstract_model.create_instance(data=self.create_pyomo_dict())
         updated_instance = self.update_instance(pyomo_instance)
         solved_instance = self.solve_optimization(updated_instance)
-        logger.info(f'Total Operation Cost: {round(solved_instance.total_operation_cost_rule(), 2)}')
+        logger.info(f'Optimal operation cost: {round(solved_instance.total_operation_cost_rule(), 2)}')
         return solved_instance
