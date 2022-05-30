@@ -9,21 +9,16 @@ from models.operation.enums import TableEnum
 
 if TYPE_CHECKING:
     from basics.config import Config
-    from models.operation.scenario import OperationScenario
 
 
 class Analyzer:
 
     def __init__(self, config: 'Config'):
         self.db = create_db_conn(config)
-        self.read_result_dfs()
-
-    def read_result_dfs(self):
         self.opt_hour = self.db.read_dataframe(TableEnum.ResultOptHour.value)
         self.opt_year = self.db.read_dataframe(TableEnum.ResultOptYear.value)
         self.ref_hour = self.db.read_dataframe(TableEnum.ResultRefHour.value)
         self.ref_year = self.db.read_dataframe(TableEnum.ResultRefYear.value)
-
 
     def compare_opt_ref(self, scenario_id: int) -> None:
         reference_df = kit.filter_df(self.ref_hour, filter_dict={"ID_Scenario": scenario_id})
@@ -57,5 +52,3 @@ class Analyzer:
         fig.update_layout(height=400 * column_number, width=1600)
         fig.show()
 
-    def run(self):
-        self.compare_opt_ref()
