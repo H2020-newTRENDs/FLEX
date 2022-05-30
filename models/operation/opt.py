@@ -1,5 +1,4 @@
 from models.operation.abstract import OperationModel
-import numpy as np
 import pyomo.environ as pyo
 from basics.kit import performance_counter, get_logger
 
