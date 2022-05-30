@@ -73,6 +73,8 @@ class ResultEnum(Enum):
 
     # space cooling
     Q_RoomCooling = "year_include"
+    E_RoomCooling = "year_include"
+    CoolingHourlyCOP = "year_not_include"
 
     # PV
     PhotovoltaicProfile = "year_include"

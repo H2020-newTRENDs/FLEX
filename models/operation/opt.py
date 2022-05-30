@@ -44,6 +44,7 @@ class OptOperationModel(OperationModel):
 
         # space cooling
         m.CoolingCOP = pyo.Param()
+        m.CoolingHourlyCOP = pyo.Param(m.t)
 
         # PV
         m.PhotovoltaicProfile = pyo.Param(m.t)
@@ -99,6 +100,7 @@ class OptOperationModel(OperationModel):
 
         # space cooling
         m.Q_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.E_RoomCooling = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # hot water
         m.Q_DHWTank_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
@@ -168,6 +170,11 @@ class OptOperationModel(OperationModel):
                    + m.E_DHW_HP_out[t]
 
         m.SumOfLoads_with_cooling_rule = pyo.Constraint(m.t, rule=calc_SumOfLoads_with_cooling)
+
+        def calc_E_RoomCooling_with_cooling(m, t):
+            return m.E_RoomCooling[t] == m.Q_RoomCooling[t] / m.CoolingCOP
+
+        m.E_RoomCooling_with_cooling_rule = pyo.Constraint(m.t, rule=calc_E_RoomCooling_with_cooling)
 
         def calc_SumOfLoads_without_cooling(m, t):
             return m.Load[t] == m.BaseLoadProfile[t] \
@@ -425,6 +432,7 @@ class OptOperationModel(OperationModel):
 
                 # space cooling
                 "CoolingCOP": {None: self.CoolingCOP},
+                "CoolingHourlyCOP": self.create_dict(self.CoolingHourlyCOP),
 
                 # PV
                 "PhotovoltaicProfile": self.create_dict(self.PhotovoltaicProfile),
@@ -475,17 +483,21 @@ class OptOperationModel(OperationModel):
             )
             for t in range(1, 8761):
                 instance.Q_RoomCooling[t].fix(0)
+                instance.E_RoomCooling[t].fix(0)
                 instance.T_Room[t].setub(no_cooling_target_temperature_max[t - 1])
             instance.SumOfLoads_without_cooling_rule.activate()
             instance.SumOfLoads_with_cooling_rule.deactivate()
+            instance.E_RoomCooling_with_cooling_rule.deactivate()
 
         else:
             for t in range(1, 8761):
                 instance.Q_RoomCooling[t].fixed = False
+                instance.E_RoomCooling[t].fixed = False
                 instance.Q_RoomCooling[t].setub(self.scenario.space_cooling_technology.power)
                 instance.T_Room[t].setub(self.scenario.behavior.target_temperature_array_max[t - 1])
             instance.SumOfLoads_without_cooling_rule.deactivate()
             instance.SumOfLoads_with_cooling_rule.activate()
+            instance.E_RoomCooling_with_cooling_rule.activate()
 
         # Thermal storage Heating
         if self.scenario.space_heating_tank.size == 0:

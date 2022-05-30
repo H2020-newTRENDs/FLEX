@@ -252,7 +252,7 @@ class RefOperationModel(OperationModel):
         self.Q_HeatingTank_out = np.zeros(self.Q_HeatingTank_bypass.shape)
 
     def calc_space_cooling_demand(self):
-        self.E_CoolingDemand = self.Q_RoomCooling / self.CoolingCOP
+        self.E_RoomCooling = self.Q_RoomCooling / self.CoolingCOP
 
     def calc_hot_water_demand(self):
         self.Q_DHWTank_bypass = self.HotWaterProfile
@@ -260,7 +260,7 @@ class RefOperationModel(OperationModel):
 
     def calc_load(self):
         self.Load = self.BaseLoadProfile + self.E_Heating_HP_out + self.Q_HeatingElement + \
-                    self.E_CoolingDemand + self.E_DHW_HP_out
+                    self.E_RoomCooling + self.E_DHW_HP_out
         grid_demand = np.where(self.Load - self.PhotovoltaicProfile < 0, 0, self.Load - self.PhotovoltaicProfile)
         pv_surplus = np.where(self.PhotovoltaicProfile - self.Load < 0, 0, self.PhotovoltaicProfile - self.Load)
         self.PV2Load = self.PhotovoltaicProfile - pv_surplus
