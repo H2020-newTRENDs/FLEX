@@ -2,6 +2,7 @@ from typing import List, Union
 import logging
 import sqlalchemy
 import numpy as np
+import pandas as pd
 from functools import wraps
 import time
 
@@ -55,4 +56,8 @@ def convert_datatype_py2sql(data_types: dict) -> dict:
         data_types[key] = type_py2sql_dict[value]
     return data_types
 
+
+def filter_df(df: pd.DataFrame, filter_dict: dict) -> pd.DataFrame:
+    df_filtered = df.loc[(df[list(filter_dict)] == pd.Series(filter_dict)).all(axis=1)]
+    return df_filtered
 
