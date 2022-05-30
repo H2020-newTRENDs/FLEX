@@ -17,6 +17,4 @@ for scenario_id in scenario_ids:
     opt_model = OptOperationModel(scenario).run()
     # OptDataCollector(opt_model, scenario.scenario_id, config).run()
 
-analyzer = Analyzer(config)
-analyzer.compare_opt_ref(1)
 
