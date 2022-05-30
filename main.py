@@ -1,8 +1,7 @@
 from models.operation.scenario import OperationScenario
-from models.operation.opt import OptOperationModel
-from models.operation.ref import RefOperationModel
+from models.operation.model_opt import OptOperationModel
+from models.operation.model_ref import RefOperationModel
 from models.operation.data_collector import OptDataCollector, RefDataCollector
-from models.operation.analyzer import Analyzer
 from config import config
 from basics.kit import get_logger
 

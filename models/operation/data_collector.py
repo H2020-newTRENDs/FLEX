@@ -10,7 +10,7 @@ from models.operation.enums import ResultEnum, TableEnum
 
 if TYPE_CHECKING:
     from basics.config import Config
-    from models.operation.abstract import OperationModel
+    from models.operation.model_base import OperationModel
 
 logger = get_logger(__name__)
 

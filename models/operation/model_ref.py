@@ -1,5 +1,5 @@
 import numpy as np
-from models.operation.abstract import OperationModel
+from models.operation.model_base import OperationModel
 from basics.kit import get_logger
 
 logger = get_logger(__name__)
