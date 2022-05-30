@@ -7,13 +7,12 @@ from basics.kit import get_logger
 
 logger = get_logger(__name__)
 
+scenario_ids = [48]
 
-for scenario_id in range(1, 7):
+for scenario_id in scenario_ids:
     logger.info(f'Scenario = {scenario_id}')
     scenario = OperationScenario(scenario_id=scenario_id, config=config)
-
     opt_model = OptOperationModel(scenario).run()
-    OptDataCollector(opt_model, scenario.scenario_id, config).run()
-
+    # OptDataCollector(opt_model, scenario.scenario_id, config).run()
     ref_model = RefOperationModel(scenario).run()
-    RefDataCollector(ref_model, scenario.scenario_id, config).run()
+    # RefDataCollector(ref_model, scenario.scenario_id, config).run()
