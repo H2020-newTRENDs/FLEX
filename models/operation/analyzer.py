@@ -4,6 +4,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from basics.db import create_db_conn
+from basics import kit
+from models.operation.enums import TableEnum
 
 if TYPE_CHECKING:
     from basics.config import Config
@@ -12,21 +14,20 @@ if TYPE_CHECKING:
 
 class Analyzer:
 
-    def __init__(self, scenario: 'OperationScenario', config: 'Config'):
-        self.scenario = scenario
+    def __init__(self, config: 'Config'):
         self.db = create_db_conn(config)
         self.read_result_dfs()
 
     def read_result_dfs(self):
-        scenario_id = self.scenario.scenario_id
-        self.opt_hour = self.db.read_dataframe("Result_OptimizationHour", filter={"ID_Scenario": scenario_id})
-        self.opt_year = self.db.read_dataframe("Result_OptimizationYear", filter={"ID_Scenario": scenario_id})
-        self.ref_hour = self.db.read_dataframe("Result_ReferenceHour", filter={"ID_Scenario": scenario_id})
-        self.ref_year = self.db.read_dataframe("Result_ReferenceYear", filter={"ID_Scenario": scenario_id})
+        self.opt_hour = self.db.read_dataframe(TableEnum.ResultOptHour.value)
+        self.opt_year = self.db.read_dataframe(TableEnum.ResultOptYear.value)
+        self.ref_hour = self.db.read_dataframe(TableEnum.ResultRefHour.value)
+        self.ref_year = self.db.read_dataframe(TableEnum.ResultRefYear.value)
 
-    def hourly_comparison_SEMS_reference(self) -> None:
-        reference_df = self.ref_hour
-        optimization_df = self.opt_hour
+
+    def compare_opt_ref(self, scenario_id: int) -> None:
+        reference_df = kit.filter_df(self.ref_hour, filter_dict={"ID_Scenario": scenario_id})
+        optimization_df = kit.filter_df(self.opt_hour, filter_dict={"ID_Scenario": scenario_id})
         # check if both tables have same columns
         assert sorted(list(reference_df.columns)) == sorted(list(optimization_df.columns))
         # determine how many subplots are needed by excluding profiles that are zero in both modes
@@ -57,4 +58,4 @@ class Analyzer:
         fig.show()
 
     def run(self):
-        self.hourly_comparison_SEMS_reference()
+        self.compare_opt_ref()
