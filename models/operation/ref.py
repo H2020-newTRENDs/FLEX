@@ -645,8 +645,7 @@ class RefOperationModel(OperationModel):
         Returns: grid_demand_after_DHW, electricity_surplus_after_DHW
         """
 
-        self.Q_DHWTank = np.full(pv_surplus.shape,
-                                 self.T_TankStart_DHW * self.CPWater * self.scenario.hot_water_tank.size)
+        self.Q_DHWTank = np.zeros(pv_surplus.shape)
         self.Q_DHWTank_out = np.zeros(pv_surplus.shape)
         self.Q_DHWTank_in = np.zeros(pv_surplus.shape)
 
@@ -733,7 +732,7 @@ class RefOperationModel(OperationModel):
                         self.Q_DHWTank_out[i] = q_tank_out
                         self.Q_DHWTank_bypass[i] -= q_tank_out
                         self.E_DHW_HP_out[i] -= q_tank_out / cop[i]
-                        grid_demand_after_hot_water_tank[i] -= q_tank_out / cop[i]  # ?
+                        grid_demand_after_hot_water_tank[i] -= q_tank_out / cop[i]
                         tank_temperature[i] = tank_temperature[i - 1] - (q_tank_out + tank_loss[i]) / tank_capacity
 
             self.Q_DHWTank = (tank_temperature + 273.15) * tank_capacity
