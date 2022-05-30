@@ -2,8 +2,8 @@ import pandas as pd
 import sqlalchemy.exc
 import sqlite3
 from models.operation.scenario import OperationScenario
-from models.operation.opt import OptOperationModel, OptimizationDataCollector
-from models.operation.ref import RefOperationModel, ReferenceDataCollector
+from models.operation.model_opt import OptOperationModel, OptimizationDataCollector
+from models.operation.model_ref import RefOperationModel, ReferenceDataCollector
 from basic.db import DB
 import basic.config as config
 
