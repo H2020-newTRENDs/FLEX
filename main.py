@@ -6,8 +6,8 @@ from config import config
 
 scenario = OperationScenario(scenario_id=1, config=config)
 
-# opt_model = OptOperationModel(scenario).run()
+opt_model = OptOperationModel(scenario).run()
 # OptDataCollector(opt_model, scenario.scenario_id, config).run()
 
 ref_model = RefOperationModel(scenario).run()
-RefDataCollector(ref_model, scenario.scenario_id, config).run()
+# RefDataCollector(ref_model, scenario.scenario_id, config).run()

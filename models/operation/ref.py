@@ -750,7 +750,7 @@ class RefOperationModel(OperationModel):
         self.PV2Grid = pv_surplus
         self.Feed2Grid = pv_surplus
         self.TotalCost = self.ElectricityPrice * grid_demand - pv_surplus * self.FiT
-        logger.info(f'Reference operation cost: {round(self.TotalCost.sum(), 2)}')
+        logger.info(f'RefCost: {round(self.TotalCost.sum(), 2)}')
 
     def run(self):
         """
