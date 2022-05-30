@@ -93,6 +93,7 @@ class OperationModel(ABC):
 
     def setup_space_cooling_params(self):
         self.CoolingCOP = self.scenario.space_cooling_technology.efficiency
+        self.CoolingHourlyCOP = np.ones(8760, ) * self.CoolingCOP
 
     def setup_pv_params(self):
         self.PhotovoltaicProfile = self.scenario.pv.generation
