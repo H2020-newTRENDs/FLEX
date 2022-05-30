@@ -86,7 +86,6 @@ class OptOperationModel(OperationModel):
         m.EVCharge = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.EVDischarge = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.EV2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals)
-        # m.EV2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.EV2Load = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # grid
@@ -170,7 +169,7 @@ class OptOperationModel(OperationModel):
 
         m.BatDischarge_rule = pyo.Constraint(m.t, rule=calc_BatDischarge)
 
-        # (7b) EV discharge with bidirectional charge --> V2B
+        # (7b) EV discharge
         def calc_EVDischarge(m, t):
             if m.t[t] == 1:
                 return m.EVDischarge[t] == 0  # start of simulation, battery is empty
@@ -539,7 +538,7 @@ class OptOperationModel(OperationModel):
                 instance.EVCharge_rule.activate()
                 instance.EVDischarge_rule.activate()
                 instance.EVSoC_rule.activate()
-                # instance.EVDischarge_noV2B_rule.deactivate()
+
             # in case there is no stationary battery available:
             if self.scenario.battery.capacity == 0:
                 max_discharge_EV = self.create_upper_bound_EV_discharge()
@@ -567,7 +566,6 @@ class OptOperationModel(OperationModel):
                 instance.EVCharge_rule.activate()
                 instance.EVDischarge_rule.activate()
                 instance.EVSoC_rule.activate()
-                # instance.EVDischarge_noV2B_rule.deactivate()
 
         # PV
         if self.scenario.pv.size == 0:
