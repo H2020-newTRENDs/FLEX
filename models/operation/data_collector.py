@@ -1,156 +1,113 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
+from abc import ABC, abstractmethod
+import sqlalchemy
+import pyomo.environ as pyo
 import pandas as pd
 import numpy as np
 import sqlalchemy.types
 from basics.db import create_db_conn
 from basics.kit import get_logger
+from models.operation.enums import ResultEnum
+
 
 if TYPE_CHECKING:
     from basics.config import Config
+    from models.operation.abstract import OperationModel
 
 logger = get_logger(__name__)
 
 
-class OptimizationDataCollector:
+class DataCollector(ABC):
 
-    def __init__(self, instance, scenario_id: int, config: 'Config'):
-        self.instance = instance
+    def __init__(self,
+                 model: Union['OperationModel', 'pyo.ConcreteModel'],
+                 scenario_id: int,
+                 config: 'Config'):
+        self.model = model
         self.scenario_id = scenario_id
         self.db = create_db_conn(config)
+        self.hour_result = {}
+        self.year_result = {}
 
-    def extend_to_array(self, array_or_value: np.array) -> np.array:
-        # check if array_or_value is an array or a single value:
-        if len(array_or_value) == 1:
-            return np.full((8760,), array_or_value)  # return array with same value
-        else:
-            return array_or_value
+    @abstractmethod
+    def get_var_values(self, variable_name: str) -> np.array:
+        ...
 
-    def collect_optimization_results_hourly(self) -> pd.DataFrame:
-        # empty dataframe
-        dataframe = pd.DataFrame()
-        # iterate over all variables in the instance
-        for result_name in self.instance.__dict__.keys():
-            if result_name.startswith("_") \
-                    or result_name == "doc" \
-                    or result_name == "statistics" \
-                    or result_name == "config" \
-                    or result_name == "solutions" \
-                    or result_name == "t" \
-                    or result_name == "Am" \
-                    or result_name == "Atot" \
-                    or result_name == "Qi" \
-                    or result_name == "Htr_w" \
-                    or result_name == "Htr_em" \
-                    or result_name == "Htr_3" \
-                    or result_name == "Htr_1" \
-                    or result_name == "Htr_2" \
-                    or result_name == "Hve" \
-                    or result_name == "Htr_ms" \
-                    or result_name == "Htr_is" \
-                    or result_name == "PHI_ia" \
-                    or result_name == "Cm" \
-                    or result_name == "BuildingMassTemperatureStartValue":  # do not save pyomo implemented types and the time set
-                continue
-            elif "rule" in result_name:  # do not save rules
-                continue
+    @abstractmethod
+    def get_total_cost(self) -> float:
+        ...
 
-            result_class = getattr(self.instance, result_name)
-            result_value = np.array(list(result_class.extract_values().values()))
-            dataframe[result_name] = self.extend_to_array(result_value)
-            # add the scenario id to the results
-            dataframe["scenario_id"] = self.scenario_id
-        return dataframe
+    @abstractmethod
+    def get_hour_result_table_name(self) -> str:
+        ...
 
-    def collect_optimization_results_yearly(self) -> pd.DataFrame:
-        # empty dictionary
-        dictionary = {}
-        # iterate over all variables in the instance
-        for result_name in self.instance.__dict__.keys():
-            # do not save pyomo implemented types and the time set and building parameters
-            if result_name.startswith("_") \
-                    or result_name == "doc" \
-                    or result_name == "statistics" \
-                    or result_name == "config" \
-                    or result_name == "solutions" \
-                    or result_name == "t" \
-                    or result_name == "DayHour" \
-                    or result_name == "Am" \
-                    or result_name == "Atot" \
-                    or result_name == "Qi" \
-                    or result_name == "Htr_w" \
-                    or result_name == "Htr_em" \
-                    or result_name == "Htr_3" \
-                    or result_name == "Htr_1" \
-                    or result_name == "Htr_2" \
-                    or result_name == "Hve" \
-                    or result_name == "Htr_ms" \
-                    or result_name == "Htr_is" \
-                    or result_name == "PHI_ia" \
-                    or result_name == "Cm" \
-                    or result_name == "BuildingMassTemperatureStartValue":
-                continue
-            elif "rule" in result_name:  # do not save rules
-                continue
+    @abstractmethod
+    def get_year_result_table_name(self) -> str:
+        ...
 
-            result_class = getattr(self.instance, result_name)
-            result_array = np.array(list(result_class.extract_values().values()))
-            if len(result_array) > 1:  # if its hourly value, take sum
-                # check if the values in every hour are exactly the same (eg. fixed feed in tariff):
-                if np.all(result_array == result_array[0]):
-                    result_value = result_array[0]
-                else:  # else take the sum
-                    result_value = result_array.sum()
-            else:  # if its already a single value, just take that value
-                result_value = result_array
-            # add the value to the dictionary with its name:
-            dictionary[result_name] = result_value
-        # create the dataframe
-        dataframe = pd.DataFrame(dictionary)
-        # add the scenario id to the results
-        dataframe["scenario_id"] = self.scenario_id
-        # get total_operation_cost:
-        dataframe["total_operation_cost"] = self.instance.total_operation_cost_rule()
-        return dataframe
+    def collect_result(self):
+        for variable_name, variable_enum in ResultEnum.__members__.items():
+            var_values = self.get_var_values(variable_name)
+            self.hour_result[variable_name] = var_values
+            if variable_enum.value == "year_include":
+                self.year_result[variable_name] = var_values.sum()
 
-    def save_hourly_results(self, if_exists: str = "append") -> None:
-        """
+    def save_hour_result(self):
+        result_hour_df = pd.DataFrame(self.hour_result)
+        result_hour_df.insert(loc=0, column="ID_Scenario", value=self.scenario_id)
+        self.db.write_dataframe(table_name=self.get_hour_result_table_name(),
+                                data_frame=result_hour_df)
 
-        Args:
-            if_exists: ['replace', 'fail', 'append' (default)]
+    def save_year_result(self):
+        result_year_df = pd.DataFrame(self.year_result, index=[0])
+        result_year_df.insert(loc=0, column="ID_Scenario", value=self.scenario_id)
+        result_year_df.insert(loc=1, column="TotalCost", value=self.get_total_cost())
+        self.db.write_dataframe(table_name=self.get_year_result_table_name(),
+                                data_frame=result_year_df)
 
-        Returns: None
+    def run(self):
+        self.collect_result()
+        self.save_hour_result()
+        self.save_year_result()
 
-        """
-        hourly_results = self.collect_optimization_results_hourly()
-        # set the datatype to float:
-        d_types_dict = {}
-        for column_name in hourly_results.columns:
-            d_types_dict[column_name] = sqlalchemy.types.Float
 
-        # save the dataframes to the result database
-        logger.info(f'OptimizationHourly has {len(hourly_results.columns)} columns.')
-        self.db.write_dataframe(table_name="Optimization_hourly",
-                                data_frame=hourly_results,
-                                data_types=d_types_dict,
-                                if_exists=if_exists)
+class OptDataCollector(DataCollector):
 
-    def save_yearly_results(self, if_exists: str = "append") -> None:
-        """
-        Args:
-            if_exists: ['replace', 'fail', 'append' (default)]
-        Returns: None
+    def get_var_values(self, variable_name: str) -> np.array:
+        var_values = np.array(list(self.model.__dict__[variable_name].extract_values().values()))
+        return var_values
 
-        """
-        yearly_results = self.collect_optimization_results_yearly()
-        # set the datatype to float:
-        d_types_dict = {}
-        for column_name in yearly_results.columns:
-            d_types_dict[column_name] = sqlalchemy.types.Float
-        # save the dataframes to the result database
-        self.db.write_dataframe(table_name="Optimization_yearly",
-                                data_frame=yearly_results,
-                                data_types=d_types_dict,
-                                if_exists=if_exists)
+    def get_total_cost(self) -> float:
+        total_cost = self.model.total_operation_cost_rule()
+        return total_cost
+
+    def get_hour_result_table_name(self) -> str:
+        return "Result_OptimizationHour"
+
+    def get_year_result_table_name(self) -> str:
+        return "Result_OptimizationYear"
+
+
+class RefDataCollector(DataCollector):
+
+    def get_var_values(self, variable_name: str) -> np.array:
+        var_values = np.array(self.model.__dict__[variable_name])
+        return var_values
+
+    def get_total_cost(self) -> float:
+        total_cost = self.model.__dict__["TotalCost"].sum()
+        return total_cost
+
+    def get_hour_result_table_name(self) -> str:
+        return "Result_ReferenceHour"
+
+    def get_year_result_table_name(self) -> str:
+        return "Result_ReferenceYear"
+
+
+
+
+
 
 
 class ReferenceDataCollector:
