@@ -107,6 +107,7 @@ class OperationModel(ABC):
         self.EVAtHomeProfile = self.scenario.behavior.vehicle_at_home
         self.EVChargeEfficiency = self.scenario.vehicle.charge_efficiency
         self.EVDischargeEfficiency = self.scenario.vehicle.discharge_efficiency
+        self.EVOptionV2B = self.scenario.vehicle.charge_bidirectional
         if self.scenario.vehicle.capacity > 0:
             self.test_vehicle_profile()  # test if vehicle makes model infeasible
 
