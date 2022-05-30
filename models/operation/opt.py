@@ -146,20 +146,20 @@ class OptOperationModel(OperationModel):
         m.SupplyOfLoads_rule = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
 
         # Battery:
-        # (6) Battery charge
+        # (6a) Battery charge
         def calc_BatCharge(m, t):
             return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] + m.EV2Bat[t] * m.EVAtHomeProfile[t] * self.EVOptionV2B
 
         m.BatCharge_rule = pyo.Constraint(m.t, rule=calc_BatCharge)
 
-        # (6a) EV charge
+        # (6b) EV charge
         def calc_EVCharge(m, t):
             return m.EVCharge[t] == m.PV2EV[t] * m.EVAtHomeProfile[t] + m.Grid2EV[t] * m.EVAtHomeProfile[t] \
                    + m.Bat2EV[t] * m.EVAtHomeProfile[t]
 
         m.EVCharge_rule = pyo.Constraint(m.t, rule=calc_EVCharge)
 
-        # (7) Battery discharge
+        # (7a) Battery discharge
         def calc_BatDischarge(m, t):
             if m.t[t] == 1:
                 return m.BatDischarge[t] == 0  # start of simulation, battery is empty
@@ -170,7 +170,7 @@ class OptOperationModel(OperationModel):
 
         m.BatDischarge_rule = pyo.Constraint(m.t, rule=calc_BatDischarge)
 
-        # (7a) EV discharge with bidirectional charge --> V2B
+        # (7b) EV discharge with bidirectional charge --> V2B
         def calc_EVDischarge(m, t):
             if m.t[t] == 1:
                 return m.EVDischarge[t] == 0  # start of simulation, battery is empty
@@ -181,17 +181,6 @@ class OptOperationModel(OperationModel):
                        + m.EVDemandProfile[t]
 
         m.EVDischarge_rule = pyo.Constraint(m.t, rule=calc_EVDischarge)
-
-        # # (7b) EV discharge without bidirectional charge --> no V2B
-        # def calc_EVDischarge_noV2B(m, t):
-        #     if m.t[t] == 1:
-        #         return m.EVDischarge[t] == 0  # start of simulation, battery is empty
-        #     elif m.t[t] == m.t[-1]:
-        #         return m.EVDischarge[t] == 0  # at the end of simulation Battery will be empty, so no discharge
-        #     else:
-        #         return m.EVDischarge[t] == m.EVDemandProfile[t]
-        #
-        # m.EVDischarge_noV2B_rule = pyo.Constraint(m.t, rule=calc_EVDischarge_noV2B)
 
         # (8) Battery SOC
         def calc_BatSoC(m, t):
