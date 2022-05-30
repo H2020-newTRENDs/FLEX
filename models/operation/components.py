@@ -49,7 +49,6 @@ class Boiler(Component):
     carnot_efficiency_factor: Optional[float] = None
     heating_supply_temperature: Optional[float] = None
     hot_water_supply_temperature: Optional[float] = None
-    db_name: Optional[str] = None
 
 
 @dataclass

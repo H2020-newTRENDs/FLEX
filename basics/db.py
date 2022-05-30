@@ -28,7 +28,7 @@ class DB:
             self.connection.execute(f"drop table {table_name}")
 
     def drop_table(self, table_name: str):
-        self.connection.execute(f"drop table {table_name}")
+        self.connection.execute(f"drop table if exists {table_name}")
 
     def write_dataframe(self,
                         table_name: str,
