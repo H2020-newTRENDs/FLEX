@@ -46,9 +46,6 @@ class DB:
             df = df[column_names]
         return df
 
-    def drop_table(self, table_name: str) -> None:
-        self.connection.execute(f'drop table if exists  {table_name} ;')
-
     def delete_row_from_table(self, table_name: str, column_name_plus_value: dict) -> None:
         condition_temp = ""
         for key, value in column_name_plus_value.items():

@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from basics.db import create_db_conn
 from basics.kit import get_logger
-from models.operation.enums import ResultEnum
+from models.operation.enums import ResultEnum, TableEnum
 
 
 if TYPE_CHECKING:
@@ -81,10 +81,10 @@ class OptDataCollector(DataCollector):
         return total_cost
 
     def get_hour_result_table_name(self) -> str:
-        return "Result_OptimizationHour"
+        return TableEnum.ResultOptHour.value
 
     def get_year_result_table_name(self) -> str:
-        return "Result_OptimizationYear"
+        return TableEnum.ResultOptYear.value
 
 
 class RefDataCollector(DataCollector):
@@ -98,9 +98,9 @@ class RefDataCollector(DataCollector):
         return total_cost
 
     def get_hour_result_table_name(self) -> str:
-        return "Result_ReferenceHour"
+        return TableEnum.ResultRefHour.value
 
     def get_year_result_table_name(self) -> str:
-        return "Result_ReferenceYear"
+        return TableEnum.ResultRefYear.value
 
 
