@@ -715,5 +715,5 @@ class OptOperationModel(OperationModel):
         abstract_model = self.setup_abstract_model()
         instance = self.setup_instance(abstract_model)
         solved_instance = self.solve_instance(instance)
-        logger.info(f'Optimal operation cost: {round(solved_instance.total_operation_cost_rule(), 2)}')
+        logger.info(f'OptCost: {round(solved_instance.total_operation_cost_rule(), 2)}')
         return solved_instance
