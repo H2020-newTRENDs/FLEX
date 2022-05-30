@@ -53,6 +53,7 @@ class DataCollector(ABC):
     def save_hour_result(self):
         result_hour_df = pd.DataFrame(self.hour_result)
         result_hour_df.insert(loc=0, column="ID_Scenario", value=self.scenario_id)
+        result_hour_df.insert(loc=1, column="Hour", value=list(range(1, 8761)))
         self.db.write_dataframe(table_name=self.get_hour_result_table_name(),
                                 data_frame=result_hour_df)
 
