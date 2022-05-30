@@ -67,7 +67,7 @@ class PlotlyVisualize(MotherVisualization):
         x_axis = np.arange(8760)
         reference_load = self.hourly_results_reference_df.Load.to_numpy() / 1000  # kW
         optimization_load = self.hourly_results_optimization_df.Load.to_numpy() / 1000  # kW
-        electricity_price = self.hourly_results_reference_df.electricity_price.to_numpy() * 1000  # ct/kWh
+        electricity_price = self.hourly_results_reference_df.ElectricityPrice.to_numpy() * 1000  # ct/kWh
 
         fig = make_subplots(rows=1, cols=1,
                             shared_xaxes=True, specs=[[{"secondary_y": True}]])
