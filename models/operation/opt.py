@@ -205,8 +205,8 @@ class OptOperationModel(OperationModel):
         # (9) energy in the space heating tank
         def tank_energy_heating(m, t):
             if t == 1:
-                return m.Q_HeatingTank[t] == self.CPWater * self.M_WaterTank_heating * (273.15 + self.T_TankStart_heating) - \
-                       m.Q_HeatingTank_out[t]
+                return m.Q_HeatingTank[t] == self.CPWater * self.M_WaterTank_heating * \
+                       (273.15 + self.T_TankStart_heating) - m.Q_HeatingTank_out[t]
             else:
                 return m.Q_HeatingTank[t] == m.Q_HeatingTank[t - 1] - m.Q_HeatingTank_out[t] + m.Q_HeatingTank_in[t] \
                        - self.U_LossTank_heating * self.A_SurfaceTank_heating * (

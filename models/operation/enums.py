@@ -37,6 +37,10 @@ class TableEnum(Enum):
     BehaviorProfile = 'Scenario_Profile_Behavior'
     EnergyPriceProfile = 'Scenario_Profile_EnergyPrice'
     RegionWeatherProfile = 'Scenario_Profile_RegionWeather'
+    ResultOptHour = 'Result_OptimizationHour'
+    ResultOptYear = 'Result_OptimizationYear'
+    ResultRefHour = 'Result_ReferenceHour'
+    ResultRefYear = 'Result_ReferenceYear'
 
 
 class ResultEnum(Enum):
