@@ -31,7 +31,7 @@ def performance_counter(func):
         result = func(*args)
         t_end = time.perf_counter()
         exe_time = round(t_end - t_start, 3)
-        logger.info(f"function {func.__name__} - execution time: {exe_time}s.")
+        logger.info(f"execution time: {func.__name__} - {exe_time}s.")
         return result
 
     return wrapper
