@@ -46,8 +46,8 @@ class Analyzer:
                             subplot_titles=sorted(list(reference_df.columns)),
                             shared_xaxes=True)
         for i, column_name in enumerate(sorted(list(reference_df.columns))):
-            fig.add_trace(go.Scatter(x=x_axis, y=reference_df[column_name], name="reference"), row=i + 1, col=1)
-            fig.add_trace(go.Scatter(x=x_axis, y=optimization_df[column_name], name="SEMS"), row=i + 1, col=1)
+            fig.add_trace(go.Scatter(x=x_axis, y=reference_df[column_name], name="Ref"), row=i + 1, col=1)
+            fig.add_trace(go.Scatter(x=x_axis, y=optimization_df[column_name], name="Opt"), row=i + 1, col=1)
 
         fig.update_layout(height=400 * column_number, width=1600)
         fig.show()
