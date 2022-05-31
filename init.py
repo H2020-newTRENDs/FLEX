@@ -23,6 +23,12 @@ class ProjectDatabaseInitializer(DatabaseInitializer):
         self.load_source_table(TableEnum.EnergyPriceProfile)
         self.load_source_table(TableEnum.RegionWeatherProfile)
 
+    def drop_tables(self):
+        self.db.drop_table(TableEnum.ResultOptHour)
+        self.db.drop_table(TableEnum.ResultOptYear)
+        self.db.drop_table(TableEnum.ResultRefHour)
+        self.db.drop_table(TableEnum.ResultRefYear)
+
 
 if __name__ == "__main__":
     init = ProjectDatabaseInitializer(config=config, scenario_enums=ScenarioEnum)
