@@ -291,7 +291,7 @@ class OperationModel(ABC):
         for i, heat_demand in enumerate(heating_demand):
             # if heat demand == 0 and the heat demand in the following 8 hours is also 0 and the heat demand of 3
             # hours before that is also 0, then the max temperature is raised so model does not become infeasible:
-            if heat_demand == 0 and \
+            if heat_demand == 0 and i + 8 < 8760 and\
                    heating_demand[i - 3] == 0 and \
                    heating_demand[i - 2] == 0 and \
                    heating_demand[i - 1] == 0 and \
