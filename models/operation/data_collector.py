@@ -22,14 +22,12 @@ class DataCollector(ABC):
     def __init__(self,
                  model: Union['OperationModel', 'pyo.ConcreteModel'],
                  scenario_id: int,
-                 config: 'Config',
-                 fuel_boiler_result: dict = None):
+                 config: 'Config'):
         self.model = model
         self.scenario_id = scenario_id
         self.db = create_db_conn(config)
         self.hour_result = {}
         self.year_result = {}
-        self.fuel_boiler_result = fuel_boiler_result
 
     @abstractmethod
     def get_var_values(self, variable_name: str) -> np.array:
@@ -49,10 +47,7 @@ class DataCollector(ABC):
 
     def collect_result(self):
         for variable_name, variable_enum in ResultEnum.__members__.items():
-            if variable_name in self.fuel_boiler_result.keys():
-                var_values = self.fuel_boiler_result[variable_name]
-            else:
-                var_values = self.get_var_values(variable_name)
+            var_values = self.get_var_values(variable_name)
             self.hour_result[variable_name] = var_values
             if variable_enum.value == "year_include":
                 self.year_result[variable_name] = var_values.sum()
