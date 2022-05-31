@@ -623,7 +623,6 @@ class OptOperationModel(OperationModel):
         abstract_model = self.setup_abstract_model()
         instance = self.setup_instance(abstract_model)
         solved_instance = self.solve_instance(instance)
-        logger.info(f'OptCost: {round(solved_instance.total_operation_cost_rule(), 2)}')
         return solved_instance
 
     def run(self):
@@ -631,5 +630,6 @@ class OptOperationModel(OperationModel):
             solved_instance = self.run_heatpump_opt()
         else:
             solved_instance = self.run_fuel_boiler_opt()
+        logger.info(f'OptCost: {round(solved_instance.total_operation_cost_rule(), 2)}')
         return solved_instance
 

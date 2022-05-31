@@ -295,7 +295,6 @@ class RefOperationModel(OperationModel):
         self.PV2Grid = pv_surplus
         self.Feed2Grid = pv_surplus
         self.TotalCost = self.ElectricityPrice * grid_demand - pv_surplus * self.FiT
-        logger.info(f'RefCost: {round(self.TotalCost.sum(), 2)}')
 
     def run_fuel_boiler_ref(self):
         outside_temperature, q_solar, hot_water_demand = self.fuel_boiler_save_scenario()
@@ -338,5 +337,6 @@ class RefOperationModel(OperationModel):
             model_ref = self.run_heatpump_ref()
         else:
             model_ref = self.run_fuel_boiler_ref()
+        logger.info(f'RefCost: {round(self.TotalCost.sum(), 2)}')
         return model_ref
 
