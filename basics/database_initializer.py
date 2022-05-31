@@ -79,7 +79,11 @@ class DatabaseInitializer:
         self.db.write_dataframe(self.scenario_enums.Scenario.table_name, scenario_df,
                                 data_types=data_types, if_exists='replace')
 
+    def drop_tables(self):
+        pass
+
     def main(self):
         self.load_component_scenario_tables()
         self.load_other_source_tables()
         self.setup_scenario()
+        self.drop_tables()
