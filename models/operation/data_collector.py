@@ -1,6 +1,8 @@
 from typing import TYPE_CHECKING, Union
 from abc import ABC, abstractmethod
 import pyomo.environ as pyo
+from pyomo.core.base.param import IndexedParam
+from pyomo.core.base.var import IndexedVar
 import pandas as pd
 import numpy as np
 from basics.db import create_db_conn
@@ -20,12 +22,14 @@ class DataCollector(ABC):
     def __init__(self,
                  model: Union['OperationModel', 'pyo.ConcreteModel'],
                  scenario_id: int,
-                 config: 'Config'):
+                 config: 'Config',
+                 fuel_boiler_result: dict = None):
         self.model = model
         self.scenario_id = scenario_id
         self.db = create_db_conn(config)
         self.hour_result = {}
         self.year_result = {}
+        self.fuel_boiler_result = fuel_boiler_result
 
     @abstractmethod
     def get_var_values(self, variable_name: str) -> np.array:
@@ -45,7 +49,10 @@ class DataCollector(ABC):
 
     def collect_result(self):
         for variable_name, variable_enum in ResultEnum.__members__.items():
-            var_values = self.get_var_values(variable_name)
+            if variable_name in self.fuel_boiler_result.keys():
+                var_values = self.fuel_boiler_result[variable_name]
+            else:
+                var_values = self.get_var_values(variable_name)
             self.hour_result[variable_name] = var_values
             if variable_enum.value == "year_include":
                 self.year_result[variable_name] = var_values.sum()
@@ -54,6 +61,7 @@ class DataCollector(ABC):
         result_hour_df = pd.DataFrame(self.hour_result)
         result_hour_df.insert(loc=0, column="ID_Scenario", value=self.scenario_id)
         result_hour_df.insert(loc=1, column="Hour", value=list(range(1, 8761)))
+        result_hour_df.insert(loc=2, column="DayHour", value=np.tile(np.arange(1, 25), 365))
         self.db.write_dataframe(table_name=self.get_hour_result_table_name(),
                                 data_frame=result_hour_df)
 

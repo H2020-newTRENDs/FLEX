@@ -330,7 +330,9 @@ class OperationModel(ABC):
             COP = np.array([efficiency * (supply_temperature + 273.15) / (supply_temperature - 10) for temp in
                             outside_temperature])
         else:
-            assert "only >>air<< and >>ground<< are valid arguments"
+            # for fuel-based boiler, we initialize the COP with "Air_HP"
+            COP = np.array([efficiency * (supply_temperature + 273.15) / (supply_temperature - temp) for temp in
+                            outside_temperature])
         return COP
 
     def generate_maximum_electric_heat_pump_power(self):
