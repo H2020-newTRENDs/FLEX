@@ -21,7 +21,7 @@ class ProjectDatabaseInitializer(DatabaseInitializer):
     def load_other_source_tables(self):
         self.load_source_table(TableEnum.BehaviorProfile)
         self.load_source_table(TableEnum.EnergyPriceProfile)
-        self.load_source_table(TableEnum.RegionWeatherProfile)
+        # self.load_source_table(TableEnum.RegionWeatherProfile)
 
     def drop_tables(self):
         self.db.drop_table(TableEnum.ResultOptHour)
