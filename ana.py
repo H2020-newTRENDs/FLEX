@@ -9,4 +9,5 @@ class ProjectAnalyzer(Analyzer):
 if __name__ == "__main__":
     analyzer = ProjectAnalyzer(config)
     # analyzer.compare_opt_ref(1)
-    analyzer.compare_opt(id1=1, id2=16)
+    # analyzer.compare_opt(id1=1, id2=16)
+    analyzer.compare_ref(id1=1, id2=16)

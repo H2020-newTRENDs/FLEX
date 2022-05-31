@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING
 import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -12,10 +11,14 @@ if TYPE_CHECKING:
     from basics.config import Config
 
 
+logger = kit.get_logger(__name__)
+
+
 class Analyzer:
 
     def __init__(self, config: 'Config'):
         self.db = create_db_conn(config)
+        logger.info('Loading result tables...')
         self.opt_hour = self.db.read_dataframe(TableEnum.ResultOptHour.value)
         self.opt_year = self.db.read_dataframe(TableEnum.ResultOptYear.value)
         self.ref_hour = self.db.read_dataframe(TableEnum.ResultRefHour.value)

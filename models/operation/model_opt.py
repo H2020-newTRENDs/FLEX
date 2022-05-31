@@ -590,12 +590,14 @@ class OptOperationModel(OperationModel):
 
         return instance
 
-    # @performance_counter
-    def setup_instance(self, model):
+    @performance_counter
+    def setup_instance(self):
+        # logger.info("Creating instance...")
+        model = self.setup_abstract_model()
         instance = self.config_instance(model.create_instance(data=self.params_dict))
         return instance
 
-    # @performance_counter
+    @performance_counter
     def solve_instance(self, instance2solve):
         # logger.info("Solving optimization...")
         pyo.SolverFactory("gurobi").solve(instance2solve, tee=False)
@@ -620,8 +622,7 @@ class OptOperationModel(OperationModel):
         return solved_instance
 
     def run_heatpump_opt(self):
-        abstract_model = self.setup_abstract_model()
-        instance = self.setup_instance(abstract_model)
+        instance = self.setup_instance()
         solved_instance = self.solve_instance(instance)
         return solved_instance
 
