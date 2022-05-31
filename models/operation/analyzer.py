@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -20,35 +21,44 @@ class Analyzer:
         self.ref_hour = self.db.read_dataframe(TableEnum.ResultRefHour.value)
         self.ref_year = self.db.read_dataframe(TableEnum.ResultRefYear.value)
 
+    def compare_opt(self, id1, id2) -> None:
+        df1 = kit.filter_df(self.opt_hour, filter_dict={"ID_Scenario": id1})
+        df2 = kit.filter_df(self.opt_hour, filter_dict={"ID_Scenario": id2})
+        name1 = f'opt_{id1}'
+        name2 = f'opt_{id2}'
+        self.gen_html(df1, df2, name1, name2)
+
+    def compare_ref(self, id1, id2) -> None:
+        df1 = kit.filter_df(self.ref_hour, filter_dict={"ID_Scenario": id1})
+        df2 = kit.filter_df(self.ref_hour, filter_dict={"ID_Scenario": id2})
+        name1 = f'ref_{id1}'
+        name2 = f'ref_{id2}'
+        self.gen_html(df1, df2, name1, name2)
+
     def compare_opt_ref(self, scenario_id: int) -> None:
-        reference_df = kit.filter_df(self.ref_hour, filter_dict={"ID_Scenario": scenario_id})
-        optimization_df = kit.filter_df(self.opt_hour, filter_dict={"ID_Scenario": scenario_id})
-        # check if both tables have same columns
-        assert sorted(list(reference_df.columns)) == sorted(list(optimization_df.columns))
+        opt_df = kit.filter_df(self.opt_hour, filter_dict={"ID_Scenario": scenario_id})
+        ref_df = kit.filter_df(self.ref_hour, filter_dict={"ID_Scenario": scenario_id})
+        name1 = f'opt_{scenario_id}'
+        name2 = f'ref_{scenario_id}'
+        self.gen_html(opt_df, ref_df, name1, name2)
+
+    @staticmethod
+    def gen_html(df1, df2, name1: str, name2: str):
+        assert sorted(list(df1.columns)) == sorted(list(df2.columns))
         # determine how many subplots are needed by excluding profiles that are zero in both modes
-        for column_name in reference_df.columns:
-            if (reference_df[column_name] == 0).all() and (optimization_df[column_name] == 0).all():
-                reference_df = reference_df.drop(columns=[column_name])
-                optimization_df = optimization_df.drop(columns=[column_name])
+        for column_name in df1.columns:
+            if (df1[column_name] == 0).all() and (df2[column_name] == 0).all():
+                df1 = df1.drop(columns=[column_name])
+                df2 = df2.drop(columns=[column_name])
                 continue
-            # also exclude columns where all values are static (eg battery size) and the same:
-            if (reference_df[column_name].to_numpy()[0] == reference_df[column_name].to_numpy()).all() and \
-                    (optimization_df[column_name].to_numpy()[0] == optimization_df[column_name].to_numpy()).all():
-                reference_df = reference_df.drop(columns=[column_name])
-                optimization_df = optimization_df.drop(columns=[column_name])
-
         # count the columns which will be the number of subplots:
-        column_number = len(list(reference_df.columns))
-        # x-axis are the hours
-        x_axis = np.arange(8760)
-        # create plot
-        fig = make_subplots(rows=column_number, cols=1,
-                            subplot_titles=sorted(list(reference_df.columns)),
+        subplots_number = len(list(df1.columns))
+        fig = make_subplots(rows=subplots_number, cols=1,
+                            subplot_titles=sorted(list(df1.columns)),
                             shared_xaxes=True)
-        for i, column_name in enumerate(sorted(list(reference_df.columns))):
-            fig.add_trace(go.Scatter(x=x_axis, y=reference_df[column_name], name="Ref"), row=i + 1, col=1)
-            fig.add_trace(go.Scatter(x=x_axis, y=optimization_df[column_name], name="Opt"), row=i + 1, col=1)
-
-        fig.update_layout(height=400 * column_number, width=1600)
+        for i, column_name in enumerate(sorted(list(df1.columns))):
+            fig.add_trace(go.Scatter(x=np.arange(8760), y=df1[column_name], name=name1), row=i + 1, col=1)
+            fig.add_trace(go.Scatter(x=np.arange(8760), y=df2[column_name], name=name2), row=i + 1, col=1)
+        fig.update_layout(height=400 * subplots_number, width=1600)
         fig.show()
 
