@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 from models.operation import components
 
 
@@ -6,7 +6,7 @@ class ScenarioEnum(Enum):
     Scenario = "scenario"
     Region = "region"
     Building = "building"
-    Boiler = "boiler"  # TODO: this name is a bit confusing, better to be "SpaceHeatingTechnology"
+    Boiler = "boiler"
     SpaceHeatingTank = "space_heating_tank"
     HotWaterTank = "hot_water_tank"
     SpaceCoolingTechnology = "space_cooling_technology"
@@ -44,9 +44,6 @@ class TableEnum(Enum):
 
 
 class ResultEnum(Enum):
-
-    # time
-    DayHour = "year_not_include"
 
     # space heating
     T_outside = "year_not_include"
@@ -89,7 +86,7 @@ class ResultEnum(Enum):
     PV2EV = "year_include"
 
     # battery
-    BatSoC = "year_include"
+    BatSoC = "year_not_include"
     BatCharge = "year_include"
     BatDischarge = "year_include"
     Bat2Load = "year_include"
