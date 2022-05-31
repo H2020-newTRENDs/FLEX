@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 from models.operation.model_base import OperationModel
 from basics.kit import get_logger
 
@@ -296,7 +297,25 @@ class RefOperationModel(OperationModel):
         self.TotalCost = self.ElectricityPrice * grid_demand - pv_surplus * self.FiT
         logger.info(f'RefCost: {round(self.TotalCost.sum(), 2)}')
 
-    def run(self):
+    def run_fuel_boiler_ref(self):
+        outside_temperature, q_solar, hot_water_demand = self.fuel_boiler_save_scenario()
+        heating_cost, cooling_cost, heating_demand, cooling_demand, room_temperature, building_mass_temperature = \
+            self.fuel_boiler_heating_cooling()
+        hot_water_cost = self.fuel_boiler_hot_water()
+        self.fuel_boiler_remove_heating_cooling_hot_water_demand()
+        self.run_heatpump_ref()
+        self.T_outside = outside_temperature
+        self.Q_Solar = q_solar
+        self.Q_RoomHeating = heating_demand
+        self.Q_RoomCooling = cooling_demand
+        self.E_RoomCooling = cooling_demand / self.CoolingCOP
+        self.T_Room = room_temperature
+        self.T_BuildingMass = building_mass_temperature
+        self.HotWaterProfile = hot_water_demand
+        self.TotalCost += (heating_cost + cooling_cost + hot_water_cost)/8760
+        return self
+
+    def run_heatpump_ref(self):
         """
         Assumption for the Reference scenario: the produced PV power is always used for the immediate electric demand,
         if there is a surplus of PV power, it will be used to charge the Battery,
@@ -312,7 +331,12 @@ class RefOperationModel(OperationModel):
         grid_demand, pv_surplus = self.calculate_ev_energy(grid_demand, pv_surplus)
         grid_demand, pv_surplus = self.calc_hot_water_tank_energy(grid_demand, pv_surplus)
         self.calc_grid(grid_demand, pv_surplus)
-
         return self
 
+    def run(self):
+        if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
+            model_ref = self.run_heatpump_ref()
+        else:
+            model_ref = self.run_fuel_boiler_ref()
+        return model_ref
 

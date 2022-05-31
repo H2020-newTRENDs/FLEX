@@ -610,6 +610,7 @@ class OptOperationModel(OperationModel):
         heating_cost, cooling_cost, heating_demand, cooling_demand, room_temperature, building_mass_temperature = \
             self.fuel_boiler_heating_cooling()
         hot_water_cost = self.fuel_boiler_hot_water()
+        self.fuel_boiler_remove_heating_cooling_hot_water_demand()
         solved_instance = self.run_heatpump_opt()
         solved_instance.__dict__['T_outside'].store_values(self.create_dict(outside_temperature))
         solved_instance.__dict__['Q_Solar'].store_values(self.create_dict(q_solar))
@@ -621,31 +622,6 @@ class OptOperationModel(OperationModel):
         solved_instance.__dict__['HotWaterProfile'].store_values(self.create_dict(hot_water_demand))
         solved_instance.__dict__['total_operation_cost_rule'] += (heating_cost + cooling_cost + hot_water_cost)
         return solved_instance
-
-    def fuel_boiler_save_scenario(self):
-        outside_temperature = copy.deepcopy(self.T_outside)
-        q_solar = copy.deepcopy(self.Q_Solar)
-        hot_water_demand = copy.deepcopy(self.HotWaterProfile)
-        return outside_temperature, q_solar, hot_water_demand
-
-    def fuel_boiler_heating_cooling(self):
-        fuel_type: str = self.scenario.boiler.type
-        fuel_price = self.scenario.energy_price.__dict__[fuel_type]
-        electricity_price = self.scenario.energy_price.electricity
-        heating_demand, cooling_demand, room_temperature, building_mass_temperature = \
-            self.calculate_heating_and_cooling_demand()
-        heating_cost = (fuel_price * heating_demand).sum()
-        cooling_cost = (electricity_price * cooling_demand / self.CoolingCOP).sum()
-        self.T_outside = 24 * np.ones(8760, )
-        self.Q_Solar = np.zeros(8760, )
-        return heating_cost, cooling_cost, heating_demand, cooling_demand, room_temperature, building_mass_temperature
-
-    def fuel_boiler_hot_water(self):
-        fuel_type: str = self.scenario.boiler.type
-        fuel_price = self.scenario.energy_price.__dict__[fuel_type]
-        hot_water_cost = (fuel_price * self.HotWaterProfile).sum()
-        self.HotWaterProfile = np.zeros(8760, )
-        return hot_water_cost
 
     def run_heatpump_opt(self):
         abstract_model = self.setup_abstract_model()
