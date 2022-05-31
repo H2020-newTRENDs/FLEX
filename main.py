@@ -7,7 +7,8 @@ from basics.kit import get_logger
 
 logger = get_logger(__name__)
 
-scenario_ids = [1, 17]
+# scenario_ids = [1, 2, 31, 33, 34, 63]
+scenario_ids = [1]
 for scenario_id in scenario_ids:
     logger.info(f'Scenario = {scenario_id}')
     scenario = OperationScenario(scenario_id=scenario_id, config=config)
