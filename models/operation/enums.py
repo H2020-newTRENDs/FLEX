@@ -54,7 +54,7 @@ class ResultEnum(Enum):
     Q_HeatingTank_in = "year_include"
     Q_HeatingElement = "year_include"
     Q_HeatingTank_out = "year_include"
-    Q_HeatingTank = "year_include"
+    Q_HeatingTank = "year_not_include"
     Q_HeatingTank_bypass = "year_include"
     E_Heating_HP_out = "year_include"
     Q_RoomHeating = "year_include"
@@ -66,7 +66,7 @@ class ResultEnum(Enum):
     HotWaterHourlyCOP = "year_not_include"
     HotWaterHourlyCOP_tank = "year_not_include"
 
-    Q_DHWTank = "year_include"
+    Q_DHWTank = "year_not_include"
     Q_DHWTank_out = "year_include"
     Q_DHWTank_in = "year_include"
     Q_DHWTank_bypass = "year_include"
@@ -96,7 +96,7 @@ class ResultEnum(Enum):
     EVDemandProfile = "year_include"
     EVAtHomeProfile = "year_not_include"
 
-    EVSoC = "year_include"
+    EVSoC = "year_not_include"
     EVCharge = "year_include"
     EVDischarge = "year_include"
     EV2Bat = "year_include"
