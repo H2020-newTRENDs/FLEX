@@ -27,7 +27,7 @@ class RefOperationModel(OperationModel):
         self.E_RoomCooling = self.Q_RoomCooling / self.CoolingCOP
 
     def calc_hot_water_demand(self):
-        self.Q_DHWTank_bypass = self.HotWaterProfile
+        self.Q_DHWTank_bypass = copy.deepcopy(self.HotWaterProfile)
         self.E_DHW_HP_out = self.Q_DHWTank_bypass / self.HotWaterHourlyCOP
 
     def calc_load(self):
