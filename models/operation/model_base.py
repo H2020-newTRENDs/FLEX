@@ -1,5 +1,6 @@
 from abc import ABC
 import numpy as np
+import copy
 from models.operation.scenario import OperationScenario
 
 
@@ -148,8 +149,8 @@ class OperationModel(ABC):
             room_temperature = np.zeros(shape=(100,))
 
         else:
-            Q_solar = self.calculate_solar_gains()
-            T_outside = self.scenario.region.temperature
+            Q_solar = self.Q_Solar
+            T_outside = self.T_outside
             T_air_min = self.scenario.behavior.target_temperature_array_min
             time = np.arange(8760)
 
@@ -403,3 +404,31 @@ class OperationModel(ABC):
                                                                   "returning home."
             else:  # vehicle returns home -> counter is set to 0
                 counter = 0
+
+    def fuel_boiler_save_scenario(self):
+        outside_temperature = copy.deepcopy(self.T_outside)
+        q_solar = copy.deepcopy(self.Q_Solar)
+        hot_water_demand = copy.deepcopy(self.HotWaterProfile)
+        return outside_temperature, q_solar, hot_water_demand
+
+    def fuel_boiler_heating_cooling(self):
+        fuel_type: str = self.scenario.boiler.type
+        fuel_price = self.scenario.energy_price.__dict__[fuel_type]
+        electricity_price = self.scenario.energy_price.electricity
+        heating_demand, cooling_demand, room_temperature, building_mass_temperature = \
+            self.calculate_heating_and_cooling_demand()
+        heating_cost = (fuel_price * heating_demand).sum()
+        cooling_cost = (electricity_price * cooling_demand / self.CoolingCOP).sum()
+        return heating_cost, cooling_cost, heating_demand, cooling_demand, room_temperature, building_mass_temperature
+
+    def fuel_boiler_hot_water(self):
+        fuel_type: str = self.scenario.boiler.type
+        fuel_price = self.scenario.energy_price.__dict__[fuel_type]
+        hot_water_cost = (fuel_price * self.HotWaterProfile).sum()
+        return hot_water_cost
+
+    def fuel_boiler_remove_heating_cooling_hot_water_demand(self):
+        self.T_outside = 24 * np.ones(8760, )
+        self.Q_Solar = np.zeros(8760, )
+        self.HotWaterProfile = np.zeros(8760, )
+
