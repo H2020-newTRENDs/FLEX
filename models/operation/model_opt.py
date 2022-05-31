@@ -22,8 +22,8 @@ class OptOperationModel(OperationModel):
         # -------------
 
         # region
-        m.T_outside = pyo.Param(m.t)  # °C
-        m.Q_Solar = pyo.Param(m.t)  # W
+        m.T_outside = pyo.Param(m.t, mutable=True)  # °C
+        m.Q_Solar = pyo.Param(m.t, mutable=True)  # W
         # space heating
         m.SpaceHeatingHourlyCOP = pyo.Param(m.t)
         m.SpaceHeatingHourlyCOP_tank = pyo.Param(m.t)
@@ -42,7 +42,7 @@ class OptOperationModel(OperationModel):
         m.ElectricityPrice = pyo.Param(m.t)
         m.FiT = pyo.Param(m.t)
         # behavior
-        m.HotWaterProfile = pyo.Param(m.t)
+        m.HotWaterProfile = pyo.Param(m.t, mutable=True)
         m.BaseLoadProfile = pyo.Param(m.t)
 
         # ----------------------------
@@ -606,21 +606,27 @@ class OptOperationModel(OperationModel):
         return instance2solve
 
     def run_fuel_boiler_opt(self):
+        outside_temperature, q_solar, hot_water_demand = self.fuel_boiler_save_scenario()
         heating_cost, cooling_cost, heating_demand, cooling_demand, room_temperature, building_mass_temperature = \
             self.fuel_boiler_heating_cooling()
-        outside_temperature, q_solar = self.fuel_boiler_save_and_change_scenario()
-        solved_instance, fuel_boiler_result = self.run_heatpump_opt()
-        fuel_boiler_result = {
-            'T_outside': outside_temperature,
-            'Q_Solar': q_solar,
-            'Q_RoomHeating': heating_demand,
-            'Q_RoomCooling': cooling_demand,
-            'E_RoomCooling': cooling_demand / self.CoolingCOP,
-            'T_Room': room_temperature,
-            'T_BuildingMass': building_mass_temperature
-        }
-        solved_instance.__dict__['total_operation_cost_rule'] += (heating_cost + cooling_cost)
-        return solved_instance, fuel_boiler_result
+        hot_water_cost = self.fuel_boiler_hot_water()
+        solved_instance = self.run_heatpump_opt()
+        solved_instance.__dict__['T_outside'].store_values(self.create_dict(outside_temperature))
+        solved_instance.__dict__['Q_Solar'].store_values(self.create_dict(q_solar))
+        solved_instance.__dict__['Q_RoomHeating'].set_values(self.create_dict(heating_demand))
+        solved_instance.__dict__['Q_RoomCooling'].set_values(self.create_dict(cooling_demand))
+        solved_instance.__dict__['E_RoomCooling'].set_values(self.create_dict(cooling_demand / self.CoolingCOP))
+        solved_instance.__dict__['T_Room'].set_values(self.create_dict(room_temperature))
+        solved_instance.__dict__['T_BuildingMass'].set_values(self.create_dict(building_mass_temperature))
+        solved_instance.__dict__['HotWaterProfile'].store_values(self.create_dict(hot_water_demand))
+        solved_instance.__dict__['total_operation_cost_rule'] += (heating_cost + cooling_cost + hot_water_cost)
+        return solved_instance
+
+    def fuel_boiler_save_scenario(self):
+        outside_temperature = copy.deepcopy(self.T_outside)
+        q_solar = copy.deepcopy(self.Q_Solar)
+        hot_water_demand = copy.deepcopy(self.HotWaterProfile)
+        return outside_temperature, q_solar, hot_water_demand
 
     def fuel_boiler_heating_cooling(self):
         fuel_type: str = self.scenario.boiler.type
@@ -630,26 +636,28 @@ class OptOperationModel(OperationModel):
             self.calculate_heating_and_cooling_demand()
         heating_cost = (fuel_price * heating_demand).sum()
         cooling_cost = (electricity_price * cooling_demand / self.CoolingCOP).sum()
-        return heating_cost, cooling_cost, heating_demand, cooling_demand, room_temperature, building_mass_temperature
-
-    def fuel_boiler_save_and_change_scenario(self):
-        outside_temperature = copy.deepcopy(self.T_outside)
-        q_solar = copy.deepcopy(self.Q_Solar)
         self.T_outside = 24 * np.ones(8760, )
         self.Q_Solar = np.zeros(8760, )
-        return outside_temperature, q_solar
+        return heating_cost, cooling_cost, heating_demand, cooling_demand, room_temperature, building_mass_temperature
+
+    def fuel_boiler_hot_water(self):
+        fuel_type: str = self.scenario.boiler.type
+        fuel_price = self.scenario.energy_price.__dict__[fuel_type]
+        hot_water_cost = (fuel_price * self.HotWaterProfile).sum()
+        self.HotWaterProfile = np.zeros(8760, )
+        return hot_water_cost
 
     def run_heatpump_opt(self):
         abstract_model = self.setup_abstract_model()
         instance = self.setup_instance(abstract_model)
         solved_instance = self.solve_instance(instance)
         logger.info(f'OptCost: {round(solved_instance.total_operation_cost_rule(), 2)}')
-        return solved_instance, {}
+        return solved_instance
 
     def run(self):
         if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
-            solved_instance, fuel_boiler_result = self.run_heatpump_opt()
+            solved_instance = self.run_heatpump_opt()
         else:
-            solved_instance, fuel_boiler_result = self.run_fuel_boiler_opt()
-        return solved_instance, fuel_boiler_result
+            solved_instance = self.run_fuel_boiler_opt()
+        return solved_instance
 
