@@ -1,8 +1,6 @@
 from typing import TYPE_CHECKING, Union
 from abc import ABC, abstractmethod
 import pyomo.environ as pyo
-from pyomo.core.base.param import IndexedParam
-from pyomo.core.base.var import IndexedVar
 import pandas as pd
 import numpy as np
 from basics.db import create_db_conn
