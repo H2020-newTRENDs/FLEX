@@ -1,9 +1,9 @@
-from basics.database_initializer import DatabaseInitializer
 from models.operation.enums import ScenarioEnum, TableEnum
+from models.operation.initializer import OperationDatabaseInitializer
 from config import config
 
 
-class ProjectDatabaseInitializer(DatabaseInitializer):
+class OperationInit(OperationDatabaseInitializer):
 
     def load_component_scenario_tables(self):
         self.load_component_table(ScenarioEnum.Region)
@@ -29,7 +29,13 @@ class ProjectDatabaseInitializer(DatabaseInitializer):
         self.db.drop_table(TableEnum.ResultRefHour)
         self.db.drop_table(TableEnum.ResultRefYear)
 
+    def main(self):
+        self.load_component_scenario_tables()
+        self.setup_scenario()
+        self.load_other_source_tables()
+        self.drop_tables()
+
 
 if __name__ == "__main__":
-    init = ProjectDatabaseInitializer(config=config, scenario_enums=ScenarioEnum)
+    init = OperationInit(config=config, scenario_enums=ScenarioEnum)
     init.main()
