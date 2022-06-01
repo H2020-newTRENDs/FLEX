@@ -1,4 +1,5 @@
 from pathlib import Path
+from abc import ABC, abstractmethod
 import itertools
 from typing import Dict, TYPE_CHECKING, get_type_hints
 import sqlalchemy
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 logger = kit.get_logger(__name__)
 
 
-class DatabaseInitializer:
+class DatabaseInitializer(ABC):
 
     def __init__(self, config: 'Config', scenario_enums: ClassVar['Enum']):
         self.config = config
@@ -26,11 +27,9 @@ class DatabaseInitializer:
         logger.info(f'clearing database {self.config.project_name}.sqlite.')
         self.db.clear_database()
 
-    def load_component_scenario_tables(self):
-        pass
-
     def load_component_table(self, component: ClassVar['Enum']):
-        file = self.config.input_folder / Path(component.table_name + ".xlsx")
+        input_folder = self.get_input_folder()
+        file = input_folder / Path(component.table_name + ".xlsx")
         logger.info(f'loading table -> {component.table_name}')
         df = pd.read_excel(file, engine="openpyxl").dropna(axis=1)  # drop column that contains nan
         data_types = kit.convert_datatype_py2sql(get_type_hints(component.class_var))
@@ -39,11 +38,13 @@ class DatabaseInitializer:
                          f'Please check and revise.')
         self.db.write_dataframe(component.table_name, df, data_types=data_types, if_exists='replace')
 
-    def load_other_source_tables(self):
+    @abstractmethod
+    def get_input_folder(self):
         pass
 
     def load_source_table(self, table: ClassVar['Enum']):
-        file = self.config.input_folder / Path(table.value + ".xlsx")
+        input_folder = self.get_input_folder()
+        file = input_folder / Path(table.value + ".xlsx")
         logger.info(f'loading table -> {table.value}')
         df = pd.read_excel(file, engine="openpyxl")
         self.db.write_dataframe(table.value, df, if_exists='replace')
@@ -71,7 +72,7 @@ class DatabaseInitializer:
         return pd.DataFrame(permutations_dicts)
 
     def setup_scenario(self):
-        self.db.drop_table(self.scenario_enums.Scenario.table_name)  # drop the table
+        self.db.drop_table(self.scenario_enums.Scenario.table_name)
         scenario_df = self.generate_params_combination_df(self.get_component_scenario_ids())
         scenario_ids = np.array(range(1, 1 + len(scenario_df)))
         scenario_df.insert(loc=0, column=self.scenario_enums.Scenario.id, value=scenario_ids)
@@ -79,11 +80,3 @@ class DatabaseInitializer:
         self.db.write_dataframe(self.scenario_enums.Scenario.table_name, scenario_df,
                                 data_types=data_types, if_exists='replace')
 
-    def drop_tables(self):
-        pass
-
-    def main(self):
-        self.load_component_scenario_tables()
-        self.load_other_source_tables()
-        self.setup_scenario()
-        self.drop_tables()

@@ -34,6 +34,7 @@ class ScenarioEnum(Enum):
 
 
 class TableEnum(Enum):
+    Scenarios = "Scenario"
     BehaviorProfile = 'Scenario_Profile_Behavior'
     EnergyPriceProfile = 'Scenario_Profile_EnergyPrice'
     RegionWeatherProfile = 'Scenario_Profile_RegionWeather'
