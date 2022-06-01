@@ -9,7 +9,7 @@ from basics.config import Config
 from basics.db import create_db_conn
 from models.operation.components import Region, Building, Boiler, SpaceHeatingTank, HotWaterTank, \
     SpaceCoolingTechnology, PV, Battery, Vehicle, EnergyPrice, Behavior
-from models.operation.enums import ScenarioEnum, TableEnum
+from models.operation.enums import OperationScenarioComponent, OperationTable
 
 
 @dataclass
@@ -37,16 +37,16 @@ class OperationScenario:
         self.setup_behavior()
 
     def get_component_scenario_ids(self):
-        scenario_df = self.db.read_dataframe(ScenarioEnum.Scenario.table_name,
-                                             filter={ScenarioEnum.Scenario.id: self.scenario_id})
+        scenario_df = self.db.read_dataframe(OperationScenarioComponent.Scenario.table_name,
+                                             filter={OperationScenarioComponent.Scenario.id: self.scenario_id})
         component_scenario_ids: dict = scenario_df.iloc[0].to_dict()
-        del component_scenario_ids[ScenarioEnum.Scenario.id]
+        del component_scenario_ids[OperationScenarioComponent.Scenario.id]
         return component_scenario_ids
 
     def setup_components(self):
         for id_component, component_scenario_id in self.component_scenario_ids.items():
             component_name_cap = id_component.replace("ID_", "")
-            component_enum = ScenarioEnum.__dict__[component_name_cap]
+            component_enum = OperationScenarioComponent.__dict__[component_name_cap]
             if component_enum.value in self.__dict__.keys():
                 df = self.db.read_dataframe(component_enum.table_name,
                                             filter={component_enum.id: component_scenario_id})
@@ -55,7 +55,7 @@ class OperationScenario:
                 setattr(self, component_enum.value, instance)
 
     def setup_region_weather_and_pv_generation(self):
-        df = self.db.read_dataframe(TableEnum.RegionWeatherProfile.value,
+        df = self.db.read_dataframe(OperationTable.RegionWeatherProfile.value,
                                     filter={"region": self.region.code, "year": self.region.year})
         self.region.temperature = df["temperature"].to_numpy()
         self.region.radiation_north = df["radiation_north"].to_numpy()
@@ -65,7 +65,7 @@ class OperationScenario:
         self.pv.generation = df["pv_generation"].to_numpy() * self.pv.size
 
     def setup_energy_price(self):
-        df = self.db.read_dataframe(TableEnum.EnergyPriceProfile.value,
+        df = self.db.read_dataframe(OperationTable.EnergyPriceProfile.value,
                                     filter={"region": self.region.code, "year": self.region.year})
         for key, value in self.energy_price.__dict__.items():
             if key.startswith("id_") and value is not None:
@@ -127,7 +127,7 @@ class OperationScenario:
                                                 behavior[column].to_numpy())
 
     def setup_behavior(self):
-        behavior_df = self.db.read_dataframe(TableEnum.BehaviorProfile.value)
+        behavior_df = self.db.read_dataframe(OperationTable.BehaviorProfile.value)
         try:
             self.setup_behavior_target_temperature(behavior_df)
             self.setup_behavior_vehicle(behavior_df)

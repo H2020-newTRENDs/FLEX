@@ -1,5 +1,4 @@
 from pathlib import Path
-from abc import ABC, abstractmethod
 import itertools
 from typing import Dict, TYPE_CHECKING, get_type_hints
 import sqlalchemy
@@ -16,20 +15,20 @@ if TYPE_CHECKING:
 logger = kit.get_logger(__name__)
 
 
-class DatabaseInitializer(ABC):
+class DatabaseInitializer:
 
-    def __init__(self, config: 'Config', scenario_enums: ClassVar['Enum']):
+    def __init__(self, config: 'Config', input_folder: 'Path', scenario_components: ClassVar['Enum'] = None):
         self.config = config
         self.db = create_db_conn(config)
-        self.scenario_enums = scenario_enums
+        self.input_folder = input_folder
+        self.scenario_components = scenario_components
 
     def clear_db(self):
         logger.info(f'clearing database {self.config.project_name}.sqlite.')
         self.db.clear_database()
 
     def load_component_table(self, component: ClassVar['Enum']):
-        input_folder = self.get_input_folder()
-        file = input_folder / Path(component.table_name + ".xlsx")
+        file = self.input_folder / Path(component.table_name + ".xlsx")
         logger.info(f'loading table -> {component.table_name}')
         df = pd.read_excel(file, engine="openpyxl").dropna(axis=1)  # drop column that contains nan
         data_types = kit.convert_datatype_py2sql(get_type_hints(component.class_var))
@@ -38,31 +37,21 @@ class DatabaseInitializer(ABC):
                          f'Please check and revise.')
         self.db.write_dataframe(component.table_name, df, data_types=data_types, if_exists='replace')
 
-    @abstractmethod
-    def get_input_folder(self):
-        pass
-
-    def load_source_table(self, table: ClassVar['Enum']):
-        input_folder = self.get_input_folder()
-        file = input_folder / Path(table.value + ".xlsx")
-        logger.info(f'loading table -> {table.value}')
+    def load_table(self, table_name: str):
+        file = self.input_folder / Path(table_name + ".xlsx")
+        logger.info(f'loading table -> {table_name}')
         df = pd.read_excel(file, engine="openpyxl")
-        self.db.write_dataframe(table.value, df, if_exists='replace')
+        self.db.write_dataframe(table_name, df, if_exists='replace')
 
     def get_component_scenario_ids(self) -> Dict[str, int]:
         component_scenario_ids = {}
         engine = self.db.get_engine().connect()
-        for item in self.scenario_enums.__members__.items():
-            component_enum_table_name = getattr(self.scenario_enums, item[0]).table_name
-            component_enum_id = getattr(self.scenario_enums, item[0]).id
+        for name, item_enum in self.scenario_components.__members__.items():
+            component_enum_table_name = item_enum.table_name
+            component_enum_id = item_enum.id
             if engine.dialect.has_table(engine, component_enum_table_name):
                 table = self.db.read_dataframe(component_enum_table_name)
                 component_scenario_ids[component_enum_id] = table[component_enum_id].unique()
-            else:
-                if item[0] == "Scenario":
-                    pass
-                else:
-                    logger.error(f'Component {item[0]} is not initialized.')
         return component_scenario_ids
 
     @staticmethod
@@ -71,12 +60,12 @@ class DatabaseInitializer(ABC):
         permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
         return pd.DataFrame(permutations_dicts)
 
-    def setup_scenario(self):
-        self.db.drop_table(self.scenario_enums.Scenario.table_name)
+    def setup_scenario_dataframe(self):
+        self.db.drop_table(self.scenario_components.Scenario.table_name)
         scenario_df = self.generate_params_combination_df(self.get_component_scenario_ids())
         scenario_ids = np.array(range(1, 1 + len(scenario_df)))
-        scenario_df.insert(loc=0, column=self.scenario_enums.Scenario.id, value=scenario_ids)
+        scenario_df.insert(loc=0, column=self.scenario_components.Scenario.id, value=scenario_ids)
         data_types = {name: sqlalchemy.types.Integer for name in scenario_df.columns}
-        self.db.write_dataframe(self.scenario_enums.Scenario.table_name, scenario_df,
+        self.db.write_dataframe(self.scenario_components.Scenario.table_name, scenario_df,
                                 data_types=data_types, if_exists='replace')
 

@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from basics.db import create_db_conn
 from basics.kit import get_logger
-from models.operation.enums import ResultEnum, TableEnum
+from models.operation.enums import OperationResultVar, OperationTable
 
 
 if TYPE_CHECKING:
@@ -44,7 +44,7 @@ class DataCollector(ABC):
         ...
 
     def collect_result(self):
-        for variable_name, variable_enum in ResultEnum.__members__.items():
+        for variable_name, variable_enum in OperationResultVar.__members__.items():
             var_values = self.get_var_values(variable_name)
             self.hour_result[variable_name] = var_values
             if variable_enum.value == "year_include":
@@ -82,10 +82,10 @@ class OptDataCollector(DataCollector):
         return total_cost
 
     def get_hour_result_table_name(self) -> str:
-        return TableEnum.ResultOptHour.value
+        return OperationTable.ResultOptHour.value
 
     def get_year_result_table_name(self) -> str:
-        return TableEnum.ResultOptYear.value
+        return OperationTable.ResultOptYear.value
 
 
 class RefDataCollector(DataCollector):
@@ -99,9 +99,9 @@ class RefDataCollector(DataCollector):
         return total_cost
 
     def get_hour_result_table_name(self) -> str:
-        return TableEnum.ResultRefHour.value
+        return OperationTable.ResultRefHour.value
 
     def get_year_result_table_name(self) -> str:
-        return TableEnum.ResultRefYear.value
+        return OperationTable.ResultRefYear.value
 
 
