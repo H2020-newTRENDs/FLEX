@@ -18,11 +18,34 @@ class Analyzer:
 
     def __init__(self, config: 'Config'):
         self.db = create_db_conn(config)
-        logger.info('Loading result tables...')
-        self.opt_hour = self.db.read_dataframe(TableEnum.ResultOptHour.value)
-        self.opt_year = self.db.read_dataframe(TableEnum.ResultOptYear.value)
-        self.ref_hour = self.db.read_dataframe(TableEnum.ResultRefHour.value)
-        self.ref_year = self.db.read_dataframe(TableEnum.ResultRefYear.value)
+        self.opt_hour_df = None
+        self.opt_year_df = None
+        self.ref_hour_df = None
+        self.ref_year_df = None
+
+    @property
+    def opt_hour(self):
+        if self.opt_hour_df is None:
+            self.opt_hour_df = self.db.read_dataframe(TableEnum.ResultOptHour.value)
+        return self.opt_hour_df
+
+    @property
+    def opt_year(self):
+        if self.opt_year_df is None:
+            self.opt_year_df = self.db.read_dataframe(TableEnum.ResultOptYear.value)
+        return self.opt_year_df
+
+    @property
+    def ref_hour(self):
+        if self.ref_hour_df is None:
+            self.ref_hour_df = self.db.read_dataframe(TableEnum.ResultRefHour.value)
+        return self.ref_hour_df
+
+    @property
+    def ref_year(self):
+        if self.ref_year_df is None:
+            self.ref_year_df = self.db.read_dataframe(TableEnum.ResultRefYear.value)
+        return self.ref_year_df
 
     def compare_opt(self, id1, id2) -> None:
         df1 = kit.filter_df(self.opt_hour, filter_dict={"ID_Scenario": id1})
