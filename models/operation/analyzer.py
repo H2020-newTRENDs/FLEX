@@ -1,11 +1,15 @@
 from typing import TYPE_CHECKING
 import numpy as np
+import copy
+
+import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from basics.db import create_db_conn
+from basics.linkage import InterfaceTable
 from basics import kit
-from models.operation.enums import TableEnum
+from models.operation.enums import OperationTable
 
 if TYPE_CHECKING:
     from basics.config import Config
@@ -14,7 +18,7 @@ if TYPE_CHECKING:
 logger = kit.get_logger(__name__)
 
 
-class Analyzer:
+class OperationAnalyzer:
 
     def __init__(self, config: 'Config'):
         self.db = create_db_conn(config)
@@ -26,25 +30,25 @@ class Analyzer:
     @property
     def opt_hour(self):
         if self.opt_hour_df is None:
-            self.opt_hour_df = self.db.read_dataframe(TableEnum.ResultOptHour.value)
+            self.opt_hour_df = self.db.read_dataframe(OperationTable.ResultOptHour.value)
         return self.opt_hour_df
 
     @property
     def opt_year(self):
         if self.opt_year_df is None:
-            self.opt_year_df = self.db.read_dataframe(TableEnum.ResultOptYear.value)
+            self.opt_year_df = self.db.read_dataframe(OperationTable.ResultOptYear.value)
         return self.opt_year_df
 
     @property
     def ref_hour(self):
         if self.ref_hour_df is None:
-            self.ref_hour_df = self.db.read_dataframe(TableEnum.ResultRefHour.value)
+            self.ref_hour_df = self.db.read_dataframe(OperationTable.ResultRefHour.value)
         return self.ref_hour_df
 
     @property
     def ref_year(self):
         if self.ref_year_df is None:
-            self.ref_year_df = self.db.read_dataframe(TableEnum.ResultRefYear.value)
+            self.ref_year_df = self.db.read_dataframe(OperationTable.ResultRefYear.value)
         return self.ref_year_df
 
     def compare_opt(self, id1, id2) -> None:
@@ -87,4 +91,23 @@ class Analyzer:
             fig.add_trace(go.Scatter(x=np.arange(8760), y=df2[column_name], name=name2), row=i + 1, col=1)
         fig.update_layout(height=400 * subplots_number, width=1600)
         fig.show()
+
+    def create_inv_table(self):
+
+        scenarios = self.db.read_dataframe(OperationTable.Scenarios.value)
+
+        def add_total_cost(df: pd.DataFrame, id_sems):
+            sce = scenarios.rename(columns={'ID_Scenario': 'ID_OperationScenario'})
+            sce.insert(loc=1, column="TotalCost", value=df["TotalCost"])
+            sce.insert(loc=2, column="ID_SEMS", value=id_sems)
+            return sce
+
+        opt_sce = add_total_cost(self.opt_year, id_sems=1)
+        ref_sce = add_total_cost(self.ref_year, id_sems=2)
+        sce_summary = pd.concat([opt_sce, ref_sce], ignore_index=True, sort=False)
+        sce_summary_ids = list(range(1, len(sce_summary) + 1))
+        sce_summary.insert(loc=0, column="ID_Scenario", value=sce_summary_ids)
+
+        self.db.save_dataframe_to_investment_input(sce_summary, InterfaceTable.OperationEnergyCost.value)
+
 

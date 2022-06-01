@@ -1,8 +1,8 @@
-from enum import Enum, auto
+from enum import Enum
 from models.operation import components
 
 
-class ScenarioEnum(Enum):
+class OperationScenarioComponent(Enum):
     Scenario = "scenario"
     Region = "region"
     Building = "building"
@@ -19,9 +19,9 @@ class ScenarioEnum(Enum):
     @property
     def table_name(self):
         if self.name == 'Scenario':
-            table_name = "Scenario"
+            table_name = "OperationScenario"
         else:
-            table_name = "Scenario_Component_" + self.name
+            table_name = "OperationScenario_Component_" + self.name
         return table_name
 
     @property
@@ -33,18 +33,18 @@ class ScenarioEnum(Enum):
         return components.__dict__[self.name]
 
 
-class TableEnum(Enum):
-    Scenarios = "Scenario"
-    BehaviorProfile = 'Scenario_Profile_Behavior'
-    EnergyPriceProfile = 'Scenario_Profile_EnergyPrice'
-    RegionWeatherProfile = 'Scenario_Profile_RegionWeather'
-    ResultOptHour = 'Result_OptimizationHour'
-    ResultOptYear = 'Result_OptimizationYear'
-    ResultRefHour = 'Result_ReferenceHour'
-    ResultRefYear = 'Result_ReferenceYear'
+class OperationTable(Enum):
+    Scenarios = "OperationScenario"
+    BehaviorProfile = 'OperationScenario_Profile_Behavior'
+    EnergyPriceProfile = 'OperationScenario_Profile_EnergyPrice'
+    RegionWeatherProfile = 'OperationScenario_Profile_RegionWeather'
+    ResultOptHour = 'OperationResult_OptimizationHour'
+    ResultOptYear = 'OperationResult_OptimizationYear'
+    ResultRefHour = 'OperationResult_ReferenceHour'
+    ResultRefYear = 'OperationResult_ReferenceYear'
 
 
-class ResultEnum(Enum):
+class OperationResultVar(Enum):
 
     # space heating
     T_outside = "year_not_include"
