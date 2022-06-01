@@ -128,13 +128,10 @@ class OperationScenario:
 
     def setup_behavior(self):
         behavior_df = self.db.read_dataframe(OperationTable.BehaviorProfile.value)
-        try:
-            self.setup_behavior_target_temperature(behavior_df)
-            self.setup_behavior_vehicle(behavior_df)
-            self.setup_behavior_hot_water_demand(behavior_df)
-            self.setup_behavior_appliance_electricity_demand(behavior_df)
-        except Exception as e:
-            print("There seems to be something wrong with the behavior table.")
+        self.setup_behavior_target_temperature(behavior_df)
+        self.setup_behavior_vehicle(behavior_df)
+        self.setup_behavior_hot_water_demand(behavior_df)
+        self.setup_behavior_appliance_electricity_demand(behavior_df)
 
 
 
