@@ -10,7 +10,7 @@ logger = get_logger(__name__)
 if __name__ == "__main__":
     scenario_ids = list(range(1, 433))
     for scenario_id in scenario_ids:
-        logger.info(f'Scenario = {scenario_id}')
+        logger.info(f'FlexOperation --> Scenario = {scenario_id}.')
         scenario = OperationScenario(scenario_id=scenario_id, config=config)
         ref_model = RefOperationModel(scenario).run()
         opt_model = OptOperationModel(scenario).run()

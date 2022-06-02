@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class DataCollector(ABC):
+class OperationDataCollector(ABC):
 
     def __init__(self,
                  model: Union['OperationModel', 'pyo.ConcreteModel'],
@@ -71,7 +71,7 @@ class DataCollector(ABC):
         self.save_year_result()
 
 
-class OptDataCollector(DataCollector):
+class OptDataCollector(OperationDataCollector):
 
     def get_var_values(self, variable_name: str) -> np.array:
         var_values = np.array(list(self.model.__dict__[variable_name].extract_values().values()))
@@ -88,7 +88,7 @@ class OptDataCollector(DataCollector):
         return OperationTable.ResultOptYear.value
 
 
-class RefDataCollector(DataCollector):
+class RefDataCollector(OperationDataCollector):
 
     def get_var_values(self, variable_name: str) -> np.array:
         var_values = np.array(self.model.__dict__[variable_name])
