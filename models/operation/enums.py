@@ -35,9 +35,9 @@ class OperationScenarioComponent(Enum):
 
 class OperationTable(Enum):
     Scenarios = "OperationScenario"
-    BehaviorProfile = 'OperationScenario_Profile_Behavior'
-    EnergyPriceProfile = 'OperationScenario_Profile_EnergyPrice'
-    RegionWeatherProfile = 'OperationScenario_Profile_RegionWeather'
+    BehaviorProfile = 'OperationScenario_BehaviorProfile'
+    EnergyPriceProfile = 'OperationScenario_EnergyPrice'
+    RegionWeatherProfile = 'OperationScenario_RegionWeather'
     ResultOptHour = 'OperationResult_OptimizationHour'
     ResultOptYear = 'OperationResult_OptimizationYear'
     ResultRefHour = 'OperationResult_ReferenceHour'

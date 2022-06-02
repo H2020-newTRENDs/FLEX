@@ -10,5 +10,5 @@ class InvestmentModel:
         self.scenario = scenario
 
     def run(self):
-        logger.info(f'FlexInvestment is running for Scenario {self.scenario.scenario_id}.')
         pass
+
