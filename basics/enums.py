@@ -5,6 +5,7 @@ class InterfaceTable(Enum):
 
     # from operation to investment
     OperationEnergyCost = "InvestmentScenario_OperationEnergyCost"
+    OperationEnergyCostChange = "InvestmentScenario_OperationEnergyCostChange"
 
 
 class Color(Enum):

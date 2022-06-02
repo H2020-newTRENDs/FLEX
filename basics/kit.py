@@ -61,3 +61,10 @@ def filter_df(df: pd.DataFrame, filter_dict: dict) -> pd.DataFrame:
     df_filtered = df.loc[(df[list(filter_dict)] == pd.Series(filter_dict)).all(axis=1)]
     return df_filtered
 
+
+def filter_df2s(df: pd.DataFrame, filter_dict: dict) -> pd.Series:
+    df_filtered = filter_df(df, filter_dict)
+    s = df_filtered.iloc[0]
+    return s
+
+
