@@ -39,13 +39,15 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
             ("ID_PV", 2, 1),
             ("ID_Battery", 2, 1)
         ]
-        # self.create_component_energy_cost_change_tables(component_changes)
-        # self.plot_operation_energy_cost_change_curve(component_changes)
+        self.create_component_energy_cost_change_tables(component_changes)
+        self.plot_operation_energy_cost_change_curve(component_changes)
         self.get_building_pathway(191, component_changes)
 
 
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
+    ana.plot_scenario_electricity_balance()
+    ana.summarize_operation_energy_cost()
     ana.summarize_operation_energy_cost_change()
 
 
