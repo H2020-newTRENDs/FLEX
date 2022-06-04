@@ -14,16 +14,12 @@ logger = kit.get_logger(__name__)
 
 
 class InvestmentAnalyzer:
-
-    def __init__(self, config: 'Config', plotter: ClassVar['Plotter'] = Plotter):
+    def __init__(self, config: "Config", plotter: ClassVar["Plotter"] = Plotter):
         self.db = create_db_conn(config)
         self.plotter = plotter(config)
-        self.operation_energy_cost = self.db.read_dataframe(InterfaceTable.OperationEnergyCost.value)
+        self.operation_energy_cost = self.db.read_dataframe(
+            InterfaceTable.OperationEnergyCost.value
+        )
 
     def run(self):
         pass
-
-
-
-
-

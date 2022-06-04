@@ -4,7 +4,6 @@ from config import config
 
 
 class ProjectOperationInit(DatabaseInitializer):
-
     def load_component_tables(self):
         self.load_component_table(OperationScenarioComponent.Region)
         self.load_component_table(OperationScenarioComponent.Building)
@@ -37,7 +36,9 @@ class ProjectOperationInit(DatabaseInitializer):
 
 
 if __name__ == "__main__":
-    init = ProjectOperationInit(config=config,
-                                input_folder=config.input_operation,
-                                scenario_components=OperationScenarioComponent)
+    init = ProjectOperationInit(
+        config=config,
+        input_folder=config.input_operation,
+        scenario_components=OperationScenarioComponent,
+    )
     init.main()

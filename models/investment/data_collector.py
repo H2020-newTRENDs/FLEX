@@ -11,11 +11,7 @@ logger = get_logger(__name__)
 
 
 class InvestmentDataCollector:
-
-    def __init__(self,
-                 model: 'InvestmentModel',
-                 scenario_id: int,
-                 config: 'Config'):
+    def __init__(self, model: "InvestmentModel", scenario_id: int, config: "Config"):
         self.model = model
         self.scenario_id = scenario_id
         self.db = create_db_conn(config)

@@ -16,32 +16,43 @@ logger = kit.get_logger(__name__)
 
 
 class DatabaseInitializer:
-
-    def __init__(self, config: 'Config', input_folder: 'Path', scenario_components: ClassVar['Enum'] = None):
+    def __init__(
+        self,
+        config: "Config",
+        input_folder: "Path",
+        scenario_components: ClassVar["Enum"] = None,
+    ):
         self.config = config
         self.db = create_db_conn(config)
         self.input_folder = input_folder
         self.scenario_components = scenario_components
 
     def clear_db(self):
-        logger.info(f'clearing database {self.config.project_name}.sqlite.')
+        logger.info(f"clearing database {self.config.project_name}.sqlite.")
         self.db.clear_database()
 
-    def load_component_table(self, component: ClassVar['Enum']):
+    def load_component_table(self, component: ClassVar["Enum"]):
         file = self.input_folder / Path(component.table_name + ".xlsx")
-        logger.info(f'loading table -> {component.table_name}')
-        df = pd.read_excel(file, engine="openpyxl").dropna(axis=1)  # drop column that contains nan
+        logger.info(f"loading table -> {component.table_name}")
+        df = pd.read_excel(file, engine="openpyxl").dropna(
+            axis=1
+        )  # drop column that contains nan
         data_types = kit.convert_datatype_py2sql(get_type_hints(component.class_var))
-        assert all(key in list(data_types.keys()) for key in list(df.columns[1:])), \
-            logger.error(f'Attributes of component {component.name} are inconsistent in the scenario table. '
-                         f'Please check and revise.')
-        self.db.write_dataframe(component.table_name, df, data_types=data_types, if_exists='replace')
+        assert all(
+            key in list(data_types.keys()) for key in list(df.columns[1:])
+        ), logger.error(
+            f"Attributes of component {component.name} are inconsistent in the scenario table. "
+            f"Please check and revise."
+        )
+        self.db.write_dataframe(
+            component.table_name, df, data_types=data_types, if_exists="replace"
+        )
 
     def load_table(self, table_name: str):
         file = self.input_folder / Path(table_name + ".xlsx")
-        logger.info(f'loading table -> {table_name}')
+        logger.info(f"loading table -> {table_name}")
         df = pd.read_excel(file, engine="openpyxl")
-        self.db.write_dataframe(table_name, df, if_exists='replace')
+        self.db.write_dataframe(table_name, df, if_exists="replace")
 
     def get_component_scenario_ids(self) -> Dict[str, int]:
         component_scenario_ids = {}
@@ -51,7 +62,9 @@ class DatabaseInitializer:
             component_enum_id = item_enum.id
             if engine.dialect.has_table(engine, component_enum_table_name):
                 table = self.db.read_dataframe(component_enum_table_name)
-                component_scenario_ids[component_enum_id] = table[component_enum_id].unique()
+                component_scenario_ids[component_enum_id] = table[
+                    component_enum_id
+                ].unique()
         return component_scenario_ids
 
     @staticmethod
@@ -62,10 +75,17 @@ class DatabaseInitializer:
 
     def setup_scenario_dataframe(self):
         self.db.drop_table(self.scenario_components.Scenario.table_name)
-        scenario_df = self.generate_params_combination_df(self.get_component_scenario_ids())
+        scenario_df = self.generate_params_combination_df(
+            self.get_component_scenario_ids()
+        )
         scenario_ids = np.array(range(1, 1 + len(scenario_df)))
-        scenario_df.insert(loc=0, column=self.scenario_components.Scenario.id, value=scenario_ids)
+        scenario_df.insert(
+            loc=0, column=self.scenario_components.Scenario.id, value=scenario_ids
+        )
         data_types = {name: sqlalchemy.types.Integer for name in scenario_df.columns}
-        self.db.write_dataframe(self.scenario_components.Scenario.table_name, scenario_df,
-                                data_types=data_types, if_exists='replace')
-
+        self.db.write_dataframe(
+            self.scenario_components.Scenario.table_name,
+            scenario_df,
+            data_types=data_types,
+            if_exists="replace",
+        )
