@@ -275,6 +275,10 @@ class OperationAnalyzer:
             component_change_info, benefit = component_change_benefit.pop(0)
             building_dict = self.implement_building_component_change(building_dict, component_change_info)
             logger.info(f'Benefit: {round(benefit/100, 2)} (€/a).')
+            # By combining the investment cost with benefit, we can identify if there is a "lock-in" effect.
+            # Because the system can be totally stuck somewhere, or it can go to a different direction.
+            # Then in total, we can start from all possible "starting points" and see,
+            # how many of them are locked and how much further "energy transition" we could have gone.
             component_changes.remove(component_change_info)
         logger.info(f'Final building: {building_dict}.')
 
