@@ -6,4 +6,4 @@ from basics.config import Config
 @dataclass
 class InvestmentScenario:
     scenario_id: int
-    config: 'Config'
+    config: "Config"

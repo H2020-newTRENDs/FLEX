@@ -18,7 +18,7 @@ class OperationScenarioComponent(Enum):
 
     @property
     def table_name(self):
-        if self.name == 'Scenario':
+        if self.name == "Scenario":
             table_name = "OperationScenario"
         else:
             table_name = "OperationScenario_Component_" + self.name
@@ -35,13 +35,13 @@ class OperationScenarioComponent(Enum):
 
 class OperationTable(Enum):
     Scenarios = "OperationScenario"
-    BehaviorProfile = 'OperationScenario_BehaviorProfile'
-    EnergyPriceProfile = 'OperationScenario_EnergyPrice'
-    RegionWeatherProfile = 'OperationScenario_RegionWeather'
-    ResultOptHour = 'OperationResult_OptimizationHour'
-    ResultOptYear = 'OperationResult_OptimizationYear'
-    ResultRefHour = 'OperationResult_ReferenceHour'
-    ResultRefYear = 'OperationResult_ReferenceYear'
+    BehaviorProfile = "OperationScenario_BehaviorProfile"
+    EnergyPriceProfile = "OperationScenario_EnergyPrice"
+    RegionWeatherProfile = "OperationScenario_RegionWeather"
+    ResultOptHour = "OperationResult_OptimizationHour"
+    ResultOptYear = "OperationResult_OptimizationYear"
+    ResultRefHour = "OperationResult_ReferenceHour"
+    ResultRefYear = "OperationResult_ReferenceYear"
 
 
 class OperationResultVar(Enum):
@@ -115,4 +115,3 @@ class OperationResultVar(Enum):
     Grid2EV = "year_include"
     Load = "year_include"
     Feed2Grid = "year_include"
-

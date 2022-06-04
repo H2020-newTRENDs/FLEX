@@ -16,11 +16,12 @@ logger = get_logger(__name__)
 
 
 class OperationDataCollector(ABC):
-
-    def __init__(self,
-                 model: Union['OperationModel', 'pyo.ConcreteModel'],
-                 scenario_id: int,
-                 config: 'Config'):
+    def __init__(
+        self,
+        model: Union["OperationModel", "pyo.ConcreteModel"],
+        scenario_id: int,
+        config: "Config",
+    ):
         self.model = model
         self.scenario_id = scenario_id
         self.db = create_db_conn(config)
@@ -54,16 +55,20 @@ class OperationDataCollector(ABC):
         result_hour_df = pd.DataFrame(self.hour_result)
         result_hour_df.insert(loc=0, column="ID_Scenario", value=self.scenario_id)
         result_hour_df.insert(loc=1, column="Hour", value=list(range(1, 8761)))
-        result_hour_df.insert(loc=2, column="DayHour", value=np.tile(np.arange(1, 25), 365))
-        self.db.write_dataframe(table_name=self.get_hour_result_table_name(),
-                                data_frame=result_hour_df)
+        result_hour_df.insert(
+            loc=2, column="DayHour", value=np.tile(np.arange(1, 25), 365)
+        )
+        self.db.write_dataframe(
+            table_name=self.get_hour_result_table_name(), data_frame=result_hour_df
+        )
 
     def save_year_result(self):
         result_year_df = pd.DataFrame(self.year_result, index=[0])
         result_year_df.insert(loc=0, column="ID_Scenario", value=self.scenario_id)
         result_year_df.insert(loc=1, column="TotalCost", value=self.get_total_cost())
-        self.db.write_dataframe(table_name=self.get_year_result_table_name(),
-                                data_frame=result_year_df)
+        self.db.write_dataframe(
+            table_name=self.get_year_result_table_name(), data_frame=result_year_df
+        )
 
     def run(self):
         self.collect_result()
@@ -72,9 +77,10 @@ class OperationDataCollector(ABC):
 
 
 class OptDataCollector(OperationDataCollector):
-
     def get_var_values(self, variable_name: str) -> np.array:
-        var_values = np.array(list(self.model.__dict__[variable_name].extract_values().values()))
+        var_values = np.array(
+            list(self.model.__dict__[variable_name].extract_values().values())
+        )
         return var_values
 
     def get_total_cost(self) -> float:
@@ -89,7 +95,6 @@ class OptDataCollector(OperationDataCollector):
 
 
 class RefDataCollector(OperationDataCollector):
-
     def get_var_values(self, variable_name: str) -> np.array:
         var_values = np.array(self.model.__dict__[variable_name])
         return var_values
@@ -103,5 +108,3 @@ class RefDataCollector(OperationDataCollector):
 
     def get_year_result_table_name(self) -> str:
         return OperationTable.ResultRefYear.value
-
-

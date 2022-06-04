@@ -167,6 +167,3 @@ class Behavior(Component):
     vehicle_at_home: Optional[np.ndarray] = None
     vehicle_distance: Optional[np.ndarray] = None
     vehicle_demand: Optional[np.ndarray] = None
-
-
-
