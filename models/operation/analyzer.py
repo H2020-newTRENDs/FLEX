@@ -358,11 +358,11 @@ class OperationAnalyzer:
         ).to_dict()
         del building_dict["ID_Scenario"]
         logger.info(f"Initial building: {building_dict}.")
+        component_changes = self.update_component_changes(
+            building_dict, component_changes
+        )
 
         while len(component_changes) > 0:
-            component_changes = self.update_component_changes(
-                building_dict, component_changes
-            )
             component_change_benefit = []
             for component_change_info in component_changes:
                 benefit = self.get_operation_energy_cost_change(
@@ -382,4 +382,7 @@ class OperationAnalyzer:
             # Then in total, we can start from all possible "starting points" and see,
             # how many of them are locked and how much further "energy transition" we could have gone.
             component_changes.remove(component_change_info)
+            component_changes = self.update_component_changes(
+                building_dict, component_changes
+            )
         logger.info(f"Final building: {building_dict}.")
