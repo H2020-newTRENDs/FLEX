@@ -155,8 +155,7 @@ class OperationAnalyzer:
         df = self.get_hour_df(scenario_id, model, start_hour, end_hour)
         values_dict = {
             "Appliance": np.array(df["BaseLoadProfile"]) / 1000,
-            "SpaceHeating": np.array(df["E_Heating_HP_out"] + df["Q_HeatingElement"])
-            / 1000,
+            "SpaceHeating": np.array(df["E_Heating_HP_out"] + df["Q_HeatingElement"]) / 1000,
             "HotWater": np.array(df["E_DHW_HP_out"]) / 1000,
             "SpaceCooling": np.array(df["E_RoomCooling"]) / 1000,
             "BatteryCharge": np.array(df["BatCharge"]) / 1000,
