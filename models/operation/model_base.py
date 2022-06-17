@@ -109,12 +109,7 @@ class OperationModel(ABC):
 
     def setup_space_cooling_params(self):
         self.CoolingCOP = self.scenario.space_cooling_technology.efficiency
-        self.CoolingHourlyCOP = (
-            np.ones(
-                8760,
-            )
-            * self.CoolingCOP
-        )
+        self.CoolingHourlyCOP = (np.ones(8760, ) * self.CoolingCOP)
 
     def setup_pv_params(self):
         self.PhotovoltaicProfile = self.scenario.pv.generation
@@ -152,9 +147,8 @@ class OperationModel(ABC):
         heating_power_10 = self.scenario.building.Af * 10
 
         if self.scenario.space_cooling_technology.power == 0:
-            T_air_max = np.full(
-                (8760,), 100
-            )  # if no cooling is adopted --> raise max air temperature to 100 so it will never cool:
+            T_air_max = np.full((8760,), 100)
+            # if no cooling is adopted --> raise max air temperature to 100 so it will never cool:
         else:
             T_air_max = self.scenario.behavior.target_temperature_array_max
 
@@ -584,12 +578,6 @@ class OperationModel(ABC):
         return hot_water_cost
 
     def fuel_boiler_remove_heating_cooling_hot_water_demand(self):
-        self.T_outside = 24 * np.ones(
-            8760,
-        )
-        self.Q_Solar = np.zeros(
-            8760,
-        )
-        self.HotWaterProfile = np.zeros(
-            8760,
-        )
+        self.T_outside = 24 * np.ones(8760, )
+        self.Q_Solar = np.zeros(8760, )
+        self.HotWaterProfile = np.zeros(8760, )
