@@ -1,3 +1,5 @@
+import time
+
 import pyomo.environ as pyo
 
 from models.operation.model_base import OperationModel
@@ -8,7 +10,6 @@ logger = get_logger(__name__)
 
 class OptOperationModel(OperationModel):
 
-    # @performance_counter
     def setup_abstract_model(self):
         m = pyo.AbstractModel()
         m.t = pyo.Set()
@@ -746,14 +747,13 @@ class OptOperationModel(OperationModel):
 
     @performance_counter
     def setup_instance(self):
-        # logger.info("Creating instance...")
         model = self.setup_abstract_model()
-        instance = self.config_instance(model.create_instance(data=self.params_dict))
-        return instance
+        init_instance = model.create_instance(data=self.params_dict)
+        instance2solve = self.config_instance(init_instance)
+        return instance2solve
 
     @performance_counter
     def solve_instance(self, instance2solve):
-        # logger.info("Solving optimization...")
         pyo.SolverFactory("gurobi").solve(instance2solve, tee=False)
         return instance2solve
 

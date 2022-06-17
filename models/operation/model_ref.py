@@ -417,3 +417,4 @@ class RefOperationModel(OperationModel):
             model_ref = self.run_fuel_boiler_ref()
         logger.info(f"RefCost: {round(self.TotalCost.sum(), 2)}")
         return model_ref
+
