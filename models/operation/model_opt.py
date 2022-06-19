@@ -268,7 +268,7 @@ class OptOperationModel(OperationModel):
 
         def calc_BatSoC(m, t):
             if t == 1:
-                return m.BatSoC[t] == self.scenario.battery.capacity  # start of simulation, battery is empty
+                return m.BatSoC[t] == self.scenario.battery.capacity
             else:
                 return m.BatSoC[t] == m.BatSoC[t - 1] + m.BatCharge[t] * self.ChargeEfficiency - \
                        m.BatDischarge[t] * (1 + (1 - self.DischargeEfficiency))
@@ -283,19 +283,14 @@ class OptOperationModel(OperationModel):
         m.EVCharge_rule = pyo.Constraint(m.t, rule=calc_EVCharge)
 
         def calc_EVDischarge(m, t):
-            if m.t[t] == 1:
-                return m.EVDischarge[t] == 0  # start of simulation, battery is empty
-            elif m.t[t] == m.t[-1]:
-                return m.EVDischarge[t] == 0  # at the end of simulation Battery will be empty, so no discharge
-            else:
-                return m.EVDischarge[t] == \
-                       m.EVDemandProfile[t] + \
-                       (m.EV2Load[t] + m.EV2Bat[t]) * m.EVAtHomeProfile[t] * self.EVOptionV2B
+            return m.EVDischarge[t] == \
+                   m.EVDemandProfile[t] + \
+                   (m.EV2Load[t] + m.EV2Bat[t]) * m.EVAtHomeProfile[t] * self.EVOptionV2B
         m.EVDischarge_rule = pyo.Constraint(m.t, rule=calc_EVDischarge)
 
         def calc_EVSoC(m, t):
             if t == 1:
-                return m.EVSoC[t] == 0  # start of simulation, EV is empty
+                return m.EVSoC[t] == self.scenario.vehicle.capacity
             else:
                 return m.EVSoC[t] == \
                        m.EVSoC[t - 1] + m.EVCharge[t] * self.EVChargeEfficiency * m.EVAtHomeProfile[t] - \
