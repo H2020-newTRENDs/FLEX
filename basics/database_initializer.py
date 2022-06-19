@@ -48,11 +48,17 @@ class DatabaseInitializer:
             component.table_name, df, data_types=data_types, if_exists="replace"
         )
 
-    def load_table(self, table_name: str):
+    def load_table(self, table_enum: ClassVar["Enum"]):
+        table_name = table_enum.value
         file = self.input_folder / Path(table_name + ".xlsx")
         logger.info(f"loading table -> {table_name}")
         df = pd.read_excel(file, engine="openpyxl")
         self.db.write_dataframe(table_name, df, if_exists="replace")
+
+    def drop_table(self, table_enum: ClassVar["Enum"]):
+        table_name = table_enum.value
+        logger.info(f"dropping table -> {table_name}")
+        self.db.drop_table(table_name)
 
     def get_component_scenario_ids(self) -> Dict[str, int]:
         component_scenario_ids = {}
