@@ -21,11 +21,11 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
 
     def plot_scenario_comparison(self):
         self.compare_opt_ref(1)
-        self.compare_opt(id1=1, id2=16)
-        self.compare_ref(id1=1, id2=16)
+        # self.compare_opt(id1=1, id2=16)
+        # self.compare_ref(id1=1, id2=16)
 
     def plot_scenario_electricity_balance(self):
-        scenario_ids = [1, 96]
+        scenario_ids = [1]
         hour_ranges = [(25, 192), (5761, 5928)]
         models = ["opt", "ref"]
         for scenario_id in scenario_ids:
@@ -54,4 +54,4 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
 
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
-    ana.plot_building_pathway()
+    ana.plot_scenario_electricity_balance()
