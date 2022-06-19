@@ -323,15 +323,9 @@ class OptOperationModel(OperationModel):
 
     def setup_objective(self, m):
         def minimize_cost(m):
-            rule = sum(
-                m.Grid[t] * m.ElectricityPrice[t] - m.Feed2Grid[t] * m.FiT[t]
-                for t in m.t
-            )
+            rule = sum(m.Grid[t] * m.ElectricityPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t)
             return rule
-
-        m.total_operation_cost_rule = pyo.Objective(
-            rule=minimize_cost, sense=pyo.minimize
-        )
+        m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
 
     @staticmethod
     def create_dict(values) -> dict:

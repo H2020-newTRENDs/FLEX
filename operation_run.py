@@ -14,5 +14,5 @@ if __name__ == "__main__":
         scenario = OperationScenario(scenario_id=scenario_id, config=config)
         ref_model = RefOperationModel(scenario).run()
         opt_model = OptOperationModel(scenario).run()
-        RefDataCollector(ref_model, scenario.scenario_id, config).run()
-        OptDataCollector(opt_model, scenario.scenario_id, config).run()
+        # RefDataCollector(ref_model, scenario.scenario_id, config).run()
+        # OptDataCollector(opt_model, scenario.scenario_id, config).run()
