@@ -27,8 +27,8 @@ class Region(Component):
 @dataclass
 class Building(Component):
     type: Optional[str] = None
-    year_start: Optional[int] = None
-    year_end: Optional[int] = None
+    construction_period_start: Optional[int] = None
+    construction_period_end: Optional[int] = None
     person_num: Optional[float] = None
     Af: Optional[float] = None
     Hop: Optional[float] = None
