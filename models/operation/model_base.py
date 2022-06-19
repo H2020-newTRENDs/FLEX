@@ -70,7 +70,7 @@ class OperationModel(ABC):
         self.U_LossTank_heating = self.scenario.space_heating_tank.loss
         self.T_TankSurrounding_heating = (self.scenario.space_heating_tank.temperature_surrounding)
         self.A_SurfaceTank_heating = self.scenario.space_heating_tank.surface_area
-        self.SpaceHeating_HeatPumpMaximalElectricPower = (self.generate_maximum_electric_heat_pump_power())
+        self.SpaceHeating_HeatPumpMaximalElectricPower = self.generate_maximum_electric_heat_pump_power()
         self.Q_TankEnergyMin_heating = self.CPWater * self.scenario.space_heating_tank.size * \
                                        (273.15 + self.scenario.space_heating_tank.temperature_min)
         self.Q_TankEnergyMax_heating = self.CPWater * self.scenario.space_heating_tank.size * \
@@ -456,14 +456,10 @@ class OperationModel(ABC):
     def generate_maximum_electric_heat_pump_power(self):
         # TODO we could add different supply temperatures for different buildings to make COP more accurate
         """
-        Calculates the necessary HP power for each building through the 5R1C reference model. The maximum heating power
-        then will be rounded to the next 500 W. Then we divide the thermal power by the worst COP of the HP
-        which is calculated at design conditions (-12°C) and the respective source and supply temperature.
-
-        Args:
-            scenario: AbstractScenario
-
-        Returns: maximum heat pump electric power (float)
+        Calculates the necessary HP power for each building through the 5R1C reference model.
+        The maximum heating power then will be rounded to the next 500 W.
+        Then we divide the thermal power by the worst COP of the HP which is calculated at design conditions (-12°C)
+        and the respective source and supply temperature.
         """
         # calculate the heating demand in reference mode:
         heating_demand, _, _, _ = self.calculate_heating_and_cooling_demand()
@@ -494,26 +490,18 @@ class OperationModel(ABC):
 
     def calculate_solar_gain(self) -> np.array:
         """return: 8760h solar gains, calculated with solar radiation and the effective window area."""
-        solar_gain_rate = self.generate_solar_gain_rate()
+
         area_window_east_west = self.scenario.building.effective_window_area_west_east
         area_window_south = self.scenario.building.effective_window_area_south
         area_window_north = self.scenario.building.effective_window_area_north
 
-        Q_solar_north = np.outer(
-            np.array(self.scenario.region.radiation_north), area_window_north
-        )
-        Q_solar_east = np.outer(
-            np.array(self.scenario.region.radiation_east), area_window_east_west / 2
-        )
-        Q_solar_south = np.outer(
-            np.array(self.scenario.region.radiation_south), area_window_south
-        )
-        Q_solar_west = np.outer(
-            np.array(self.scenario.region.radiation_west), area_window_east_west / 2
-        )
-        Q_solar = (
-                          Q_solar_north + Q_solar_south + Q_solar_east + Q_solar_west
-                  ).squeeze() * solar_gain_rate
+        Q_solar_north = np.outer(np.array(self.scenario.region.radiation_north), area_window_north)
+        Q_solar_east = np.outer(np.array(self.scenario.region.radiation_east), area_window_east_west / 2)
+        Q_solar_south = np.outer(np.array(self.scenario.region.radiation_south), area_window_south)
+        Q_solar_west = np.outer(np.array(self.scenario.region.radiation_west), area_window_east_west / 2)
+
+        solar_gain_rate = self.generate_solar_gain_rate()
+        Q_solar = (Q_solar_north + Q_solar_south + Q_solar_east + Q_solar_west).squeeze() * solar_gain_rate
         return Q_solar
 
     def create_upper_bound_EV_discharge(self) -> np.array:
