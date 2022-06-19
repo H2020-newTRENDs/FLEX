@@ -3,7 +3,6 @@ from models.operation import components
 
 
 class OperationScenarioComponent(Enum):
-    Scenario = "scenario"
     Region = "region"
     Building = "building"
     Boiler = "boiler"
@@ -18,10 +17,7 @@ class OperationScenarioComponent(Enum):
 
     @property
     def table_name(self):
-        if self.name == "Scenario":
-            table_name = "OperationScenario"
-        else:
-            table_name = "OperationScenario_Component_" + self.name
+        table_name = "OperationScenario_Component_" + self.name
         return table_name
 
     @property
