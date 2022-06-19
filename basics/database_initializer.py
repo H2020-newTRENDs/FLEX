@@ -73,7 +73,7 @@ class DatabaseInitializer:
         permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
         return pd.DataFrame(permutations_dicts)
 
-    def setup_scenario_dataframe(self):
+    def generate_scenario_table(self):
         self.db.drop_table(self.scenario_components.Scenario.table_name)
         scenario_df = self.generate_params_combination_df(
             self.get_component_scenario_ids()
