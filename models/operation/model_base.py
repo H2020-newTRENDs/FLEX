@@ -28,7 +28,7 @@ class OperationModel(ABC):
 
     def setup_region_params(self):
         self.T_outside = self.scenario.region.temperature  # °C
-        self.Q_Solar = self.calculate_solar_gains()  # W
+        self.Q_Solar = self.calculate_solar_gain()  # W
 
     def setup_building_params(self):
         """
@@ -490,8 +490,19 @@ class OperationModel(ABC):
         max_electric_power = np.ceil(max_electric_power_float[0] / 100) * 100
         return max_electric_power
 
-    def calculate_solar_gains(self) -> np.array:
+    def generate_solar_gain_rate(self):
+        outside_temperature = self.scenario.region.temperature
+        shading_threshold_temperature = self.scenario.behavior.shading_threshold_temperature
+        shading_solar_reduction_rate = self.scenario.behavior.shading_solar_reduction_rate
+        solar_gain_rate = np.ones(len(outside_temperature), )
+        for i in range(0, len(outside_temperature)):
+            if outside_temperature[i] >= shading_threshold_temperature:
+                solar_gain_rate[i] = 1 - shading_solar_reduction_rate
+        return solar_gain_rate
+
+    def calculate_solar_gain(self) -> np.array:
         """return: 8760h solar gains, calculated with solar radiation and the effective window area."""
+        solar_gain_rate = self.generate_solar_gain_rate()
         area_window_east_west = self.scenario.building.effective_window_area_west_east
         area_window_south = self.scenario.building.effective_window_area_south
         area_window_north = self.scenario.building.effective_window_area_north
@@ -510,7 +521,7 @@ class OperationModel(ABC):
         )
         Q_solar = (
             Q_solar_north + Q_solar_south + Q_solar_east + Q_solar_west
-        ).squeeze()
+        ).squeeze() * solar_gain_rate
         return Q_solar
 
     def create_upper_bound_EV_discharge(self) -> np.array:

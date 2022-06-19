@@ -154,6 +154,8 @@ class Behavior(Component):
     target_temperature_at_home_min: Optional[float] = None
     target_temperature_not_at_home_max: Optional[float] = None
     target_temperature_not_at_home_min: Optional[float] = None
+    shading_solar_reduction_rate: Optional[float] = None
+    shading_threshold_temperature: Optional[float] = None
     temperature_unit: Optional[str] = None
     id_hot_water_demand_profile: Optional[int] = None
     hot_water_demand_annual: Optional[float] = None
