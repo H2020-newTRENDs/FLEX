@@ -17,6 +17,9 @@ class ProjectOperationInit(DatabaseInitializer):
         self.load_component_table(OperationScenarioComponent.EnergyPrice)
         self.load_component_table(OperationScenarioComponent.Behavior)
 
+    def load_scenario_table(self):
+        self.load_table(OperationTable.Scenarios.value)
+
     def load_other_tables(self):
         self.load_table(OperationTable.BehaviorProfile.value)
         self.load_table(OperationTable.EnergyPriceProfile.value)
@@ -30,7 +33,7 @@ class ProjectOperationInit(DatabaseInitializer):
 
     def main(self):
         self.load_component_tables()
-        self.setup_scenario_dataframe()
+        self.load_scenario_table()
         self.load_other_tables()
         self.drop_tables()
 
