@@ -291,8 +291,7 @@ class OptOperationModel(OperationModel):
             if m.t[t] == 1:
                 return m.EVDischarge[t] == 0  # start of simulation, battery is empty
             elif m.t[t] == m.t[-1]:
-                return m.EVDischarge[t] == 0
-                # at the end of simulation Battery will be empty, so no discharge
+                return m.EVDischarge[t] == 0  # at the end of simulation Battery will be empty, so no discharge
             else:
                 return m.EVDischarge[t] == \
                        m.EVDemandProfile[t] + \

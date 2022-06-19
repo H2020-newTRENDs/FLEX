@@ -116,8 +116,8 @@ class OperationModel(ABC):
         self.EVChargeEfficiency = self.scenario.vehicle.charge_efficiency
         self.EVDischargeEfficiency = self.scenario.vehicle.discharge_efficiency
         self.EVOptionV2B = self.scenario.vehicle.charge_bidirectional
-        if self.scenario.vehicle.capacity > 0:
-            self.test_vehicle_profile()  # test if vehicle makes model infeasible
+        # if self.scenario.vehicle.capacity > 0:
+        #     self.test_vehicle_profile()  # test if vehicle makes model infeasible
 
     def setup_energy_price_params(self):
         self.ElectricityPrice = self.scenario.energy_price.electricity  # C/Wh
