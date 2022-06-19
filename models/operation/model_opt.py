@@ -263,17 +263,12 @@ class OptOperationModel(OperationModel):
         m.BatCharge_rule = pyo.Constraint(m.t, rule=calc_BatCharge)
 
         def calc_BatDischarge(m, t):
-            if m.t[t] == 1:
-                return m.BatDischarge[t] == 0  # start of simulation, battery is empty
-            elif m.t[t] == m.t[-1]:
-                return m.BatDischarge[t] == 0
-            else:
-                return m.BatDischarge[t] == m.Bat2Load[t] + m.Bat2EV[t] * m.EVAtHomeProfile[t]
+            return m.BatDischarge[t] == m.Bat2Load[t] + m.Bat2EV[t] * m.EVAtHomeProfile[t]
         m.BatDischarge_rule = pyo.Constraint(m.t, rule=calc_BatDischarge)
 
         def calc_BatSoC(m, t):
             if t == 1:
-                return m.BatSoC[t] == 0  # start of simulation, battery is empty
+                return m.BatSoC[t] == self.scenario.battery.capacity  # start of simulation, battery is empty
             else:
                 return m.BatSoC[t] == m.BatSoC[t - 1] + m.BatCharge[t] * self.ChargeEfficiency - \
                        m.BatDischarge[t] * (1 + (1 - self.DischargeEfficiency))

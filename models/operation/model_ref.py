@@ -84,7 +84,7 @@ class RefOperationModel(OperationModel):
             for i in range(0, len(pv_surplus)):
 
                 if i == 0:
-                    bat_soc_start = 0
+                    bat_soc_start = self.scenario.battery.capacity
                 else:
                     bat_soc_start = self.BatSoC[i - 1]
 
