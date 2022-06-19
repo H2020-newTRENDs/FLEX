@@ -49,11 +49,11 @@ class OperationScenario:
 
     def get_component_scenario_ids(self):
         scenario_df = self.db.read_dataframe(
-            OperationScenarioComponent.Scenario.table_name,
-            filter={OperationScenarioComponent.Scenario.id: self.scenario_id},
+            OperationTable.Scenarios.value,
+            filter={"ID_Scenario": self.scenario_id},
         )
         component_scenario_ids: dict = scenario_df.iloc[0].to_dict()
-        del component_scenario_ids[OperationScenarioComponent.Scenario.id]
+        del component_scenario_ids["ID_Scenario"]
         return component_scenario_ids
 
     def setup_components(self):

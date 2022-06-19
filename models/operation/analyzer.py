@@ -8,7 +8,6 @@ from plotly.subplots import make_subplots
 from basics.db import create_db_conn
 from basics.enums import InterfaceTable
 from basics import kit
-from models.operation.enums import OperationScenarioComponent as OSC
 from models.operation.enums import OperationTable
 from models.operation.plotter import OperationPlotter
 
@@ -68,11 +67,11 @@ class OperationAnalyzer:
     ):
         if model == "opt":
             df = kit.filter_df(
-                self.opt_hour, filter_dict={OSC.Scenario.id: scenario_id}
+                self.opt_hour, filter_dict={"ID_Scenario": scenario_id}
             )
         else:
             df = kit.filter_df(
-                self.ref_hour, filter_dict={OSC.Scenario.id: scenario_id}
+                self.ref_hour, filter_dict={"ID_Scenario": scenario_id}
             )
         if start_hour is not None and end_hour is not None:
             df = df[df["Hour"].between(start_hour, end_hour)]
@@ -81,34 +80,34 @@ class OperationAnalyzer:
     def get_year_df(self, scenario_id: int, model: str):
         if model == "opt":
             df = kit.filter_df(
-                self.opt_year, filter_dict={OSC.Scenario.id: scenario_id}
+                self.opt_year, filter_dict={"ID_Scenario": scenario_id}
             )
         else:
             df = kit.filter_df(
-                self.ref_year, filter_dict={OSC.Scenario.id: scenario_id}
+                self.ref_year, filter_dict={"ID_Scenario": scenario_id}
             )
         return df
 
     def compare_opt(self, id1, id2) -> None:
-        df1 = kit.filter_df(self.opt_hour, filter_dict={OSC.Scenario.id: id1})
-        df2 = kit.filter_df(self.opt_hour, filter_dict={OSC.Scenario.id: id2})
+        df1 = kit.filter_df(self.opt_hour, filter_dict={"ID_Scenario": id1})
+        df2 = kit.filter_df(self.opt_hour, filter_dict={"ID_Scenario": id2})
         name1 = f"opt_{id1}"
         name2 = f"opt_{id2}"
         self.gen_html(df1, df2, name1, name2)
 
     def compare_ref(self, id1, id2) -> None:
-        df1 = kit.filter_df(self.ref_hour, filter_dict={OSC.Scenario.id: id1})
-        df2 = kit.filter_df(self.ref_hour, filter_dict={OSC.Scenario.id: id2})
+        df1 = kit.filter_df(self.ref_hour, filter_dict={"ID_Scenario": id1})
+        df2 = kit.filter_df(self.ref_hour, filter_dict={"ID_Scenario": id2})
         name1 = f"ref_{id1}"
         name2 = f"ref_{id2}"
         self.gen_html(df1, df2, name1, name2)
 
     def compare_opt_ref(self, scenario_id: int) -> None:
         opt_df = kit.filter_df(
-            self.opt_hour, filter_dict={OSC.Scenario.id: scenario_id}
+            self.opt_hour, filter_dict={"ID_Scenario": scenario_id}
         )
         ref_df = kit.filter_df(
-            self.ref_hour, filter_dict={OSC.Scenario.id: scenario_id}
+            self.ref_hour, filter_dict={"ID_Scenario": scenario_id}
         )
         name1 = f"opt_{scenario_id}"
         name2 = f"ref_{scenario_id}"
@@ -180,7 +179,7 @@ class OperationAnalyzer:
         scenarios = self.db.read_dataframe(OperationTable.Scenarios.value)
 
         def add_total_cost(df: pd.DataFrame, id_sems):
-            sce = scenarios.rename(columns={OSC.Scenario.id: "ID_OperationScenario"})
+            sce = scenarios.rename(columns={"ID_Scenario": "ID_OperationScenario"})
             sce.insert(loc=1, column="TotalCost", value=df["TotalCost"])
             sce.insert(loc=2, column="ID_SEMS", value=id_sems)
             return sce
@@ -189,7 +188,7 @@ class OperationAnalyzer:
         ref_sce = add_total_cost(self.ref_year, id_sems=2)
         sce_summary = pd.concat([opt_sce, ref_sce], ignore_index=True, sort=False)
         sce_summary_ids = list(range(1, len(sce_summary) + 1))
-        sce_summary.insert(loc=0, column=OSC.Scenario.id, value=sce_summary_ids)
+        sce_summary.insert(loc=0, column="ID_Scenario", value=sce_summary_ids)
 
         table_name = InterfaceTable.OperationEnergyCost.value
         self.db.write_dataframe(table_name, sce_summary, if_exists="replace")
