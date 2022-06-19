@@ -158,15 +158,17 @@ class OperationScenario:
 
     def setup_behavior_hot_water_demand(self, behavior: pd.DataFrame):
         column = f"hot_water_demand_profile_{self.behavior.id_hot_water_demand_profile}"
+        annual_demand = self.behavior.hot_water_demand_annual * self.building.person_num
         self.behavior.hot_water_demand = self.gen_profile_with_annual_amount(
-            self.behavior.hot_water_demand_annual, behavior[column].to_numpy()
+            annual_demand, behavior[column].to_numpy()
         )
 
     def setup_behavior_appliance_electricity_demand(self, behavior: pd.DataFrame):
         column = f"appliance_electricity_demand_profile_{self.behavior.id_appliance_electricity_demand_profile}"
+        annual_demand = self.behavior.appliance_electricity_demand_annual * self.building.person_num
         self.behavior.appliance_electricity_demand = (
             self.gen_profile_with_annual_amount(
-                self.behavior.appliance_electricity_demand_annual,
+                annual_demand,
                 behavior[column].to_numpy(),
             )
         )
