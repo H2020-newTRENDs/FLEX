@@ -8,11 +8,11 @@ from basics.kit import get_logger
 logger = get_logger(__name__)
 
 if __name__ == "__main__":
-    scenario_ids = [1]
+    scenario_ids = [1, 2, 3, 4]
     for scenario_id in scenario_ids:
         logger.info(f"FlexOperation --> Scenario = {scenario_id}.")
         scenario = OperationScenario(scenario_id=scenario_id, config=config)
         ref_model = RefOperationModel(scenario).run()
         opt_model = OptOperationModel(scenario).run()
-        # RefDataCollector(ref_model, scenario.scenario_id, config).run()
-        # OptDataCollector(opt_model, scenario.scenario_id, config).run()
+        RefDataCollector(ref_model, scenario.scenario_id, config).run()
+        OptDataCollector(opt_model, scenario.scenario_id, config).run()
