@@ -31,27 +31,18 @@ class OptOperationModel(OperationModel):
         m.t = pyo.Set(initialize=self.Hour)
 
     def setup_params(self, m):
-        # region
-        m.T_outside = pyo.Param(m.t, initialize=self.create_dict(self.T_outside), mutable=True)  # °C
-        m.Q_Solar = pyo.Param(m.t, initialize=self.create_dict(self.Q_Solar), mutable=True)  # W
-        # space heating
+        m.T_outside = pyo.Param(m.t, initialize=self.create_dict(self.T_outside), mutable=True)
+        m.Q_Solar = pyo.Param(m.t, initialize=self.create_dict(self.Q_Solar), mutable=True)
         m.SpaceHeatingHourlyCOP = pyo.Param(m.t, initialize=self.create_dict(self.SpaceHeatingHourlyCOP))
         m.SpaceHeatingHourlyCOP_tank = pyo.Param(m.t, initialize=self.create_dict(self.SpaceHeatingHourlyCOP_tank))
-        # hot water
         m.HotWaterHourlyCOP = pyo.Param(m.t, initialize=self.create_dict(self.HotWaterHourlyCOP))
         m.HotWaterHourlyCOP_tank = pyo.Param(m.t, initialize=self.create_dict(self.HotWaterHourlyCOP_tank))
-        # space cooling
         m.CoolingHourlyCOP = pyo.Param(m.t, initialize=self.create_dict(self.CoolingHourlyCOP))
-        # PV
         m.PhotovoltaicProfile = pyo.Param(m.t, initialize=self.create_dict(self.PhotovoltaicProfile))
-        # battery
-        # EV
         m.EVDemandProfile = pyo.Param(m.t, initialize=self.create_dict(self.EVDemandProfile))
         m.EVAtHomeProfile = pyo.Param(m.t, initialize=self.create_dict(self.EVAtHomeProfile))
-        # energy price
         m.ElectricityPrice = pyo.Param(m.t, initialize=self.create_dict(self.ElectricityPrice))
         m.FiT = pyo.Param(m.t, initialize=self.create_dict(self.FiT))
-        # behavior
         m.HotWaterProfile = pyo.Param(m.t, initialize=self.create_dict(self.HotWaterProfile), mutable=True)
         m.BaseLoadProfile = pyo.Param(m.t, initialize=self.create_dict(self.BaseLoadProfile))
 
