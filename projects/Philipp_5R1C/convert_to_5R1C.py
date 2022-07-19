@@ -132,7 +132,6 @@ class Create5R1CParameters:
 
     def calculate_Am(self):
         """Am is Cm^2 divided by the area of building elements * specific capacity^2"""
-
         Cm2 = self.calculate_Cm() * self.calculate_Cm()
         return Cm2 / (self.specific_capacity_per_sqm() * self.specific_capacity_per_sqm() * self.total_area_of_building_elements())
 
