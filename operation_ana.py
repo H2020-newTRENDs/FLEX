@@ -54,4 +54,4 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
 
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
-    ana.plot_scenario_electricity_balance()
+    ana.plot_building_pathway()
