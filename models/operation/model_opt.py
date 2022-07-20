@@ -1,3 +1,4 @@
+import numpy as np
 import pyomo.environ as pyo
 from models.operation.model_base import OperationModel
 from basics.kit import performance_counter, get_logger
@@ -5,9 +6,15 @@ from basics.kit import performance_counter, get_logger
 logger = get_logger(__name__)
 
 
-class OptOperationModel(OperationModel):
+class OptFuelBoiler:
+    pass
 
-    def setup_model(self):
+
+class OptModelFramework:
+    def __init__(self):
+        self.Hour = np.arange(1, 8761)  # modeling horizon in hours
+
+    def setup_model(self):  # TODO create setup for HP and fuel boiler
         m = pyo.AbstractModel()
         self.setup_sets(m)
         self.setup_params(m)
@@ -31,20 +38,84 @@ class OptOperationModel(OperationModel):
         m.t = pyo.Set(initialize=self.Hour)
 
     def setup_params(self, m):
-        m.T_outside = pyo.Param(m.t, initialize=self.create_dict(self.T_outside), mutable=True)
-        m.Q_Solar = pyo.Param(m.t, initialize=self.create_dict(self.Q_Solar), mutable=True)
-        m.SpaceHeatingHourlyCOP = pyo.Param(m.t, initialize=self.create_dict(self.SpaceHeatingHourlyCOP))
-        m.SpaceHeatingHourlyCOP_tank = pyo.Param(m.t, initialize=self.create_dict(self.SpaceHeatingHourlyCOP_tank))
-        m.HotWaterHourlyCOP = pyo.Param(m.t, initialize=self.create_dict(self.HotWaterHourlyCOP))
-        m.HotWaterHourlyCOP_tank = pyo.Param(m.t, initialize=self.create_dict(self.HotWaterHourlyCOP_tank))
-        m.CoolingHourlyCOP = pyo.Param(m.t, initialize=self.create_dict(self.CoolingHourlyCOP))
-        m.PhotovoltaicProfile = pyo.Param(m.t, initialize=self.create_dict(self.PhotovoltaicProfile))
-        m.EVDemandProfile = pyo.Param(m.t, initialize=self.create_dict(self.EVDemandProfile))
-        m.EVAtHomeProfile = pyo.Param(m.t, initialize=self.create_dict(self.EVAtHomeProfile))
-        m.ElectricityPrice = pyo.Param(m.t, initialize=self.create_dict(self.ElectricityPrice))
-        m.FiT = pyo.Param(m.t, initialize=self.create_dict(self.FiT))
-        m.HotWaterProfile = pyo.Param(m.t, initialize=self.create_dict(self.HotWaterProfile), mutable=True)
-        m.BaseLoadProfile = pyo.Param(m.t, initialize=self.create_dict(self.BaseLoadProfile))
+        # time dependent parameters:
+        # external parameters:
+        # outside temperature
+        m.T_outside = pyo.Param(m.t, mutable=True)
+        # solar gains:
+        m.Q_Solar = pyo.Param(m.t, mutable=True)
+        m.ElectricityPrice = pyo.Param(m.t, mutable=True)
+        # Feed in Tariff of Photovoltaic
+        m.FiT = pyo.Param(m.t, mutable=True)
+
+        # heating
+        # COP of heat pump
+        m.SpaceHeatingHourlyCOP = pyo.Param(m.t, mutable=True)
+        # COP of heatpump for charging buffer storage
+        m.SpaceHeatingHourlyCOP_tank = pyo.Param(m.t, mutable=True)
+        # hot water
+        m.HotWaterProfile = pyo.Param(m.t, mutable=True)
+        # COP for hot water
+        m.HotWaterHourlyCOP = pyo.Param(m.t, mutable=True)
+        # COP for hot water when charging DHW storage
+        m.HotWaterHourlyCOP_tank = pyo.Param(m.t, mutable=True)
+
+        # time independent parameters:
+        m.SpaceHeating_HeatPumpMaximalElectricPower = pyo.Param(mutable=True)
+        m.CPWater = pyo.Param(mutable=True)
+
+        # electricity load profile
+        m.BaseLoadProfile = pyo.Param(m.t, mutable=True)
+        # PV
+        m.PhotovoltaicProfile = pyo.Param(m.t, mutable=True)
+        # Electric vehicle
+        m.EVDemandProfile = pyo.Param(m.t, mutable=True)
+        m.EVAtHomeProfile = pyo.Param(m.t, mutable=True)
+        # building
+        m.BaseLoadProfile = pyo.Param(m.t, mutable=True)
+
+        # COP of cooling
+        m.CoolingHourlyCOP = pyo.Param(m.t, mutable=True)
+
+        # heating tank
+        m.U_LossTank_heating = pyo.Param(mutable=True)
+        m.A_SurfaceTank_heating = pyo.Param(mutable=True)
+        m.M_WaterTank_heating = pyo.Param(mutable=True)
+        m.T_TankSurrounding_heating = pyo.Param(mutable=True)
+        m.T_TankStart_heating = pyo.Param(mutable=True)
+
+        # DHW tank
+        m.U_LossTank_DHW = pyo.Param(mutable=True)
+        m.A_SurfaceTank_DHW = pyo.Param(mutable=True)
+        m.M_WaterTank_DHW = pyo.Param(mutable=True)
+        m.T_TankSurrounding_DHW = pyo.Param(mutable=True)
+        m.T_TankStart_DHW = pyo.Param(mutable=True)
+
+        # battery
+        m.BatteryChargeEfficiency = pyo.Param(mutable=True)
+        m.BatteryDischargeEfficiency = pyo.Param(mutable=True)
+
+        # electric vehicle
+        m.EVOptionV2B = pyo.Param(mutable=True)
+        m.ev_capacity = pyo.Param(mutable=True)
+        m.EVChargeEfficiency = pyo.Param(mutable=True)
+        m.EVDischargeEfficiency = pyo.Param(mutable=True)
+
+        # building parameters
+        m.Am = pyo.Param(mutable=True)
+        m.Atot = pyo.Param(mutable=True)
+        m.Qi = pyo.Param(mutable=True)
+        m.Htr_w = pyo.Param(mutable=True)
+        m.Htr_em = pyo.Param(mutable=True)
+        m.Htr_ms = pyo.Param(mutable=True)
+        m.Htr_is = pyo.Param(mutable=True)
+        m.Hve = pyo.Param(mutable=True)
+        m.Htr_1 = pyo.Param(mutable=True)
+        m.Htr_2 = pyo.Param(mutable=True)
+        m.Htr_3 = pyo.Param(mutable=True)
+        m.PHI_ia = pyo.Param(mutable=True)
+        m.Cm = pyo.Param(mutable=True)
+        m.BuildingMassTemperatureStartValue = pyo.Param(mutable=True)
 
     def setup_variables(self, m):
         # space heating
@@ -55,6 +126,8 @@ class OptOperationModel(OperationModel):
         m.Q_HeatingTank_bypass = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.E_Heating_HP_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
+
+        # Temperatures (room and thermal mass)
         m.T_Room = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.T_BuildingMass = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
@@ -94,6 +167,8 @@ class OptOperationModel(OperationModel):
         m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Grid2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Grid2EV = pyo.Var(m.t, within=pyo.NonNegativeReals)
+
+        # Electric Load and Electricity fed back to the grid
         m.Load = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Feed2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
@@ -101,14 +176,14 @@ class OptOperationModel(OperationModel):
         def tank_energy_heating(m, t):
             if t == 1:
                 return m.Q_HeatingTank[t] == \
-                       self.CPWater * self.M_WaterTank_heating * (273.15 + self.T_TankStart_heating) - \
+                       m.CPWater * m.M_WaterTank_heating * (273.15 + m.T_TankStart_heating) - \
                        m.Q_HeatingTank_out[t]
             else:
                 return m.Q_HeatingTank[t] == \
                        m.Q_HeatingTank[t - 1] - m.Q_HeatingTank_out[t] + m.Q_HeatingTank_in[t] - \
-                       self.U_LossTank_heating * self.A_SurfaceTank_heating * \
-                       ((m.Q_HeatingTank[t] / (self.M_WaterTank_heating * self.CPWater)) -
-                        (self.T_TankSurrounding_heating + 273.15))
+                       m.U_LossTank_heating * m.A_SurfaceTank_heating * \
+                       ((m.Q_HeatingTank[t] / (m.M_WaterTank_heating * m.CPWater)) -
+                        (m.T_TankSurrounding_heating + 273.15))
         m.tank_energy_rule_heating = pyo.Constraint(m.t, rule=tank_energy_heating)
 
     def setup_constraint_space_heating_room(self, m):
@@ -119,58 +194,58 @@ class OptOperationModel(OperationModel):
     def setup_constraint_thermal_mass_temperature(self, m):
         def thermal_mass_temperature_rc(m, t):
             if t == 1:
-                Tm_start = self.BuildingMassTemperatureStartValue
+                Tm_start = m.BuildingMassTemperatureStartValue
             else:
                 Tm_start = m.T_BuildingMass[t - 1]
             # Equ. C.2
-            PHI_m = self.Am / self.Atot * (0.5 * self.Qi + m.Q_Solar[t])
+            PHI_m = m.Am / m.Atot * (0.5 * m.Qi + m.Q_Solar[t])
             # Equ. C.3
-            PHI_st = (1 - self.Am / self.Atot - self.Htr_w / 9.1 / self.Atot) * (0.5 * self.Qi + m.Q_Solar[t])
+            PHI_st = (1 - m.Am / m.Atot - m.Htr_w / 9.1 / m.Atot) * (0.5 * m.Qi + m.Q_Solar[t])
             # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
             T_sup = m.T_outside[t]
             # Equ. C.5
-            PHI_mtot = PHI_m + self.Htr_em * m.T_outside[t] + self.Htr_3 * \
-                       (PHI_st + self.Htr_w * m.T_outside[t] + self.Htr_1 *
-                        (((self.PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / self.Hve) + T_sup)) / self.Htr_2
+            PHI_mtot = PHI_m + m.Htr_em * m.T_outside[t] + m.Htr_3 * \
+                       (PHI_st + m.Htr_w * m.T_outside[t] + m.Htr_1 *
+                        (((m.PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / m.Hve) + T_sup)) / m.Htr_2
             # Equ. C.4
             return m.T_BuildingMass[t] == \
-                   (Tm_start * ((self.Cm / 3600) - 0.5 * (self.Htr_3 + self.Htr_em)) + PHI_mtot) / \
-                   ((self.Cm / 3600) + 0.5 * (self.Htr_3 + self.Htr_em))
+                   (Tm_start * ((m.Cm / 3600) - 0.5 * (m.Htr_3 + m.Htr_em)) + PHI_mtot) / \
+                   ((m.Cm / 3600) + 0.5 * (m.Htr_3 + m.Htr_em))
         m.thermal_mass_temperature_rule = pyo.Constraint(m.t, rule=thermal_mass_temperature_rc)
 
     def setup_constraint_room_temperature(self, m):
 
         def room_temperature_rc(m, t):
             if t == 1:
-                Tm_start = self.BuildingMassTemperatureStartValue
+                Tm_start = m.BuildingMassTemperatureStartValue
             else:
                 Tm_start = m.T_BuildingMass[t - 1]
             # Equ. C.3
-            PHI_st = (1 - self.Am / self.Atot - self.Htr_w / 9.1 / self.Atot) * (
-                    0.5 * self.Qi + m.Q_Solar[t]
+            PHI_st = (1 - m.Am / m.Atot - m.Htr_w / 9.1 / m.Atot) * (
+                    0.5 * m.Qi + m.Q_Solar[t]
             )
             # Equ. C.9
             T_m = (m.T_BuildingMass[t] + Tm_start) / 2
             T_sup = m.T_outside[t]
             # Euq. C.10
             T_s = (
-                          self.Htr_ms * T_m
+                          m.Htr_ms * T_m
                           + PHI_st
-                          + self.Htr_w * m.T_outside[t]
-                          + self.Htr_1
+                          + m.Htr_w * m.T_outside[t]
+                          + m.Htr_1
                           * (
                                   T_sup
-                                  + (self.PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / self.Hve
+                                  + (m.PHI_ia + m.Q_RoomHeating[t] - m.Q_RoomCooling[t]) / m.Hve
                           )
-                  ) / (self.Htr_ms + self.Htr_w + self.Htr_1)
+                  ) / (m.Htr_ms + m.Htr_w + m.Htr_1)
             # Equ. C.11
             T_air = (
-                            self.Htr_is * T_s
-                            + self.Hve * T_sup
-                            + self.PHI_ia
+                            m.Htr_is * T_s
+                            + m.Hve * T_sup
+                            + m.PHI_ia
                             + m.Q_RoomHeating[t]
                             - m.Q_RoomCooling[t]
-                    ) / (self.Htr_is + self.Hve)
+                    ) / (m.Htr_is + m.Hve)
             return m.T_Room[t] == T_air
 
         m.room_temperature_rule = pyo.Constraint(m.t, rule=room_temperature_rc)
@@ -181,17 +256,17 @@ class OptOperationModel(OperationModel):
             if t == 1:
                 return (
                         m.Q_DHWTank[t]
-                        == self.CPWater
-                        * self.M_WaterTank_DHW
-                        * (273.15 + self.T_TankStart_DHW)
+                        == m.CPWater
+                        * m.M_WaterTank_DHW
+                        * (273.15 + m.T_TankStart_DHW)
                         - m.Q_DHWTank_out[t]
                 )
             else:
                 return m.Q_DHWTank[t] == m.Q_DHWTank[t - 1] - m.Q_DHWTank_out[
                     t
-                ] + m.Q_DHWTank_in[t] - self.U_LossTank_DHW * self.A_SurfaceTank_DHW * (
-                               m.Q_DHWTank[t] / (self.M_WaterTank_DHW * self.CPWater)
-                               - (self.T_TankSurrounding_DHW + 273.15)
+                ] + m.Q_DHWTank_in[t] - m.U_LossTank_DHW * m.A_SurfaceTank_DHW * (
+                               m.Q_DHWTank[t] / (m.M_WaterTank_DHW * m.CPWater)
+                               - (m.T_TankSurrounding_DHW + 273.15)
                        )
 
         m.tank_energy_rule_DHW = pyo.Constraint(m.t, rule=tank_energy_DHW)
@@ -226,14 +301,14 @@ class OptOperationModel(OperationModel):
         def constrain_heating_max_power(m, t):
             return (
                     m.E_DHW_HP_out[t] + m.E_Heating_HP_out[t]
-                    <= self.SpaceHeating_HeatPumpMaximalElectricPower
+                    <= m.SpaceHeating_HeatPumpMaximalElectricPower
             )
 
         m.max_HP_power_rule = pyo.Constraint(m.t, rule=constrain_heating_max_power)
 
     def setup_constraint_space_cooling(self, m):
         def calc_E_RoomCooling_with_cooling(m, t):
-            return m.E_RoomCooling[t] == m.Q_RoomCooling[t] / self.CoolingCOP
+            return m.E_RoomCooling[t] == m.Q_RoomCooling[t] / m.CoolingHourlyCOP[t]
         m.E_RoomCooling_with_cooling_rule = pyo.Constraint(m.t, rule=calc_E_RoomCooling_with_cooling)
 
     def setup_constraint_pv(self, m):
@@ -250,7 +325,7 @@ class OptOperationModel(OperationModel):
     def setup_constraint_battery(self, m):
 
         def calc_BatCharge(m, t):
-            return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] + m.EV2Bat[t] * m.EVAtHomeProfile[t] * self.EVOptionV2B
+            return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] + m.EV2Bat[t] * m.EVAtHomeProfile[t] * m.EVOptionV2B
         m.BatCharge_rule = pyo.Constraint(m.t, rule=calc_BatCharge)
 
         def calc_BatDischarge(m, t):
@@ -259,10 +334,10 @@ class OptOperationModel(OperationModel):
 
         def calc_BatSoC(m, t):
             if t == 1:
-                return m.BatSoC[t] == self.scenario.battery.capacity
+                return m.BatSoC[t] == m.ev_capacity
             else:
-                return m.BatSoC[t] == m.BatSoC[t - 1] + m.BatCharge[t] * self.ChargeEfficiency - \
-                       m.BatDischarge[t] * (1 + (1 - self.DischargeEfficiency))
+                return m.BatSoC[t] == m.BatSoC[t - 1] + m.BatCharge[t] * m.BatteryChargeEfficiency - \
+                       m.BatDischarge[t] * (1 + (1 - m.BatteryDischargeEfficiency))
         m.BatSoC_rule = pyo.Constraint(m.t, rule=calc_BatSoC)
 
     def setup_constraint_ev(self, m):
@@ -276,16 +351,16 @@ class OptOperationModel(OperationModel):
         def calc_EVDischarge(m, t):
             return m.EVDischarge[t] == \
                    m.EVDemandProfile[t] + \
-                   (m.EV2Load[t] + m.EV2Bat[t]) * m.EVAtHomeProfile[t] * self.EVOptionV2B
+                   (m.EV2Load[t] + m.EV2Bat[t]) * m.EVAtHomeProfile[t] * m.EVOptionV2B
         m.EVDischarge_rule = pyo.Constraint(m.t, rule=calc_EVDischarge)
 
         def calc_EVSoC(m, t):
             if t == 1:
-                return m.EVSoC[t] == self.scenario.vehicle.capacity
+                return m.EVSoC[t] == m.ev_capacity
             else:
                 return m.EVSoC[t] == \
-                       m.EVSoC[t - 1] + m.EVCharge[t] * self.EVChargeEfficiency * m.EVAtHomeProfile[t] - \
-                       m.EVDischarge[t] * (1 + (1 - self.EVDischargeEfficiency))
+                       m.EVSoC[t - 1] + m.EVCharge[t] * m.EVChargeEfficiency * m.EVAtHomeProfile[t] - \
+                       m.EVDischarge[t] * (1 + (1 - m.EVDischargeEfficiency))
         m.EVSoC_rule = pyo.Constraint(m.t, rule=calc_EVSoC)
 
     def setup_constraint_electricity_demand(self, m):
@@ -293,7 +368,7 @@ class OptOperationModel(OperationModel):
         def calc_SumOfLoads_with_cooling(m, t):
             return m.Load[t] == \
                    m.BaseLoadProfile[t] + m.E_Heating_HP_out[t] + m.Q_HeatingElement[t] + \
-                   m.Q_RoomCooling[t] / self.CoolingCOP + m.E_DHW_HP_out[t]
+                   m.Q_RoomCooling[t] / m.CoolingHourlyCOP[t] + m.E_DHW_HP_out[t]
         m.SumOfLoads_with_cooling_rule = pyo.Constraint(m.t, rule=calc_SumOfLoads_with_cooling)
 
         def calc_SumOfLoads_without_cooling(m, t):
@@ -309,7 +384,7 @@ class OptOperationModel(OperationModel):
         def calc_SupplyOfLoads(m, t):
             return m.Load[t] == \
                    m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] + \
-                   m.EV2Load[t] * m.EVAtHomeProfile[t] * self.EVOptionV2B
+                   m.EV2Load[t] * m.EVAtHomeProfile[t] * m.EVOptionV2B
         m.SupplyOfLoads_rule = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
 
     def setup_objective(self, m):
@@ -325,15 +400,98 @@ class OptOperationModel(OperationModel):
             dictionary[index] = value
         return dictionary
 
-    def config_instance(self, instance):
+    @performance_counter
+    def create_base_instance(self):
+        model = self.setup_model()
+        instance = model.create_instance()
+        return instance
+
+
+class SolveHeatPumpOptimization(OperationModel):
+
+    @performance_counter
+    def update_instance(self, instance):
+        self.config_static_params(instance)
+        self.config_external_params(instance)
+        self.config_prices(instance)
         self.config_grid(instance)
         self.config_space_heating(instance)
+        self.config_space_heating_tank(instance)
         self.config_hot_water_tank(instance)
         self.config_battery(instance)
         self.config_space_cooling_technology(instance)
         self.config_vehicle(instance)
         self.config_pv(instance)
         return instance
+
+    def config_static_params(self, instance):
+        instance.CPWater = self.CPWater
+        # building parameters:
+        instance.Am = self.scenario.building.Am_factor
+        instance.Hve = self.scenario.building.Hve
+        instance.Htr_w = self.scenario.building.Htr_w
+        # parameters that have to be calculated:
+        instance.Atot = self.Atot
+        instance.Qi = self.Qi
+        instance.Htr_em = self.Htr_em
+        instance.Htr_3 = self.Htr_3
+        instance.Htr_1 = self.Htr_1
+        instance.Htr_2 = self.Htr_2
+        instance.Htr_ms = self.Htr_ms
+        instance.Htr_is = self.Htr_is
+        instance.PHI_ia = self.PHI_ia
+        instance.Cm = self.Cm
+        instance.BuildingMassTemperatureStartValue = self.BuildingMassTemperatureStartValue
+
+        # Battery parameters
+        instance.BatteryChargeEfficiency = self.scenario.battery.charge_efficiency
+        instance.BatteryDischargeEfficiency = self.scenario.battery.discharge_efficiency
+
+        # EV parameters
+        instance.EVChargeEfficiency = self.scenario.vehicle.charge_efficiency
+        instance.EVDischargeEfficiency = self.scenario.vehicle.discharge_efficiency
+        instance.ev_capacity = self.scenario.vehicle.capacity
+        instance.EVOptionV2B = self.EVOptionV2B
+
+        # Thermal storage heating parameters
+        instance.T_TankStart_heating = self.scenario.space_heating_tank.temperature_start
+        instance.M_WaterTank_heating = self.scenario.space_heating_tank.size
+        instance.U_LossTank_heating = self.scenario.space_heating_tank.loss
+        instance.T_TankSurrounding_heating = self.scenario.space_heating_tank.temperature_surrounding
+        instance.A_SurfaceTank_heating = self.scenario.space_heating_tank.surface_area
+
+        # Thermal storage DHW parameters
+        instance.T_TankStart_DHW = self.scenario.hot_water_tank.temperature_start
+        instance.M_WaterTank_DHW = self.scenario.hot_water_tank.size
+        instance.U_LossTank_DHW = self.scenario.hot_water_tank.loss
+        instance.T_TankSurrounding_DHW = self.scenario.hot_water_tank.temperature_surrounding
+        instance.A_SurfaceTank_DHW = self.scenario.hot_water_tank.surface_area
+
+        # HP
+        instance.SpaceHeating_HeatPumpMaximalElectricPower = self.SpaceHeating_HeatPumpMaximalElectricPower
+
+
+    def config_external_params(self, instance):
+        for t in range(1, 8761):
+            instance.Q_Solar[t] = self.Q_Solar[t-1]
+            instance.T_outside[t] = self.T_outside[t-1]
+            instance.HotWaterProfile[t] = self.HotWaterProfile[t-1]
+            instance.BaseLoadProfile[t] = self.BaseLoadProfile[t-1]
+            instance.SpaceHeatingHourlyCOP[t] = self.SpaceHeatingHourlyCOP[t-1]
+            instance.SpaceHeatingHourlyCOP_tank[t] = self.SpaceHeatingHourlyCOP_tank[t-1]
+            instance.HotWaterHourlyCOP[t] = self.HotWaterHourlyCOP[t-1]
+            instance.HotWaterHourlyCOP_tank[t] = self.HotWaterHourlyCOP_tank[t-1]
+            instance.PhotovoltaicProfile[t] = self.PhotovoltaicProfile[t-1]
+            instance.EVAtHomeProfile[t] = self.EVAtHomeProfile[t-1]
+            instance.EVDemandProfile[t] = self.EVDemandProfile[t-1]
+
+
+
+
+    def config_prices(self, instance):
+        for t in range(1, 8761):
+            instance.ElectricityPrice[t] = self.scenario.energy_price.electricity[t-1]
+            instance.FiT[t] = self.scenario.energy_price.electricity_feed_in[t-1]
 
     def config_grid(self, instance):
         for t in range(1, 8761):
@@ -345,46 +503,111 @@ class OptOperationModel(OperationModel):
             instance.Q_HeatingElement[t].setub(self.scenario.boiler.heating_element_power)
             instance.T_Room[t].setlb(self.scenario.behavior.target_temperature_array_min[t - 1])
             instance.T_BuildingMass[t].setub(100)
-            instance.Q_HeatingTank[t].setlb(self.Q_TankEnergyMin_heating)
-            instance.Q_HeatingTank[t].setub(self.Q_TankEnergyMax_heating)
             instance.E_Heating_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
 
+    def config_space_heating_tank(self, instance):
+        if self.scenario.space_heating_tank.size == 0:
+            for t in range(1, 8761):
+                instance.Q_HeatingTank_out[t].fix(0)
+                instance.Q_HeatingTank_in[t].fix(0)
+                instance.Q_HeatingTank[t].fix(0)
+
+            instance.tank_energy_rule_heating.deactivate()
+        else:
+            for t in range(1, 8761):
+                instance.Q_HeatingTank[t].setlb(
+                    self.CPWater * self.scenario.space_heating_tank.size *
+                    (273.15 + self.scenario.space_heating_tank.temperature_min)
+                )
+
+                instance.Q_HeatingTank[t].setub(
+                    self.CPWater * self.scenario.space_heating_tank.size *
+                    (273.15 + self.scenario.space_heating_tank.temperature_max)
+                )
+            instance.tank_energy_rule_heating.activate()
+
     def config_hot_water_tank(self, instance):
-        for t in range(1, 8761):
-            instance.Q_DHWTank[t].setlb(self.Q_TankEnergyMin_DHW)
-            instance.Q_DHWTank[t].setub(self.Q_TankEnergyMax_DHW)
-            instance.E_DHW_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
+        if self.scenario.hot_water_tank.size == 0:
+            for t in range(1, 8761):
+                instance.Q_DHWTank_out[t].fix(0)
+                instance.Q_DHWTank_in[t].fix(0)
+                instance.Q_DHWTank[t].fix(0)
+
+                instance.E_DHW_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
+            instance.tank_energy_rule_DHW.deactivate()
+        else:
+            for t in range(1, 8761):
+                instance.Q_DHWTank[t].setlb(
+                    self.CPWater * self.scenario.hot_water_tank.size *
+                    (273.15 + self.scenario.hot_water_tank.temperature_min)
+                )
+                instance.Q_DHWTank[t].setub(
+                    self.CPWater * self.scenario.hot_water_tank.size *
+                    (273.15 + self.scenario.hot_water_tank.temperature_max)
+                )
+                instance.E_DHW_HP_out[t].setub(self.SpaceHeating_HeatPumpMaximalElectricPower)
+            instance.tank_energy_rule_DHW.activate()
 
     def config_battery(self, instance):
-        for t in range(1, 8761):
-            instance.Grid2Bat[t].setub(self.scenario.battery.charge_power_max)
-            instance.Bat2Load[t].setub(self.scenario.battery.discharge_power_max)
-            instance.BatSoC[t].setub(self.scenario.battery.capacity)
-            instance.BatCharge[t].setub(self.scenario.battery.charge_power_max)
-            instance.BatDischarge[t].setub(self.scenario.battery.discharge_power_max)
+        if self.scenario.battery.capacity == 0:
+            for t in range(1, 8761):
+                instance.Grid2Bat[t].fix(0)
+                instance.Bat2Load[t].fix(0)
+                instance.BatSoC[t].fix(0)
+                instance.BatCharge[t].fix(0)
+                instance.BatDischarge[t].fix(0)
+                instance.PV2Bat[t].fix(0)
+            instance.BatCharge_rule.deactivate()
+            instance.BatDischarge_rule.deactivate()
+            instance.BatSoC_rule.deactivate()
+        else:
+            for t in range(1, 8761):
+                # variables have to be unfixed in case they were fixed in a previous run
+                instance.Grid2Bat[t].fixed = False
+                instance.Bat2Load[t].fixed = False
+                instance.BatSoC[t].fixed = False
+                instance.BatCharge[t].fixed = False
+                instance.BatDischarge[t].fixed = False
+                instance.PV2Bat[t].fixed = False
+                # set upper bounds
+                instance.Grid2Bat[t].setub(self.scenario.battery.charge_power_max)
+                instance.Bat2Load[t].setub(self.scenario.battery.discharge_power_max)
+                instance.BatSoC[t].setub(self.scenario.battery.capacity)
+                instance.BatCharge[t].setub(self.scenario.battery.charge_power_max)
+                instance.BatDischarge[t].setub(self.scenario.battery.discharge_power_max)
+            instance.BatCharge_rule.activate()
+            instance.BatDischarge_rule.activate()
+            instance.BatSoC_rule.activate()
 
     def config_space_cooling_technology(self, instance):
         if self.scenario.space_cooling_technology.power == 0:
             no_cooling_target_temperature_max = (
-                self.generate_maximum_target_indoor_temperature_no_cooling(temperature_max=23)
+                self.generate_maximum_target_indoor_temperature_no_cooling(temperature_max=23) # TODO set this from input
             )
             for t in range(1, 8761):
                 instance.Q_RoomCooling[t].fix(0)
                 instance.E_RoomCooling[t].fix(0)
+                instance.CoolingHourlyCOP[t].fix(0)
                 instance.T_Room[t].setub(no_cooling_target_temperature_max[t - 1])
+
             instance.SumOfLoads_without_cooling_rule.activate()
             instance.SumOfLoads_with_cooling_rule.deactivate()
             instance.E_RoomCooling_with_cooling_rule.deactivate()
         else:
             for t in range(1, 8761):
+                instance.Q_RoomCooling[t].fixed = False
+                instance.E_RoomCooling[t].fixed = False
                 instance.Q_RoomCooling[t].setub(self.scenario.space_cooling_technology.power)
                 instance.T_Room[t].setub(self.scenario.behavior.target_temperature_array_max[t - 1])
+                instance.CoolingHourlyCOP[t] = self.CoolingHourlyCOP[t - 1]
+
             instance.SumOfLoads_without_cooling_rule.deactivate()
             instance.SumOfLoads_with_cooling_rule.activate()
             instance.E_RoomCooling_with_cooling_rule.activate()
 
     def config_vehicle(self, instance):
-        if self.scenario.vehicle.capacity == 0:
+        max_discharge_EV = self.create_upper_bound_EV_discharge()
+        if self.scenario.vehicle.capacity == 0:  # no EV is implemented
             for t in range(1, 8761):
                 instance.Grid2EV[t].fix(0)
                 instance.Bat2EV[t].fix(0)
@@ -398,17 +621,30 @@ class OptOperationModel(OperationModel):
             instance.EVDischarge_rule.deactivate()
             instance.EVSoC_rule.deactivate()
         else:
-            max_discharge_EV = self.create_upper_bound_EV_discharge()
             for t in range(1, 8761):
-                if self.EVOptionV2B == 0:
-                    instance.EV2Bat[t].fix(0)
-                    instance.EV2Load[t].fix(0)
+                # set upper bounds
                 instance.Grid2EV[t].setub(self.scenario.vehicle.charge_power_max)
                 instance.EV2Load[t].setub(self.scenario.vehicle.discharge_power_max)
                 instance.PV2EV[t].setub(self.scenario.vehicle.charge_power_max)
                 instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
                 instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
                 instance.EVDischarge[t].setub(max_discharge_EV[t - 1])
+
+            # in case there is a stationary battery available:
+            if self.scenario.battery.capacity > 0:
+                if self.EVOptionV2B == 0:
+                    for t in range(1, 8761):
+                        instance.EV2Bat[t].fix(0)
+                        instance.EV2Load[t].fix(0)
+
+            # in case there is no stationary battery available:
+            elif self.scenario.battery.capacity == 0:
+                for t in range(1, 8761):
+                    instance.EV2Bat[t].fix(0)
+                    instance.Bat2EV[t].fix(0)
+                    if self.EVOptionV2B == 0:
+                        instance.EV2Load[t].fix(0)
+
             instance.EVCharge_rule.activate()
             instance.EVDischarge_rule.activate()
             instance.EVSoC_rule.activate()
@@ -429,54 +665,18 @@ class OptOperationModel(OperationModel):
             instance.UseOfPV_rule.activate()
 
     @performance_counter
-    def setup_instance(self):
-        model = self.setup_model()
-        instance = model.create_instance()
-        instance = self.config_instance(instance)
-        return instance
+    def solve_model(self, instance):
+        updated_instance = self.update_instance(instance)
+        print("solving..")
+        pyo.SolverFactory("gurobi").solve(updated_instance, tee=False)
+        logger.info(f"OptCost: {round(updated_instance.total_operation_cost_rule(), 2)}")
+        return updated_instance
 
-    @performance_counter
-    def solve_instance(self, instance):
-        pyo.SolverFactory("gurobi").solve(instance, tee=False)
-        return instance
 
-    def run_fuel_boiler_opt(self):
-        (
-            outside_temperature,
-            q_solar,
-            hot_water_demand,
-        ) = self.fuel_boiler_save_scenario()
-        (
-            heating_cost,
-            cooling_cost,
-            heating_demand,
-            cooling_demand,
-            room_temperature,
-            building_mass_temperature,
-        ) = self.fuel_boiler_heating_cooling()
-        hot_water_cost = self.fuel_boiler_hot_water()
-        self.fuel_boiler_remove_heating_cooling_hot_water_demand()
-        solved_instance = self.run_heatpump_opt()
-        solved_instance.__dict__["T_outside"].store_values(self.create_dict(outside_temperature))
-        solved_instance.__dict__["Q_Solar"].store_values(self.create_dict(q_solar))
-        solved_instance.__dict__["Q_RoomHeating"].set_values(self.create_dict(heating_demand))
-        solved_instance.__dict__["Q_RoomCooling"].set_values(self.create_dict(cooling_demand))
-        solved_instance.__dict__["E_RoomCooling"].set_values(self.create_dict(cooling_demand / self.CoolingCOP))
-        solved_instance.__dict__["T_Room"].set_values(self.create_dict(room_temperature))
-        solved_instance.__dict__["T_BuildingMass"].set_values(self.create_dict(building_mass_temperature))
-        solved_instance.__dict__["HotWaterProfile"].store_values(self.create_dict(hot_water_demand))
-        solved_instance.__dict__["total_operation_cost_rule"] += (heating_cost + cooling_cost + hot_water_cost)
-        return solved_instance
+class SolveFuelBoilerOptimization(OperationModel):
 
-    def run_heatpump_opt(self):
-        instance = self.setup_instance()
-        solved_instance = self.solve_instance(instance)
-        return solved_instance
 
-    def run(self):
-        if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
-            solved_instance = self.run_heatpump_opt()
-        else:
-            solved_instance = self.run_fuel_boiler_opt()
-        logger.info(f"OptCost: {round(solved_instance.total_operation_cost_rule(), 2)}")
-        return solved_instance
+    pass
+
+
+
