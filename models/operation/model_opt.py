@@ -515,9 +515,9 @@ class SolveHeatPumpOptimization(OperationModel):
             instance.HeatingElement_efficiency = 1  # to avoid that the model cant run
         if self.HeatingElement_power == 0:
             for t in range(1, 8761):
-                instance.Q_HeatingElement.fix(0)
-                instance.Q_HeatingElement_heat.fix(0)
-                instance.Q_HeatingElement_DHW.fix(0)
+                instance.Q_HeatingElement[t].fix(0)
+                instance.Q_HeatingElement_heat[t].fix(0)
+                instance.Q_HeatingElement_DHW[t].fix(0)
         else:
             for t in range(1, 8761):
                 instance.Q_HeatingElement[t].setub(self.HeatingElement_power)
