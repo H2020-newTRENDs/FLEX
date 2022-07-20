@@ -56,6 +56,13 @@ class Boiler(Component):
 
 
 @dataclass
+class HeatingElement(Component):
+    power: Optional[float] = None
+    power_unit: Optional[str] = None
+    efficiency: Optional[float] = None
+
+
+@dataclass
 class SpaceHeatingTank(Component):
     size: Optional[float] = None
     size_unit: Optional[str] = None
