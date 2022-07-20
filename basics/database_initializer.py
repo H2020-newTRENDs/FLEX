@@ -81,6 +81,7 @@ class DatabaseInitializer:
 
     def generate_scenario_table(self, table_name: str):
         self.db.drop_table(table_name)
+        logger.info(f"generating table -> {table_name}")
         scenario_df = self.generate_params_combination_df(
             self.get_component_scenario_ids()
         )
