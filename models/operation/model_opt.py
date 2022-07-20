@@ -60,8 +60,7 @@ class OptModelFramework:
         m.HotWaterHourlyCOP = pyo.Param(m.t, mutable=True)
         # COP for hot water when charging DHW storage
         m.HotWaterHourlyCOP_tank = pyo.Param(m.t, mutable=True)
-        # heating element
-        m.HeatingElement_efficiency = pyo.Param(m.t, mutable=True)
+
 
         # time independent parameters:
         m.SpaceHeating_HeatPumpMaximalElectricPower = pyo.Param(mutable=True)
@@ -79,6 +78,9 @@ class OptModelFramework:
 
         # COP of cooling
         m.CoolingHourlyCOP = pyo.Param(m.t, mutable=True)
+
+        # heating element
+        m.HeatingElement_efficiency = pyo.Param(mutable=True)
 
         # heating tank
         m.U_LossTank_heating = pyo.Param(mutable=True)
@@ -131,8 +133,8 @@ class OptModelFramework:
 
         # heating element
         m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals)
-        m.HeatingElement_DHW = pyo.Var(m.t, within=pyo.NonNegativeReals)
-        m.HeatingElement_heat = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.Q_HeatingElement_DHW = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.Q_HeatingElement_heat = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # Temperatures (room and thermal mass)
         m.T_Room = pyo.Var(m.t, within=pyo.NonNegativeReals)
@@ -287,9 +289,10 @@ class OptModelFramework:
     def setup_constraint_heat_pump(self, m):
         def calc_supply_of_space_heating(m, t):
             return (
-                    m.Q_HeatingTank_bypass[t] / m.SpaceHeatingHourlyCOP[t]
-                    + m.Q_HeatingTank_in[t] / m.SpaceHeatingHourlyCOP_tank[t]
-                    == m.E_Heating_HP_out[t] + m.HeatingElement_heat[t] / m.HeatingElement_efficiency[t]
+                    m.Q_HeatingTank_bypass[t] / m.SpaceHeatingHourlyCOP[t] +
+                    m.Q_HeatingTank_in[t] / m.SpaceHeatingHourlyCOP_tank[t] -
+                    m.Q_HeatingElement_heat[t] / m.HeatingElement_efficiency
+                    == m.E_Heating_HP_out[t]
             )
 
         m.calc_use_of_HP_power_DHW_rule = pyo.Constraint(
@@ -298,9 +301,10 @@ class OptModelFramework:
 
         def calc_supply_of_DHW(m, t):
             return (
-                    m.Q_DHWTank_bypass[t] / m.HotWaterHourlyCOP[t]
-                    + m.Q_DHWTank_in[t] / m.HotWaterHourlyCOP_tank[t]
-                    == m.E_DHW_HP_out[t] + m.HeatingElement_DHW[t] / m.HeatingElement_efficiency[t]
+                    m.Q_DHWTank_bypass[t] / m.HotWaterHourlyCOP[t] +
+                    m.Q_DHWTank_in[t] / m.HotWaterHourlyCOP_tank[t] -
+                    m.Q_HeatingElement_DHW[t] / m.HeatingElement_efficiency
+                    == m.E_DHW_HP_out[t]
             )
 
         m.bypass_DHW_rule = pyo.Constraint(m.t, rule=calc_supply_of_DHW)
@@ -308,7 +312,7 @@ class OptModelFramework:
     def setup_constraint_heating_element(self, m):
 
         def calc_heating_element(m, t):
-            return m.HeatingElement_DHW[t] + m.HeatingElement_heat[t] == m.Q_HeatingElement[t]
+            return m.Q_HeatingElement_DHW[t] + m.Q_HeatingElement_heat[t] == m.Q_HeatingElement[t]
         m.heating_element_rule = pyo.Constraint(m.t, rule=calc_heating_element)
 
         def constrain_heating_max_power(m, t):
@@ -382,7 +386,7 @@ class OptModelFramework:
             return m.Load[t] == \
                    m.BaseLoadProfile[t] + \
                    m.E_Heating_HP_out[t] + \
-                   m.Q_HeatingElement[t] / m.HeatingElement_efficiency[t] + \
+                   m.Q_HeatingElement[t] / m.HeatingElement_efficiency + \
                    m.Q_RoomCooling[t] / m.CoolingHourlyCOP[t] + \
                    m.E_DHW_HP_out[t]
         m.SumOfLoads_with_cooling_rule = pyo.Constraint(m.t, rule=calc_SumOfLoads_with_cooling)
@@ -390,7 +394,7 @@ class OptModelFramework:
         def calc_SumOfLoads_without_cooling(m, t):
             return m.Load[t] == m.BaseLoadProfile[t] + \
                    m.E_Heating_HP_out[t] + \
-                   m.Q_HeatingElement[t] / m.HeatingElement_efficiency[t] + \
+                   m.Q_HeatingElement[t] / m.HeatingElement_efficiency + \
                    m.E_DHW_HP_out[t]
         m.SumOfLoads_without_cooling_rule = pyo.Constraint(m.t, rule=calc_SumOfLoads_without_cooling)
 
@@ -509,11 +513,11 @@ class SolveHeatPumpOptimization(OperationModel):
             instance.HeatingElement_efficiency = self.HeatingElement_efficiency
         else:
             instance.HeatingElement_efficiency = 1  # to avoid that the model cant run
-        if self.scenario.heating_element.power == 0:
+        if self.HeatingElement_power == 0:
             for t in range(1, 8761):
                 instance.Q_HeatingElement.fix(0)
-                instance.HeatingElement_heat.fix(0)
-                instance.HeatingElement_DHW.fix(0)
+                instance.Q_HeatingElement_heat.fix(0)
+                instance.Q_HeatingElement_DHW.fix(0)
         else:
             for t in range(1, 8761):
                 instance.Q_HeatingElement[t].setub(self.HeatingElement_power)
