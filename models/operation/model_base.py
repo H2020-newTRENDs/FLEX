@@ -22,6 +22,7 @@ class OperationModel(ABC):
         self.setup_ev_params()
         self.setup_energy_price_params()
         self.setup_behavior_params()
+        self.setup_heating_element_params()
 
     def setup_time_params(self):
         self.Hour = np.arange(1, 8761)
@@ -75,6 +76,10 @@ class OperationModel(ABC):
                                        (273.15 + self.scenario.space_heating_tank.temperature_min)
         self.Q_TankEnergyMax_heating = self.CPWater * self.scenario.space_heating_tank.size * \
                                        (273.15 + self.scenario.space_heating_tank.temperature_max)
+
+    def setup_heating_element_params(self):
+        self.HeatingElement_efficiency = self.scenario.heating_element.efficiency
+        self.HeatingElement_power = self.scenario.heating_element.power
 
     def setup_hot_water_params(self):
         self.HotWaterHourlyCOP = self.calc_cop(
