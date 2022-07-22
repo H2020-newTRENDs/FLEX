@@ -1,0 +1,3 @@
+ID_SpaceHeatingTank;size;size_unit;surface_area;surface_area_unit;loss;loss_unit;temperature_start;temperature_max;temperature_min;temperature_surrounding;temperature_unit
+1;750;L;4.57;m2;0.2;W/m2K;28;45;28;20;°C
+2;0;L;0;m2;0;W/m2K;0;0;0;0;°C
