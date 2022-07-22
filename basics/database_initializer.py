@@ -32,9 +32,9 @@ class DatabaseInitializer:
         self.db.clear_database()
 
     def load_component_table(self, component: ClassVar["Enum"]):
-        file = self.input_folder / Path(component.table_name + ".xlsx")
+        file = self.input_folder / Path(component.table_name + ".csv")
         logger.info(f"loading table -> {component.table_name}")
-        df = pd.read_excel(file, engine="openpyxl").dropna(
+        df = pd.read_csv(file, sep=";", encoding='unicode_escape').dropna(
             axis=1
         )  # drop column that contains nan
         data_types = kit.convert_datatype_py2sql(get_type_hints(component.class_var))
@@ -50,9 +50,9 @@ class DatabaseInitializer:
 
     def load_table(self, table_enum: ClassVar["Enum"]):
         table_name = table_enum.value
-        file = self.input_folder / Path(table_name + ".xlsx")
+        file = self.input_folder / Path(table_name + ".csv")
         logger.info(f"loading table -> {table_name}")
-        df = pd.read_excel(file, engine="openpyxl")
+        df = pd.read_csv(file, sep=";", encoding='unicode_escape')
         self.db.write_dataframe(table_name, df, if_exists="replace")
 
     def drop_table(self, table_enum: ClassVar["Enum"]):

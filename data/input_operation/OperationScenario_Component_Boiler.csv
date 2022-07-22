@@ -1,0 +1,3 @@
+ID_Boiler;type;power_max;power_max_unit;heating_element_power;heating_element_power_unit;carnot_efficiency_factor;heating_supply_temperature;hot_water_supply_temperature
+1;Air_HP;15000;W;7500;W;0.35;35;55
+2;gases;15000;W;7500;W;0.35;35;55

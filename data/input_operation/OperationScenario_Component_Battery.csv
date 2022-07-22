@@ -1,0 +1,3 @@
+ID_Battery;capacity;capacity_unit;charge_efficiency;charge_power_max;charge_power_max_unit;discharge_efficiency;discharge_power_max;discharge_power_max_unit
+1;5000;Wh;0.95;4500;W;0.95;4500;W
+2;0;Wh;0.95;4500;W;0.95;4500;W

@@ -151,7 +151,7 @@ class OperationScenario:
             f"vehicle_distance_profile_{self.behavior.id_vehicle_distance_profile}"
         )
         self.behavior.vehicle_at_home = (
-            behavior[column_at_home].to_numpy() + 0.0000001
+            behavior[column_at_home].to_numpy()
         )  # pyomo Problem with 0
         self.behavior.vehicle_distance = behavior[column_distance].to_numpy()
         self.behavior.vehicle_demand = (

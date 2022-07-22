@@ -95,7 +95,7 @@ class OperationResultVar(Enum):
 
     # EV
     EVDemandProfile = "year_include"
-    EVAtHomeProfile = "year_not_include"
+    # EVAtHomeProfile = "year_not_include"
 
     EVSoC = "year_not_include"
     EVCharge = "year_include"
