@@ -21,11 +21,11 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
 
     def plot_scenario_comparison(self):
         self.compare_opt_ref(1)
-        self.compare_opt(id1=1, id2=16)
-        self.compare_ref(id1=1, id2=16)
+        # self.compare_opt(id1=1, id2=16)
+        # self.compare_ref(id1=1, id2=16)
 
     def plot_scenario_electricity_balance(self):
-        scenario_ids = [1, 96]
+        scenario_ids = [1]
         hour_ranges = [(25, 192), (5761, 5928)]
         models = ["opt", "ref"]
         for scenario_id in scenario_ids:
@@ -47,7 +47,7 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
         self.plot_operation_energy_cost_change_curve(COMPONENT_CHANGES)
 
     def plot_building_pathway(self):
-        for scenario_id in range(1, 193):
+        for scenario_id in range(192, 193):
             logger.info(f'Scenario = {scenario_id}')
             self.get_building_pathway(scenario_id, COMPONENT_CHANGES)
 

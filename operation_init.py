@@ -4,6 +4,7 @@ from config import config
 
 
 class ProjectOperationInit(DatabaseInitializer):
+
     def load_component_tables(self):
         self.load_component_table(OperationScenarioComponent.Region)
         self.load_component_table(OperationScenarioComponent.Building)
@@ -16,21 +17,26 @@ class ProjectOperationInit(DatabaseInitializer):
         self.load_component_table(OperationScenarioComponent.Vehicle)
         self.load_component_table(OperationScenarioComponent.EnergyPrice)
         self.load_component_table(OperationScenarioComponent.Behavior)
+        self.load_component_table(OperationScenarioComponent.HeatingElement)
+
+    def setup_scenario_table(self):
+        # self.load_table(OperationTable.Scenarios)
+        self.generate_scenario_table(table_name=OperationTable.Scenarios.value)
 
     def load_other_tables(self):
-        self.load_table(OperationTable.BehaviorProfile.value)
-        self.load_table(OperationTable.EnergyPriceProfile.value)
-        self.load_table(OperationTable.RegionWeatherProfile.value)
+        self.load_table(OperationTable.BehaviorProfile)
+        self.load_table(OperationTable.EnergyPriceProfile)
+        self.load_table(OperationTable.RegionWeatherProfile)
 
     def drop_tables(self):
-        self.db.drop_table(OperationTable.ResultOptHour.value)
-        self.db.drop_table(OperationTable.ResultOptYear.value)
-        self.db.drop_table(OperationTable.ResultRefHour.value)
-        self.db.drop_table(OperationTable.ResultRefYear.value)
+        self.drop_table(OperationTable.ResultOptHour)
+        self.drop_table(OperationTable.ResultOptYear)
+        self.drop_table(OperationTable.ResultRefHour)
+        self.drop_table(OperationTable.ResultRefYear)
 
     def main(self):
         self.load_component_tables()
-        self.setup_scenario_dataframe()
+        self.setup_scenario_table()
         self.load_other_tables()
         self.drop_tables()
 

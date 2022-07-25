@@ -3,7 +3,6 @@ from models.operation import components
 
 
 class OperationScenarioComponent(Enum):
-    Scenario = "scenario"
     Region = "region"
     Building = "building"
     Boiler = "boiler"
@@ -15,13 +14,11 @@ class OperationScenarioComponent(Enum):
     Vehicle = "vehicle"
     EnergyPrice = "energy_price"
     Behavior = "behavior"
+    HeatingElement = "heating_element"
 
     @property
     def table_name(self):
-        if self.name == "Scenario":
-            table_name = "OperationScenario"
-        else:
-            table_name = "OperationScenario_Component_" + self.name
+        table_name = "OperationScenario_Component_" + self.name
         return table_name
 
     @property
@@ -53,7 +50,6 @@ class OperationResultVar(Enum):
     SpaceHeatingHourlyCOP_tank = "year_not_include"
 
     Q_HeatingTank_in = "year_include"
-    Q_HeatingElement = "year_include"
     Q_HeatingTank_out = "year_include"
     Q_HeatingTank = "year_not_include"
     Q_HeatingTank_bypass = "year_include"
@@ -61,6 +57,10 @@ class OperationResultVar(Enum):
     Q_RoomHeating = "year_include"
     T_Room = "year_not_include"
     T_BuildingMass = "year_not_include"
+
+    # Heating Element
+    Q_HeatingElement = "year_include"
+
 
     # hot water
     HotWaterProfile = "year_include"
@@ -95,7 +95,7 @@ class OperationResultVar(Enum):
 
     # EV
     EVDemandProfile = "year_include"
-    EVAtHomeProfile = "year_not_include"
+    # EVAtHomeProfile = "year_not_include"
 
     EVSoC = "year_not_include"
     EVCharge = "year_include"

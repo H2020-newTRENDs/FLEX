@@ -7,9 +7,10 @@ from models.operation.scenario import OperationScenario
 class OperationModel(ABC):
     def __init__(self, scenario: "OperationScenario"):
         self.scenario = scenario
-        self.setup_params()
+        self.CPWater = 4200 / 3600
+        self.setup_operation_model_params()
 
-    def setup_params(self):
+    def setup_operation_model_params(self):
         self.setup_time_params()
         self.setup_region_params()
         self.setup_building_params()
@@ -21,6 +22,7 @@ class OperationModel(ABC):
         self.setup_ev_params()
         self.setup_energy_price_params()
         self.setup_behavior_params()
+        self.setup_heating_element_params()
 
     def setup_time_params(self):
         self.Hour = np.arange(1, 8761)
@@ -28,37 +30,27 @@ class OperationModel(ABC):
 
     def setup_region_params(self):
         self.T_outside = self.scenario.region.temperature  # °C
-        self.Q_Solar = self.calculate_solar_gains()  # W
+        self.Q_Solar = self.calculate_solar_gain()  # W
 
     def setup_building_params(self):
         """
         The thermal dynamics of building is modeled following...
         provide the link, so the equation numbers can make sense
         """
-        self.Am = (
-            self.scenario.building.Am_factor * self.scenario.building.Af
-        )  # Effective mass related area [m^2]
+        self.Am = (self.scenario.building.Am_factor * self.scenario.building.Af)  # Effective mass related area [m^2]
         self.Cm = self.scenario.building.CM_factor * self.scenario.building.Af
-        self.Atot = (
-            4.5 * self.scenario.building.Af
-        )  # 7.2.2.2: Area of all surfaces facing the building zone
+        self.Atot = (4.5 * self.scenario.building.Af)  # 7.2.2.2: Area of all surfaces facing the building zone
         self.Qi = self.scenario.building.internal_gains * self.scenario.building.Af
         self.Htr_w = self.scenario.building.Htr_w
         self.Htr_ms = np.float_(9.1) * self.Am  # from 12.2.2 Equ. (64)
         self.Htr_is = np.float_(3.45) * self.Atot
-        self.Htr_em = 1 / (
-            1 / self.scenario.building.Hop - 1 / self.Htr_ms
-        )  # from 12.2.2 Equ. (63)
-        self.Htr_1 = np.float_(1) / (
-            np.float_(1) / self.scenario.building.Hve + np.float_(1) / self.Htr_is
-        )  # Equ. C.6
+        self.Htr_em = 1 / (1 / self.scenario.building.Hop - 1 / self.Htr_ms)  # from 12.2.2 Equ. (63)
+        self.Htr_1 = np.float_(1) / (np.float_(1) / self.scenario.building.Hve + np.float_(1) / self.Htr_is)  # Equ. C.6
         self.Htr_2 = self.Htr_1 + self.scenario.building.Htr_w  # Equ. C.7
         self.Htr_3 = 1 / (1 / self.Htr_2 + 1 / self.Htr_ms)  # Equ.C.8
         self.Hve = self.scenario.building.Hve
         self.PHI_ia = 0.5 * self.Qi  # Equ. C.1
-        _, _, _, mass_temperature = self.calculate_heating_and_cooling_demand(
-            static=True
-        )
+        _, _, _, mass_temperature = self.calculate_heating_and_cooling_demand(static=True)
         self.BuildingMassTemperatureStartValue = mass_temperature[-1]
 
     def setup_space_heating_params(self):
@@ -77,14 +69,17 @@ class OperationModel(ABC):
         self.T_TankStart_heating = self.scenario.space_heating_tank.temperature_start
         self.M_WaterTank_heating = self.scenario.space_heating_tank.size
         self.U_LossTank_heating = self.scenario.space_heating_tank.loss
-        self.T_TankSurrounding_heating = (
-            self.scenario.space_heating_tank.temperature_surrounding
-        )
+        self.T_TankSurrounding_heating = (self.scenario.space_heating_tank.temperature_surrounding)
         self.A_SurfaceTank_heating = self.scenario.space_heating_tank.surface_area
-        self.SpaceHeating_HeatPumpMaximalElectricPower = (
-            self.generate_maximum_electric_heat_pump_power()
-        )
-        self.CPWater = 4200 / 3600
+        self.SpaceHeating_HeatPumpMaximalElectricPower = self.generate_maximum_electric_heat_pump_power()
+        self.Q_TankEnergyMin_heating = self.CPWater * self.scenario.space_heating_tank.size * \
+                                       (273.15 + self.scenario.space_heating_tank.temperature_min)
+        self.Q_TankEnergyMax_heating = self.CPWater * self.scenario.space_heating_tank.size * \
+                                       (273.15 + self.scenario.space_heating_tank.temperature_max)
+
+    def setup_heating_element_params(self):
+        self.HeatingElement_efficiency = self.scenario.heating_element.efficiency
+        self.HeatingElement_power = self.scenario.heating_element.power
 
     def setup_hot_water_params(self):
         self.HotWaterHourlyCOP = self.calc_cop(
@@ -102,19 +97,16 @@ class OperationModel(ABC):
         self.T_TankStart_DHW = self.scenario.hot_water_tank.temperature_start
         self.M_WaterTank_DHW = self.scenario.hot_water_tank.size
         self.U_LossTank_DHW = self.scenario.hot_water_tank.loss
-        self.T_TankSurrounding_DHW = (
-            self.scenario.hot_water_tank.temperature_surrounding
-        )
+        self.T_TankSurrounding_DHW = self.scenario.hot_water_tank.temperature_surrounding
         self.A_SurfaceTank_DHW = self.scenario.hot_water_tank.surface_area
+        self.Q_TankEnergyMin_DHW = self.CPWater * self.scenario.hot_water_tank.size * \
+                                   (273.15 + self.scenario.hot_water_tank.temperature_min)
+        self.Q_TankEnergyMax_DHW = self.CPWater * self.scenario.hot_water_tank.size * \
+                                   (273.15 + self.scenario.hot_water_tank.temperature_max)
 
     def setup_space_cooling_params(self):
         self.CoolingCOP = self.scenario.space_cooling_technology.efficiency
-        self.CoolingHourlyCOP = (
-            np.ones(
-                8760,
-            )
-            * self.CoolingCOP
-        )
+        self.CoolingHourlyCOP = (np.ones(8760, ) * self.CoolingCOP)
 
     def setup_pv_params(self):
         self.PhotovoltaicProfile = self.scenario.pv.generation
@@ -129,8 +121,8 @@ class OperationModel(ABC):
         self.EVChargeEfficiency = self.scenario.vehicle.charge_efficiency
         self.EVDischargeEfficiency = self.scenario.vehicle.discharge_efficiency
         self.EVOptionV2B = self.scenario.vehicle.charge_bidirectional
-        if self.scenario.vehicle.capacity > 0:
-            self.test_vehicle_profile()  # test if vehicle makes model infeasible
+        # if self.scenario.vehicle.capacity > 0:
+        #     self.test_vehicle_profile()  # test if vehicle makes model infeasible
 
     def setup_energy_price_params(self):
         self.ElectricityPrice = self.scenario.energy_price.electricity  # C/Wh
@@ -141,7 +133,7 @@ class OperationModel(ABC):
         self.BaseLoadProfile = self.scenario.behavior.appliance_electricity_demand
 
     def calculate_heating_and_cooling_demand(
-        self, thermal_start_temperature: float = 15, static=False
+            self, thermal_start_temperature: float = 15, static=False
     ) -> (np.array, np.array, np.array, np.array):
         """
         if "static" is True, then the RC model will calculate a static heat demand calculation for the first hour of
@@ -152,9 +144,8 @@ class OperationModel(ABC):
         heating_power_10 = self.scenario.building.Af * 10
 
         if self.scenario.space_cooling_technology.power == 0:
-            T_air_max = np.full(
-                (8760,), 100
-            )  # if no cooling is adopted --> raise max air temperature to 100 so it will never cool:
+            T_air_max = np.full((8760,), 100)
+            # if no cooling is adopted --> raise max air temperature to 100 so it will never cool:
         else:
             T_air_max = self.scenario.behavior.target_temperature_array_max
 
@@ -190,7 +181,7 @@ class OperationModel(ABC):
             PHI_m = self.Am / self.Atot * (0.5 * self.Qi + Q_solar[t])
             # Equ. C.3
             PHI_st = (1 - self.Am / self.Atot - self.Htr_w / 9.1 / self.Atot) * (
-                0.5 * self.Qi + Q_solar[t]
+                    0.5 * self.Qi + Q_solar[t]
             )
 
             # (T_sup = T_outside because incoming air is not preheated)
@@ -198,43 +189,43 @@ class OperationModel(ABC):
 
             # Equ. C.5
             PHI_mtot_0 = (
-                PHI_m
-                + self.Htr_em * T_outside[t]
-                + self.Htr_3
-                * (
-                    PHI_st
-                    + self.Htr_w * T_outside[t]
-                    + self.Htr_1 * (((self.PHI_ia + 0) / self.Hve) + T_sup[t])
-                )
-                / self.Htr_2
+                    PHI_m
+                    + self.Htr_em * T_outside[t]
+                    + self.Htr_3
+                    * (
+                            PHI_st
+                            + self.Htr_w * T_outside[t]
+                            + self.Htr_1 * (((self.PHI_ia + 0) / self.Hve) + T_sup[t])
+                    )
+                    / self.Htr_2
             )
 
             # Equ. C.5 with 10 W/m^2 heating power
             PHI_mtot_10 = (
-                PHI_m
-                + self.Htr_em * T_outside[t]
-                + self.Htr_3
-                * (
-                    PHI_st
-                    + self.Htr_w * T_outside[t]
-                    + self.Htr_1
-                    * (((self.PHI_ia + heating_power_10) / self.Hve) + T_sup[t])
-                )
-                / self.Htr_2
+                    PHI_m
+                    + self.Htr_em * T_outside[t]
+                    + self.Htr_3
+                    * (
+                            PHI_st
+                            + self.Htr_w * T_outside[t]
+                            + self.Htr_1
+                            * (((self.PHI_ia + heating_power_10) / self.Hve) + T_sup[t])
+                    )
+                    / self.Htr_2
             )
 
             # Equ. C.5 with 10 W/m^2 cooling power
             PHI_mtot_10_c = (
-                PHI_m
-                + self.Htr_em * T_outside[t]
-                + self.Htr_3
-                * (
-                    PHI_st
-                    + self.Htr_w * T_outside[t]
-                    + self.Htr_1
-                    * (((self.PHI_ia - heating_power_10) / self.Hve) + T_sup[t])
-                )
-                / self.Htr_2
+                    PHI_m
+                    + self.Htr_em * T_outside[t]
+                    + self.Htr_3
+                    * (
+                            PHI_st
+                            + self.Htr_w * T_outside[t]
+                            + self.Htr_1
+                            * (((self.PHI_ia - heating_power_10) / self.Hve) + T_sup[t])
+                    )
+                    / self.Htr_2
             )
 
             if t == 0:
@@ -244,21 +235,21 @@ class OperationModel(ABC):
 
             # Equ. C.4
             Tm_t_0 = (
-                Tm_t_prev * (self.Cm / 3600 - 0.5 * (self.Htr_3 + self.Htr_em))
-                + PHI_mtot_0
-            ) / (self.Cm / 3600 + 0.5 * (self.Htr_3 + self.Htr_em))
+                             Tm_t_prev * (self.Cm / 3600 - 0.5 * (self.Htr_3 + self.Htr_em))
+                             + PHI_mtot_0
+                     ) / (self.Cm / 3600 + 0.5 * (self.Htr_3 + self.Htr_em))
 
             # Equ. C.4 for 10 W/m^2 heating
             Tm_t_10 = (
-                Tm_t_prev * (self.Cm / 3600 - 0.5 * (self.Htr_3 + self.Htr_em))
-                + PHI_mtot_10
-            ) / (self.Cm / 3600 + 0.5 * (self.Htr_3 + self.Htr_em))
+                              Tm_t_prev * (self.Cm / 3600 - 0.5 * (self.Htr_3 + self.Htr_em))
+                              + PHI_mtot_10
+                      ) / (self.Cm / 3600 + 0.5 * (self.Htr_3 + self.Htr_em))
 
             # Equ. C.4 for 10 W/m^2 cooling
             Tm_t_10_c = (
-                Tm_t_prev * (self.Cm / 3600 - 0.5 * (self.Htr_3 + self.Htr_em))
-                + PHI_mtot_10_c
-            ) / (self.Cm / 3600 + 0.5 * (self.Htr_3 + self.Htr_em))
+                                Tm_t_prev * (self.Cm / 3600 - 0.5 * (self.Htr_3 + self.Htr_em))
+                                + PHI_mtot_10_c
+                        ) / (self.Cm / 3600 + 0.5 * (self.Htr_3 + self.Htr_em))
 
             # Equ. C.9
             T_m_0 = (Tm_t_0 + Tm_t_prev) / 2
@@ -271,115 +262,115 @@ class OperationModel(ABC):
 
             # Euq. C.10
             T_s_0 = (
-                self.Htr_ms * T_m_0
-                + PHI_st
-                + self.Htr_w * T_outside[t]
-                + self.Htr_1 * (T_sup[t] + (self.PHI_ia + 0) / self.Hve)
-            ) / (self.Htr_ms + self.Htr_w + self.Htr_1)
+                            self.Htr_ms * T_m_0
+                            + PHI_st
+                            + self.Htr_w * T_outside[t]
+                            + self.Htr_1 * (T_sup[t] + (self.PHI_ia + 0) / self.Hve)
+                    ) / (self.Htr_ms + self.Htr_w + self.Htr_1)
 
             # Euq. C.10 for 10 W/m^2 heating
             T_s_10 = (
-                self.Htr_ms * T_m_10
-                + PHI_st
-                + self.Htr_w * T_outside[t]
-                + self.Htr_1 * (T_sup[t] + (self.PHI_ia + heating_power_10) / self.Hve)
-            ) / (self.Htr_ms + self.Htr_w + self.Htr_1)
+                             self.Htr_ms * T_m_10
+                             + PHI_st
+                             + self.Htr_w * T_outside[t]
+                             + self.Htr_1 * (T_sup[t] + (self.PHI_ia + heating_power_10) / self.Hve)
+                     ) / (self.Htr_ms + self.Htr_w + self.Htr_1)
 
             # Euq. C.10 for 10 W/m^2 cooling
             T_s_10_c = (
-                self.Htr_ms * T_m_10_c
-                + PHI_st
-                + self.Htr_w * T_outside[t]
-                + self.Htr_1 * (T_sup[t] + (self.PHI_ia - heating_power_10) / self.Hve)
-            ) / (self.Htr_ms + self.Htr_w + self.Htr_1)
+                               self.Htr_ms * T_m_10_c
+                               + PHI_st
+                               + self.Htr_w * T_outside[t]
+                               + self.Htr_1 * (T_sup[t] + (self.PHI_ia - heating_power_10) / self.Hve)
+                       ) / (self.Htr_ms + self.Htr_w + self.Htr_1)
 
             # Equ. C.11
             T_air_0 = (self.Htr_is * T_s_0 + self.Hve * T_sup[t] + self.PHI_ia + 0) / (
-                self.Htr_is + self.Hve
+                    self.Htr_is + self.Hve
             )
 
             # Equ. C.11 for 10 W/m^2 heating
             T_air_10 = (
-                self.Htr_is * T_s_10
-                + self.Hve * T_sup[t]
-                + self.PHI_ia
-                + heating_power_10
-            ) / (self.Htr_is + self.Hve)
+                               self.Htr_is * T_s_10
+                               + self.Hve * T_sup[t]
+                               + self.PHI_ia
+                               + heating_power_10
+                       ) / (self.Htr_is + self.Hve)
 
             # Equ. C.11 for 10 W/m^2 cooling
             T_air_10_c = (
-                self.Htr_is * T_s_10_c
-                + self.Hve * T_sup[t]
-                + self.PHI_ia
-                - heating_power_10
-            ) / (self.Htr_is + self.Hve)
+                                 self.Htr_is * T_s_10_c
+                                 + self.Hve * T_sup[t]
+                                 + self.PHI_ia
+                                 - heating_power_10
+                         ) / (self.Htr_is + self.Hve)
 
             # Check if air temperature without heating is in between boundaries and calculate actual HC power:
             if T_air_0 >= T_air_min[t] and T_air_0 <= T_air_max[t]:
                 heating_demand[t] = 0
             elif T_air_0 < T_air_min[t]:  # heating is required
                 heating_demand[t] = (
-                    heating_power_10 * (T_air_min[t] - T_air_0) / (T_air_10 - T_air_0)
+                        heating_power_10 * (T_air_min[t] - T_air_0) / (T_air_10 - T_air_0)
                 )
             elif T_air_0 > T_air_max[t]:  # cooling is required
                 cooling_demand[t] = (
-                    heating_power_10 * (T_air_max[t] - T_air_0) / (T_air_10_c - T_air_0)
+                        heating_power_10 * (T_air_max[t] - T_air_0) / (T_air_10_c - T_air_0)
                 )
 
             # now calculate the actual temperature of thermal mass Tm_t with Q_HC_real:
             # Equ. C.5 with actual heating power
             PHI_mtot_real = (
-                PHI_m
-                + self.Htr_em * T_outside[t]
-                + self.Htr_3
-                * (
-                    PHI_st
-                    + self.Htr_w * T_outside[t]
-                    + self.Htr_1
+                    PHI_m
+                    + self.Htr_em * T_outside[t]
+                    + self.Htr_3
                     * (
-                        (
-                            (self.PHI_ia + heating_demand[t] - cooling_demand[t])
-                            / self.Hve
-                        )
-                        + T_sup[t]
+                            PHI_st
+                            + self.Htr_w * T_outside[t]
+                            + self.Htr_1
+                            * (
+                                    (
+                                            (self.PHI_ia + heating_demand[t] - cooling_demand[t])
+                                            / self.Hve
+                                    )
+                                    + T_sup[t]
+                            )
                     )
-                )
-                / self.Htr_2
+                    / self.Htr_2
             )
             # Equ. C.4
             Tm_t[t] = (
-                Tm_t_prev * (self.Cm / 3600 - 0.5 * (self.Htr_3 + self.Htr_em))
-                + PHI_mtot_real
-            ) / (self.Cm / 3600 + 0.5 * (self.Htr_3 + self.Htr_em))
+                              Tm_t_prev * (self.Cm / 3600 - 0.5 * (self.Htr_3 + self.Htr_em))
+                              + PHI_mtot_real
+                      ) / (self.Cm / 3600 + 0.5 * (self.Htr_3 + self.Htr_em))
 
             # Equ. C.9
             T_m_real = (Tm_t[t] + Tm_t_prev) / 2
 
             # Euq. C.10
             T_s_real = (
-                self.Htr_ms * T_m_real
-                + PHI_st
-                + self.Htr_w * T_outside[t]
-                + self.Htr_1
-                * (
-                    T_sup[t]
-                    + (self.PHI_ia + heating_demand[t] - cooling_demand[t]) / self.Hve
-                )
-            ) / (self.Htr_ms + self.Htr_w + self.Htr_1)
+                               self.Htr_ms * T_m_real
+                               + PHI_st
+                               + self.Htr_w * T_outside[t]
+                               + self.Htr_1
+                               * (
+                                       T_sup[t]
+                                       + (self.PHI_ia + heating_demand[t] - cooling_demand[t]) / self.Hve
+                               )
+                       ) / (self.Htr_ms + self.Htr_w + self.Htr_1)
 
             # Equ. C.11 for 10 W/m^2 heating
             room_temperature[t] = (
-                self.Htr_is * T_s_real
-                + self.Hve * T_sup[t]
-                + self.PHI_ia
-                + heating_demand[t]
-                - cooling_demand[t]
-            ) / (self.Htr_is + self.Hve)
+                                          self.Htr_is * T_s_real
+                                          + self.Hve * T_sup[t]
+                                          + self.PHI_ia
+                                          + heating_demand[t]
+                                          - cooling_demand[t]
+                                  ) / (self.Htr_is + self.Hve)
 
         return heating_demand, cooling_demand, room_temperature, Tm_t
 
     def generate_maximum_target_indoor_temperature_no_cooling(
-        self, temperature_max: int
+            self, temperature_max: int
     ) -> np.array:
         """
         calculates an array of the maximum temperature that will be equal to the provided max temperature if
@@ -400,19 +391,19 @@ class OperationModel(ABC):
             # if heat demand == 0 and the heat demand in the following 8 hours is also 0 and the heat demand of 3
             # hours before that is also 0, then the max temperature is raised so model does not become infeasible:
             if (
-                heat_demand == 0
-                and i + 8 < 8760
-                and heating_demand[i - 3] == 0
-                and heating_demand[i - 2] == 0
-                and heating_demand[i - 1] == 0
-                and heating_demand[i + 1] == 0
-                and heating_demand[i + 2] == 0
-                and heating_demand[i + 3] == 0
-                and heating_demand[i + 4] == 0
-                and heating_demand[i + 5] == 0
-                and heating_demand[i + 6] == 0
-                and heating_demand[i + 7] == 0
-                and heating_demand[i + 8] == 0
+                    heat_demand == 0
+                    and i + 8 < 8760
+                    and heating_demand[i - 3] == 0
+                    and heating_demand[i - 2] == 0
+                    and heating_demand[i - 1] == 0
+                    and heating_demand[i + 1] == 0
+                    and heating_demand[i + 2] == 0
+                    and heating_demand[i + 3] == 0
+                    and heating_demand[i + 4] == 0
+                    and heating_demand[i + 5] == 0
+                    and heating_demand[i + 6] == 0
+                    and heating_demand[i + 7] == 0
+                    and heating_demand[i + 8] == 0
             ):
                 # append the temperature of the reference model + 0.5°C to make sure it is feasible
                 max_temperature_list.append(T_room[i] + 1)
@@ -422,10 +413,10 @@ class OperationModel(ABC):
 
     @staticmethod
     def calc_cop(
-        outside_temperature: np.array,
-        supply_temperature: float,
-        efficiency: float,
-        source: str,
+            outside_temperature: np.array,
+            supply_temperature: float,
+            efficiency: float,
+            source: str,
     ) -> np.array:
         """
         Args:
@@ -470,14 +461,10 @@ class OperationModel(ABC):
     def generate_maximum_electric_heat_pump_power(self):
         # TODO we could add different supply temperatures for different buildings to make COP more accurate
         """
-        Calculates the necessary HP power for each building through the 5R1C reference model. The maximum heating power
-        then will be rounded to the next 500 W. Then we divide the thermal power by the worst COP of the HP
-        which is calculated at design conditions (-12°C) and the respective source and supply temperature.
-
-        Args:
-            scenario: AbstractScenario
-
-        Returns: maximum heat pump electric power (float)
+        Calculates the necessary HP power for each building through the 5R1C reference model.
+        The maximum heating power then will be rounded to the next 500 W.
+        Then we divide the thermal power by the worst COP of the HP which is calculated at design conditions (-12°C)
+        and the respective source and supply temperature.
         """
         # calculate the heating demand in reference mode:
         heating_demand, _, _, _ = self.calculate_heating_and_cooling_demand()
@@ -496,27 +483,30 @@ class OperationModel(ABC):
         max_electric_power = np.ceil(max_electric_power_float[0] / 100) * 100
         return max_electric_power
 
-    def calculate_solar_gains(self) -> np.array:
+    def generate_solar_gain_rate(self):
+        outside_temperature = self.scenario.region.temperature
+        shading_threshold_temperature = self.scenario.behavior.shading_threshold_temperature
+        shading_solar_reduction_rate = self.scenario.behavior.shading_solar_reduction_rate
+        solar_gain_rate = np.ones(len(outside_temperature), )
+        for i in range(0, len(outside_temperature)):
+            if outside_temperature[i] >= shading_threshold_temperature:
+                solar_gain_rate[i] = 1 - shading_solar_reduction_rate
+        return solar_gain_rate
+
+    def calculate_solar_gain(self) -> np.array:
         """return: 8760h solar gains, calculated with solar radiation and the effective window area."""
+
         area_window_east_west = self.scenario.building.effective_window_area_west_east
         area_window_south = self.scenario.building.effective_window_area_south
         area_window_north = self.scenario.building.effective_window_area_north
 
-        Q_solar_north = np.outer(
-            np.array(self.scenario.region.radiation_north), area_window_north
-        )
-        Q_solar_east = np.outer(
-            np.array(self.scenario.region.radiation_east), area_window_east_west / 2
-        )
-        Q_solar_south = np.outer(
-            np.array(self.scenario.region.radiation_south), area_window_south
-        )
-        Q_solar_west = np.outer(
-            np.array(self.scenario.region.radiation_west), area_window_east_west / 2
-        )
-        Q_solar = (
-            Q_solar_north + Q_solar_south + Q_solar_east + Q_solar_west
-        ).squeeze()
+        Q_solar_north = np.outer(np.array(self.scenario.region.radiation_north), area_window_north)
+        Q_solar_east = np.outer(np.array(self.scenario.region.radiation_east), area_window_east_west / 2)
+        Q_solar_south = np.outer(np.array(self.scenario.region.radiation_south), area_window_south)
+        Q_solar_west = np.outer(np.array(self.scenario.region.radiation_west), area_window_east_west / 2)
+
+        solar_gain_rate = self.generate_solar_gain_rate()
+        Q_solar = (Q_solar_north + Q_solar_south + Q_solar_east + Q_solar_west).squeeze() * solar_gain_rate
         return Q_solar
 
     def create_upper_bound_EV_discharge(self) -> np.array:
@@ -584,12 +574,6 @@ class OperationModel(ABC):
         return hot_water_cost
 
     def fuel_boiler_remove_heating_cooling_hot_water_demand(self):
-        self.T_outside = 24 * np.ones(
-            8760,
-        )
-        self.Q_Solar = np.zeros(
-            8760,
-        )
-        self.HotWaterProfile = np.zeros(
-            8760,
-        )
+        self.T_outside = 24 * np.ones(8760, )
+        self.Q_Solar = np.zeros(8760, )
+        self.HotWaterProfile = np.zeros(8760, )

@@ -84,7 +84,7 @@ class RefOperationModel(OperationModel):
             for i in range(0, len(pv_surplus)):
 
                 if i == 0:
-                    bat_soc_start = 0
+                    bat_soc_start = self.scenario.battery.capacity
                 else:
                     bat_soc_start = self.BatSoC[i - 1]
 
@@ -145,9 +145,7 @@ class RefOperationModel(OperationModel):
     def calculate_ev_energy(self, grid_demand, pv_surplus):
 
         self.EVDemandProfile = self.scenario.behavior.vehicle_demand
-        self.EVAtHomeProfile = np.array(
-            self.scenario.behavior.vehicle_at_home, dtype=int
-        )
+        self.EVAtHomeProfile = np.array(self.scenario.behavior.vehicle_at_home, dtype=int)
 
         self.EVSoC = np.zeros(pv_surplus.shape)
         self.EVCharge = np.zeros(pv_surplus.shape)
@@ -170,7 +168,7 @@ class RefOperationModel(OperationModel):
             for i in range(0, len(pv_surplus)):
 
                 if i == 0:
-                    ev_soc_start = 0
+                    ev_soc_start = self.scenario.vehicle.capacity
                 else:
                     ev_soc_start = self.EVSoC[i - 1]
 
@@ -417,3 +415,4 @@ class RefOperationModel(OperationModel):
             model_ref = self.run_fuel_boiler_ref()
         logger.info(f"RefCost: {round(self.TotalCost.sum(), 2)}")
         return model_ref
+

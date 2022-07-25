@@ -19,6 +19,7 @@ from models.operation.components import (
     Vehicle,
     EnergyPrice,
     Behavior,
+    HeatingElement,
 )
 from models.operation.enums import OperationScenarioComponent, OperationTable
 
@@ -38,6 +39,7 @@ class OperationScenario:
     vehicle: Optional["Vehicle"] = None
     energy_price: Optional["EnergyPrice"] = None
     behavior: Optional["Behavior"] = None
+    heating_element: Optional["HeatingElement"] = None
 
     def __post_init__(self):
         self.db = create_db_conn(self.config)
@@ -49,11 +51,11 @@ class OperationScenario:
 
     def get_component_scenario_ids(self):
         scenario_df = self.db.read_dataframe(
-            OperationScenarioComponent.Scenario.table_name,
-            filter={OperationScenarioComponent.Scenario.id: self.scenario_id},
+            OperationTable.Scenarios.value,
+            filter={"ID_Scenario": self.scenario_id},
         )
         component_scenario_ids: dict = scenario_df.iloc[0].to_dict()
-        del component_scenario_ids[OperationScenarioComponent.Scenario.id]
+        del component_scenario_ids["ID_Scenario"]
         return component_scenario_ids
 
     def setup_components(self):
@@ -149,7 +151,7 @@ class OperationScenario:
             f"vehicle_distance_profile_{self.behavior.id_vehicle_distance_profile}"
         )
         self.behavior.vehicle_at_home = (
-            behavior[column_at_home].to_numpy() + 0.0000001
+            behavior[column_at_home].to_numpy()
         )  # pyomo Problem with 0
         self.behavior.vehicle_distance = behavior[column_distance].to_numpy()
         self.behavior.vehicle_demand = (
@@ -158,15 +160,17 @@ class OperationScenario:
 
     def setup_behavior_hot_water_demand(self, behavior: pd.DataFrame):
         column = f"hot_water_demand_profile_{self.behavior.id_hot_water_demand_profile}"
+        annual_demand = self.behavior.hot_water_demand_annual * self.building.person_num
         self.behavior.hot_water_demand = self.gen_profile_with_annual_amount(
-            self.behavior.hot_water_demand_annual, behavior[column].to_numpy()
+            annual_demand, behavior[column].to_numpy()
         )
 
     def setup_behavior_appliance_electricity_demand(self, behavior: pd.DataFrame):
         column = f"appliance_electricity_demand_profile_{self.behavior.id_appliance_electricity_demand_profile}"
+        annual_demand = self.behavior.appliance_electricity_demand_annual * self.building.person_num
         self.behavior.appliance_electricity_demand = (
             self.gen_profile_with_annual_amount(
-                self.behavior.appliance_electricity_demand_annual,
+                annual_demand,
                 behavior[column].to_numpy(),
             )
         )
