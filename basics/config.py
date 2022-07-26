@@ -6,18 +6,18 @@ from abc import ABC
 class Config(ABC):
     def __init__(self, project_name: str):
         self.project_name: str = project_name
-        self.project_root: "Path" = self.setup_folder_path(os.path.dirname(__file__))
+        self.project_root: "Path" = self.setup_folder_path(Path(__file__).parent.parent)
         self.input_behavior: "Path" = self.setup_folder_path(
-            os.path.dirname("data/input_behavior/")
+            self.project_root / Path("data/input_behavior/")
         )
         self.input_operation: "Path" = self.setup_folder_path(
-            os.path.dirname("data/input_operation/")
+            self.project_root / Path("data/input_operation/")
         )
         self.input_investment: "Path" = self.setup_folder_path(
-            os.path.dirname("data/input_investment/")
+            self.project_root / Path("data/input_investment/")
         )
-        self.output: "Path" = self.setup_folder_path(os.path.dirname("data/output/"))
-        self.fig: "Path" = self.setup_folder_path(os.path.dirname("data/figure/"))
+        self.output: "Path" = self.setup_folder_path(self.project_root / Path("data/output/"))
+        self.fig: "Path" = self.setup_folder_path(self.project_root / Path("data/figure/"))
 
     @staticmethod
     def setup_folder_path(folder_path) -> "Path":
