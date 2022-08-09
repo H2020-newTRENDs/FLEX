@@ -52,7 +52,7 @@ class DatabaseInitializer:
         table_name = table_enum.value
         file = self.input_folder / Path(table_name + ".xlsx")
         logger.info(f"loading table -> {table_name}")
-        df = pd.read_excel(file, engine="openpyxl")
+        df = pd.read_excel(file, engine="openpyxl").dropna(axis=0, how="all")
         self.db.write_dataframe(table_name, df, if_exists="replace")
 
     def drop_table(self, table_enum: ClassVar["Enum"]):
