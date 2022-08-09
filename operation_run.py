@@ -10,7 +10,7 @@ logger = get_logger(__name__)
 if __name__ == "__main__":
     # TODO call Optoperation and create the base instance
     base_instance = OptModelFramework().create_base_instance()
-    scenario_ids = [1, 2, 3, 4]
+    scenario_ids = [1, 2, 3, 4, 5]
     for scenario_id in scenario_ids:
         logger.info(f"FlexOperation --> Scenario = {scenario_id}.")
         scenario = OperationScenario(scenario_id=scenario_id, config=config)
