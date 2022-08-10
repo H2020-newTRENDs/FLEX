@@ -228,9 +228,10 @@ class Create5R1CParameters:
         self.building_df.loc[:, "CM_factor"] = self.calculate_Cm() / self.Af
         self.building_df.loc[:, "Am_factor"] = self.calculate_Am() / self.Af
         self.building_df.loc[:, "internal_gains"] = self.internal_gains
-        self.building_df.loc[:, "effective_window_area_west_east"] = (self.window_area_east * 0.6 + self.window_area_west * 0.6)
-        self.building_df.loc[:, "effective_window_area_south"] = self.window_area_south * 0.6
-        self.building_df.loc[:, "effective_window_area_north"] = self.window_area_north * 0.6  # g-wert
+        self.building_df.loc[:, "effective_window_area_west_east"] = (self.window_area_east * self.df.loc[:, "g_windows"] +
+                                                                      self.window_area_west * self.df.loc[:, "g_windows"])
+        self.building_df.loc[:, "effective_window_area_south"] = self.window_area_south * self.df.loc[:, "g_windows"]
+        self.building_df.loc[:, "effective_window_area_north"] = self.window_area_north * self.df.loc[:, "g_windows"]
         self.building_df.loc[:, "grid_power_max"] = np.full((len(self.Af,)), 21_000)
 
 
