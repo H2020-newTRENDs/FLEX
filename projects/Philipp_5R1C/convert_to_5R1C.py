@@ -72,10 +72,10 @@ class Create5R1CParameters:
         self.wall_west = self.df.loc[:, "wallarea_west_m2"]
         self.wall_north = self.df.loc[:, "wallarea_north_m2"]
         self.wall_south = self.df.loc[:, "wallarea_south_m2"]
-        self.window_area_east = self.wall_east * self.df.loc[:, "window_to_wall_ratio"]
-        self.window_area_west = self.wall_west * self.df.loc[:, "window_to_wall_ratio"]
-        self.window_area_north = self.wall_north * self.df.loc[:, "window_to_wall_ratio"]
-        self.window_area_south = self.wall_south * self.df.loc[:, "window_to_wall_ratio"]
+        self.window_area_east = self.wall_area * self.df.loc[:, "window_to_wall_ratio"] * 0.25 * 0.7
+        self.window_area_west = self.wall_area * self.df.loc[:, "window_to_wall_ratio"] * 0.25 * 0.7
+        self.window_area_north = self.wall_area * self.df.loc[:, "window_to_wall_ratio"] * 0.25 * 0.7
+        self.window_area_south = self.wall_area * self.df.loc[:, "window_to_wall_ratio"] * 0.25 * 0.7
 
 
 
@@ -208,7 +208,7 @@ class Create5R1CParameters:
         """
         # ignoring the 0.7 factor which would represent the glazing
         window_area = self.window_area_north + self.window_area_south + self.window_area_east + self.window_area_west
-        return self.u_window * window_area * 0.7
+        return self.u_window * window_area
 
     def calculate_Hve(self):
         """
@@ -228,9 +228,9 @@ class Create5R1CParameters:
         self.building_df.loc[:, "CM_factor"] = self.calculate_Cm() / self.Af
         self.building_df.loc[:, "Am_factor"] = self.calculate_Am() / self.Af
         self.building_df.loc[:, "internal_gains"] = self.internal_gains
-        self.building_df.loc[:, "effective_window_area_west_east"] = (self.window_area_east + self.window_area_west) * 0.7
-        self.building_df.loc[:, "effective_window_area_south"] = self.window_area_south * 0.7
-        self.building_df.loc[:, "effective_window_area_north"] = self.window_area_north * 0.7
+        self.building_df.loc[:, "effective_window_area_west_east"] = (self.window_area_east * 0.6 + self.window_area_west * 0.6)
+        self.building_df.loc[:, "effective_window_area_south"] = self.window_area_south * 0.6
+        self.building_df.loc[:, "effective_window_area_north"] = self.window_area_north * 0.6  # g-wert
         self.building_df.loc[:, "grid_power_max"] = np.full((len(self.Af,)), 21_000)
 
 
@@ -242,7 +242,6 @@ class Create5R1CParameters:
         output_dir = Path(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\ouput_data")
         self.building_df.to_excel(output_dir / Path("5R1C_buildings.xlsx"))
 
-        a=1
         pass
 
 
