@@ -424,6 +424,7 @@ class SolveHeatPumpOptimization(OperationModel):
 
     @performance_counter
     def update_instance(self, instance):
+        self.config_room_temperature(instance)
         self.config_vehicle(instance)
         self.config_static_params(instance)
         self.config_external_params(instance)
@@ -617,16 +618,25 @@ class SolveHeatPumpOptimization(OperationModel):
             instance.BatDischarge_rule.activate()
             instance.BatSoC_rule.activate()
 
+    def config_room_temperature(self, instance):
+        # in winter only 3°C increase to keep comfort level and in summer maximum reduction of 3°C
+        max_target_temperature, min_target_temperature = (
+            self.generate_target_indoor_temperature(
+                temperature_max_winter=self.scenario.behavior.target_temperature_at_home_min + 3,
+                temperature_min_summer=self.scenario.behavior.target_temperature_at_home_max - 3
+            )
+        )
+        for t in range(1, 8761):
+            instance.T_Room[t].setub(max_target_temperature[t - 1])
+            instance.T_Room[t].setlb(min_target_temperature[t - 1])
+
+
     def config_space_cooling_technology(self, instance):
         if self.scenario.space_cooling_technology.power == 0:
-            no_cooling_target_temperature_max = (
-                self.generate_maximum_target_indoor_temperature_no_cooling(temperature_max=23) # TODO set this from input
-            )
             for t in range(1, 8761):
                 instance.Q_RoomCooling[t].fix(0)
                 instance.E_RoomCooling[t].fix(0)
                 instance.CoolingHourlyCOP[t] = 1  # avoid division by 0
-                instance.T_Room[t].setub(no_cooling_target_temperature_max[t - 1])
 
             instance.SumOfLoads_without_cooling_rule.activate()
             instance.SumOfLoads_with_cooling_rule.deactivate()
@@ -636,7 +646,6 @@ class SolveHeatPumpOptimization(OperationModel):
                 instance.Q_RoomCooling[t].fixed = False
                 instance.E_RoomCooling[t].fixed = False
                 instance.Q_RoomCooling[t].setub(self.scenario.space_cooling_technology.power)
-                instance.T_Room[t].setub(self.scenario.behavior.target_temperature_array_max[t - 1])
                 instance.CoolingHourlyCOP[t] = self.CoolingHourlyCOP[t - 1]
 
             instance.SumOfLoads_without_cooling_rule.deactivate()
