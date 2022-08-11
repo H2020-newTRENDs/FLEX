@@ -1,3 +1,5 @@
+from typing import List
+
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -62,42 +64,34 @@ class CompareModels:
         pass
 
 
-    def compare_hourly_profile(self, demand_1, demand_2, name_demand_1: str, name_demand_2: str):
+    def compare_hourly_profile(self, demand_list: list, demand_names: list):
         # compare hourly demand
-        column_number = len(list(demand_1.columns))
+        column_number = len(list(demand_list[0].columns))
         x_axis = np.arange(8760)
+        colors = ["blue", "red", "green"]
 
         fig = make_subplots(
             rows=column_number,
             cols=1,
-            subplot_titles=sorted(list(demand_1.columns)),
+            subplot_titles=sorted(list(demand_list[0].columns)),
             shared_xaxes=True,
         )
+        for j, demand in enumerate(demand_list):
+            for i, column_name in enumerate(sorted(list(demand.columns))):
+                fig.add_trace(
+                    go.Scatter(x=x_axis, y=demand[column_name],
+                               name=demand_names[j],
+                               line=dict(color=colors[j])),
 
-        for i, column_name in enumerate(sorted(list(demand_1.columns))):
-            fig.add_trace(
-                go.Scatter(x=x_axis, y=demand_1[column_name],
-                           name=name_demand_1,
-                           line=dict(color="blue")),
-
-                row=i + 1,
-                col=1,
-            )
-            fig.add_trace(
-                go.Scatter(x=x_axis, y=demand_2[column_name],
-                           name=name_demand_2,
-                           line=dict(color="red")),
-                row=i + 1,
-                col=1,
-            )
+                    row=i + 1,
+                    col=1,
+                )
         fig.show()
 
-    def compare_yearly_value(self, profile_1, profile_2, name_profile_1, name_profile_2):
+    def compare_yearly_value(self, profile_list: List[pd.DataFrame], profile_names: list):
         # compare total demand
-        total_daniel = profile_1.sum()
-        total_ref = profile_2.sum()
-        total_df = pd.concat([total_daniel, total_ref], axis=1) / 1_000  # kW
-        total_df.columns = [name_profile_1, name_profile_2]
+        total_df = pd.concat([profile.sum() for profile in profile_list], axis=1) / 1_000  # kW
+        total_df.columns = [name for name in profile_names]
         fig2 = px.bar(
             data_frame=total_df,
             barmode="group",
@@ -105,24 +99,26 @@ class CompareModels:
         fig2.update_layout(title_text="total heating demand")
         fig2.show()
 
-    def compare_model_results(self, heat_demand_daniel, heat_demand_ref):
-        # compare the heat demand:
-        self.compare_hourly_profile(heat_demand_daniel, heat_demand_ref, "IDA ICE", "5R1C")
-
-        pass
-
     def df_to_csv(self, df, path):
         column_names = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
         df.columns = column_names
         df.to_csv(path, sep=";")
 
     def main(self):
-        if self.project_name == "Flex":
+        if self.project_name == "Flex_22":
             heat_demand_daniel = self.read_daniel_heat_demand()
             heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value)
+            heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value)
 
-            self.compare_hourly_profile(heat_demand_daniel, heat_demand_ref, "IDA ICE", "5R1C")
-            self.compare_yearly_value(heat_demand_daniel, heat_demand_ref, "IDA ICE", "5R1C")
+            self.compare_hourly_profile([heat_demand_daniel, heat_demand_ref, heat_demand_opt], ["IDA ICE", "5R1C", "5R1C optimized"])
+            self.compare_yearly_value([heat_demand_daniel, heat_demand_ref, heat_demand_opt], ["IDA ICE", "5R1C", "5R1C optimized"])
+
+            self.compare_hourly_profile([
+                self.read_indoor_temp(OperationTable.ResultOptHour.value),
+                self.read_indoor_temp(OperationTable.ResultRefHour.value),
+            ], ["5R1C optimized", "5R1C"])
+
+            self.compare_hourly_profile([pd.DataFrame(self.read_electricity_price())], ["price profile"])
 
         else:
             heat_demand_daniel = self.read_daniel_heat_demand()
@@ -134,14 +130,14 @@ class CompareModels:
 
             indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value)
 
-            self.compare_hourly_profile(heat_demand_opt, heat_demand_ref, "5R1C optimized", "5R1C")
+            self.compare_hourly_profile([heat_demand_opt, heat_demand_ref], ["5R1C optimized", "5R1C"])
 
-            self.compare_hourly_profile(indoor_temp_opt, indoor_temp_ref, "5R1C optimized", "5R1C")
+            self.compare_hourly_profile([indoor_temp_opt, indoor_temp_ref], ["5R1C optimized", "5R1C"])
 
             # costs
             costs_opt = self.read_costs(table_name=OperationTable.ResultOptYear.value)
             costs_ref = self.read_costs(table_name=OperationTable.ResultRefYear.value)
-            self.compare_yearly_value(costs_opt, costs_ref, "5R1C optimized", "5R1C")
+            self.compare_yearly_value([costs_opt, costs_ref], ["5R1C optimized", "5R1C"])
 
 
 
@@ -150,9 +146,9 @@ class CompareModels:
 
 
 if __name__ == "__main__":
-    CompareModels(project_name="Flex_optimiert").main()
+    CompareModels(project_name="Flex_22").main()
 
     # project names:
-    # Flex_optimiert, Flex
+    # Flex_22, Flex_20
 
 
