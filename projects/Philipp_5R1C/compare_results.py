@@ -125,14 +125,15 @@ class CompareModels:
             heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value)
             heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value)
             indoor_temp_opt = self.read_indoor_temp(OperationTable.ResultOptHour.value)
+            indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value)
+
             # save indoor temp opt to csv for daniel:
             self.df_to_csv(indoor_temp_opt.copy(), self.input_path.parent / Path("ouput_data/indoor_set_temp.csv"))
-
-            indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value)
 
             self.compare_hourly_profile([heat_demand_opt, heat_demand_ref], ["5R1C optimized", "5R1C"])
 
             self.compare_hourly_profile([indoor_temp_opt, indoor_temp_ref], ["5R1C optimized", "5R1C"])
+
 
             # costs
             costs_opt = self.read_costs(table_name=OperationTable.ResultOptYear.value)
@@ -146,7 +147,7 @@ class CompareModels:
 
 
 if __name__ == "__main__":
-    CompareModels(project_name="Flex_22").main()
+    CompareModels(project_name="Flex_20").main()
 
     # project names:
     # Flex_22, Flex_20
