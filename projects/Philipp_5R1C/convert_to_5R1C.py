@@ -52,11 +52,15 @@ class Create5R1CParameters:
         self.window_area_north = None
         self.window_area_south = None
 
+        self.Cm = None
+        self.Cm_wall = None
+        self.Cm_ceiling = None
+        self.Cm_ground = None
+
     def fill_params(self):
         self.length = self.df.loc[:, "Sides_m"]
         self.width = self.df.loc[:, "Sides_m"]
         self.height = self.df.loc[:, "clearHeight"]
-        self.specific_heat_capacity = self.df.loc[:, "specific_heat_capacity"]
         self.foot_print = self.df.loc[:, "mean_footprint_m2"]
         self.floors = self.df.loc[:, "floors"]
         self.roof_area = self.df.loc[:, "roof_area_m2"]
@@ -77,7 +81,10 @@ class Create5R1CParameters:
         self.window_area_north = self.wall_area * self.df.loc[:, "window_to_wall_ratio"] * 0.25 * 0.7
         self.window_area_south = self.wall_area * self.df.loc[:, "window_to_wall_ratio"] * 0.25 * 0.7
 
-
+        self.Cm = self.df.loc[:, "Cm J/K"]
+        self.Cm_wall = self.df.loc[:, "Cm Wall"]
+        self.Cm_ceiling = self.df.loc[:, "Cm ceiling"]
+        self.Cm_ground = self.df.loc[:, "Cm ground"]
 
     def fill_params_invert(self):
         self.length = self.df.loc[:, "length_of_building"]
@@ -122,38 +129,22 @@ class Create5R1CParameters:
         return floor_area * 4.5
 
     def total_area_of_building_elements(self):
-        floor_area = self.floors * (self.width * self.length)
-        roof_area = self.length * self.width
-        return floor_area + roof_area + self.wall_area
+        return self.foot_print + self.roof_area + self.wall_area
 
     def specific_capacity_per_sqm(self):
-        cm = self.calculate_Cm()
-        return cm / self.total_area_of_building_elements()
+        cm_wall_spec = self.Cm_wall / self.wall_area
+        cm_ground_spec = self.Cm_ground / self.foot_print
+        cm_roof_spec = self.Cm_ceiling / self.roof_area
+        return cm_wall_spec + cm_ground_spec + cm_roof_spec
 
     def calculate_Am(self):
         """Am is Cm^2 divided by the area of building elements * specific capacity^2"""
-        Cm2 = self.calculate_Cm() * self.calculate_Cm()
-        return Cm2 / (self.specific_capacity_per_sqm() * self.specific_capacity_per_sqm() * self.total_area_of_building_elements())
+        Cm2 = self.Cm * self.Cm
+        km_wall = (self.Cm_wall / self.wall_area) * (self.Cm_wall / self.wall_area)
+        km_ceiling = (self.Cm_ceiling / self.roof_area) * (self.Cm_ceiling / self.roof_area)
+        km_ground = (self.Cm_ground / self.foot_print) * (self.Cm_ground / self.foot_print)
 
-    def calculate_Cm(self):
-        """
-        Calculates the heat capacity of the building after DIN ISO 13790 (2008) equation 66
-        Args:
-            building_length: float or array[float] m
-            building_height: float or array[float] m
-            building_width: float or array[float] m
-            number_of_floors: int or array[int] -
-            specific_heat_capacity: float or array[float] J/m2K
-        Returns:
-
-        """
-        # calculate the area of the building elements the windows and also inside walls (hopefully they equally each
-        # other out
-
-        wall_thickness = 0.1
-        material_volume = wall_thickness * self.total_area_of_building_elements()
-        density = 1500  # kg/m^3 Ziegel
-        return self.specific_heat_capacity * material_volume * density
+        return Cm2 / (km_wall * self.wall_area + km_ground * self.foot_print + km_ceiling * self.roof_area)
 
     def calculate_HD(self):
         """heat transfer to external environment"""
@@ -225,7 +216,7 @@ class Create5R1CParameters:
         self.building_df.loc[:, "Hop"] = self.calculate_Hop()
         self.building_df.loc[:, "Htr_w"] = self.calculate_Htr_w()
         self.building_df.loc[:, "Hve"] = self.calculate_Hve()
-        self.building_df.loc[:, "CM_factor"] = self.calculate_Cm() / self.Af
+        self.building_df.loc[:, "CM_factor"] = self.Cm / self.Af
         self.building_df.loc[:, "Am_factor"] = self.calculate_Am() / self.Af
         self.building_df.loc[:, "internal_gains"] = self.internal_gains
         self.building_df.loc[:, "effective_window_area_west_east"] = (self.window_area_east * self.df.loc[:, "g_windows"] +
