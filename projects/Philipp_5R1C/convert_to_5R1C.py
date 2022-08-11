@@ -38,6 +38,7 @@ class Create5R1CParameters:
         self.u_wall = None
         self.u_window = None
         self.u_floor = None
+        self.u_roof = None
         self.n_air = None
         self.internal_gains = None
         self.Af = None
@@ -69,6 +70,7 @@ class Create5R1CParameters:
         self.u_wall = self.df.loc[:, "U_Walls"]
         self.u_window = self.df.loc[:, "U_windows"]
         self.u_floor = self.df.loc[:, "U_floor"]
+        self.u_roof = self.df.loc[:, "U_roof"]
         self.n_air = self.df.loc[:, "n_air"]
         self.internal_gains = self.df.loc[:, "internal_gains"]
         self.Af = self.df.loc[:, "NGF_m2"]
@@ -149,7 +151,7 @@ class Create5R1CParameters:
     def calculate_HD(self):
         """heat transfer to external environment"""
         # Area of the walls * U value of the walls
-        return self.wall_area * self.u_wall
+        return self.wall_area * self.u_wall + self.roof_area * self.u_roof
 
     def calculate_Hg(self):
         """heat transmission to the ground after DIN ISO 13370 ignoring Ψg*P"""
