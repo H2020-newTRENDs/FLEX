@@ -238,7 +238,7 @@ class RefOperationModel(OperationModel):
         Returns: grid_demand_after_DHW, electricity_surplus_after_DHW
         """
 
-        self.Q_DHWTank = np.zeros(pv_surplus.shape)
+        self.Q_DHWTank = np.ones(pv_surplus.shape) * self.scenario.hot_water_tank.temperature_min
         self.Q_DHWTank_out = np.zeros(pv_surplus.shape)
         self.Q_DHWTank_in = np.zeros(pv_surplus.shape)
 
@@ -252,7 +252,6 @@ class RefOperationModel(OperationModel):
             surface_area = self.scenario.hot_water_tank.surface_area
             loss = self.U_LossTank_DHW
             surrounding_temperature = self.T_TankSurrounding_DHW
-            start_temperature = self.T_TankStart_DHW
             cop = self.HotWaterHourlyCOP
             cop_tank = self.HotWaterHourlyCOP_tank
             tank_capacity = size * self.CPWater
@@ -266,7 +265,8 @@ class RefOperationModel(OperationModel):
             for i in range(0, len(pv_surplus)):
 
                 if i == 0:
-                    temp_start = start_temperature
+                    temp_start = self.T_TankStart_DHW
+                    tank_temperature[i] = temp_start
                 else:
                     temp_start = tank_temperature[i - 1]
                 tank_loss[i] = (
@@ -301,8 +301,7 @@ class RefOperationModel(OperationModel):
                         self.Q_DHWTank_in[i] = q_tank_in
                         self.E_DHW_HP_out[i] += q_tank_in / cop_tank[i]
                         tank_temperature[i] = (
-                            tank_temperature[i - 1]
-                            + (q_tank_in - tank_loss[i]) / tank_capacity
+                            tank_temperature[i - 1] + (q_tank_in - tank_loss[i]) / tank_capacity
                         )
 
                     elif temperature_min <= temp_start < temperature_max:
@@ -315,16 +314,14 @@ class RefOperationModel(OperationModel):
                         self.E_DHW_HP_out[i] += q_tank_in / cop_tank[i]
                         pv_surplus_after_hot_water_tank[i] -= q_tank_in / cop_tank[i]
                         tank_temperature[i] = (
-                            tank_temperature[i - 1]
-                            + (q_tank_in - tank_loss[i]) / tank_capacity
+                            tank_temperature[i - 1] + (q_tank_in - tank_loss[i]) / tank_capacity
                         )
 
                     else:
                         q_tank_in = 0
                         self.Q_DHWTank_in[i] = q_tank_in
                         tank_temperature[i] = (
-                            tank_temperature[i - 1]
-                            + (q_tank_in - tank_loss[i]) / tank_capacity
+                            tank_temperature[i - 1] + (q_tank_in - tank_loss[i]) / tank_capacity
                         )
 
                 else:
@@ -338,8 +335,7 @@ class RefOperationModel(OperationModel):
                         self.Q_DHWTank_in[i] = q_tank_in
                         self.E_DHW_HP_out[i] += q_tank_in / cop_tank[i]
                         tank_temperature[i] = (
-                            tank_temperature[i - 1]
-                            + (q_tank_in - tank_loss[i]) / tank_capacity
+                            tank_temperature[i - 1] + (q_tank_in - tank_loss[i]) / tank_capacity
                         )
 
                     else:
@@ -352,10 +348,14 @@ class RefOperationModel(OperationModel):
                         self.Q_DHWTank_bypass[i] -= q_tank_out
                         self.E_DHW_HP_out[i] -= q_tank_out / cop[i]
                         grid_demand_after_hot_water_tank[i] -= q_tank_out / cop[i]
-                        tank_temperature[i] = (
-                            tank_temperature[i - 1]
-                            - (q_tank_out + tank_loss[i]) / tank_capacity
-                        )
+                        if i == 0:
+                            tank_temperature[i] = (
+                                    tank_temperature[i] - (q_tank_out + tank_loss[i]) / tank_capacity
+                            )
+                        else:
+                            tank_temperature[i] = (
+                                tank_temperature[i - 1] - (q_tank_out + tank_loss[i]) / tank_capacity
+                            )
 
                 # check if the HP max power is exceeded due to additional load:
                 hp_power = self.E_DHW_HP_out[i] + self.E_Heating_HP_out[i]
