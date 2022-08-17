@@ -16,7 +16,7 @@ class DB:
 
     def create_connection(self, database_name) -> sqlalchemy.engine.Engine:
         return sqlalchemy.create_engine(
-            f'sqlite:///{os.path.join(self.config.output, database_name + ".sqlite")}'
+            f'sqlite:///{os.path.join(self.config.project_root.parent, self.config.output, database_name + ".sqlite")}'
         )
 
     def get_engine(self):
