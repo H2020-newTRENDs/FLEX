@@ -154,12 +154,12 @@ class RefOperationModel(OperationModel):
 
     def calculate_ev_energy(self, grid_demand, pv_surplus):
 
-        self.EVDemandProfile = self.scenario.behavior.vehicle_demand
+        self.EVDemandProfile = np.zeros(pv_surplus.shape)
         self.EVAtHomeProfile = np.array(self.scenario.behavior.vehicle_at_home, dtype=int)
 
         self.EVSoC = np.zeros(pv_surplus.shape)
         self.EVCharge = np.zeros(pv_surplus.shape)
-        self.EVDischarge = self.EVDemandProfile
+        self.EVDischarge = np.zeros(pv_surplus.shape)
         self.EV2Bat = np.zeros(pv_surplus.shape)
         self.EV2Load = np.zeros(pv_surplus.shape)
         self.Grid2EV = np.zeros(pv_surplus.shape)
@@ -167,6 +167,8 @@ class RefOperationModel(OperationModel):
         self.Bat2EV = np.zeros(pv_surplus.shape)
 
         if self.scenario.vehicle.capacity > 0:
+            self.EVDemandProfile = self.scenario.behavior.vehicle_demand
+            self.EVDischarge = self.EVDemandProfile
 
             capacity = self.scenario.vehicle.capacity  # kWh
             max_charge_power = self.scenario.vehicle.charge_power_max  # kW
