@@ -1,6 +1,8 @@
 from scipy.stats import norm
 from models.operation.scenario import OperationScenario
 from models.operation.visualization.Visualization_class import MotherVisualization
+from config import config
+from models.operation.enums import OperationTable
 
 import pandas as pd
 import numpy as np
@@ -309,8 +311,8 @@ class PlotlyVisualize(MotherVisualization):
 if __name__ == "__main__":
 
     # create scenario:
-    scenario_id = 0
-    scenario = OperationScenario(scenario_id=scenario_id)
+    scenario_id = 2
+    scenario = OperationScenario(scenario_id=scenario_id, config=config)
     plotly_visualization = PlotlyVisualize(scenario=scenario)
     plotly_visualization.show_yearly_comparison_of_SEMS_reference()
     plotly_visualization.hourly_comparison_SEMS_reference()
