@@ -285,9 +285,10 @@ class OptModelFramework:
     def setup_constraint_heat_pump(self, m):
         def calc_supply_of_space_heating(m, t):
             return (
-                    m.Q_HeatingTank_bypass[t] / m.SpaceHeatingHourlyCOP[t] +
-                    m.Q_HeatingTank_in[t] / m.SpaceHeatingHourlyCOP_tank[t]
-                    == m.E_Heating_HP_out[t] + m.Q_HeatingElement_heat[t] / m.HeatingElement_efficiency
+                    m.Q_HeatingTank_bypass[t] * m.SpaceHeatingHourlyCOP_tank[t] +
+                    m.Q_HeatingTank_in[t] * m.SpaceHeatingHourlyCOP[t] ==
+                    m.E_Heating_HP_out[t] * m.SpaceHeatingHourlyCOP_tank[t] * m.SpaceHeatingHourlyCOP[t] +
+                    m.Q_HeatingElement_heat[t] / m.HeatingElement_efficiency
             )
 
         m.calc_use_of_HP_power_DHW_rule = pyo.Constraint(
@@ -296,9 +297,10 @@ class OptModelFramework:
 
         def calc_supply_of_DHW(m, t):
             return (
-                    m.Q_DHWTank_bypass[t] / m.HotWaterHourlyCOP[t] +
-                    m.Q_DHWTank_in[t] / m.HotWaterHourlyCOP_tank[t]
-                    == m.E_DHW_HP_out[t] + m.Q_HeatingElement_DHW[t] / m.HeatingElement_efficiency
+                    m.Q_DHWTank_bypass[t] * m.HotWaterHourlyCOP_tank[t] +
+                    m.Q_DHWTank_in[t] * m.HotWaterHourlyCOP[t] ==
+                    m.E_DHW_HP_out[t] * m.HotWaterHourlyCOP_tank[t] * m.HotWaterHourlyCOP[t] +
+                    m.Q_HeatingElement_DHW[t] / m.HeatingElement_efficiency
             )
 
         m.bypass_DHW_rule = pyo.Constraint(m.t, rule=calc_supply_of_DHW)
@@ -513,6 +515,7 @@ class SolveHeatPumpOptimization(OperationModel):
                 instance.Q_HeatingElement[t].setub(self.HeatingElement_power)
                 instance.Q_HeatingElement_heat[t].setub(self.HeatingElement_power)
                 instance.Q_HeatingElement_DHW[t].setub(self.HeatingElement_power)
+            instance.heating_element_rule.activate()
 
     def config_prices(self, instance):
         for t in range(1, 8761):
@@ -629,7 +632,6 @@ class SolveHeatPumpOptimization(OperationModel):
         for t in range(1, 8761):
             instance.T_Room[t].setub(max_target_temperature[t - 1])
             instance.T_Room[t].setlb(min_target_temperature[t - 1])
-
 
     def config_space_cooling_technology(self, instance):
         if self.scenario.space_cooling_technology.power == 0:
