@@ -17,12 +17,16 @@ class CompareModels:
     def __init__(self, project_name: str):
         self.input_path = Path(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\input_data")
         self.project_name = project_name
+        if self.project_name == "Flex_22":
+            self.strat = "steady"
+        else:
+            self.strat = "optimized"
 
     def read_daniel_heat_demand(self):
-        filename = "heating_demand_daniel.csv"
+        filename = f"heating_demand_daniel_{self.strat}.csv"
         demand_df = pd.read_csv(self.input_path / Path(filename), sep=";").drop(columns=["Unnamed: 0"])
         # rename the columns to 1, 2, 3, 4, 5
-        demand_df.columns = ["1", "2", "3", "4", "5"]
+        demand_df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
         return demand_df
 
     def read_daniel_heat_demand_optimized(self):
@@ -33,22 +37,30 @@ class CompareModels:
                                            column_names=["ID_Scenario", "Q_HeatingTank_bypass", "Hour"])
         # split the demand into columns for every Scenario ID:
         df = demand.pivot_table(index="Hour", columns="ID_Scenario")
-        df.columns = ["1", "2", "3", "4", "5"]
+        df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
         return df
 
     def read_indoor_temp(self, table_name: str):
         temp = DB(get_config(self.project_name)).read_dataframe(table_name=table_name,
                                            column_names=["ID_Scenario", "T_Room", "Hour"])
         df = temp.pivot_table(index="Hour", columns="ID_Scenario")
-        df.columns = ["1", "2", "3", "4", "5"]
+        df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
         return df
+
+    def read_indoor_temp_daniel(self):
+        filename = f"indoor_temp_daniel_{self.strat}.csv"
+        temp_df = pd.read_csv(self.input_path / Path(filename), sep=";").drop(columns=["Unnamed: 0"])
+        # rename the columns to 1, 2, 3, 4, 5
+        temp_df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
+        return temp_df
+
 
     def read_costs(self, table_name: str):
         cost = DB(get_config(self.project_name)).read_dataframe(table_name=table_name,
                                                                 column_names=["TotalCost"])
         cost.loc[:, "index"] = np.arange(1, len(cost)+1)
         df = cost.pivot_table(columns="index")
-        df.columns = ["1", "2", "3", "4", "5"]
+        df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
         return df
 
     def read_electricity_price(self) -> np.array:
@@ -126,13 +138,17 @@ class CompareModels:
             heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value)
             indoor_temp_opt = self.read_indoor_temp(OperationTable.ResultOptHour.value)
             indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value)
+            indoor_temp_daniel = self.read_indoor_temp_daniel()
 
             # save indoor temp opt to csv for daniel:
             self.df_to_csv(indoor_temp_opt.copy(), self.input_path.parent / Path("ouput_data/indoor_set_temp.csv"))
 
-            self.compare_hourly_profile([heat_demand_opt, heat_demand_ref], ["5R1C optimized", "5R1C"])
+            self.compare_yearly_value([heat_demand_daniel, heat_demand_ref, heat_demand_opt],
+                                      ["IDA ICE", "5R1C", "5R1C optimized"])
 
-            self.compare_hourly_profile([indoor_temp_opt, indoor_temp_ref], ["5R1C optimized", "5R1C"])
+            self.compare_hourly_profile([heat_demand_opt, heat_demand_ref, heat_demand_daniel], ["5R1C optimized", "5R1C", "IDA ICE"])
+
+            self.compare_hourly_profile([indoor_temp_opt, indoor_temp_ref, indoor_temp_daniel], ["5R1C optimized", "5R1C", "IDA ICE"])
 
 
             # costs
