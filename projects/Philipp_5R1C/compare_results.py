@@ -25,12 +25,10 @@ class CompareModels:
     def read_daniel_heat_demand(self):
         filename = f"heating_demand_daniel_{self.strat}.csv"
         demand_df = pd.read_csv(self.input_path / Path(filename), sep=";").drop(columns=["Unnamed: 0"])
-        # rename the columns to 1, 2, 3, 4, 5
-        demand_df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
-        return demand_df
-
-    def read_daniel_heat_demand_optimized(self):
-        pass
+        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
+        # rearrange the df:
+        df = demand_df[column_list]
+        return df
 
     def read_heat_demand(self, table_name: str):
         demand = DB(get_config(self.project_name)).read_dataframe(table_name=table_name,
@@ -50,8 +48,9 @@ class CompareModels:
     def read_indoor_temp_daniel(self):
         filename = f"indoor_temp_daniel_{self.strat}.csv"
         temp_df = pd.read_csv(self.input_path / Path(filename), sep=";").drop(columns=["Unnamed: 0"])
-        # rename the columns to 1, 2, 3, 4, 5
-        temp_df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
+        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
+        # rearrange the df:
+        df = temp_df[column_list]
         return temp_df
 
 
@@ -68,12 +67,34 @@ class CompareModels:
                                        column_names=["electricity_1"]). to_numpy()
         return price
 
+    def read_COP(self, table_name):
+        cop = DB(get_config(self.project_name)).read_dataframe(table_name=table_name,
+                                                                  column_names=["ID_Scenario", "SpaceHeatingHourlyCOP",
+                                                                                "Hour"])
+        # split the demand into columns for every Scenario ID:
+        df = cop.pivot_table(index="Hour", columns="ID_Scenario")
+        df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
+        return df
 
-    def calculate_costs(self):
-        price_profile = self.read_electricity_price()
+    def calculate_costs(self, table_name: str):
+        price_profile = self.read_electricity_price().squeeze()
+        heat_demand = self.read_heat_demand(table_name)
+        COP_HP = self.read_COP(table_name)
+        electricity = (heat_demand / COP_HP).reset_index(drop=True)
 
+        hourly_cost = electricity.mul(pd.Series(price_profile), axis=0)
+        total_cost = hourly_cost.sum(axis=0)
+        return pd.DataFrame(total_cost).transpose()
 
-        pass
+    def calculate_costs_daniel(self):
+        price_profile = self.read_electricity_price().squeeze()
+        COP_HP = self.read_COP(OperationTable.ResultOptHour.value)
+        heat_demand = self.read_daniel_heat_demand()
+        electricity = (heat_demand / COP_HP).reset_index(drop=True)
+
+        hourly_cost = electricity.mul(pd.Series(price_profile), axis=0)
+        total_cost = hourly_cost.sum(axis=0)
+        return pd.DataFrame(total_cost).transpose()
 
 
     def compare_hourly_profile(self, demand_list: list, demand_names: list):
@@ -100,7 +121,7 @@ class CompareModels:
                 )
         fig.show()
 
-    def compare_yearly_value(self, profile_list: List[pd.DataFrame], profile_names: list):
+    def compare_yearly_value(self, profile_list: List[pd.DataFrame], profile_names: list, title: str):
         # compare total demand
         total_df = pd.concat([profile.sum() for profile in profile_list], axis=1) / 1_000  # kW
         total_df.columns = [name for name in profile_names]
@@ -108,7 +129,7 @@ class CompareModels:
             data_frame=total_df,
             barmode="group",
         )
-        fig2.update_layout(title_text="total heating demand")
+        fig2.update_layout(title_text=title)
         fig2.show()
 
     def df_to_csv(self, df, path):
@@ -123,7 +144,7 @@ class CompareModels:
             heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value)
 
             self.compare_hourly_profile([heat_demand_daniel, heat_demand_ref, heat_demand_opt], ["IDA ICE", "5R1C", "5R1C optimized"])
-            self.compare_yearly_value([heat_demand_daniel, heat_demand_ref, heat_demand_opt], ["IDA ICE", "5R1C", "5R1C optimized"])
+            self.compare_yearly_value([heat_demand_daniel, heat_demand_ref, heat_demand_opt], ["IDA ICE", "5R1C", "5R1C optimized"], "total heat demand")
 
             self.compare_hourly_profile([
                 self.read_indoor_temp(OperationTable.ResultOptHour.value),
@@ -143,8 +164,8 @@ class CompareModels:
             # save indoor temp opt to csv for daniel:
             self.df_to_csv(indoor_temp_opt.copy(), self.input_path.parent / Path("ouput_data/indoor_set_temp.csv"))
 
-            self.compare_yearly_value([heat_demand_daniel, heat_demand_ref, heat_demand_opt],
-                                      ["IDA ICE", "5R1C", "5R1C optimized"])
+            self.compare_yearly_value([heat_demand_opt, heat_demand_ref, heat_demand_daniel],
+                                      ["5R1C optimized", "5R1C", "IDA ICE"], title="total heat demand")
 
             self.compare_hourly_profile([heat_demand_opt, heat_demand_ref, heat_demand_daniel], ["5R1C optimized", "5R1C", "IDA ICE"])
 
@@ -152,14 +173,12 @@ class CompareModels:
 
 
             # costs
-            costs_opt = self.read_costs(table_name=OperationTable.ResultOptYear.value)
-            costs_ref = self.read_costs(table_name=OperationTable.ResultRefYear.value)
-            self.compare_yearly_value([costs_opt, costs_ref], ["5R1C optimized", "5R1C"])
+            costs_opt = self.calculate_costs(table_name=OperationTable.ResultOptHour.value)
+            costs_ref = self.calculate_costs(table_name=OperationTable.ResultRefHour.value)
 
+            cost_daniel = self.calculate_costs_daniel()
 
-
-        costs_daniel = self.calculate_costs()
-        costs_opt = self.calculate_costs()
+            self.compare_yearly_value([costs_opt, costs_ref, cost_daniel], ["5R1C optimized", "5R1C", "IDA ICE"], "total heating cost")
 
 
 if __name__ == "__main__":
