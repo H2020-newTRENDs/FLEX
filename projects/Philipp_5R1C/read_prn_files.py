@@ -22,25 +22,27 @@ class PRNImporter:
         return list_subfolders_paths
 
     def main(self):
-        folders = self.iterate_through_folders(self.main_path)
-        heating_demand = {}
-        for folder in folders:
-            # load folders of zones:
-            zone_paths = self.iterate_through_folders(Path(folder))
-            house_heat_load = np.zeros((8760, ))
-            # get heat load from each zone:
-            for zone in zone_paths:
-                # load the csv file:
-                zone_heat_load = self.load_csv_heat_balance_file(zone)
-                house_heat_load += zone_heat_load
+        strategies = ["steady", "optimized"]
+        for strat in strategies:
+            folders = self.iterate_through_folders(self.main_path / Path(strat))
+            heating_demand = {}
+            for folder in folders:
+                # load folders of zones:
+                zone_paths = self.iterate_through_folders(Path(folder))
+                house_heat_load = np.zeros((8760, ))
+                # get heat load from each zone:
+                for zone in zone_paths:
+                    # load the csv file:
+                    zone_heat_load = self.load_csv_heat_balance_file(zone)
+                    house_heat_load += zone_heat_load
 
-            # house name:
-            house_name = folder.split("\\")[-1]
-            heating_demand[house_name] = house_heat_load
+                # house name:
+                house_name = folder.split("\\")[-1]
+                heating_demand[house_name] = house_heat_load
 
-        # heating demand to csv for later analysis:
-        heating_demand_df = pd.DataFrame(heating_demand)
-        heating_demand_df.to_csv(self.main_path / Path("heating_demand_daniel.csv"), sep=";")
+            # heating demand to csv for later analysis:
+            heating_demand_df = pd.DataFrame(heating_demand)
+            heating_demand_df.to_csv(self.main_path / Path(f"heating_demand_daniel_{strat}.csv"), sep=";")
 
 
 
