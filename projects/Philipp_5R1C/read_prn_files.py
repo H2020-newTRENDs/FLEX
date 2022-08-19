@@ -14,12 +14,15 @@ class PRNImporter:
     def load_csv_heat_balance_file(self, path):
         file_name = "HEAT_BALANCE.csv"
         table = pd.read_csv(Path(path) / Path(file_name), sep=";")
+        table = table[~table.loc[:, "time"].duplicated(keep='first')]
         heating = table.loc[:, "qhc2zone"].to_numpy()[1:]  # drop first hour because daniel has 8761
         return heating
 
     def load_csv_temperature_file(self, path):
+        print(path)
         file_name = "TEMPERATURES.csv"
         table = pd.read_csv(Path(path) / Path(file_name), sep=";")
+        table = table[~table.loc[:, "time"].duplicated(keep='first')]
         indoor_temp = table.loc[:, "tairmean"].to_numpy()[1:]
         return indoor_temp
 
@@ -28,7 +31,7 @@ class PRNImporter:
         return list_subfolders_paths
 
     def main(self):
-        strategies = ["optimized"]#["steady", "optimized"]
+        strategies = ["steady", "optimized"]
         for strat in strategies:
             folders = self.iterate_through_folders(self.main_path / Path(strat))
             heating_demand = {}
