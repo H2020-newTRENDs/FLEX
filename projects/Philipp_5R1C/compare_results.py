@@ -120,12 +120,26 @@ class CompareModels:
         # compare total demand
         total_df = pd.concat([profile.sum() for profile in profile_list], axis=1) / 1_000  # kW
         total_df.columns = [name for name in profile_names]
+        if "cost" in title:
+            unit = "€"
+        else:
+            unit = "kWh"
         fig2 = px.bar(
             data_frame=total_df,
             barmode="group",
+            labels={
+                "index": "Building",
+                "value": f"{title} {unit}",
+            }
         )
         fig2.update_layout(title_text=title)
+        fig_name = f"{title}.svg"
+        fig2.write_image(self.input_path.parent.as_posix() + f"/ouput_data/figures/{fig_name.replace(' ', '_')}")
         fig2.show()
+
+    def show_percentage_differences(self):
+
+        pass
 
     def df_to_csv(self, df, path):
         column_names = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
@@ -169,8 +183,8 @@ class CompareModels:
         self.compare_yearly_value([heat_demand_opt, heat_demand_daniel_var, heat_demand_ref, heat_demand_daniel_steady],
                                   ["5R1C optimized", "IDA ICE optimized", "5R1C", "IDA ICE"],
                                   title="total heat demand")
-        self.compare_yearly_value([costs_opt, cost_daniel_opt, costs_ref, cost_daniel_ref],
-                                  ["5R1C optimized", "IDA ICE optimized", "5R1C", "IDA ICE"],
+        self.compare_yearly_value([costs_opt, costs_ref, cost_daniel_opt, cost_daniel_ref],
+                                  ["5R1C optimized", "5R1C", "IDA ICE optimized", "IDA ICE"],
                                   "total heating cost")
 
 
