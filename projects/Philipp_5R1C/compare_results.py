@@ -7,6 +7,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
+import matplotlib.pyplot as plt
 
 from basics.db import DB
 from config import config, get_config
@@ -14,9 +15,63 @@ from models.operation.enums import OperationTable
 
 
 class CompareModels:
-    def __init__(self):
-        self.input_path = Path(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\input_data")
+    def __init__(self, db_name):
+        self.input_path = Path(
+            r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\input_data")
+        self.figure_path = Path(
+            r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\figures")
+        self.project_name = db_name
+        self.db = DB(get_config(self.project_name))
+        self.scenario_table = self.db.read_dataframe(table_name=OperationTable.Scenarios.value)
 
+        self.grey = "#95a5a6"
+        self.orange = "orange"
+        self.blue = "#3498db"
+        self.red = "#e74c3c"
+        self.green = "#2ecc71"
+
+        self.building_names = {
+            1: "EZFH_5_B",
+            2: "EZFH_5_S",
+            3: "EZFH_9_B",
+            4: "EZFH_1_B",
+            5: "EZFH_1_S"
+        }
+
+    def scenario_id_2_building_name(self, id_scenario: int) -> str:
+        building_id = int(self.scenario_table.loc[self.scenario_table.loc[:, "ID_Scenario"] == id_scenario, "ID_Building"])
+        return self.building_names[building_id]
+
+    def grab_scenario_ids_for_price(self, id_price: int) -> list:
+        ids = self.scenario_table.loc[self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price, "ID_Scenario"]
+        return list(ids)
+
+    def show_elec_prices(self):
+        """plot the electricity prices that are used in this paper and print their mean and std"""
+        # plot the prices in one figure:
+        price_table = self.db.read_dataframe(table_name=OperationTable.EnergyPriceProfile.value)
+        price_ids = [1, 2, 3, 4]
+        fig = plt.figure()
+        ax = plt.gca()
+        colors = [self.blue, self.orange, self.green, self.red]
+        for price_id in price_ids:
+            column_name = f"electricity_{price_id}"
+            price = price_table.loc[:, column_name].to_numpy() * 1000  # cent/kWh
+            ax.plot(np.arange(8760), price, label=f"Price scenario {price_id}",
+                    linewidth=0.3,
+                    alpha=0.9,
+                    color=colors[price_id - 1])
+            # calculate and print the mean and standard deviation:
+            print(f"price {price_id}: \n "
+                  f"mean: {price.mean()} \n"
+                  f"standard deviation: {price.std()}")
+        ax.set_xlabel("hours")
+        ax.set_ylabel("cent/kWh")
+        ax.grid()
+        plt.legend()
+        # fig.savefig(self.path_to_figures / Path("electricity_prices.png"))
+        fig.savefig(self.figure_path / Path("electricity_prices.svg"))
+        fig.show()
 
     def read_daniel_heat_demand(self, strat: str):
         filename = f"heating_demand_daniel_{strat}.csv"
@@ -26,17 +81,17 @@ class CompareModels:
         df = demand_df[column_list]
         return df
 
-    def read_heat_demand(self, table_name: str, project: str):
-        demand = DB(get_config(project)).read_dataframe(table_name=table_name,
-                                           column_names=["ID_Scenario", "Q_HeatingTank_bypass", "Hour"])
+    def read_heat_demand(self, table_name: str):
+        demand = self.db.read_dataframe(table_name=table_name,
+                                        column_names=["ID_Scenario", "Q_HeatingTank_bypass", "Hour"])
         # split the demand into columns for every Scenario ID:
         df = demand.pivot_table(index="Hour", columns="ID_Scenario")
         df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
         return df
 
-    def read_indoor_temp(self, table_name: str, project: str):
-        temp = DB(get_config(project)).read_dataframe(table_name=table_name,
-                                           column_names=["ID_Scenario", "T_Room", "Hour"])
+    def read_indoor_temp(self, table_name: str):
+        temp = self.db.read_dataframe(table_name=table_name,
+                                      column_names=["ID_Scenario", "T_Room", "Hour"])
         df = temp.pivot_table(index="Hour", columns="ID_Scenario")
         df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
         return df
@@ -49,32 +104,32 @@ class CompareModels:
         df = temp_df[column_list]
         return temp_df
 
-    def read_costs(self, table_name: str, project: str):
-        cost = DB(get_config(project)).read_dataframe(table_name=table_name,
-                                                                column_names=["TotalCost"])
-        cost.loc[:, "index"] = np.arange(1, len(cost)+1)
+    def read_costs(self, table_name: str):
+        cost = self.db.read_dataframe(table_name=table_name,
+                                      column_names=["TotalCost"])
+        cost.loc[:, "index"] = np.arange(1, len(cost) + 1)
         df = cost.pivot_table(columns="index")
         df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
         return df
 
-    def read_electricity_price(self, project: str) -> np.array:
-        price = DB(get_config(project)).read_dataframe(table_name=OperationTable.EnergyPriceProfile.value,
-                                       column_names=["electricity_1"]). to_numpy()
+    def read_electricity_price(self) -> np.array:
+        price = self.db.read_dataframe(table_name=OperationTable.EnergyPriceProfile.value,
+                                       column_names=["electricity_1"]).to_numpy()
         return price
 
-    def read_COP(self, table_name: str, project: str):
-        cop = DB(get_config(project)).read_dataframe(table_name=table_name,
-                                                                  column_names=["ID_Scenario", "SpaceHeatingHourlyCOP",
-                                                                                "Hour"])
+    def read_COP(self, table_name: str):
+        cop = self.db.read_dataframe(table_name=table_name,
+                                     column_names=["ID_Scenario", "SpaceHeatingHourlyCOP",
+                                                   "Hour"])
         # split the demand into columns for every Scenario ID:
         df = cop.pivot_table(index="Hour", columns="ID_Scenario")
         df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
         return df
 
-    def calculate_costs(self, table_name: str, project: str):
-        price_profile = self.read_electricity_price("Flex_optimized").squeeze()
-        heat_demand = self.read_heat_demand(table_name, project)
-        COP_HP = self.read_COP(table_name, project)
+    def calculate_costs(self, table_name: str):
+        price_profile = self.read_electricity_price().squeeze()
+        heat_demand = self.read_heat_demand(table_name)
+        COP_HP = self.read_COP(table_name)
         electricity = (heat_demand / COP_HP).reset_index(drop=True)
 
         hourly_cost = electricity.mul(pd.Series(price_profile), axis=0)
@@ -82,8 +137,8 @@ class CompareModels:
         return pd.DataFrame(total_cost).transpose()
 
     def calculate_costs_daniel(self, table_name: str, strat: str):
-        price_profile = self.read_electricity_price("Flex_optimized").squeeze()
-        COP_HP = self.read_COP(table_name, "Flex_optimized")
+        price_profile = self.read_electricity_price().squeeze()
+        COP_HP = self.read_COP(table_name)
         heat_demand = self.read_daniel_heat_demand(strat)
         electricity = (heat_demand / COP_HP).reset_index(drop=True)
 
@@ -134,7 +189,7 @@ class CompareModels:
         )
         fig2.update_layout(title_text=title)
         fig_name = f"{title}.svg"
-        fig2.write_image(self.input_path.parent.as_posix() + f"/ouput_data/figures/{fig_name.replace(' ', '_')}")
+        fig2.write_image(self.figure_path.as_posix() + f"/{fig_name.replace(' ', '_')}")
         fig2.show()
 
     def show_percentage_differences(self):
@@ -146,32 +201,48 @@ class CompareModels:
         df.columns = column_names
         df.to_csv(path, sep=";")
 
+    def indoor_temp_to_csv(self):
+        for price_id in [2, 3, 4]:  # price 1 is linear
+            scenario_ids = self.grab_scenario_ids_for_price(price_id)
+            temp_df = self.db.read_dataframe(table_name=OperationTable.ResultOptHour.value,
+                                             column_names=["ID_Scenario", "Hour"], filter={"ID_Scenario": 1})
+            for scen_id in scenario_ids:
+                indoor_temp_opt = self.db.read_dataframe(
+                    table_name=OperationTable.ResultOptHour.value,
+                    column_names=["T_Room"], filter={"ID_Scenario": scen_id}).rename(
+                                columns={"T_Room": self.scenario_id_2_building_name(scen_id)})
+                temp_df = pd.concat([temp_df, indoor_temp_opt], axis=1)
+
+            # save indoor temp opt to csv for daniel:
+            temp_df.to_csv(self.input_path.parent / Path(f"ouput_data/indoor_set_temp_price{price_id}.csv"), sep=";")
+            del temp_df
+
     def main(self):
+        self.indoor_temp_to_csv()
+
         # heat demand
         heat_demand_daniel_steady = self.read_daniel_heat_demand("steady")
         heat_demand_daniel_var = self.read_daniel_heat_demand("optimized")
-        heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value, "Flex_optimized")
-        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, "Flex_steady")
+        heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value)
+        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value)
         # temperature
         temperature_daniel_steady = self.read_indoor_temp_daniel("steady")
         indoor_temp_daniel_var = self.read_indoor_temp_daniel("optimized")
-        indoor_temp_opt = self.read_indoor_temp(OperationTable.ResultOptHour.value, "Flex_optimized")
-        indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value, "Flex_steady")
+        indoor_temp_opt = self.read_indoor_temp(OperationTable.ResultOptHour.value)
+        indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value)
         # cost
-        costs_ref = self.calculate_costs(table_name=OperationTable.ResultRefHour.value, project="Flex_optimized")
+        costs_ref = self.calculate_costs(table_name=OperationTable.ResultRefHour.value)
         cost_daniel_ref = self.calculate_costs_daniel(OperationTable.ResultOptHour.value, "steady")
-        costs_opt = self.calculate_costs(table_name=OperationTable.ResultOptHour.value, project="Flex_optimized")
+        costs_opt = self.calculate_costs(table_name=OperationTable.ResultOptHour.value)
         cost_daniel_opt = self.calculate_costs_daniel(OperationTable.ResultOptHour.value, "optimized")
 
-        self.compare_hourly_profile([heat_demand_daniel_steady, heat_demand_ref], ["IDA ICE", "5R1C"], "heat demand steady price")
+        self.compare_hourly_profile([heat_demand_daniel_steady, heat_demand_ref], ["IDA ICE", "5R1C"],
+                                    "heat demand steady price")
 
         self.compare_hourly_profile([
             indoor_temp_ref,
             temperature_daniel_steady
         ], ["5R1C", "IDA ICE"], "indoor temperature steady price")
-
-        # save indoor temp opt to csv for daniel:
-        self.df_to_csv(indoor_temp_opt.copy(), self.input_path.parent / Path("ouput_data/indoor_set_temp.csv"))
 
         self.compare_hourly_profile([heat_demand_opt, heat_demand_daniel_var],
                                     ["5R1C optimized", "IDA ICE"],
@@ -188,11 +259,6 @@ class CompareModels:
                                   "total heating cost")
 
 
-
 if __name__ == "__main__":
-    CompareModels().main()
-
-    # project names:
-    # Flex_steady, Flex_optimized
-
-
+    # CompareModels("Flex_5R1C_validation").show_elec_prices()
+    CompareModels("Flex_5R1C_validation").main()
