@@ -8,6 +8,7 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from basics.db import DB
 from config import config, get_config
@@ -39,7 +40,8 @@ class CompareModels:
         }
 
     def scenario_id_2_building_name(self, id_scenario: int) -> str:
-        building_id = int(self.scenario_table.loc[self.scenario_table.loc[:, "ID_Scenario"] == id_scenario, "ID_Building"])
+        building_id = int(
+            self.scenario_table.loc[self.scenario_table.loc[:, "ID_Scenario"] == id_scenario, "ID_Building"])
         return self.building_names[building_id]
 
     def grab_scenario_ids_for_price(self, id_price: int) -> list:
@@ -89,7 +91,7 @@ class CompareModels:
         # split the demand into columns for every Scenario ID:
         df = demand.pivot_table(index="Hour", columns="ID_Scenario")
         # drop columns which are not in this price
-        df = df.iloc[:, [scen_id-1 for scen_id in scenario_id]]
+        df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
         df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
         return df
 
@@ -203,9 +205,58 @@ class CompareModels:
         fig2.write_image(self.figure_path.as_posix() + f"/{fig_name.replace(' ', '_')}")
         fig2.show()
 
-    def show_percentage_differences(self):
+    def yearly_comparison(self, figure, axes,
+                          profile_list: List[pd.DataFrame],
+                          profile_names: list,
+                          title: str,
+                          ax_number: int) -> plt.figure:
+        # compare total demand
+        total_df = pd.concat([profile.sum() for profile in profile_list], axis=1) / 1_000  # kW
+        total_df.columns = [name for name in profile_names]
+        ax = axes.flatten()[ax_number]
+        if "cost" in title:
+            unit = "€"
+        else:
+            unit = "kWh"
+        plot = sns.barplot(data=total_df.reset_index().melt(id_vars="index").rename(
+            columns={"variable": "model", "value": "heat demand (kWh)", "index": "Building"}),
+            # kind="bar",
+            x="Building",
+            y="heat demand (kWh)",
+            hue="model",
+            ax=ax)
+        # save legend
+        handles, labels = ax.get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        # remove legend from subplot
+        plot.legend().remove()
+        ax.set_title(f"electricity price scenario {ax_number + 1}")
 
-        pass
+        return by_label
+
+    def subplots(self):
+        prizes = ["price_1", "price_2", "price_3", "price_4"]
+        # create figure
+        fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 7), sharex=True)
+        # ref heat demand is always the same
+        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, "price_1")
+        # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
+        heat_demand_IDA_ref = self.read_daniel_heat_demand("price_1")
+        ax_number = 0
+        for price in prizes:
+            heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value, price)
+            heat_demand_daniel = self.read_daniel_heat_demand(price)
+            by_label = self.yearly_comparison(fig, axes,
+                                            [heat_demand_opt, heat_demand_ref, heat_demand_daniel, heat_demand_IDA_ref],
+                                            ["5R1C optimized", "5R1C", "IDA ICE optimized", "IDA ICE"],
+                                            title="total heat demand", ax_number=ax_number)
+            ax_number += 1
+
+
+
+        # plot legend in the top middle of the figure
+        fig.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.97), loc="lower center",
+                   borderaxespad=0, ncol=4, bbox_transform=fig.transFigure)
 
     def indoor_temp_to_csv(self):
         for price_id in [2, 3, 4]:  # price 1 is linear
@@ -216,7 +267,7 @@ class CompareModels:
                 indoor_temp_opt = self.db.read_dataframe(
                     table_name=OperationTable.ResultOptHour.value,
                     column_names=["T_Room"], filter={"ID_Scenario": scen_id}).rename(
-                                columns={"T_Room": self.scenario_id_2_building_name(scen_id)})
+                    columns={"T_Room": self.scenario_id_2_building_name(scen_id)})
                 temp_df = pd.concat([temp_df, indoor_temp_opt], axis=1)
 
             # save indoor temp opt to csv for daniel:
@@ -225,10 +276,13 @@ class CompareModels:
 
     def main(self):
         self.indoor_temp_to_csv()
+        self.subplots()
         prizes = ["price_1", "price_2", "price_3", "price_4"]
+        for price in prizes:
+            pass
         # heat demand
-        # heat_demand_daniel_steady = self.read_daniel_heat_demand("steady")
-        # heat_demand_daniel_var = self.read_daniel_heat_demand("optimized")
+        heat_demand_daniel_steady = self.read_daniel_heat_demand("steady")
+        heat_demand_daniel_var = self.read_daniel_heat_demand("optimized")
         heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value, prizes[0])
         heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value)
         # temperature
