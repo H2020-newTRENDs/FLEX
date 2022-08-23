@@ -149,10 +149,20 @@ class CompareModels:
         total_cost = hourly_cost.sum(axis=0)
         return pd.DataFrame(total_cost).transpose()
 
-    def calculate_costs_daniel(self, table_name: str, price_id: str):
+    def calculate_costs_daniel_opt(self, table_name: str, price_id: str):
         price_profile = self.read_electricity_price(price_id).squeeze()
         COP_HP = self.read_COP(table_name)
         heat_demand = self.read_daniel_heat_demand(price_id)
+        electricity = (heat_demand / COP_HP).reset_index(drop=True)
+
+        hourly_cost = electricity.mul(pd.Series(price_profile), axis=0)
+        total_cost = hourly_cost.sum(axis=0)
+        return pd.DataFrame(total_cost).transpose()
+
+    def calculate_costs_daniel_ref(self, table_name: str, price_id: str):
+        price_profile = self.read_electricity_price(price_id).squeeze()
+        COP_HP = self.read_COP(table_name)
+        heat_demand = self.read_daniel_heat_demand("price_1")  # because here the indoor set temp is steady
         electricity = (heat_demand / COP_HP).reset_index(drop=True)
 
         hourly_cost = electricity.mul(pd.Series(price_profile), axis=0)
@@ -205,24 +215,22 @@ class CompareModels:
         fig2.write_image(self.figure_path.as_posix() + f"/{fig_name.replace(' ', '_')}")
         fig2.show()
 
-    def yearly_comparison(self, figure, axes,
+    def yearly_comparison(self,
+                          figure, axes,
                           profile_list: List[pd.DataFrame],
                           profile_names: list,
-                          title: str,
-                          ax_number: int) -> plt.figure:
+                          y_label: str,
+                          ax_number: int) -> dict:
         # compare total demand
         total_df = pd.concat([profile.sum() for profile in profile_list], axis=1) / 1_000  # kW
         total_df.columns = [name for name in profile_names]
         ax = axes.flatten()[ax_number]
-        if "cost" in title:
-            unit = "€"
-        else:
-            unit = "kWh"
-        plot = sns.barplot(data=total_df.reset_index().melt(id_vars="index").rename(
-            columns={"variable": "model", "value": "heat demand (kWh)", "index": "Building"}),
-            # kind="bar",
+
+        plot = sns.barplot(
+            data=total_df.reset_index().melt(id_vars="index").rename(
+                columns={"variable": "model", "value": y_label, "index": "Building"}),
             x="Building",
-            y="heat demand (kWh)",
+            y=y_label,
             hue="model",
             ax=ax)
         # save legend
@@ -234,8 +242,11 @@ class CompareModels:
 
         return by_label
 
-    def subplots(self):
+    def subplots_yearly(self):
+        plt.style.use("seaborn-paper")
         prizes = ["price_1", "price_2", "price_3", "price_4"]
+
+        # heat demand:
         # create figure
         fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 7), sharex=True)
         # ref heat demand is always the same
@@ -247,16 +258,41 @@ class CompareModels:
             heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value, price)
             heat_demand_daniel = self.read_daniel_heat_demand(price)
             by_label = self.yearly_comparison(fig, axes,
-                                            [heat_demand_opt, heat_demand_ref, heat_demand_daniel, heat_demand_IDA_ref],
-                                            ["5R1C optimized", "5R1C", "IDA ICE optimized", "IDA ICE"],
-                                            title="total heat demand", ax_number=ax_number)
+                                              [heat_demand_opt, heat_demand_ref, heat_demand_daniel,
+                                               heat_demand_IDA_ref],
+                                              ["5R1C optimized", "5R1C", "IDA ICE optimized", "IDA ICE"],
+                                              y_label="heat demand (kWh)", ax_number=ax_number)
             ax_number += 1
-
-
 
         # plot legend in the top middle of the figure
         fig.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.97), loc="lower center",
                    borderaxespad=0, ncol=4, bbox_transform=fig.transFigure)
+        fig.savefig(self.figure_path / Path("total_heat_demand.svg"))
+        plt.show()
+
+        # cost
+        plt.style.use("seaborn-paper")
+        # create figure
+        fig2, axes2 = plt.subplots(nrows=2, ncols=2, figsize=(12, 7), sharex=True)
+        ax_number = 0
+        for price in prizes:
+            costs_ref = self.calculate_costs(table_name=OperationTable.ResultRefHour.value, price_id=price)
+            costs_opt = self.calculate_costs(table_name=OperationTable.ResultOptHour.value, price_id=price)
+            cost_daniel_ref = self.calculate_costs_daniel_ref(OperationTable.ResultRefHour.value, price)
+            cost_daniel_opt = self.calculate_costs_daniel_opt(OperationTable.ResultOptHour.value, price)
+
+            by_label = self.yearly_comparison(fig2, axes2,
+                                              [costs_opt, costs_ref, cost_daniel_opt, cost_daniel_ref],
+                                              ["5R1C optimized", "5R1C", "IDA ICE optimized", "IDA ICE"],
+                                              y_label="heating cost (€)", ax_number=ax_number)
+            ax_number += 1
+
+        # plot legend in the top middle of the figure
+        fig2.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.97), loc="lower center",
+                   borderaxespad=0, ncol=4, bbox_transform=fig2.transFigure)
+        fig2.savefig(self.figure_path / Path("total_heating_cost.svg"))
+        plt.show()
+
 
     def indoor_temp_to_csv(self):
         for price_id in [2, 3, 4]:  # price 1 is linear
@@ -276,47 +312,33 @@ class CompareModels:
 
     def main(self):
         self.indoor_temp_to_csv()
-        self.subplots()
+        self.subplots_yearly()
+
+        # ref heat demand is always the same
+        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, "price_1")
+        # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
+        heat_demand_IDA_ref = self.read_daniel_heat_demand("price_1")
+        temperature_daniel_ref = self.read_indoor_temp_daniel("price_1")
         prizes = ["price_1", "price_2", "price_3", "price_4"]
         for price in prizes:
-            pass
-        # heat demand
-        heat_demand_daniel_steady = self.read_daniel_heat_demand("steady")
-        heat_demand_daniel_var = self.read_daniel_heat_demand("optimized")
-        heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value, prizes[0])
-        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value)
-        # temperature
-        temperature_daniel_steady = self.read_indoor_temp_daniel("steady")
-        indoor_temp_daniel_var = self.read_indoor_temp_daniel("optimized")
-        indoor_temp_opt = self.read_indoor_temp(OperationTable.ResultOptHour.value)
-        indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value)
-        # cost
-        costs_ref = self.calculate_costs(table_name=OperationTable.ResultRefHour.value)
-        cost_daniel_ref = self.calculate_costs_daniel(OperationTable.ResultOptHour.value, "steady")
-        costs_opt = self.calculate_costs(table_name=OperationTable.ResultOptHour.value)
-        cost_daniel_opt = self.calculate_costs_daniel(OperationTable.ResultOptHour.value, "optimized")
+            # heat demand
+            heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value, price)
+            heat_demand_daniel = self.read_daniel_heat_demand(price)
 
-        self.compare_hourly_profile([heat_demand_daniel_steady, heat_demand_ref], ["IDA ICE", "5R1C"],
-                                    "heat demand steady price")
+            # temperature
 
-        self.compare_hourly_profile([
-            indoor_temp_ref,
-            temperature_daniel_steady
-        ], ["5R1C", "IDA ICE"], "indoor temperature steady price")
+            indoor_temp_daniel_opt = self.read_indoor_temp_daniel(price)
+            indoor_temp_opt = self.read_indoor_temp(OperationTable.ResultOptHour.value, price)
+            indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value, price)
 
-        self.compare_hourly_profile([heat_demand_opt, heat_demand_daniel_var],
-                                    ["5R1C optimized", "IDA ICE"],
-                                    "heat demand variable price")
-        self.compare_hourly_profile([indoor_temp_opt, indoor_temp_daniel_var],
-                                    ["5R1C optimized", "IDA ICE"],
-                                    "indoor temperature variable price")
+            self.compare_hourly_profile([heat_demand_IDA_ref, heat_demand_ref, heat_demand_daniel, heat_demand_opt],
+                                        ["IDA ICE", "5R1C", "IDA ICE optimized", "5R1C optimized"],
+                                        f"heat demand {price} ")
 
-        self.compare_yearly_value([heat_demand_opt, heat_demand_daniel_var, heat_demand_ref, heat_demand_daniel_steady],
-                                  ["5R1C optimized", "IDA ICE optimized", "5R1C", "IDA ICE"],
-                                  title="total heat demand")
-        self.compare_yearly_value([costs_opt, costs_ref, cost_daniel_opt, cost_daniel_ref],
-                                  ["5R1C optimized", "5R1C", "IDA ICE optimized", "IDA ICE"],
-                                  "total heating cost")
+            self.compare_hourly_profile([indoor_temp_ref, temperature_daniel_ref, indoor_temp_daniel_opt, indoor_temp_opt],
+                                        ["5R1C", "IDA ICE", "IDA ICE optimized", "5R1C optimized"],
+                                        f"indoor temperature {price}")
+
 
 
 if __name__ == "__main__":
