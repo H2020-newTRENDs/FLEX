@@ -10,6 +10,24 @@ class PRNImporter:
     def __init__(self):
         self.main_path = Path(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\input_data")
 
+    def prn_to_csv(self, path) -> None:
+        file_names = ["HEAT_BALANCE.prn", "TEMPERATURES.prn"]
+        for name in file_names:
+            table = pd.read_table(Path(path) / Path(name))
+            column_name = list(table.columns)[0].replace("#", "").split(" ")
+            column_names = [word for word in column_name if word != ""]
+
+            # create new dataframe:
+            df = pd.DataFrame(columns=column_names)
+
+            all_values = table.iloc[:, 0]
+            for i, entry in enumerate(all_values):
+                # split entries
+                row = [float(number) for number in entry.split(" ") if number != ""]
+                df = df.append(pd.DataFrame([row], columns=column_names), ignore_index=True)
+
+            # df to csv:
+            df.to_csv(Path(path) / Path(name.replace("prn", "csv")), sep=";", index=False)
 
     def load_csv_heat_balance_file(self, path):
         file_name = "HEAT_BALANCE.csv"
@@ -31,7 +49,7 @@ class PRNImporter:
         return list_subfolders_paths
 
     def main(self):
-        strategies = ["steady", "optimized"]
+        strategies = ["price_1", "price_2", "price_3", "price_4"]
         for strat in strategies:
             folders = self.iterate_through_folders(self.main_path / Path(strat))
             heating_demand = {}
@@ -46,6 +64,8 @@ class PRNImporter:
                 # get heat load from each zone:
                 for zone in zone_paths:
                     number_of_zones += 1
+                    # create the csv files:
+                    self.prn_to_csv(zone)
                     # load the csv file:
                     zone_heat_load = self.load_csv_heat_balance_file(zone)
                     house_heat_load += zone_heat_load
@@ -69,4 +89,5 @@ class PRNImporter:
 
 
 if __name__ == "__main__":
-    PRNImporter().main()
+    PRNImporter().prn_to_csv(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\input_data\optimized\EZFH_5_B\zone")
+    # PRNImporter().main()
