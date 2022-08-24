@@ -173,7 +173,7 @@ class CompareModels:
         # compare hourly demand
         column_number = len(list(demand_list[0].columns))
         x_axis = np.arange(8760)
-        colors = ["blue", "red", "green"]
+        colors = ["blue", "orange", "green", "red"]
 
         fig = make_subplots(
             rows=column_number,
