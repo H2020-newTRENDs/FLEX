@@ -17,6 +17,7 @@ class Region(Component):
     year: Optional[int] = None
     temperature: Optional[np.ndarray] = None
     temperature_unit: Optional[str] = None
+    norm_outside_temperature: Optional[float] = None
     radiation_north: Optional[np.ndarray] = None
     radiation_south: Optional[np.ndarray] = None
     radiation_east: Optional[np.ndarray] = None
@@ -53,6 +54,13 @@ class Boiler(Component):
     carnot_efficiency_factor: Optional[float] = None
     heating_supply_temperature: Optional[float] = None
     hot_water_supply_temperature: Optional[float] = None
+
+
+@dataclass
+class HeatingElement(Component):
+    power: Optional[float] = None
+    power_unit: Optional[str] = None
+    efficiency: Optional[float] = None
 
 
 @dataclass

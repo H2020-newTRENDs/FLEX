@@ -22,6 +22,7 @@ class OperationModel(ABC):
         self.setup_ev_params()
         self.setup_energy_price_params()
         self.setup_behavior_params()
+        self.setup_heating_element_params()
 
     def setup_time_params(self):
         self.Hour = np.arange(1, 8761)
@@ -75,6 +76,10 @@ class OperationModel(ABC):
                                        (273.15 + self.scenario.space_heating_tank.temperature_min)
         self.Q_TankEnergyMax_heating = self.CPWater * self.scenario.space_heating_tank.size * \
                                        (273.15 + self.scenario.space_heating_tank.temperature_max)
+
+    def setup_heating_element_params(self):
+        self.HeatingElement_efficiency = self.scenario.heating_element.efficiency
+        self.HeatingElement_power = self.scenario.heating_element.power
 
     def setup_hot_water_params(self):
         self.HotWaterHourlyCOP = self.calc_cop(
@@ -484,7 +489,7 @@ class OperationModel(ABC):
         max_thermal_power = np.ceil(max_heating_demand / 500) * 500
         # calculate the design condition COP (-12°C)
         worst_COP = OperationModel.calc_cop(
-            outside_temperature=[-12],
+            outside_temperature=[self.scenario.region.norm_outside_temperature],
             supply_temperature=self.scenario.boiler.heating_supply_temperature,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
             source=self.scenario.boiler.type,
