@@ -17,6 +17,7 @@ class ProjectOperationInit(DatabaseInitializer):
         self.load_component_table(OperationScenarioComponent.Vehicle)
         self.load_component_table(OperationScenarioComponent.EnergyPrice)
         self.load_component_table(OperationScenarioComponent.Behavior)
+        self.load_component_table(OperationScenarioComponent.HeatingElement)
 
     def setup_scenario_table(self):
         # self.load_table(OperationTable.Scenarios)

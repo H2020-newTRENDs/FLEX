@@ -24,6 +24,10 @@ class RefOperationModel(OperationModel):
         self.Q_HeatingElement = np.where(
             self.Q_RoomHeating - hp_max < 0, 0, self.Q_RoomHeating - hp_max
         )
+        # check if the heat pump can supply enough for the whole year if no heating element is adopted
+        if self.Q_HeatingElement.sum() > 0 and self.HeatingElement_power == 0:
+            logger.error(f"heating element is used in reference scenario but is not used in building.")
+
         self.Q_HeatingTank_bypass = self.Q_RoomHeating - self.Q_HeatingElement
         self.E_Heating_HP_out = self.Q_HeatingTank_bypass / self.SpaceHeatingHourlyCOP
 
@@ -58,6 +62,12 @@ class RefOperationModel(OperationModel):
         )
         self.PV2Load = self.PhotovoltaicProfile - pv_surplus
         return grid_demand, pv_surplus
+
+    def check_HP_max_power(self, HP_power):
+        """returns True if maximum power is exceeded"""
+        # check if the maximal capacity of the heat pump is exceeded by charging the storage:
+        return HP_power > self.SpaceHeating_HeatPumpMaximalElectricPower
+
 
     def calc_battery_energy(self, grid_demand: np.array, pv_surplus: np.array):
 
@@ -144,12 +154,12 @@ class RefOperationModel(OperationModel):
 
     def calculate_ev_energy(self, grid_demand, pv_surplus):
 
-        self.EVDemandProfile = self.scenario.behavior.vehicle_demand
+        self.EVDemandProfile = np.zeros(pv_surplus.shape)
         self.EVAtHomeProfile = np.array(self.scenario.behavior.vehicle_at_home, dtype=int)
 
         self.EVSoC = np.zeros(pv_surplus.shape)
         self.EVCharge = np.zeros(pv_surplus.shape)
-        self.EVDischarge = self.EVDemandProfile
+        self.EVDischarge = np.zeros(pv_surplus.shape)
         self.EV2Bat = np.zeros(pv_surplus.shape)
         self.EV2Load = np.zeros(pv_surplus.shape)
         self.Grid2EV = np.zeros(pv_surplus.shape)
@@ -157,6 +167,8 @@ class RefOperationModel(OperationModel):
         self.Bat2EV = np.zeros(pv_surplus.shape)
 
         if self.scenario.vehicle.capacity > 0:
+            self.EVDemandProfile = self.scenario.behavior.vehicle_demand
+            self.EVDischarge = self.EVDemandProfile
 
             capacity = self.scenario.vehicle.capacity  # kWh
             max_charge_power = self.scenario.vehicle.charge_power_max  # kW
@@ -226,7 +238,7 @@ class RefOperationModel(OperationModel):
         Returns: grid_demand_after_DHW, electricity_surplus_after_DHW
         """
 
-        self.Q_DHWTank = np.zeros(pv_surplus.shape)
+        self.Q_DHWTank = np.ones(pv_surplus.shape) * self.scenario.hot_water_tank.temperature_min
         self.Q_DHWTank_out = np.zeros(pv_surplus.shape)
         self.Q_DHWTank_in = np.zeros(pv_surplus.shape)
 
@@ -240,7 +252,6 @@ class RefOperationModel(OperationModel):
             surface_area = self.scenario.hot_water_tank.surface_area
             loss = self.U_LossTank_DHW
             surrounding_temperature = self.T_TankSurrounding_DHW
-            start_temperature = self.T_TankStart_DHW
             cop = self.HotWaterHourlyCOP
             cop_tank = self.HotWaterHourlyCOP_tank
             tank_capacity = size * self.CPWater
@@ -254,7 +265,8 @@ class RefOperationModel(OperationModel):
             for i in range(0, len(pv_surplus)):
 
                 if i == 0:
-                    temp_start = start_temperature
+                    temp_start = self.T_TankStart_DHW
+                    tank_temperature[i] = temp_start
                 else:
                     temp_start = tank_temperature[i - 1]
                 tank_loss[i] = (
@@ -262,22 +274,22 @@ class RefOperationModel(OperationModel):
                 )  # W
 
                 if pv_surplus[i] > 0:
-
+                    # check if the temperature in the tank is lower than minimum temperature
                     if temp_start < temperature_min:
+                        # charge the tank at least to minimum required temperature
                         tank_in_necessary = (
                             temperature_min - temp_start
                         ) * tank_capacity
                         tank_in_space = (temperature_max - temp_start) * tank_capacity
+                        # if there is pv surplus is not enough to charge the minimum required
                         if pv_surplus[i] * cop_tank[i] < tank_in_necessary:
                             q_tank_in = tank_in_necessary
                             pv_surplus_after_hot_water_tank[i] -= pv_surplus[i]
                             grid_demand_after_hot_water_tank[i] += (
                                 tank_in_necessary / cop_tank[i] - pv_surplus[i]
                             )
-                        elif (
-                            tank_in_necessary
-                            < pv_surplus[i] * cop_tank[i]
-                            < tank_in_space
+                        elif ( # if pv surplus is large enough to meet minimum requirement but not too large for tank:
+                            tank_in_necessary < pv_surplus[i] * cop_tank[i] < tank_in_space
                         ):
                             q_tank_in = pv_surplus[i] * cop_tank[i]
                             pv_surplus_after_hot_water_tank[i] -= pv_surplus[i]
@@ -289,8 +301,7 @@ class RefOperationModel(OperationModel):
                         self.Q_DHWTank_in[i] = q_tank_in
                         self.E_DHW_HP_out[i] += q_tank_in / cop_tank[i]
                         tank_temperature[i] = (
-                            tank_temperature[i - 1]
-                            + (q_tank_in - tank_loss[i]) / tank_capacity
+                            tank_temperature[i - 1] + (q_tank_in - tank_loss[i]) / tank_capacity
                         )
 
                     elif temperature_min <= temp_start < temperature_max:
@@ -303,16 +314,14 @@ class RefOperationModel(OperationModel):
                         self.E_DHW_HP_out[i] += q_tank_in / cop_tank[i]
                         pv_surplus_after_hot_water_tank[i] -= q_tank_in / cop_tank[i]
                         tank_temperature[i] = (
-                            tank_temperature[i - 1]
-                            + (q_tank_in - tank_loss[i]) / tank_capacity
+                            tank_temperature[i - 1] + (q_tank_in - tank_loss[i]) / tank_capacity
                         )
 
                     else:
                         q_tank_in = 0
                         self.Q_DHWTank_in[i] = q_tank_in
                         tank_temperature[i] = (
-                            tank_temperature[i - 1]
-                            + (q_tank_in - tank_loss[i]) / tank_capacity
+                            tank_temperature[i - 1] + (q_tank_in - tank_loss[i]) / tank_capacity
                         )
 
                 else:
@@ -326,8 +335,7 @@ class RefOperationModel(OperationModel):
                         self.Q_DHWTank_in[i] = q_tank_in
                         self.E_DHW_HP_out[i] += q_tank_in / cop_tank[i]
                         tank_temperature[i] = (
-                            tank_temperature[i - 1]
-                            + (q_tank_in - tank_loss[i]) / tank_capacity
+                            tank_temperature[i - 1] + (q_tank_in - tank_loss[i]) / tank_capacity
                         )
 
                     else:
@@ -340,10 +348,37 @@ class RefOperationModel(OperationModel):
                         self.Q_DHWTank_bypass[i] -= q_tank_out
                         self.E_DHW_HP_out[i] -= q_tank_out / cop[i]
                         grid_demand_after_hot_water_tank[i] -= q_tank_out / cop[i]
-                        tank_temperature[i] = (
-                            tank_temperature[i - 1]
-                            - (q_tank_out + tank_loss[i]) / tank_capacity
-                        )
+                        if i == 0:
+                            tank_temperature[i] = (
+                                    tank_temperature[i] - (q_tank_out + tank_loss[i]) / tank_capacity
+                            )
+                        else:
+                            tank_temperature[i] = (
+                                tank_temperature[i - 1] - (q_tank_out + tank_loss[i]) / tank_capacity
+                            )
+
+                # check if the HP max power is exceeded due to additional load:
+                hp_power = self.E_DHW_HP_out[i] + self.E_Heating_HP_out[i]
+                if self.check_HP_max_power(hp_power):
+                    if self.HeatingElement_power == 0:
+                        logger.info(f"In scenario {self.scenario.scenario_id} the HP power is too low to maintain "
+                                    f"indoor comfort level.")
+                    else:
+                        # if max power is exceeded check if reducing the DHW power will solve the problem:
+                        if not self.check_HP_max_power(hp_power - self.E_DHW_HP_out[i]):
+                            # the max HP power can be achieved by using the heating element for DHW
+                            # hp DHW power is reduced by that amount:
+                            exceeded_power = hp_power - self.SpaceHeating_HeatPumpMaximalElectricPower
+                            self.E_DHW_HP_out[i] -= exceeded_power
+                            # Heating element is used instead:
+                            self.Q_HeatingElement[i] += exceeded_power * self.HeatingElement_efficiency
+                            # grid load is decreased by HP power and increased by heating element power:
+                            grid_demand_after_hot_water_tank[i] -= exceeded_power / cop_tank[i]
+                            grid_demand_after_hot_water_tank[i] += exceeded_power / self.HeatingElement_efficiency
+
+                        else:  # the HP power must also be reduced for heating and the indoor temperature can not be held:
+                            logger.info(f"In scenario {self.scenario.scenario_id} the HP power is too low to maintain "
+                                        f"indoor comfort level.")
 
             self.Q_DHWTank = (tank_temperature + 273.15) * tank_capacity
 
