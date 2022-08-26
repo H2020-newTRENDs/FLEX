@@ -489,7 +489,7 @@ class OperationModel(ABC):
         max_thermal_power = np.ceil(max_heating_demand / 500) * 500
         # calculate the design condition COP (-12°C)
         worst_COP = OperationModel.calc_cop(
-            outside_temperature=[-12],
+            outside_temperature=[self.scenario.region.norm_outside_temperature],
             supply_temperature=self.scenario.boiler.heating_supply_temperature,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
             source=self.scenario.boiler.type,
