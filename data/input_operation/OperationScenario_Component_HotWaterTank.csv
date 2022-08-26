@@ -1,3 +1,0 @@
-ID_HotWaterTank;size;size_unit;surface_area;surface_area_unit;loss;loss_unit;temperature_start;temperature_max;temperature_min;temperature_surrounding;temperature_unit
-1;400;L;3.01;m2;0.2;W/m2K;28;55;28;20;°C
-2;0;L;0;m2;0;W/m2K;0;0;0;0;°C

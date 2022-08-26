@@ -2,10 +2,12 @@ import pandas as pd
 import sqlalchemy.exc
 import sqlite3
 from models.operation.scenario import OperationScenario
-from models.operation.model_opt import OptOperationModel, OptimizationDataCollector
-from models.operation.model_ref import RefOperationModel, ReferenceDataCollector
-from basic.db import DB
-import basic.config as config
+from models.operation.model_opt import OptModelFramework, SolveHeatPumpOptimization
+from models.operation.model_ref import RefOperationModel
+from models.operation.data_collector import RefDataCollector, OptDataCollector
+from basics.db import DB
+from config import config
+from models.operation.enums import OperationTable
 
 
 class MotherVisualization:
@@ -23,10 +25,10 @@ class MotherVisualization:
             f"Scenario: {self.scenario.scenario_id}; \n "
             f"AC: {int(self.scenario.space_cooling_technology.power)} W; \n "
             f"Battery: {int(self.scenario.battery.capacity)} W; \n "
-            f"Building id: {self.scenario.building.ID_Building}; \n "
-            f"Boiler: {self.scenario.boiler.project_name}; \n "
+            f"Building id: {self.scenario.component_scenario_ids['ID_Building']}; \n "
+            f"Boiler: {self.scenario.boiler.power_max}; \n "
             f"DHW Tank: {self.scenario.hot_water_tank.size} l; \n "
-            f"PV: {self.scenario.pv.peak_power[0]} kWp; \n "
+            f"PV: {self.scenario.pv.size} kWp; \n "
             f"Heating Tank: {self.scenario.space_heating_tank.size} l"
         )
 
@@ -41,58 +43,43 @@ class MotherVisualization:
         # delete the rows in case one of them is saved (eg. optimization is not here but reference is)
         for table_name in result_table_names:
             try:
-                DB(connection=config.results_connection).delete_row_from_table(
+                DB(config=config).delete_row_from_table(
                     table_name=table_name,
-                    column_name_plus_value={"scenario_id": self.scenario.scenario_id},
+                    column_name_plus_value={"ID_Scenario": self.scenario.scenario_id},
                 )
             except sqlalchemy.exc.OperationalError:
                 continue
 
         # calculate the results and save them
-        optimization_model = OptOperationModel(self.scenario)
+        base_instance = OptModelFramework().create_base_instance()
         # solve model
-        solved_instance = optimization_model.run()
+        optimization_model = SolveHeatPumpOptimization(self.scenario).solve_model(base_instance)
         # datacollector save results to db
-        OptimizationDataCollector(
-            solved_instance, self.scenario.scenario_id
-        ).save_hourly_results()
-        OptimizationDataCollector(
-            solved_instance, self.scenario.scenario_id
-        ).save_yearly_results()
+        OptDataCollector(optimization_model, self.scenario.scenario_id, config).run()
 
-        reference_model = RefOperationModel(self.scenario)
-        reference_model.run()
+        ref_model = RefOperationModel(self.scenario).run()
 
         # save results to db
-        ReferenceDataCollector(reference_model).save_yearly_results()
-        ReferenceDataCollector(reference_model).save_hourly_results()
+        RefDataCollector(ref_model, self.scenario.scenario_id, config).run()
 
     def read_hourly_results(
         self,
     ) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
         # check if scenario id is in results, if yes, load them instead of calculating them:
-        hourly_results_reference_df = DB(
-            connection=config.results_connection
-        ).read_dataframe(
-            table_name="Reference_hourly", **{"scenario_id": self.scenario.scenario_id}
+        hourly_results_reference_df = DB(config).read_dataframe(
+            table_name=OperationTable.ResultRefHour.value, filter={"ID_Scenario": self.scenario.scenario_id}
         )
-        yearly_results_reference_df = DB(
-            connection=config.results_connection
-        ).read_dataframe(
-            table_name="Reference_yearly", **{"scenario_id": self.scenario.scenario_id}
+        yearly_results_reference_df = DB(config).read_dataframe(
+            table_name=OperationTable.ResultRefYear.value, filter={"ID_Scenario": self.scenario.scenario_id}
         )
 
-        hourly_results_optimization_df = DB(
-            connection=config.results_connection
-        ).read_dataframe(
-            table_name="Optimization_hourly",
-            **{"scenario_id": self.scenario.scenario_id},
+        hourly_results_optimization_df = DB(config).read_dataframe(
+            table_name=OperationTable.ResultOptHour.value,
+            filter={"ID_Scenario": self.scenario.scenario_id},
         )
-        yearly_results_optimization_df = DB(
-            connection=config.results_connection
-        ).read_dataframe(
-            table_name="Optimization_yearly",
-            **{"scenario_id": self.scenario.scenario_id},
+        yearly_results_optimization_df = DB(config).read_dataframe(
+            table_name=OperationTable.ResultOptYear.value,
+            filter={"ID_Scenario": self.scenario.scenario_id},
         )
         return (
             hourly_results_reference_df,

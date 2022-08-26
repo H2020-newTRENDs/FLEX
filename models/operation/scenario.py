@@ -19,6 +19,7 @@ from models.operation.components import (
     Vehicle,
     EnergyPrice,
     Behavior,
+    HeatingElement,
 )
 from models.operation.enums import OperationScenarioComponent, OperationTable
 
@@ -38,6 +39,7 @@ class OperationScenario:
     vehicle: Optional["Vehicle"] = None
     energy_price: Optional["EnergyPrice"] = None
     behavior: Optional["Behavior"] = None
+    heating_element: Optional["HeatingElement"] = None
 
     def __post_init__(self):
         self.db = create_db_conn(self.config)

@@ -14,6 +14,7 @@ class OperationScenarioComponent(Enum):
     Vehicle = "vehicle"
     EnergyPrice = "energy_price"
     Behavior = "behavior"
+    HeatingElement = "heating_element"
 
     @property
     def table_name(self):
@@ -49,7 +50,6 @@ class OperationResultVar(Enum):
     SpaceHeatingHourlyCOP_tank = "year_not_include"
 
     Q_HeatingTank_in = "year_include"
-    Q_HeatingElement = "year_include"
     Q_HeatingTank_out = "year_include"
     Q_HeatingTank = "year_not_include"
     Q_HeatingTank_bypass = "year_include"
@@ -57,6 +57,10 @@ class OperationResultVar(Enum):
     Q_RoomHeating = "year_include"
     T_Room = "year_not_include"
     T_BuildingMass = "year_not_include"
+
+    # Heating Element
+    Q_HeatingElement = "year_include"
+
 
     # hot water
     HotWaterProfile = "year_include"
