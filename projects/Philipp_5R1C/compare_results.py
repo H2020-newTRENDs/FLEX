@@ -221,8 +221,14 @@ class CompareModels:
                           profile_names: list,
                           y_label: str,
                           ax_number: int) -> dict:
+        if "kW" in y_label:
+            denominator = 1_000  # kW
+        elif "€" in y_label:
+            denominator = 100  # €
+        else:
+            print("neither kW nor € in y_label")
         # compare total demand
-        total_df = pd.concat([profile.sum() for profile in profile_list], axis=1) / 1_000  # kW
+        total_df = pd.concat([profile.sum() for profile in profile_list], axis=1) / denominator  # kW
         total_df.columns = [name for name in profile_names]
         ax = axes.flatten()[ax_number]
 
@@ -241,6 +247,46 @@ class CompareModels:
         ax.set_title(f"electricity price scenario {ax_number + 1}")
 
         return by_label
+
+    def relative_yearly_comparison(self,
+                          figure, axes,
+                          profile_list: List[pd.DataFrame],
+                          profile_names: list,
+                          y_label: str,
+                          ax_number: int) -> dict:
+        if "demand" in y_label:
+            denominator = 1_000  # kW
+        elif "cost" in y_label:
+            denominator = 100  # €
+        else:
+            print("neither kW nor € in y_label")
+        # compare total demand
+        total_df = pd.concat([profile.sum() for profile in profile_list], axis=1) / denominator  # kW
+        total_df.columns = [name for name in profile_names]
+
+        total_df.loc[:, "5R1C"] = (total_df.loc[:, "5R1C optimized"] - total_df.loc[:, "5R1C"]) / total_df.loc[:, "5R1C"] * 100
+        total_df.loc[:, "IDA ICE"] = (total_df.loc[:, "IDA ICE optimized"] - total_df.loc[:, "IDA ICE"]) / total_df.loc[:, "IDA ICE"] * 100
+        total_df = total_df.drop(columns=["5R1C optimized", "IDA ICE optimized"])
+
+        ax = axes.flatten()[ax_number]
+        # optimization is always measured against the reference case (reference = 100%)
+        plot = sns.barplot(
+            data=total_df.reset_index().melt(id_vars="index").rename(
+                columns={"variable": "model", "value": y_label, "index": "Building"}),
+            x="Building",
+            y=y_label,
+            hue="model",
+            ax=ax)
+        # save legend
+        handles, labels = ax.get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        # remove legend from subplot
+        plot.legend().remove()
+        ax.set_title(f"electricity price scenario {ax_number + 1}")
+
+        return by_label
+
+
 
     def subplots_yearly(self):
         plt.style.use("seaborn-paper")
@@ -293,6 +339,56 @@ class CompareModels:
         fig2.savefig(self.figure_path / Path("total_heating_cost.svg"))
         plt.show()
 
+    def subplots_relative(self):
+        plt.style.use("seaborn-paper")
+        prizes = ["price_1", "price_2", "price_3", "price_4"]
+
+        # heat demand:
+        # create figure
+        fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 7), sharex=True)
+        # ref heat demand is always the same
+        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, "price_1")
+        # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
+        heat_demand_IDA_ref = self.read_daniel_heat_demand("price_1")
+        ax_number = 0
+        for price in prizes:
+            heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value, price)
+            heat_demand_daniel = self.read_daniel_heat_demand(price)
+            by_label = self.relative_yearly_comparison(fig, axes,
+                                              [heat_demand_opt, heat_demand_ref, heat_demand_daniel,
+                                               heat_demand_IDA_ref],
+                                              ["5R1C optimized", "5R1C", "IDA ICE optimized", "IDA ICE"],
+                                              y_label="relative change in heat demand (%)", ax_number=ax_number)
+            ax_number += 1
+
+        # plot legend in the top middle of the figure
+        fig.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.97), loc="lower center",
+                   borderaxespad=0, ncol=4, bbox_transform=fig.transFigure)
+        fig.savefig(self.figure_path / Path("relative_change_in_heat_demand.svg"))
+        plt.show()
+
+        # cost
+        plt.style.use("seaborn-paper")
+        # create figure
+        fig2, axes2 = plt.subplots(nrows=2, ncols=2, figsize=(12, 7), sharex=True)
+        ax_number = 0
+        for price in prizes:
+            costs_ref = self.calculate_costs(table_name=OperationTable.ResultRefHour.value, price_id=price)
+            costs_opt = self.calculate_costs(table_name=OperationTable.ResultOptHour.value, price_id=price)
+            cost_daniel_ref = self.calculate_costs_daniel_ref(OperationTable.ResultRefHour.value, price)
+            cost_daniel_opt = self.calculate_costs_daniel_opt(OperationTable.ResultOptHour.value, price)
+
+            by_label = self.relative_yearly_comparison(fig2, axes2,
+                                              [costs_opt, costs_ref, cost_daniel_opt, cost_daniel_ref],
+                                              ["5R1C optimized", "5R1C", "IDA ICE optimized", "IDA ICE"],
+                                              y_label="relative change in heating cost (%)", ax_number=ax_number)
+            ax_number += 1
+
+        # plot legend in the top middle of the figure
+        fig2.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.97), loc="lower center",
+                    borderaxespad=0, ncol=4, bbox_transform=fig2.transFigure)
+        fig2.savefig(self.figure_path / Path("relative_change_in_heating_cost.svg"))
+        plt.show()
 
     def indoor_temp_to_csv(self):
         for price_id in [2, 3, 4]:  # price 1 is linear
@@ -311,6 +407,7 @@ class CompareModels:
             del temp_df
 
     def main(self):
+        self.subplots_relative()
         self.indoor_temp_to_csv()
         self.subplots_yearly()
 
