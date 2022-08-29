@@ -7,6 +7,15 @@ logger = get_logger(__name__)
 
 
 class RefOperationModel(OperationModel):
+
+    def solve(self):
+        if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
+            model_ref = self.run_heatpump_ref()
+        else:
+            model_ref = self.run_fuel_boiler_ref()
+        logger.info(f"RefCost: {round(self.TotalCost.sum(), 2)}")
+        return model_ref
+
     def calc_space_heating_demand(self):
         (
             self.Q_RoomHeating,
@@ -63,11 +72,10 @@ class RefOperationModel(OperationModel):
         self.PV2Load = self.PhotovoltaicProfile - pv_surplus
         return grid_demand, pv_surplus
 
-    def check_HP_max_power(self, HP_power):
+    def check_hp_max_power(self, HP_power):
         """returns True if maximum power is exceeded"""
         # check if the maximal capacity of the heat pump is exceeded by charging the storage:
         return HP_power > self.SpaceHeating_HeatPumpMaximalElectricPower
-
 
     def calc_battery_energy(self, grid_demand: np.array, pv_surplus: np.array):
 
@@ -359,13 +367,13 @@ class RefOperationModel(OperationModel):
 
                 # check if the HP max power is exceeded due to additional load:
                 hp_power = self.E_DHW_HP_out[i] + self.E_Heating_HP_out[i]
-                if self.check_HP_max_power(hp_power):
+                if self.check_hp_max_power(hp_power):
                     if self.HeatingElement_power == 0:
                         logger.info(f"In scenario {self.scenario.scenario_id} the HP power is too low to maintain "
                                     f"indoor comfort level.")
                     else:
                         # if max power is exceeded check if reducing the DHW power will solve the problem:
-                        if not self.check_HP_max_power(hp_power - self.E_DHW_HP_out[i]):
+                        if not self.check_hp_max_power(hp_power - self.E_DHW_HP_out[i]):
                             # the max HP power can be achieved by using the heating element for DHW
                             # hp DHW power is reduced by that amount:
                             exceeded_power = hp_power - self.SpaceHeating_HeatPumpMaximalElectricPower
@@ -395,34 +403,6 @@ class RefOperationModel(OperationModel):
         self.Feed2Grid = pv_surplus
         self.TotalCost = self.ElectricityPrice * grid_demand - pv_surplus * self.FiT
 
-    def run_fuel_boiler_ref(self):
-        (
-            outside_temperature,
-            q_solar,
-            hot_water_demand,
-        ) = self.fuel_boiler_save_scenario()
-        (
-            heating_cost,
-            cooling_cost,
-            heating_demand,
-            cooling_demand,
-            room_temperature,
-            building_mass_temperature,
-        ) = self.fuel_boiler_heating_cooling()
-        hot_water_cost = self.fuel_boiler_hot_water()
-        self.fuel_boiler_remove_heating_cooling_hot_water_demand()
-        self.run_heatpump_ref()
-        self.T_outside = outside_temperature
-        self.Q_Solar = q_solar
-        self.Q_RoomHeating = heating_demand
-        self.Q_RoomCooling = cooling_demand
-        self.E_RoomCooling = cooling_demand / self.CoolingCOP
-        self.T_Room = room_temperature
-        self.T_BuildingMass = building_mass_temperature
-        self.HotWaterProfile = hot_water_demand
-        self.TotalCost += (heating_cost + cooling_cost + hot_water_cost) / 8760
-        return self
-
     def run_heatpump_ref(self):
         """
         Assumption for the Reference scenario: the produced PV power is always used for the immediate electric demand,
@@ -442,12 +422,4 @@ class RefOperationModel(OperationModel):
         )
         self.calc_grid(grid_demand, pv_surplus)
         return self
-
-    def run(self):
-        if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
-            model_ref = self.run_heatpump_ref()
-        else:
-            model_ref = self.run_fuel_boiler_ref()
-        logger.info(f"RefCost: {round(self.TotalCost.sum(), 2)}")
-        return model_ref
 

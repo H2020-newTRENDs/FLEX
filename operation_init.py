@@ -20,8 +20,8 @@ class ProjectOperationInit(DatabaseInitializer):
         self.load_component_table(OperationScenarioComponent.HeatingElement)
 
     def setup_scenario_table(self):
-        # self.load_table(OperationTable.Scenarios)
-        self.generate_scenario_table(table_name=OperationTable.Scenarios.value)
+        self.load_table(OperationTable.Scenarios)
+        # self.generate_scenario_table(table_name=OperationTable.Scenarios.value)
 
     def load_other_tables(self):
         self.load_table(OperationTable.BehaviorProfile)
