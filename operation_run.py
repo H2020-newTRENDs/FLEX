@@ -1,9 +1,11 @@
 from basics.kit import get_logger
 from config import config
-from models.operation.data_collector import OptDataCollector, RefDataCollector
-from models.operation.model_opt import OptOperationModel
-from models.operation.model_opt import HeatPumpOptInstance
+from models.operation.data_collector import OptDataCollector
+from models.operation.data_collector import RefDataCollector
 from models.operation.model_opt import FuelBoilerOptInstance
+from models.operation.model_opt import FuelBoilerOptOperationModel
+from models.operation.model_opt import HeatPumpOptInstance
+from models.operation.model_opt import HeatPumpOptOperationModel
 from models.operation.model_ref import RefOperationModel
 from models.operation.scenario import OperationScenario
 
@@ -17,7 +19,10 @@ if __name__ == "__main__":
         logger.info(f"FlexOperation --> Scenario = {scenario_id}.")
         scenario = OperationScenario(scenario_id=scenario_id, config=config)
         ref_model = RefOperationModel(scenario).solve()
-        opt_model = OptOperationModel(scenario).solve(hp_instance, fb_instance)
+        if scenario.boiler.type in ["Air_HP", "Ground_HP"]:
+            opt_model = HeatPumpOptOperationModel(scenario).solve(hp_instance)
+        else:
+            opt_model = FuelBoilerOptOperationModel(scenario).solve(fb_instance)
         RefDataCollector(ref_model, scenario.scenario_id, config).run()
         OptDataCollector(opt_model, scenario.scenario_id, config).run()
 

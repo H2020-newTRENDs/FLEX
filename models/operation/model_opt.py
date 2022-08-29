@@ -7,19 +7,6 @@ from models.operation.model_base import OperationModel
 logger = get_logger(__name__)
 
 
-class OptOperationModel(OperationModel):
-
-    @performance_counter
-    def solve(self, hp_instance, fb_instance):
-        if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
-            instance = HeatPumpOptConfig(self).config_instance(hp_instance)
-        else:
-            instance = FuelBoilerOptConfig(self).config_instance(fb_instance)
-        pyo.SolverFactory("gurobi").solve(instance, tee=False)
-        logger.info(f"OptCost: {round(instance.total_operation_cost_rule(), 2)}")
-        return instance
-
-
 class HeatPumpOptInstance:
 
     @performance_counter
@@ -429,6 +416,22 @@ class HeatPumpOptInstance:
         return dictionary
 
 
+class FuelBoilerOptInstance:
+
+    def create_instance(self):
+        return 0
+
+
+class HeatPumpOptOperationModel(OperationModel):
+
+    @performance_counter
+    def solve(self, instance):
+        instance = HeatPumpOptConfig(self).config_instance(instance)
+        pyo.SolverFactory("gurobi").solve(instance, tee=False)
+        logger.info(f"OptCost: {round(instance.total_operation_cost_rule(), 2)}")
+        return instance
+
+
 class HeatPumpOptConfig:
 
     def __init__(self, model: 'OperationModel'):
@@ -749,10 +752,14 @@ class HeatPumpOptConfig:
             instance.UseOfPV_rule.activate()
 
 
-class FuelBoilerOptInstance:
+class FuelBoilerOptOperationModel(OperationModel):
 
-    def create_instance(self):
-        return 0
+    @performance_counter
+    def solve(self, instance):
+        instance = FuelBoilerOptConfig(self).config_instance(instance)
+        pyo.SolverFactory("gurobi").solve(instance, tee=False)
+        logger.info(f"OptCost: {round(instance.total_operation_cost_rule(), 2)}")
+        return instance
 
 
 class FuelBoilerOptConfig:
