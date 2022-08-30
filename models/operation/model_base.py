@@ -412,7 +412,7 @@ class OperationModel(ABC):
             ):
 
                 if self.scenario.space_cooling_technology.power > 0:
-                    max_temperature_list.append(self.scenario.behavior.target_temperature_at_home_max)
+                    max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
                 else:
                     # append the temperature of the reference model + 0.5°C to make sure it is feasible
                     max_temperature_list.append(T_room[i] + 1)
@@ -425,7 +425,7 @@ class OperationModel(ABC):
             if cool_demand > 0:
                 min_temperature_list.append(temperature_min_summer)
             else:
-                min_temperature_list.append(self.scenario.behavior.target_temperature_at_home_min)
+                min_temperature_list.append(self.scenario.behavior.target_temperature_array_min[i])
 
         return np.array(max_temperature_list), np.array(min_temperature_list)
 
