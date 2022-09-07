@@ -1,3 +1,5 @@
+import numpy as np
+
 from basics.kit import get_logger
 from config import config
 from models.operation.data_collector import OptDataCollector
@@ -13,8 +15,8 @@ logger = get_logger(__name__)
 
 if __name__ == "__main__":
     hp_instance = OptInstance().create_instance()
-    # fb_instance = FuelBoilerOptInstance().create_instance()
-    scenario_ids = [1, 2]
+
+    scenario_ids = np.arange(1, 2049)
     for scenario_id in scenario_ids:
         logger.info(f"FlexOperation --> Scenario = {scenario_id}.")
         scenario = OperationScenario(scenario_id=scenario_id, config=config)
@@ -22,6 +24,6 @@ if __name__ == "__main__":
 
         opt_model = OptOperationModel(scenario).solve(hp_instance)
 
-        RefDataCollector(ref_model, scenario.scenario_id, config).run()
-        OptDataCollector(opt_model, scenario.scenario_id, config).run()
+        RefDataCollector(ref_model, scenario.scenario_id, config, save_hour_results=False).run()
+        OptDataCollector(opt_model, scenario.scenario_id, config, save_hour_results=False).run()
 
