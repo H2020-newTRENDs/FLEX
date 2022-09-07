@@ -2,7 +2,7 @@ import pandas as pd
 import sqlalchemy.exc
 import sqlite3
 from models.operation.scenario import OperationScenario
-from models.operation.model_opt import HeatPumpOptInstance, HeatPumpOptOperationModel
+from models.operation.model_opt import OptInstance, OptOperationModel
 from models.operation.model_ref import RefOperationModel
 from models.operation.data_collector import RefDataCollector, OptDataCollector
 from basics.db import DB
@@ -51,9 +51,9 @@ class MotherVisualization:
                 continue
 
         # calculate the results and save them
-        hp_instance = HeatPumpOptInstance().create_instance()
+        hp_instance = OptInstance().create_instance()
         # solve model
-        opt_model = HeatPumpOptOperationModel(self.scenario).solve(hp_instance)
+        opt_model = OptOperationModel(self.scenario).solve(hp_instance)
         # datacollector save results to db
         OptDataCollector(opt_model, self.scenario.scenario_id, config).run()
 

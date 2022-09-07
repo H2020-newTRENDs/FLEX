@@ -56,6 +56,7 @@ class OperationModel(ABC):
         self.BuildingMassTemperatureStartValue = mass_temperature[-1]
 
     def setup_space_heating_params(self):
+        self.fuel_boiler_efficiency = 0.95  # TODO specify as input??
         self.SpaceHeatingHourlyCOP = self.calc_cop(
             outside_temperature=self.scenario.region.temperature,
             supply_temperature=self.scenario.boiler.heating_supply_temperature,
