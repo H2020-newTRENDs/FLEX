@@ -2,4 +2,4 @@ import logging
 from basics.config import Config
 
 logging.getLogger("pyomo.core").setLevel(logging.ERROR)
-config = Config(project_name="D52_Songmin_AlwaysCooling")
+config = Config(project_name="D52_Songmin_3B1EP")
