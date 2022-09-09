@@ -5,9 +5,16 @@ from basics import kit
 logger = kit.get_logger(__name__)
 
 COMPONENT_CHANGES = [
-        ("ID_Building", 3, 2),
-        ("ID_Building", 2, 1),
-        ("ID_Building", 3, 1),
+        # ("ID_Building", 5, 1),
+        ("ID_Building", 5, 2),
+        # ("ID_Building", 5, 3),
+        ("ID_Building", 5, 4),
+        # ("ID_Building", 1, 2),
+        # ("ID_Building", 1, 3),
+        # ("ID_Building", 1, 4),
+        # ("ID_Building", 2, 3),
+        ("ID_Building", 2, 4),
+        # ("ID_Building", 3, 4),
         ("ID_SEMS", 2, 1),
         ("ID_Boiler", 2, 1),
         ("ID_SpaceHeatingTank", 2, 1),
@@ -20,8 +27,8 @@ COMPONENT_CHANGES = [
 class ProjectOperationAnalyzer(OperationAnalyzer):
 
     def plot_scenario_comparison(self):
-        self.compare_opt_ref(1)
-        # self.compare_opt(id1=1, id2=16)
+        # self.compare_opt_ref(1)
+        self.compare_opt(id1=119, id2=126)
         # self.compare_ref(id1=1, id2=16)
 
     def plot_scenario_electricity_balance(self):
@@ -54,4 +61,4 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
 
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
-    ana.plot_building_pathway()
+    ana.plot_scenario_comparison()

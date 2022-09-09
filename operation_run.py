@@ -13,12 +13,12 @@ logger = get_logger(__name__)
 
 if __name__ == "__main__":
     hp_instance = OptInstance().create_instance()
-    scenario_ids = np.arange(1, 641)
+    scenario_ids = np.arange(1, 193)
     for scenario_id in scenario_ids:
         logger.info(f"FlexOperation --> Scenario = {scenario_id}.")
         scenario = OperationScenario(scenario_id=scenario_id, config=config)
         ref_model = RefOperationModel(scenario).solve()
         opt_model = OptOperationModel(scenario).solve(hp_instance)
-        RefDataCollector(ref_model, scenario.scenario_id, config, save_hour_results=False).run()
-        OptDataCollector(opt_model, scenario.scenario_id, config, save_hour_results=False).run()
+        RefDataCollector(ref_model, scenario.scenario_id, config, save_hour_results=True).run()
+        OptDataCollector(opt_model, scenario.scenario_id, config, save_hour_results=True).run()
 
