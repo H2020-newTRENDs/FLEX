@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 if __name__ == "__main__":
     hp_instance = OptInstance().create_instance()
-    scenario_ids = np.arange(1, 193)
+    scenario_ids = np.arange(1, 161)
     for scenario_id in scenario_ids:
         logger.info(f"FlexOperation --> Scenario = {scenario_id}.")
         scenario = OperationScenario(scenario_id=scenario_id, config=config)

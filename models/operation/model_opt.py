@@ -9,7 +9,7 @@ logger = get_logger(__name__)
 
 class OptInstance:
 
-    @performance_counter
+    # @performance_counter
     def create_instance(self):
         model = self.setup_model()
         instance = model.create_instance()
@@ -457,7 +457,7 @@ class OptInstance:
 
 class OptOperationModel(OperationModel):
 
-    @performance_counter
+    # @performance_counter
     def solve(self, instance):
         instance = OptConfig(self).config_instance(instance)
         pyo.SolverFactory("gurobi").solve(instance, tee=False)
@@ -471,7 +471,7 @@ class OptConfig:
         self.model = model
         self.scenario = model.scenario
 
-    @performance_counter
+    # @performance_counter
     def config_instance(self, instance):
         self.config_room_temperature(instance)
         self.config_vehicle(instance)
