@@ -21,12 +21,14 @@ class OperationDataCollector(ABC):
         model: Union["OperationModel", "pyo.ConcreteModel"],
         scenario_id: int,
         config: "Config",
+        save_hour_results: bool
     ):
         self.model = model
         self.scenario_id = scenario_id
         self.db = create_db_conn(config)
         self.hour_result = {}
         self.year_result = {}
+        self.save_hour = save_hour_results
 
     @abstractmethod
     def get_var_values(self, variable_name: str) -> np.array:
@@ -72,7 +74,8 @@ class OperationDataCollector(ABC):
 
     def run(self):
         self.collect_result()
-        self.save_hour_result()
+        if self.save_hour:
+            self.save_hour_result()
         self.save_year_result()
 
 
