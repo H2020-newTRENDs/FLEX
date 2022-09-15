@@ -26,9 +26,9 @@ def run_opt_scenario(scenario: "OperationScenario", opt_instance):
 
 
 def run_scenarios(scenario_ids):
-    opt_instance = OptInstance().create_instance()
     for scenario_id in scenario_ids:
         logger.info(f"FlexOperation --> Scenario = {scenario_id}.")
+        opt_instance = OptInstance().create_instance()
         scenario = OperationScenario(scenario_id=scenario_id, config=config)
         run_ref_operation(scenario)
         run_opt_scenario(scenario, opt_instance)
