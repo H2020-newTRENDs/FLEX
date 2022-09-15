@@ -729,7 +729,8 @@ class OptConfig:
             )
         )
         for t in range(1, 8761):
-            instance.T_Room[t].setub(max_target_temperature[t - 1])
+            if self.scenario.space_cooling_technology.power > 0:
+                instance.T_Room[t].setub(max_target_temperature[t - 1])
             instance.T_Room[t].setlb(min_target_temperature[t - 1])
 
     def config_space_cooling_technology(self, instance):

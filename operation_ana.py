@@ -5,20 +5,14 @@ from basics import kit
 logger = kit.get_logger(__name__)
 
 COMPONENT_CHANGES = [
-        # ("ID_Building", 5, 1),
-        ("ID_Building", 5, 2),
-        # ("ID_Building", 5, 3),
-        ("ID_Building", 5, 4),
-        # ("ID_Building", 1, 2),
-        # ("ID_Building", 1, 3),
-        # ("ID_Building", 1, 4),
-        # ("ID_Building", 2, 3),
-        ("ID_Building", 2, 4),
-        # ("ID_Building", 3, 4),
+        ("ID_Building", 3, 2),
+        ("ID_Building", 3, 1),
+        ("ID_Building", 2, 1),
         ("ID_SEMS", 2, 1),
         ("ID_Boiler", 2, 1),
         ("ID_SpaceHeatingTank", 2, 1),
         ("ID_HotWaterTank", 2, 1),
+        # ("ID_SpaceCoolingTechnology", 2, 1),
         ("ID_PV", 2, 1),
         ("ID_Battery", 2, 1),
     ]
@@ -61,4 +55,5 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
 
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
+    ana.summarize_operation_energy_cost()
     ana.summarize_operation_energy_cost_change()

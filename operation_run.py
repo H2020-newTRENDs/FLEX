@@ -11,14 +11,33 @@ from models.operation.scenario import OperationScenario
 
 logger = get_logger(__name__)
 
-if __name__ == "__main__":
-    hp_instance = OptInstance().create_instance()
-    scenario_ids = np.arange(1, 161)
+
+def run_ref_operation(scenario: "OperationScenario"):
+    ref_model = RefOperationModel(scenario).solve()
+    RefDataCollector(ref_model, scenario.scenario_id, config, save_hour_results=True).run()
+
+
+def run_opt_scenario(scenario: "OperationScenario", opt_instance):
+    try:
+        opt_model = OptOperationModel(scenario).solve(opt_instance)
+        OptDataCollector(opt_model, scenario.scenario_id, config, save_hour_results=True).run()
+    except ValueError:
+        print(f'Infeasible --> ID_Scenario = {scenario.scenario_id}')
+
+
+def run_scenarios(scenario_ids):
     for scenario_id in scenario_ids:
         logger.info(f"FlexOperation --> Scenario = {scenario_id}.")
+        opt_instance = OptInstance().create_instance()
         scenario = OperationScenario(scenario_id=scenario_id, config=config)
-        ref_model = RefOperationModel(scenario).solve()
-        opt_model = OptOperationModel(scenario).solve(hp_instance)
-        RefDataCollector(ref_model, scenario.scenario_id, config, save_hour_results=True).run()
-        OptDataCollector(opt_model, scenario.scenario_id, config, save_hour_results=True).run()
+        run_ref_operation(scenario)
+        run_opt_scenario(scenario, opt_instance)
+
+
+if __name__ == "__main__":
+
+    SCENARIO_IDS = np.arange(1, 193)
+    run_scenarios(SCENARIO_IDS)
+
+
 
