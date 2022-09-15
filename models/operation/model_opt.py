@@ -420,16 +420,9 @@ class OptInstance:
                    m.BaseLoadProfile[t] + \
                    m.E_Heating_HP_out[t] + \
                    m.Q_HeatingElement[t] / m.HeatingElement_efficiency + \
-                   m.Q_RoomCooling[t] / m.CoolingHourlyCOP[t] + \
+                   m.E_RoomCooling[t] + \
                    m.E_DHW_HP_out[t]
         m.SumOfLoads_with_cooling_rule = pyo.Constraint(m.t, rule=calc_SumOfLoads_with_cooling)
-
-        def calc_SumOfLoads_without_cooling(m, t):
-            return m.Load[t] == m.BaseLoadProfile[t] + \
-                   m.E_Heating_HP_out[t] + \
-                   m.Q_HeatingElement[t] / m.HeatingElement_efficiency + \
-                   m.E_DHW_HP_out[t]
-        m.SumOfLoads_without_cooling_rule = pyo.Constraint(m.t, rule=calc_SumOfLoads_without_cooling)
 
     def setup_constraint_electricity_supply(self, m):
 
@@ -460,7 +453,7 @@ class OptOperationModel(OperationModel):
     # @performance_counter
     def solve(self, instance):
         instance = OptConfig(self).config_instance(instance)
-        pyo.SolverFactory("gurobi").solve(instance, tee=False)
+        pyo.SolverFactory("gurobi").solve(instance, tee=False)#, logfile=r"C:\Users\mascherbauer\pyomo_log.log")
         logger.info(f"OptCost: {round(instance.total_operation_cost_rule(), 2)}")
         return instance
 
@@ -744,10 +737,8 @@ class OptConfig:
             for t in range(1, 8761):
                 instance.Q_RoomCooling[t].fix(0)
                 instance.E_RoomCooling[t].fix(0)
-                instance.CoolingHourlyCOP[t] = 1  # avoid division by 0
+                instance.CoolingHourlyCOP[t] = 0
 
-            instance.SumOfLoads_without_cooling_rule.activate()
-            instance.SumOfLoads_with_cooling_rule.deactivate()
             instance.E_RoomCooling_with_cooling_rule.deactivate()
         else:
             for t in range(1, 8761):
@@ -756,8 +747,6 @@ class OptConfig:
                 instance.Q_RoomCooling[t].setub(self.scenario.space_cooling_technology.power)
                 instance.CoolingHourlyCOP[t] = self.model.CoolingHourlyCOP[t - 1]
 
-            instance.SumOfLoads_without_cooling_rule.deactivate()
-            instance.SumOfLoads_with_cooling_rule.activate()
             instance.E_RoomCooling_with_cooling_rule.activate()
 
     def config_vehicle(self, instance):
