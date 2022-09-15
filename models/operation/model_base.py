@@ -409,14 +409,17 @@ class OperationModel(ABC):
                     and heating_demand[i + 5] == 0
                     and heating_demand[i + 6] == 0
                     and heating_demand[i + 7] == 0
-                    and heating_demand[i + 8] == 0
+                    # and heating_demand[i + 8] == 0
             ):
 
                 if self.scenario.space_cooling_technology.power > 0:
                     max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
                 else:
-                    # append the temperature of the reference model + 0.5°C to make sure it is feasible
-                    max_temperature_list.append(T_room[i] + 1)
+                    # append the temperature of the reference model + 1°C to make sure it is feasible
+                    if T_room[i] + 1 < temperature_max_winter:  # should still not be lower than the max in winter
+                        max_temperature_list.append(temperature_max_winter)
+                    else:
+                        max_temperature_list.append(T_room[i] + 1)
             else:
                 max_temperature_list.append(temperature_max_winter)
 
@@ -428,7 +431,7 @@ class OperationModel(ABC):
             else:
                 min_temperature_list.append(self.scenario.behavior.target_temperature_array_min[i])
 
-        return np.array(max_temperature_list), np.array(min_temperature_list)
+        return np.array(max_temperature_list), np.array(min_temperature_list)  #plt.plot(np.arange(8760), max_temperature_list)
 
     @staticmethod
     def calc_cop(
@@ -475,6 +478,8 @@ class OperationModel(ABC):
                     for temp in outside_temperature
                 ]
             )
+        # check maximum COP, COP should not go to infinity for high outside temperatures
+        COP[COP > 18] = 18
         return COP
 
     def generate_maximum_electric_heat_pump_power(self):
