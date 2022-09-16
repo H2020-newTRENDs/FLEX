@@ -396,8 +396,7 @@ class OperationModel(ABC):
         for i, heat_demand in enumerate(heating_demand):
             # if heat demand == 0 and the heat demand in the following 8 hours is also 0 and the heat demand of 3
             # hours before that is also 0, then the max temperature is raised so model does not become infeasible:
-            if (
-                    heat_demand == 0
+            if (heat_demand == 0
                     and i + 8 < 8760
                     and heating_demand[i - 3] == 0
                     and heating_demand[i - 2] == 0
@@ -408,10 +407,9 @@ class OperationModel(ABC):
                     and heating_demand[i + 4] == 0
                     and heating_demand[i + 5] == 0
                     and heating_demand[i + 6] == 0
-                    # and heating_demand[i + 7] == 0
-                    # and heating_demand[i + 8] == 0
+                    and heating_demand[i + 7] == 0
+                    and heating_demand[i + 8] == 0
             ):
-
                 if self.scenario.space_cooling_technology.power > 0:
                     max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
                 else:
@@ -422,6 +420,12 @@ class OperationModel(ABC):
                         max_temperature_list.append(T_room[i] + 1)
             else:
                 max_temperature_list.append(temperature_max_winter)
+
+        # implement a fail-save whenever after this function the maximum temperature list is above the indoor
+        # temperature it is being corrected:
+        for i, temp in enumerate(max_temperature_list):
+            if T_room[i] > temp:
+                max_temperature_list[i] = T_room[i] + 1
 
         min_temperature_list = []
         for i, cool_demand in enumerate(cooling_demand):
