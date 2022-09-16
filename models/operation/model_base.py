@@ -406,10 +406,6 @@ class OperationModel(ABC):
                     and heating_demand[i + 2] == 0
                     and heating_demand[i + 3] == 0
                     and heating_demand[i + 4] == 0
-                    and heating_demand[i + 5] == 0
-                    and heating_demand[i + 6] == 0
-                    # and heating_demand[i + 7] == 0
-                    # and heating_demand[i + 8] == 0
             ):
 
                 if self.scenario.space_cooling_technology.power > 0:
