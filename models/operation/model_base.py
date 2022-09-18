@@ -423,8 +423,8 @@ class OperationModel(ABC):
 
         # implement a fail-save whenever after this function the maximum temperature list is above the indoor
         # temperature it is being corrected:
-        for index in np.where(max_temperature_list - T_room < 1.5)[0]:
-            max_temperature_list[index] = T_room[index] + 1.5
+        for index in np.where(max_temperature_list - T_room < 2)[0]:
+            max_temperature_list[index] = T_room[index] + 2
 
         min_temperature_list = []
         for i, cool_demand in enumerate(cooling_demand):
