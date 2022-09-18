@@ -429,7 +429,6 @@ class OperationModel(ABC):
         for index in np.where(max_temperature_list - T_room < 1)[0]:
             max_temperature_list[index] = T_room[index] + 1
 
-
         min_temperature_list = []
         for i, cool_demand in enumerate(cooling_demand):
             # if cooling demand != 0 the minimum temperature is raised to the minimum temp in summer
