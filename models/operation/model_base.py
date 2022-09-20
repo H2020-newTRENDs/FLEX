@@ -376,19 +376,15 @@ class OperationModel(ABC):
             self, temperature_max_winter, temperature_min_summer: float
     ) -> (np.array, np.array):
         """
-        calculates an array of the maximum temperature that will be equal to the provided max temperature if
-        heating is needed at the current hour, but it will be "unlimited" (+1°C) if no heating is needed. This
-        way it is ensured that the model does not pre-heat the building above the maximum temperature and at the same
-        time the model will not be infeasible when the household is heated above maximum temperature by external
-        radiation.
-        Likewise the minimum temperature in summer is raised to the temperature_min_summer whenever cooling is
-        required in order to prevent the model of pre-cooling down too much.
+        This function modifies the exogenous target temperature range, so that
+        1. the building will not be pre-heated (or pre-cooled) to too-high (or too-low) temperature;
+        2. the optimization will not be infeasible if the building is heated above maximum temperature by radiation.
+
         Args:
             temperature_max_winter: float, maximum pre-heating temperature
             temperature_min_summer: float, maximum pre-cooling temperature
 
         Returns: array of the maximum temperature, array of minimum temperature
-
         """
         heating_demand, cooling_demand, T_room, _ = self.calculate_heating_and_cooling_demand()
         # create max temperature array:
