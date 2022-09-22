@@ -23,6 +23,8 @@ class Color(Enum):
     GridConsumption = "tab:brown"
     PVConsumption = "gold"
     GridFeed = "tab:green"
+    P2P_Profit = "tab:brown"
+    Opt_Profit = "tab:olive"
     # DIMGRAY = "dimgray"
     # LIGHTCORAL = "lightcoral"
     # TOMATO = "tomato"
