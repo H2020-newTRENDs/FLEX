@@ -27,7 +27,9 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
 
     def plot_scenario_electricity_balance(self):
         scenario_ids = [1]
-        hour_ranges = [(25, 192), (5761, 5928)]
+        winter_hours = (25, 192)
+        summer_hours = (5761, 5928)
+        hour_ranges = [winter_hours, summer_hours]
         models = ["opt", "ref"]
         for scenario_id in scenario_ids:
             for model in models:
