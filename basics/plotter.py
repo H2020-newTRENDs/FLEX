@@ -82,6 +82,22 @@ class Plotter:
             frameon=True,
         )
 
+    def line_figure(
+        self,
+        values_dict: "Dict[str, Sequence]",
+        fig_name: str,
+        x_label: str = "X-axis",
+        y_label: str = "Y-axis",
+        x_lim=None,
+        y_lim=None,
+    ):
+        figure, ax = self.get_figure_template(x_label, y_label, x_lim, y_lim)
+        for key, values in values_dict.items():
+            x = [i + 1 for i in range(0, len(values))]
+            ax.plot(x, values, label=key)
+        self.add_legend(figure, ax, len(values_dict))
+        self.save_fig(figure, fig_name)
+
     def step_figure(
         self,
         values_dict: "Dict[str, Sequence]",
@@ -98,7 +114,7 @@ class Plotter:
         self.add_legend(figure, ax, len(values_dict))
         self.save_fig(figure, fig_name)
 
-    def bar_plot(
+    def bar_figure(
         self,
         values_dict: "Dict[str, np.array]",
         fig_name: str,
