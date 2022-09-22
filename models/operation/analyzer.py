@@ -165,7 +165,7 @@ class OperationAnalyzer:
             "VehicleDischarge": np.array(-df["EVDischarge"]) / 1000,
             "PV2Grid": np.array(-df["PV2Grid"]) / 1000,
         }
-        self.plotter.bar_plot(
+        self.plotter.bar_figure(
             values_dict,
             f"ElectricityBalance_S{scenario_id}_H{start_hour}To{end_hour}_{model}",
             x_label="Hour",

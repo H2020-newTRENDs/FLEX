@@ -13,6 +13,9 @@ class Config(ABC):
         self.input_operation: "Path" = self.setup_folder_path(
             os.path.dirname("data/input_operation/")
         )
+        self.input_community: "Path" = self.setup_folder_path(
+            os.path.dirname("data/input_community/")
+        )
         self.input_investment: "Path" = self.setup_folder_path(
             os.path.dirname("data/input_investment/")
         )
