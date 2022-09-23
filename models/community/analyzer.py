@@ -15,15 +15,16 @@ class CommunityAnalyzer:
         scenarios = self.db.read_dataframe(CommunityTable.Scenarios)
         result_year = self.db.read_dataframe(CommunityTable.ResultYear)
         values_dict = {
-            "P2P_Profit": result_year["p2p_profit"].to_numpy() / 100,
-            "Opt_Profit": result_year["opt_profit"].to_numpy() / 100
+            "P2P_Profit": result_year["p2p_profit"].to_numpy() / 10**5,
+            "Opt_Profit": result_year["opt_profit"].to_numpy() / 10**5
         }
         battery_sizes = scenarios["aggregator_battery_size"].to_numpy() / 10**6
         self.plotter.bar_figure(
             values_dict=values_dict,
             fig_name=f"AggregatorProfit-Battery",
             x_label="Battery Size (MWh)",
-            y_label="Aggregator Profit (€)",
+            y_label="Aggregator Profit (k€)",
+            y_lim=(0, 100),
             x_tick_labels=battery_sizes
         )
 
