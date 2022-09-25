@@ -37,19 +37,19 @@ class Aggregator:
             if t == 1:
                 return m.battery_soc[t] == 0 + \
                                            m.battery_charge[t] * m.battery_charge_efficiency - \
-                                           m.battery_discharge[t] * m.battery_discharge_efficiency
+                                           m.battery_discharge[t]
             else:
                 return m.battery_soc[t] == m.battery_soc[t - 1] + \
                                            m.battery_charge[t] * m.battery_charge_efficiency - \
-                                           m.battery_discharge[t] * m.battery_discharge_efficiency
+                                           m.battery_discharge[t]
         m.battery_soc_rule = pyo.Constraint(m.t, rule=calc_battery_soc)
 
     def setup_objective(self, m):
         def calc_opt_profit(m):
             opt_profit = 0
             for t in m.t:
-                opt_profit += m.battery_discharge[t] * m.sell_price[t] - \
-                                m.battery_charge[t] * m.buy_price[t]
+                opt_profit += m.battery_discharge[t] * m.battery_discharge_efficiency * m.sell_price[t] - \
+                              m.battery_charge[t] * m.buy_price[t]
             return opt_profit
         m.opt_profit_rule = pyo.Objective(rule=calc_opt_profit, sense=pyo.maximize)
 
