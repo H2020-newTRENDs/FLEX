@@ -44,8 +44,10 @@ class CommunityModel:
             instance.battery_discharge[t].setub(self.scenario.community_grid_consumption[t - 1])
             if self.scenario.aggregator_household_battery_control == 0:
                 instance.battery_soc[t].setub(self.scenario.aggregator_battery_size)
-            else:
+            elif self.scenario.aggregator_household_battery_control == 1:
                 total_battery_size = self.scenario.aggregator_battery_size + self.scenario.community_battery_size
                 instance.battery_soc[t].setub(total_battery_size[t - 1])
-
+            else:
+                logger.error(f'ValueError: CommunityScenario.aggregator_household_battery_control = '
+                             f'{self.scenario.aggregator_household_battery_control}, which should be 0 or 1.')
 
