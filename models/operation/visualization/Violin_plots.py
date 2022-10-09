@@ -27,15 +27,7 @@ def compose(*functions: ComposableFunction) -> ComposableFunction:
 class ViolinPlots(Plotter):
 
     def __init__(self, config: "Config"):
-
         super().__init__(config)
-        self.scenario_variables = {"Household_TankSize": {0: "l", 750: "l"},
-                                   "Household_CoolingAdoption": {0: "", 1: ""},
-                                   "Household_PVPower": {0: "kWp", 5: "kWp"},
-                                   "Household_BatteryCapacity": {0: "kWh", 7000: "kWh"},
-                                   "Environment_ElectricityPriceType": {1: "variable", 2: "flat"},
-                                   "ID_SpaceHeating": {"Air_HP": "Air HP", "gasses": "Gas Boiler"}}
-
         self.db = DB(config)
 
     def determine_ylabel(self, label) -> str:
@@ -57,14 +49,6 @@ class ViolinPlots(Plotter):
             ylabel = label
 
         return ylabel
-
-    def adjust_ylim(self, lim_array):
-
-        tiny = (lim_array[1] - lim_array[0]) * 0.02
-        left = lim_array[0] - tiny
-        right = lim_array[1] + tiny
-
-        return np.array((left, right))
 
     def add_building_ID_to_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """add the building ID to each scneario in the df"""
