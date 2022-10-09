@@ -141,6 +141,7 @@ class ViolinPlots(Plotter):
         ax.legend()
 
         ax.grid(axis="y")
+        # format 1000 to 1 000 if the numbers in the y-axis are higher than 4 digits:
         if ax.get_ylim()[1] > 999:
             ax.get_yaxis().set_major_formatter(
                 matplotlib.ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
