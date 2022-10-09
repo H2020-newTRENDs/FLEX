@@ -57,5 +57,4 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
 
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
-    ana.summarize_operation_energy_cost()
-    ana.summarize_operation_energy_cost_change()
+    ana.plot_scenario_electricity_balance()

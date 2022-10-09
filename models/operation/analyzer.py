@@ -171,7 +171,7 @@ class OperationAnalyzer:
             x_label="Hour",
             y_label="Electricity Demand and Supply (kW)",
             x_lim=None,
-            # y_lim=(-8, 8),
+            y_lim=(-5, 5),
         )
 
     def create_operation_energy_cost_table(self):
