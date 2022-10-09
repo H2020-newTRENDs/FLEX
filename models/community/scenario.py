@@ -10,6 +10,7 @@ from basics.plotter import Plotter
 from models.community.constants import CommunityTable
 from models.community.household import Household
 from models.operation.enums import OperationTable
+from models.operation.enums import OperationScenarioComponent
 
 
 class CommunityScenario:
@@ -17,6 +18,7 @@ class CommunityScenario:
     def __init__(self, scenario_id: int, config: "Config"):
         self.scenario_id = scenario_id
         self.config = config
+        self.db = create_db_conn(self.config)
         self.plotter = Plotter(config)
         self.operation_scenario: pd.DataFrame = None
         self.ref_operation_result_hour: pd.DataFrame = None
@@ -27,6 +29,7 @@ class CommunityScenario:
         self.aggregator_battery_size: float = None
         self.aggregator_battery_charge_efficiency: float = None
         self.aggregator_battery_discharge_efficiency: float = None
+        self.aggregator_household_battery_control: int = None
         self.aggregator_buy_price_factor: float = None
         self.aggregator_sell_price_factor: float = None
         self.id_electricity: int = None
@@ -41,7 +44,6 @@ class CommunityScenario:
         self.setup_community_results()
 
     def import_community_scenario(self):
-        self.db = create_db_conn(self.config)
         self.community_scenario = pd.read_excel(self.config.input_community / Path(CommunityTable.Scenarios + ".xlsx"),
                                                 engine="openpyxl").dropna(how="all")
         self.db.write_dataframe(CommunityTable.Scenarios, self.community_scenario, if_exists='replace')
@@ -74,6 +76,7 @@ class CommunityScenario:
         self.setup_community_grid_balance()
         self.setup_community_pv_self_consumption()
         self.setup_community_p2p_trading()
+        self.setup_community_battery_size()
 
     def setup_community_pv_generation(self):
         self.community_pv_generation = np.zeros(self.hours, )
@@ -112,6 +115,13 @@ class CommunityScenario:
 
     def setup_community_p2p_trading(self):
         self.community_p2p_trading = self.community_pv_consumption - self.community_pv_self_consumption
+
+    def setup_community_battery_size(self):
+        self.community_battery_size = np.zeros(self.hours, )
+        df = self.db.read_dataframe(OperationScenarioComponent.Battery.table_name)
+        for household in self.households:
+            household_battery_size = df.loc[df["ID_Battery"] == household.id_battery].iloc[0]["capacity"]
+            self.community_battery_size += (household_battery_size - household.BatSoC_hour)
 
     def plot_community_grid(self):
         winter_hours = (25, 192)

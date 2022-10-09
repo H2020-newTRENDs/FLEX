@@ -27,6 +27,7 @@ class Household:
         self.Grid_hour: np.array = None
         self.Load_hour: np.array = None
         self.Feed2Grid_hour: np.array = None
+        self.BatSoC_hour: np.array = None
         # year results from operation model
         self.TotalCost_year: float = None
 

@@ -42,6 +42,10 @@ class CommunityModel:
         for t in range(1, 8761):
             instance.battery_charge[t].setub(self.scenario.community_grid_feed[t - 1])
             instance.battery_discharge[t].setub(self.scenario.community_grid_consumption[t - 1])
-            instance.battery_soc[t].setub(self.scenario.aggregator_battery_size)
+            if self.scenario.aggregator_household_battery_control == 0:
+                instance.battery_soc[t].setub(self.scenario.aggregator_battery_size)
+            else:
+                total_battery_size = self.scenario.aggregator_battery_size + self.scenario.community_battery_size
+                instance.battery_soc[t].setub(total_battery_size[t - 1])
 
 
