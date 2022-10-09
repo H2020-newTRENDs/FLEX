@@ -79,7 +79,6 @@ class ViolinPlots(Plotter):
                                        column_names=[OperationScenarioComponent.PV.id]).to_numpy().flatten()
         pv_table = self.db.read_dataframe(table_name=OperationScenarioComponent.PV.table_name)
         sizes = {id: pv_table.loc[pv_table.loc[:, OperationScenarioComponent.PV.id] == id, "size"] for id in np.unique(id_pv)}
-        size_unit = pv_table.loc[0, "size_unit"]
         df.loc[:, OperationScenarioComponent.PV.id] = [sizes[id] for id in id_pv]
         return df
 
@@ -89,7 +88,6 @@ class ViolinPlots(Plotter):
                                           column_names=[OperationScenarioComponent.SpaceHeatingTank.id]).to_numpy().flatten()
         tank_table = self.db.read_dataframe(table_name=OperationScenarioComponent.SpaceHeatingTank.table_name)
         sizes = {id: tank_table.loc[tank_table.loc[:, OperationScenarioComponent.SpaceHeatingTank.id] == id, "size"] for id in np.unique(tank_ids)}
-        size_unit = tank_table.loc[0, "size_unit"]
         df.loc[:, OperationScenarioComponent.SpaceHeatingTank.id] = [sizes[id] for id in tank_ids]
         return df
 
@@ -99,7 +97,6 @@ class ViolinPlots(Plotter):
                                           column_names=[OperationScenarioComponent.HotWaterTank.id]).to_numpy().flatten()
         dhw_table = self.db.read_dataframe(table_name=OperationScenarioComponent.HotWaterTank.table_name)
         sizes = {id: dhw_table.loc[dhw_table.loc[:, OperationScenarioComponent.HotWaterTank.id] == id, "size"] for id in np.unique(tank_ids)}
-        size_unit = dhw_table.loc[0, "size_unit"]
         df.loc[:, OperationScenarioComponent.HotWaterTank.id] = [sizes[id] for id in tank_ids]
         return df
 
@@ -109,7 +106,6 @@ class ViolinPlots(Plotter):
         battery_table = self.db.read_dataframe(table_name=OperationScenarioComponent.Battery.table_name)
         sizes = {id: battery_table.loc[battery_table.loc[:, OperationScenarioComponent.Battery.id] == id, "capacity"] for id in
                  np.unique(battery_ids)}
-        size_unit = battery_table.loc[0, "capacity_unit"]
         df.loc[:, OperationScenarioComponent.Battery.id] = [sizes[id] for id in battery_ids]
         return df
 
@@ -129,7 +125,6 @@ class ViolinPlots(Plotter):
         ac_table = self.db.read_dataframe(table_name=OperationScenarioComponent.SpaceCoolingTechnology.table_name)
         sizes = {id: ac_table.loc[ac_table.loc[:, OperationScenarioComponent.SpaceCoolingTechnology.id] == id, "power"]
                  for id in np.unique(ac_ids)}
-        power_unit = ac_table.loc[0, "power_unit"]
         df.loc[:, OperationScenarioComponent.SpaceCoolingTechnology.id] = [sizes[id] for id in ac_ids]
         return df
 
@@ -139,7 +134,6 @@ class ViolinPlots(Plotter):
         ac_table = self.db.read_dataframe(table_name=OperationScenarioComponent.HeatingElement.table_name)
         sizes = {id: ac_table.loc[ac_table.loc[:, OperationScenarioComponent.HeatingElement.id] == id, "power"]
                  for id in np.unique(heating_element_ids)}
-        power_unit = ac_table.loc[0, "power_unit"]
         df.loc[:, OperationScenarioComponent.HeatingElement.id] = [sizes[id] for id in heating_element_ids]
         return df
 
