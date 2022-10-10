@@ -20,7 +20,7 @@ class Config(ABC):
             os.path.dirname("data/input_investment/")
         )
         self.output: "Path" = self.setup_folder_path(os.path.dirname("data/output/"))
-        self.fig: "Path" = self.setup_folder_path(os.path.dirname("data/figure/"))
+        self.fig: "Path" = self.setup_folder_path(os.path.dirname(f"data/figure/{project_name}/"))
 
     @staticmethod
     def setup_folder_path(folder_path) -> "Path":
