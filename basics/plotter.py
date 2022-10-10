@@ -1,5 +1,6 @@
 import os
 from typing import Sequence, Dict
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -156,3 +157,5 @@ class Plotter:
             ax.set_xticks(ticks=x, labels=x_tick_labels, rotation=90)
         self.add_legend(figure, ax, len(values_dict))
         self.save_fig(figure, fig_name)
+
+

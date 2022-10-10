@@ -384,3 +384,39 @@ class OperationAnalyzer:
                 building_dict, component_changes
             )
         logger.info(f"Final building: {building_dict}.")
+
+    def plot_component_impact_violin(self):
+        scenarios = self.db.read_dataframe(OperationTable.Scenarios.value).drop('ID_Scenario', axis=1)
+        ref_year = copy.deepcopy(self.ref_year).assign(Option="simulation")
+        opt_year = copy.deepcopy(self.opt_year).assign(Option="optimization")
+        df = pd.concat(
+            [
+                pd.concat([ref_year, scenarios], axis=1),
+                pd.concat([opt_year, scenarios], axis=1)
+            ],
+            axis=0
+        )
+        df.loc[:, "TotalCost"] = df.loc[:, "TotalCost"] / 100  # convert from cent to euro
+        df.loc[:, "Grid"] = df.loc[:, "Grid"] / 1000  # convert from W to kW
+
+        component_ids = [
+            "ID_Building",
+            "ID_Boiler",
+            # "ID_HeatingElement",
+            "ID_SpaceHeatingTank",
+            "ID_HotWaterTank",
+            "ID_SpaceCoolingTechnology",
+            "ID_PV",
+            "ID_Battery",
+            # "ID_Vehicle",
+        ]
+        for component_id in component_ids:
+            self.plotter.violin_figure(df,
+                                       fig_name=f'ImpactViolin_{component_id[3:]}_EnergyCost',
+                                       component=component_id, impacted_var="TotalCost",
+                                       x_label=component_id, y_label="Operation Cost of Energy (€)")
+            self.plotter.violin_figure(df,
+                                       fig_name=f'ImpactViolin_{component_id[3:]}_ElectricityConsumption',
+                                       component=component_id, impacted_var="Grid",
+                                       x_label=component_id, y_label="Electricity Consumption (kWh)")
+
