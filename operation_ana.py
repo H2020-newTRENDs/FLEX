@@ -50,11 +50,11 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
         self.plot_operation_energy_cost_change_curve(COMPONENT_CHANGES)
 
     def plot_building_pathway(self):
-        for scenario_id in range(192, 193):
+        for scenario_id in range(384, 385):
             logger.info(f'Scenario = {scenario_id}')
             self.get_building_pathway(scenario_id, COMPONENT_CHANGES)
 
 
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
-    ana.plot_component_impact_violin()
+    ana.plot_building_pathway()
