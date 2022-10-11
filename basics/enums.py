@@ -25,6 +25,7 @@ class Color(Enum):
     GridFeed = "tab:green"
     P2P_Profit = "tab:brown"
     Opt_Profit = "tab:olive"
+    P2P_trading = "tab:brown"
     # DIMGRAY = "dimgray"
     # LIGHTCORAL = "lightcoral"
     # TOMATO = "tomato"

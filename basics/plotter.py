@@ -124,6 +124,7 @@ class Plotter:
         x_lim=None,
         y_lim=None,
         x_tick_labels: list = None,
+        add_legend: bool = True,
     ):
         figure, ax = self.get_figure_template(x_label, y_label, x_lim, y_lim)
         x = [i + 1 for i in range(0, len(list(values_dict.values())[0]))]
@@ -155,7 +156,9 @@ class Plotter:
 
         if x_tick_labels is not None:
             ax.set_xticks(ticks=x, labels=x_tick_labels, rotation=90)
-        self.add_legend(figure, ax, len(values_dict))
+            # ax.set_xticks(ticks=x, labels=x_tick_labels)
+        if add_legend:
+            self.add_legend(figure, ax, len(values_dict))
         self.save_fig(figure, fig_name)
 
 
