@@ -17,6 +17,7 @@ class Region(Component):
     year: Optional[int] = None
     temperature: Optional[np.ndarray] = None
     temperature_unit: Optional[str] = None
+    norm_outside_temperature: Optional[float] = None
     radiation_north: Optional[np.ndarray] = None
     radiation_south: Optional[np.ndarray] = None
     radiation_east: Optional[np.ndarray] = None
@@ -26,6 +27,10 @@ class Region(Component):
 
 @dataclass
 class Building(Component):
+    type: Optional[str] = None
+    construction_period_start: Optional[int] = None
+    construction_period_end: Optional[int] = None
+    person_num: Optional[float] = None
     Af: Optional[float] = None
     Hop: Optional[float] = None
     Htr_w: Optional[float] = None
@@ -49,6 +54,13 @@ class Boiler(Component):
     carnot_efficiency_factor: Optional[float] = None
     heating_supply_temperature: Optional[float] = None
     hot_water_supply_temperature: Optional[float] = None
+
+
+@dataclass
+class HeatingElement(Component):
+    power: Optional[float] = None
+    power_unit: Optional[str] = None
+    efficiency: Optional[float] = None
 
 
 @dataclass
@@ -150,6 +162,8 @@ class Behavior(Component):
     target_temperature_at_home_min: Optional[float] = None
     target_temperature_not_at_home_max: Optional[float] = None
     target_temperature_not_at_home_min: Optional[float] = None
+    shading_solar_reduction_rate: Optional[float] = None
+    shading_threshold_temperature: Optional[float] = None
     temperature_unit: Optional[str] = None
     id_hot_water_demand_profile: Optional[int] = None
     hot_water_demand_annual: Optional[float] = None

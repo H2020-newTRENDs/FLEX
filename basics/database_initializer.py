@@ -1,6 +1,6 @@
 from pathlib import Path
 import itertools
-from typing import Dict, TYPE_CHECKING, get_type_hints
+from typing import Dict, List, TYPE_CHECKING, get_type_hints
 import sqlalchemy
 import numpy as np
 import pandas as pd
@@ -34,9 +34,7 @@ class DatabaseInitializer:
     def load_component_table(self, component: ClassVar["Enum"]):
         file = self.input_folder / Path(component.table_name + ".xlsx")
         logger.info(f"loading table -> {component.table_name}")
-        df = pd.read_excel(file, engine="openpyxl").dropna(
-            axis=1
-        )  # drop column that contains nan
+        df = pd.read_excel(file, engine="openpyxl").dropna(how="all")  # drop columns and rows that contain only nan
         data_types = kit.convert_datatype_py2sql(get_type_hints(component.class_var))
         assert all(
             key in list(data_types.keys()) for key in list(df.columns[1:])
@@ -48,13 +46,19 @@ class DatabaseInitializer:
             component.table_name, df, data_types=data_types, if_exists="replace"
         )
 
-    def load_table(self, table_name: str):
+    def load_table(self, table_enum: ClassVar["Enum"]):
+        table_name = table_enum.value
         file = self.input_folder / Path(table_name + ".xlsx")
         logger.info(f"loading table -> {table_name}")
         df = pd.read_excel(file, engine="openpyxl")
         self.db.write_dataframe(table_name, df, if_exists="replace")
 
-    def get_component_scenario_ids(self) -> Dict[str, int]:
+    def drop_table(self, table_enum: ClassVar["Enum"]):
+        table_name = table_enum.value
+        logger.info(f"dropping table -> {table_name}")
+        self.db.drop_table(table_name)
+
+    def get_component_scenario_ids(self) -> Dict[str, List[int]]:
         component_scenario_ids = {}
         engine = self.db.get_engine().connect()
         for name, item_enum in self.scenario_components.__members__.items():
@@ -73,18 +77,19 @@ class DatabaseInitializer:
         permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
         return pd.DataFrame(permutations_dicts)
 
-    def setup_scenario_dataframe(self):
-        self.db.drop_table(self.scenario_components.Scenario.table_name)
+    def generate_scenario_table(self, table_name: str):
+        self.db.drop_table(table_name)
+        logger.info(f"generating table -> {table_name}")
         scenario_df = self.generate_params_combination_df(
             self.get_component_scenario_ids()
         )
         scenario_ids = np.array(range(1, 1 + len(scenario_df)))
         scenario_df.insert(
-            loc=0, column=self.scenario_components.Scenario.id, value=scenario_ids
+            loc=0, column="ID_Scenario", value=scenario_ids
         )
         data_types = {name: sqlalchemy.types.Integer for name in scenario_df.columns}
         self.db.write_dataframe(
-            self.scenario_components.Scenario.table_name,
+            table_name,
             scenario_df,
             data_types=data_types,
             if_exists="replace",
