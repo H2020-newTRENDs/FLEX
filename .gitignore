@@ -421,3 +421,6 @@ flex/data/result/*.sqlite
 *.png
 
 *.pdf
+/data/output/pathways_from_192_to_1.json
+/data/output/pathways_from_192_to_190.json
+/data/output/pathways_from_192_to_191.json
