@@ -11,10 +11,10 @@ from models.operation.enums import OperationTable
 
 
 class PRNImporter:
-    def __init__(self):
-        self.main_path = Path(
-            r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\input_data")
-        self.project_name = "Flex_5R1C_validation"
+    def __init__(self, project_name):
+
+        self.project_name = project_name
+        self.main_path = Path(get_config(self.project_name).project_root / Path(f"projects/{project_name}/input"))
         self.building_names = {
             1: "EZFH_5_B",
             2: "EZFH_5_S",
@@ -68,11 +68,11 @@ class PRNImporter:
         return indoor_temp
 
     def iterate_through_folders(self, folder_path) -> List[str]:
-        list_subfolders_paths = [f.path for f in os.scandir(folder_path) if f.is_dir()]
+        list_subfolders_paths = [f.path for f in os.scandir(folder_path) if f.is_dir() and f.path.split("\\")[-1]!="heating"]
         return list_subfolders_paths
 
     def main(self):
-        strategies = ["price_1", "price_2", "price_3", "price_4"]
+        strategies = ["price1", "price2", "price3", "price4"]
         for strat in strategies:
             folders = self.iterate_through_folders(self.main_path / Path(strat))
             heating_demand = {}
@@ -105,10 +105,10 @@ class PRNImporter:
 
             # heating demand to csv for later analysis:
             heating_demand_df = pd.DataFrame(heating_demand)
-            heating_demand_df.to_csv(self.main_path / Path(f"heating_demand_daniel_{strat}.csv"), sep=";")
+            heating_demand_df.to_csv(self.main_path / Path(f"heating_demand_daniel_{strat}.csv"), sep=";", index=False)
             # air temp to csv
             indoor_temp_df = pd.DataFrame(indoor_temp)
-            indoor_temp_df.to_csv(self.main_path / Path(f"indoor_temp_daniel_{strat}.csv"), sep=";")
+            indoor_temp_df.to_csv(self.main_path / Path(f"indoor_temp_daniel_{strat}.csv"), sep=";", index=False)
 
         # self.modify_heat_demand()
 
@@ -133,13 +133,13 @@ class PRNImporter:
         # the same heat demand the IDA ICE model has in the reference scenario
 
         # load heat demand from first price scenario
-        filename = f"heating_demand_daniel_price_1.csv"
-        ref_demand_df = pd.read_csv(self.main_path / Path(filename), sep=";").drop(columns=["Unnamed: 0"])
+        filename = f"heating_demand_daniel_price1.csv"
+        ref_demand_df = pd.read_csv(self.main_path / Path(filename), sep=";")
 
-        for price in ["price_2", "price_3", "price_4"]:
+        for price in ["price2", "price3", "price4"]:
             # load heat demand from other price scenarios:
             filename = f"heating_demand_daniel_{price}.csv"
-            opt_demand_IDA = pd.read_csv(self.main_path / Path(filename), sep=";").drop(columns=["Unnamed: 0"])
+            opt_demand_IDA = pd.read_csv(self.main_path / Path(filename), sep=";")
 
             # load heat demand from 5R1C model optimized:
             opt_demand_5R1C = self.read_heat_demand(OperationTable.ResultOptHour.value, price)
@@ -158,9 +158,10 @@ class PRNImporter:
                         opt_demand_IDA.loc[index, column_name] = ref_demand_df.loc[index, column_name]
 
             # save opt_demand_IDA as csv under the old name
-            opt_demand_IDA.to_csv(self.main_path / Path(f"heating_demand_daniel_{price}.csv"), sep=";")
+            opt_demand_IDA.to_csv(self.main_path / Path(f"heating_demand_daniel_{price}.csv"), sep=";", index=False)
 
 
 if __name__ == "__main__":
-    # PRNImporter().main()
-    PRNImporter().modify_heat_demand()
+    prn_importer = PRNImporter("5R1C_validation")
+    prn_importer.main()
+    prn_importer.modify_heat_demand()
