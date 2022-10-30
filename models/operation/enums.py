@@ -61,7 +61,6 @@ class OperationResultVar(Enum):
     # Heating Element
     Q_HeatingElement = "year_include"
 
-
     # hot water
     HotWaterProfile = "year_include"
     HotWaterHourlyCOP = "year_not_include"
@@ -106,6 +105,8 @@ class OperationResultVar(Enum):
     # energy price
     ElectricityPrice = "year_not_include"
     FiT = "year_not_include"
+    GasPrice = "year_not_include"
+    Gas = "year_include"
 
     # grid
     BaseLoadProfile = "year_include"

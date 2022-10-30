@@ -15,7 +15,7 @@ class Plotter:
     def setup_fig_params(self):
         self.fig_size = (12, 7.417)
         self.fig_axe_area = (0.1, 0.1, 0.8, 0.8)
-        self.fig_axe_area_with_legend = (0.1, 0.1, 0.8, 0.7)
+        self.fig_axe_area_with_legend = (0.1, 0.15, 0.8, 0.7)
         self.fig_format = "PNG"
         self.fig_dpi = 200
         self.line_width = 1.5
@@ -82,6 +82,22 @@ class Plotter:
             frameon=True,
         )
 
+    def line_figure(
+        self,
+        values_dict: "Dict[str, Sequence]",
+        fig_name: str,
+        x_label: str = "X-axis",
+        y_label: str = "Y-axis",
+        x_lim=None,
+        y_lim=None,
+    ):
+        figure, ax = self.get_figure_template(x_label, y_label, x_lim, y_lim)
+        for key, values in values_dict.items():
+            x = [i + 1 for i in range(0, len(values))]
+            ax.plot(x, values, label=key)
+        self.add_legend(figure, ax, len(values_dict))
+        self.save_fig(figure, fig_name)
+
     def step_figure(
         self,
         values_dict: "Dict[str, Sequence]",
@@ -98,7 +114,7 @@ class Plotter:
         self.add_legend(figure, ax, len(values_dict))
         self.save_fig(figure, fig_name)
 
-    def bar_plot(
+    def bar_figure(
         self,
         values_dict: "Dict[str, np.array]",
         fig_name: str,
@@ -106,6 +122,7 @@ class Plotter:
         y_label: str = "Y-axis",
         x_lim=None,
         y_lim=None,
+        x_tick_labels: list = None,
     ):
         figure, ax = self.get_figure_template(x_label, y_label, x_lim, y_lim)
         x = [i + 1 for i in range(0, len(list(values_dict.values())[0]))]
@@ -134,5 +151,8 @@ class Plotter:
                     color=[Color.__dict__[key].value for i in range(0, len(x))],
                 )
                 bottom_negative += values
+
+        if x_tick_labels is not None:
+            ax.set_xticks(ticks=x, labels=x_tick_labels, rotation=90)
         self.add_legend(figure, ax, len(values_dict))
         self.save_fig(figure, fig_name)

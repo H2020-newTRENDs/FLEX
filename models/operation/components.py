@@ -17,6 +17,7 @@ class Region(Component):
     year: Optional[int] = None
     temperature: Optional[np.ndarray] = None
     temperature_unit: Optional[str] = None
+    norm_outside_temperature: Optional[float] = None
     radiation_north: Optional[np.ndarray] = None
     radiation_south: Optional[np.ndarray] = None
     radiation_east: Optional[np.ndarray] = None

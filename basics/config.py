@@ -13,11 +13,14 @@ class Config(ABC):
         self.input_operation: "Path" = self.setup_folder_path(
             self.project_root / Path("data/input_operation/")
         )
+        self.input_community: "Path" = self.setup_folder_path(
+            os.path.dirname("data/input_community/")
+        )
         self.input_investment: "Path" = self.setup_folder_path(
             self.project_root / Path("data/input_investment/")
         )
-        self.output: "Path" = self.setup_folder_path(self.project_root / Path("data/output/"))
-        self.fig: "Path" = self.setup_folder_path(self.project_root / Path("data/figure/"))
+        self.output: "Path" = self.setup_folder_path(os.path.dirname("data/output/"))
+        self.fig: "Path" = self.setup_folder_path(os.path.dirname(f"data/figure/{project_name}/"))
 
     @staticmethod
     def setup_folder_path(folder_path) -> "Path":

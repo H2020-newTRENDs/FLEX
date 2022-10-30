@@ -6,12 +6,13 @@ logger = kit.get_logger(__name__)
 
 COMPONENT_CHANGES = [
         ("ID_Building", 3, 2),
-        ("ID_Building", 2, 1),
         ("ID_Building", 3, 1),
+        ("ID_Building", 2, 1),
         ("ID_SEMS", 2, 1),
         ("ID_Boiler", 2, 1),
         ("ID_SpaceHeatingTank", 2, 1),
         ("ID_HotWaterTank", 2, 1),
+        # ("ID_SpaceCoolingTechnology", 2, 1),
         ("ID_PV", 2, 1),
         ("ID_Battery", 2, 1),
     ]
@@ -20,13 +21,15 @@ COMPONENT_CHANGES = [
 class ProjectOperationAnalyzer(OperationAnalyzer):
 
     def plot_scenario_comparison(self):
-        self.compare_opt_ref(1)
-        # self.compare_opt(id1=1, id2=16)
+        # self.compare_opt_ref(1)
+        self.compare_opt(id1=119, id2=126)
         # self.compare_ref(id1=1, id2=16)
 
     def plot_scenario_electricity_balance(self):
         scenario_ids = [1]
-        hour_ranges = [(25, 192), (5761, 5928)]
+        winter_hours = (25, 192)
+        summer_hours = (5761, 5928)
+        hour_ranges = [winter_hours, summer_hours]
         models = ["opt", "ref"]
         for scenario_id in scenario_ids:
             for model in models:
@@ -54,4 +57,5 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
 
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
-    ana.plot_building_pathway()
+    ana.summarize_operation_energy_cost()
+    ana.summarize_operation_energy_cost_change()

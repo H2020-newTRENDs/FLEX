@@ -54,6 +54,7 @@ class OperationModel(ABC):
         self.BuildingMassTemperatureStartValue = mass_temperature[-1]
 
     def setup_space_heating_params(self):
+        self.fuel_boiler_efficiency = 0.95  # TODO specify as input??
         self.SpaceHeatingHourlyCOP = self.calc_cop(
             outside_temperature=self.scenario.region.temperature,
             supply_temperature=self.scenario.boiler.heating_supply_temperature,
@@ -373,19 +374,15 @@ class OperationModel(ABC):
             self, temperature_max_winter, temperature_min_summer: float
     ) -> (np.array, np.array):
         """
-        calculates an array of the maximum temperature that will be equal to the provided max temperature if
-        heating is needed at the current hour, but it will be "unlimited" (+1°C) if no heating is needed. This
-        way it is ensured that the model does not pre-heat the building above the maximum temperature and at the same
-        time the model will not be infeasible when the household is heated above maximum temperature by external
-        radiation.
-        Likewise the minimum temperature in summer is raised to the temperature_min_summer whenever cooling is
-        required in order to prevent the model of pre-cooling down too much.
+        This function modifies the exogenous target temperature range, so that
+        1. the building will not be pre-heated (or pre-cooled) to too-high (or too-low) temperature;
+        2. the optimization will not be infeasible if the building is heated above maximum temperature by radiation.
+
         Args:
             temperature_max_winter: float, maximum pre-heating temperature
             temperature_min_summer: float, maximum pre-cooling temperature
 
         Returns: array of the maximum temperature, array of minimum temperature
-
         """
         heating_demand, cooling_demand, T_room, _ = self.calculate_heating_and_cooling_demand()
         # create max temperature array:
@@ -393,8 +390,7 @@ class OperationModel(ABC):
         for i, heat_demand in enumerate(heating_demand):
             # if heat demand == 0 and the heat demand in the following 8 hours is also 0 and the heat demand of 3
             # hours before that is also 0, then the max temperature is raised so model does not become infeasible:
-            if (
-                    heat_demand == 0
+            if (heat_demand == 0
                     and i + 8 < 8760
                     and heating_demand[i - 3] == 0
                     and heating_demand[i - 2] == 0
@@ -403,19 +399,22 @@ class OperationModel(ABC):
                     and heating_demand[i + 2] == 0
                     and heating_demand[i + 3] == 0
                     and heating_demand[i + 4] == 0
-                    and heating_demand[i + 5] == 0
-                    and heating_demand[i + 6] == 0
-                    and heating_demand[i + 7] == 0
-                    and heating_demand[i + 8] == 0
             ):
-
                 if self.scenario.space_cooling_technology.power > 0:
-                    max_temperature_list.append(self.scenario.behavior.target_temperature_at_home_max)
+                    max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
                 else:
-                    # append the temperature of the reference model + 0.5°C to make sure it is feasible
-                    max_temperature_list.append(T_room[i] + 1)
+                    # append the temperature of the reference model + 1°C to make sure it is feasible
+                    if T_room[i] + 1 < temperature_max_winter:  # should still not be lower than the max in winter
+                        max_temperature_list.append(temperature_max_winter)
+                    else:
+                        max_temperature_list.append(T_room[i] + 1)
             else:
                 max_temperature_list.append(temperature_max_winter)
+
+        # implement a fail-save whenever after this function the maximum temperature list is above the indoor
+        # temperature it is being corrected:
+        for index in np.where(max_temperature_list - T_room < 2)[0]:
+            max_temperature_list[index] = T_room[index] + 2
 
         min_temperature_list = []
         for i, cool_demand in enumerate(cooling_demand):
@@ -423,9 +422,9 @@ class OperationModel(ABC):
             if cool_demand > 0:
                 min_temperature_list.append(temperature_min_summer)
             else:
-                min_temperature_list.append(self.scenario.behavior.target_temperature_at_home_min)
+                min_temperature_list.append(self.scenario.behavior.target_temperature_array_min[i])
 
-        return np.array(max_temperature_list), np.array(min_temperature_list)
+        return np.array(max_temperature_list), np.array(min_temperature_list)  #plt.plot(np.arange(8760), max_temperature_list)
 
     @staticmethod
     def calc_cop(
@@ -472,6 +471,8 @@ class OperationModel(ABC):
                     for temp in outside_temperature
                 ]
             )
+        # check maximum COP, COP should not go to infinity for high outside temperatures
+        COP[COP > 18] = 18
         return COP
 
     def generate_maximum_electric_heat_pump_power(self):
@@ -489,7 +490,7 @@ class OperationModel(ABC):
         max_thermal_power = np.ceil(max_heating_demand / 500) * 500
         # calculate the design condition COP (-12°C)
         worst_COP = OperationModel.calc_cop(
-            outside_temperature=[-12],
+            outside_temperature=[self.scenario.region.norm_outside_temperature],
             supply_temperature=self.scenario.boiler.heating_supply_temperature,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
             source=self.scenario.boiler.type,
@@ -525,7 +526,7 @@ class OperationModel(ABC):
         Q_solar = (Q_solar_north + Q_solar_south + Q_solar_east + Q_solar_west).squeeze() * solar_gain_rate
         return Q_solar
 
-    def create_upper_bound_EV_discharge(self) -> np.array:
+    def create_upper_bound_ev_discharge(self) -> np.array:
         """
         Returns: array that limits the discharge of the EV when it is at home and can use all capacity in one hour
         when not at home (unlimited if not at home because this is endogenously derived)
@@ -555,41 +556,3 @@ class OperationModel(ABC):
                 )
             else:  # vehicle returns home -> counter is set to 0
                 counter = 0
-
-    def fuel_boiler_save_scenario(self):
-        outside_temperature = copy.deepcopy(self.T_outside)
-        q_solar = copy.deepcopy(self.Q_Solar)
-        hot_water_demand = copy.deepcopy(self.HotWaterProfile)
-        return outside_temperature, q_solar, hot_water_demand
-
-    def fuel_boiler_heating_cooling(self):
-        fuel_type: str = self.scenario.boiler.type
-        fuel_price = self.scenario.energy_price.__dict__[fuel_type]
-        electricity_price = self.scenario.energy_price.electricity
-        (
-            heating_demand,
-            cooling_demand,
-            room_temperature,
-            building_mass_temperature,
-        ) = self.calculate_heating_and_cooling_demand()
-        heating_cost = (fuel_price * heating_demand).sum()
-        cooling_cost = (electricity_price * cooling_demand / self.CoolingCOP).sum()
-        return (
-            heating_cost,
-            cooling_cost,
-            heating_demand,
-            cooling_demand,
-            room_temperature,
-            building_mass_temperature,
-        )
-
-    def fuel_boiler_hot_water(self):
-        fuel_type: str = self.scenario.boiler.type
-        fuel_price = self.scenario.energy_price.__dict__[fuel_type]
-        hot_water_cost = (fuel_price * self.HotWaterProfile).sum()
-        return hot_water_cost
-
-    def fuel_boiler_remove_heating_cooling_hot_water_demand(self):
-        self.T_outside = 24 * np.ones(8760, )
-        self.Q_Solar = np.zeros(8760, )
-        self.HotWaterProfile = np.zeros(8760, )
