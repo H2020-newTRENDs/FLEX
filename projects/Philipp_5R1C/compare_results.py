@@ -19,9 +19,8 @@ class CompareModels:
     def __init__(self, db_name):
         self.input_path = Path(
             r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\input_data")
-        self.figure_path = Path(
-            r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\figures")
         self.project_name = db_name
+        self.figure_path = get_config(self.project_name).fig
         self.db = DB(get_config(self.project_name))
         self.scenario_table = self.db.read_dataframe(table_name=OperationTable.Scenarios.value)
 
@@ -439,5 +438,5 @@ class CompareModels:
 
 
 if __name__ == "__main__":
-    # CompareModels("Flex_5R1C_validation").show_elec_prices()
+    CompareModels("Flex_5R1C_validation").show_elec_prices()
     CompareModels("Flex_5R1C_validation").main()
