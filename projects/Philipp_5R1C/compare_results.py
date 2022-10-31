@@ -17,9 +17,8 @@ from models.operation.enums import OperationTable
 
 class CompareModels:
     def __init__(self, db_name):
-        self.input_path = Path(
-            r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\input_data")
         self.project_name = db_name
+        self.input_path = get_config(self.project_name).project_root / Path(f"projects/{self.project_name}/input")
         self.figure_path = get_config(self.project_name).fig
         self.db = DB(get_config(self.project_name))
         self.scenario_table = self.db.read_dataframe(table_name=OperationTable.Scenarios.value)
@@ -76,7 +75,7 @@ class CompareModels:
 
     def read_daniel_heat_demand(self, strat: str):
         filename = f"heating_demand_daniel_{strat}.csv"
-        demand_df = pd.read_csv(self.input_path / Path(filename), sep=";").drop(columns=["Unnamed: 0"])
+        demand_df = pd.read_csv(self.input_path / Path(filename), sep=";")
         column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
         # rearrange the df:
         df = demand_df[column_list]
@@ -105,7 +104,7 @@ class CompareModels:
 
     def read_indoor_temp_daniel(self, strat):
         filename = f"indoor_temp_daniel_{strat}.csv"
-        temp_df = pd.read_csv(self.input_path / Path(filename), sep=";").drop(columns=["Unnamed: 0"])
+        temp_df = pd.read_csv(self.input_path / Path(filename), sep=";")
         column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
         # rearrange the df:
         df = temp_df[column_list]
@@ -161,7 +160,7 @@ class CompareModels:
     def calculate_costs_daniel_ref(self, table_name: str, price_id: str):
         price_profile = self.read_electricity_price(price_id).squeeze()
         COP_HP = self.read_COP(table_name)
-        heat_demand = self.read_daniel_heat_demand("price_1")  # because here the indoor set temp is steady
+        heat_demand = self.read_daniel_heat_demand("price1")  # because here the indoor set temp is steady
         electricity = (heat_demand / COP_HP).reset_index(drop=True)
 
         hourly_cost = electricity.mul(pd.Series(price_profile), axis=0)
@@ -289,15 +288,15 @@ class CompareModels:
 
     def subplots_yearly(self):
         plt.style.use("seaborn-paper")
-        prizes = ["price_1", "price_2", "price_3", "price_4"]
+        prizes = ["price1", "price2", "price3", "price4"]
 
         # heat demand:
         # create figure
         fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 7), sharex=True)
         # ref heat demand is always the same
-        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, "price_1")
-        # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
-        heat_demand_IDA_ref = self.read_daniel_heat_demand("price_1")
+        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, "price1")
+        # ref IDA ICE is the one where the indoor set temp is not changed (price1)
+        heat_demand_IDA_ref = self.read_daniel_heat_demand("price1")
         ax_number = 0
         for price in prizes:
             heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value, price)
@@ -340,15 +339,15 @@ class CompareModels:
 
     def subplots_relative(self):
         plt.style.use("seaborn-paper")
-        prizes = ["price_1", "price_2", "price_3", "price_4"]
+        prizes = ["price1", "price2", "price3", "price4"]
 
         # heat demand:
         # create figure
         fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 7), sharex=True)
         # ref heat demand is always the same
-        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, "price_1")
+        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, "price1")
         # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
-        heat_demand_IDA_ref = self.read_daniel_heat_demand("price_1")
+        heat_demand_IDA_ref = self.read_daniel_heat_demand("price1")
         ax_number = 0
         for price in prizes:
             heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value, price)
@@ -402,7 +401,7 @@ class CompareModels:
                 temp_df = pd.concat([temp_df, indoor_temp_opt], axis=1)
 
             # save indoor temp opt to csv for daniel:
-            temp_df.to_csv(self.input_path.parent / Path(f"ouput_data/indoor_set_temp_price{price_id}.csv"), sep=";")
+            temp_df.to_csv(self.input_path.parent / Path(f"output/indoor_set_temp_price{price_id}.csv"), sep=";")
             del temp_df
 
     def main(self):
@@ -411,11 +410,11 @@ class CompareModels:
         self.subplots_yearly()
 
         # ref heat demand is always the same
-        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, "price_1")
+        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, "price1")
         # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
-        heat_demand_IDA_ref = self.read_daniel_heat_demand("price_1")
-        temperature_daniel_ref = self.read_indoor_temp_daniel("price_1")
-        prizes = ["price_1", "price_2", "price_3", "price_4"]
+        heat_demand_IDA_ref = self.read_daniel_heat_demand("price1")
+        temperature_daniel_ref = self.read_indoor_temp_daniel("price1")
+        prizes = ["price1", "price2", "price3", "price4"]
         for price in prizes:
             # heat demand
             heat_demand_opt = self.read_heat_demand(OperationTable.ResultOptHour.value, price)
@@ -438,5 +437,5 @@ class CompareModels:
 
 
 if __name__ == "__main__":
-    CompareModels("Flex_5R1C_validation").show_elec_prices()
-    CompareModels("Flex_5R1C_validation").main()
+    CompareModels("5R1C_validation").show_elec_prices()
+    CompareModels("5R1C_validation").main()
