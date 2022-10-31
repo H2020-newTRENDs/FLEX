@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 import plotly.figure_factory as ff
 import matplotlib.pyplot as plt
 import seaborn as sns
+import math
 
 from basics.db import DB
 from config import config, get_config
@@ -404,11 +405,7 @@ class CompareModels:
             temp_df.to_csv(self.input_path.parent / Path(f"output/indoor_set_temp_price{price_id}.csv"), sep=";")
             del temp_df
 
-    def main(self):
-        self.subplots_relative()
-        self.indoor_temp_to_csv()
-        self.subplots_yearly()
-
+    def show_plotly_comparison(self):
         # ref heat demand is always the same
         heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, "price1")
         # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
@@ -430,9 +427,58 @@ class CompareModels:
                                         ["IDA ICE", "5R1C", "IDA ICE optimized", "5R1C optimized"],
                                         f"heat demand {price} ")
 
-            self.compare_hourly_profile([indoor_temp_ref, temperature_daniel_ref, indoor_temp_daniel_opt, indoor_temp_opt],
-                                        ["5R1C", "IDA ICE", "IDA ICE optimized", "5R1C optimized"],
-                                        f"indoor temperature {price}")
+            self.compare_hourly_profile(
+                [indoor_temp_ref, temperature_daniel_ref, indoor_temp_daniel_opt, indoor_temp_opt],
+                ["5R1C", "IDA ICE", "IDA ICE optimized", "5R1C optimized"],
+                f"indoor temperature {price}")
+
+    def calculate_RMSE(self, profile_IDA_ICE: np.array, profile_5R1C: np.array) -> float:
+        MSE = np.square(np.subtract(profile_IDA_ICE, profile_5R1C)).mean()
+        RMSE = math.sqrt(MSE)
+        return RMSE
+
+    def show_rmse(self):
+        # ref heat demand is always the same
+        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, "price1")
+        indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value, "price1")
+        # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
+        heat_demand_IDA_ref = self.read_daniel_heat_demand("price1")
+        temperature_daniel_ref = self.read_indoor_temp_daniel("price1")
+        building_names = list(heat_demand_IDA_ref.columns)
+        rmse_temp_list = []
+        rmse_heat_list = []
+        for building in building_names:
+            rmse_temp = self.calculate_RMSE(temperature_daniel_ref.loc[:, building].to_numpy(),
+                                            indoor_temp_ref.loc[:, building].to_numpy())
+            rmse_temp_list.append(rmse_temp)
+            rmse_heat = self.calculate_RMSE(heat_demand_IDA_ref.loc[:, building].to_numpy(),
+                                            heat_demand_ref.loc[:, building].to_numpy())
+            rmse_heat_list.append(rmse_heat)
+
+        # plot the RMSE:
+        fig = plt.figure()
+        ax = fig.gca()
+        ax.bar(building_names, rmse_temp_list)
+        plt.ylabel("RMSE indoor temperature")
+        fig.savefig(self.figure_path / "RMSE_temperature.svg")
+        plt.show()
+        fig = plt.figure()
+        ax = fig.gca()
+        ax.bar(building_names, rmse_heat_list)
+        plt.ylabel("RMSE heat demand")
+        fig.savefig(self.figure_path / "RMSE_heat_demand.svg")
+        plt.show()
+
+
+
+    def main(self):
+        self.show_rmse()
+        self.subplots_relative()
+        self.indoor_temp_to_csv()
+        self.subplots_yearly()
+        self.show_plotly_comparison()
+
+
 
 
 
