@@ -438,38 +438,46 @@ class CompareModels:
         return RMSE
 
     def show_rmse(self):
-        # ref heat demand is always the same
-        heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, "price1")
-        indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value, "price1")
-        # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
-        heat_demand_IDA_ref = self.read_daniel_heat_demand("price1")
-        temperature_daniel_ref = self.read_indoor_temp_daniel("price1")
-        building_names = list(heat_demand_IDA_ref.columns)
-        rmse_temp_list = []
-        rmse_heat_list = []
-        for building in building_names:
-            rmse_temp = self.calculate_RMSE(temperature_daniel_ref.loc[:, building].to_numpy(),
-                                            indoor_temp_ref.loc[:, building].to_numpy())
-            rmse_temp_list.append(rmse_temp)
-            rmse_heat = self.calculate_RMSE(heat_demand_IDA_ref.loc[:, building].to_numpy(),
-                                            heat_demand_ref.loc[:, building].to_numpy())
-            rmse_heat_list.append(rmse_heat)
+        plt.style.use("seaborn-paper")
+        fig_temp, axes_temp = plt.subplots(nrows=2, ncols=2, figsize=(12, 7), sharex=True, sharey=True)
+        fig_heat, axes_heat = plt.subplots(nrows=2, ncols=2, figsize=(12, 7), sharex=True, sharey=True)
+        prizes = ["price1", "price2", "price3", "price4"]
+        for i, price in enumerate(prizes):
+            # ref heat demand is always the same
+            heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, price)
+            indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value, price)
+            # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
+            heat_demand_IDA_ref = self.read_daniel_heat_demand(price)
+            temperature_daniel_ref = self.read_indoor_temp_daniel(price)
+            building_names = list(heat_demand_IDA_ref.columns)
+            rmse_temp_list = []
+            rmse_heat_list = []
+            for building in building_names:
+                rmse_temp = self.calculate_RMSE(temperature_daniel_ref.loc[:, building].to_numpy(),
+                                                indoor_temp_ref.loc[:, building].to_numpy())
+                rmse_temp_list.append(rmse_temp)
+                rmse_heat = self.calculate_RMSE(heat_demand_IDA_ref.loc[:, building].to_numpy(),
+                                                heat_demand_ref.loc[:, building].to_numpy())
+                rmse_heat_list.append(rmse_heat)
 
-        # plot the RMSE:
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.bar(building_names, rmse_temp_list)
-        plt.ylabel("RMSE indoor temperature")
-        fig.savefig(self.figure_path / "RMSE_temperature.svg")
-        plt.show()
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.bar(building_names, rmse_heat_list)
-        plt.ylabel("RMSE heat demand")
-        fig.savefig(self.figure_path / "RMSE_heat_demand.svg")
-        plt.show()
+            ax_temp = axes_temp.flatten()[i]
+            ax_heat = axes_heat.flatten()[i]
 
+            # plot the RMSE:
+            ax_temp.bar(building_names, rmse_temp_list)
+            ax_temp.set_ylabel("RMSE indoor temperature")
+            ax_temp.set_title(f"price {price[-1]}")
 
+            ax_heat.bar(building_names, rmse_heat_list)
+            ax_heat.set_ylabel("RMSE heat demand")
+            ax_heat.set_title(f"price {price[-1]}")
+
+        fig_temp.tight_layout()
+        fig_heat.tight_layout()
+        fig_temp.savefig(self.figure_path / "RMSE_temperature.svg")
+        fig_heat.savefig(self.figure_path / "RMSE_heat_demand.svg")
+        fig_temp.show()
+        fig_heat.show()
 
     def main(self):
         self.show_rmse()
@@ -477,8 +485,6 @@ class CompareModels:
         self.indoor_temp_to_csv()
         self.subplots_yearly()
         self.show_plotly_comparison()
-
-
 
 
 
