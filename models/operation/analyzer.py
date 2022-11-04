@@ -15,6 +15,9 @@ if TYPE_CHECKING:
     from basics.config import Config
     from basics.plotter import Plotter
 
+"""just neccessary for workaround in data loading problem #
+import pandas as pd"""
+
 
 logger = kit.get_logger(__name__)
 
@@ -301,9 +304,9 @@ class OperationAnalyzer:
     def get_operation_energy_cost_change(
         self, building_dict: dict, component_change_info: Tuple[str, int, int]
     ):
-        operation_energy_cost_change = self.db.read_dataframe(
-            InterfaceTable.OperationEnergyCostChange.value
-        )
+        """workaround for data loading problem
+        operation_energy_cost_change = pd.read_excel(r'C:/Users/rickm/Documents/Git/Flex/models/operation/InvestmentScenario_OperationEnergyCostChange.xlsx')"""
+        operation_energy_cost_change = self.db.read_dataframe(InterfaceTable.OperationEnergyCostChange.value)
         col_component_id = component_change_info[0]
         benchmark_id = component_change_info[1]
         state_id = component_change_info[2]
@@ -347,14 +350,20 @@ class OperationAnalyzer:
         return building_dict
 
     def get_building_pathway(
-        self, scenario_id: int, component_changes: List[Tuple[str, int, int]]
+        self, scenario_id: int, component_changes: List[Tuple[str, int, int]], components = List[Tuple[str, int]]
     ):
+        building_pathway = []
+        benefit_pathway = []
+
+        """ workaround for data loading problem 
+        df = pd.read_excel(r'C:/Users/rickm/Documents/Git/Flex/models/operation/InvestmentScenario_OperationEnergyCost.xlsx')"""
         df = self.db.read_dataframe(InterfaceTable.OperationEnergyCost.value)
         df = df.drop(["ID_OperationScenario", "TotalCost"], axis=1)
         building_dict = kit.filter_df2s(
             df, filter_dict={"ID_Scenario": scenario_id}
         ).to_dict()
         del building_dict["ID_Scenario"]
+        building_pathway.append(self.convert_building_dict_to_string(building_dict, components))
         logger.info(f"Initial building: {building_dict}.")
         component_changes = self.update_component_changes(
             building_dict, component_changes
@@ -374,6 +383,8 @@ class OperationAnalyzer:
             building_dict = self.implement_building_component_change(
                 building_dict, component_change_info
             )
+            building_pathway.append(self.convert_building_dict_to_string(building_dict, components))
+            benefit_pathway.append(round(benefit/100, 2))
             logger.info(f"Benefit: {round(benefit/100, 2)} (€/a).")
             # By combining the investment cost with benefit, we can identify if there is a "lock-in" effect.
             # Because the system can be totally stuck somewhere, or it can go to a different direction.
@@ -384,6 +395,17 @@ class OperationAnalyzer:
                 building_dict, component_changes
             )
         logger.info(f"Final building: {building_dict}.")
+        return building_pathway, benefit_pathway
+
+    def convert_building_dict_to_string(
+            self,
+            building_dict: dict,
+            components: List[Tuple[str, int]]
+    ):
+        string_builder = ""
+        for component in components:
+            string_builder += str(building_dict[component[0]])
+        return string_builder
 
     def plot_component_impact_violin(self):
         scenarios = self.db.read_dataframe(OperationTable.Scenarios.value).drop('ID_Scenario', axis=1)

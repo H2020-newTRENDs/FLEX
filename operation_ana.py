@@ -2,6 +2,9 @@ from models.operation.analyzer import OperationAnalyzer
 from config import config
 from basics import kit
 
+import json
+import os
+
 logger = kit.get_logger(__name__)
 
 COMPONENT_CHANGES = [
@@ -15,6 +18,16 @@ COMPONENT_CHANGES = [
         # ("ID_SpaceCoolingTechnology", 2, 1),
         ("ID_PV", 2, 1),
         ("ID_Battery", 2, 1),
+    ]
+COMPONENTS = [
+        ("ID_Building", 3),
+        ("ID_SEMS", 2),
+        ("ID_Boiler", 2),
+        ("ID_SpaceHeatingTank", 2),
+        ("ID_HotWaterTank", 2),
+        # ("ID_SpaceCoolingTechnology", 2),
+        ("ID_PV", 2),
+        ("ID_Battery", 2),
     ]
 
 
@@ -52,9 +65,38 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
     def plot_building_pathway(self):
         for scenario_id in range(384, 385):
             logger.info(f'Scenario = {scenario_id}')
-            self.get_building_pathway(scenario_id, COMPONENT_CHANGES)
+            self.get_building_pathway(scenario_id, COMPONENT_CHANGES, COMPONENTS)
+
+    def summarize_building_pathway(
+        self,
+        usefile: bool = True,
+        start_scenario_id: int = 192,
+        end_scenario_id: int = 1 #has to be smaler than start id
+    ):
+        dirname = os.path.dirname(__file__)
+        filename_building = os.path.join(dirname, f'data/output/pathways_from_{start_scenario_id}_to_{end_scenario_id}_building.json')
+        filename_benefit = os.path.join(dirname, f'data/output/pathways_from_{start_scenario_id}_to_{end_scenario_id}_benefit.json')
+
+        if(usefile):
+            with open(filename_building, "r") as file:
+                building_pathways = json.load(file)
+            with open(filename_benefit, "r") as file:
+                benefit_pathways = json.load(file)
+        else:
+            building_pathways = []
+            benefit_pathways = []
+            for scenario_id in range(start_scenario_id, end_scenario_id-1, -1):
+                building_pathway, benefit_pathway = self.get_building_pathway(scenario_id, COMPONENT_CHANGES, COMPONENTS)
+                building_pathways.append(building_pathway)
+                benefit_pathways.append(benefit_pathway)
+            with open(filename_building, "w") as file:
+                json.dump(building_pathways, file)
+            with open(filename_benefit, "w") as file:
+                json.dump(benefit_pathways, file)
+
 
 
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
     ana.plot_building_pathway()
+    #ana.summarize_building_pathway(usefile=False, start_scenario_id=192, end_scenario_id=192)
