@@ -98,5 +98,6 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
 
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
+    # ana.summarize_operation_energy_cost()
     ana.plot_building_pathway()
     #ana.summarize_building_pathway(usefile=False, start_scenario_id=192, end_scenario_id=192)
