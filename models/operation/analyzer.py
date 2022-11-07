@@ -2,6 +2,7 @@ import copy
 from typing import TYPE_CHECKING, ClassVar, List, Tuple
 import numpy as np
 import pandas as pd
+import itertools
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -15,16 +16,12 @@ if TYPE_CHECKING:
     from basics.config import Config
     from basics.plotter import Plotter
 
-"""just neccessary for workaround in data loading problem #
-import pandas as pd"""
-
-
 logger = kit.get_logger(__name__)
 
 
 class OperationAnalyzer:
     def __init__(
-        self, config: "Config", plotter: ClassVar["Plotter"] = OperationPlotter
+            self, config: "Config", plotter: ClassVar["Plotter"] = OperationPlotter
     ):
         self.db = create_db_conn(config)
         self.plotter = plotter(config)
@@ -66,7 +63,7 @@ class OperationAnalyzer:
         return self.ref_year_df
 
     def get_hour_df(
-        self, scenario_id: int, model: str, start_hour: int = None, end_hour: int = None
+            self, scenario_id: int, model: str, start_hour: int = None, end_hour: int = None
     ):
         if model == "opt":
             df = kit.filter_df(
@@ -152,7 +149,7 @@ class OperationAnalyzer:
         fig.show()
 
     def plot_electricity_balance(
-        self, scenario_id: int, model: str, start_hour: int = None, end_hour: int = None
+            self, scenario_id: int, model: str, start_hour: int = None, end_hour: int = None
     ):
         df = self.get_hour_df(scenario_id, model, start_hour, end_hour)
         values_dict = {
@@ -222,7 +219,7 @@ class OperationAnalyzer:
         )
 
     def get_component_energy_cost_change_dict(
-        self, col_id_component: str, benchmark_id: int, state_id: int
+            self, col_id_component: str, benchmark_id: int, state_id: int
     ):
         operation_energy_cost = self.db.read_dataframe(
             InterfaceTable.OperationEnergyCost.value
@@ -261,7 +258,7 @@ class OperationAnalyzer:
         return component_energy_cost_change_dicts
 
     def create_component_energy_cost_change_tables(
-        self, component_changes: List[Tuple[str, int, int]]
+            self, component_changes: List[Tuple[str, int, int]]
     ):
         energy_cost_change_dicts = []
         for component_change_info in component_changes:
@@ -277,7 +274,7 @@ class OperationAnalyzer:
         self.db.save_dataframe_to_investment_input(df, table_name)
 
     def plot_operation_energy_cost_change_curve(
-        self, component_changes: List[Tuple[str, int, int]]
+            self, component_changes: List[Tuple[str, int, int]]
     ):
         df = self.db.read_dataframe(InterfaceTable.OperationEnergyCostChange.value)
         values_dict = {}
@@ -302,10 +299,8 @@ class OperationAnalyzer:
         )
 
     def get_operation_energy_cost_change(
-        self, building_dict: dict, component_change_info: Tuple[str, int, int]
+            self, building_dict: dict, component_change_info: Tuple[str, int, int]
     ):
-        """workaround for data loading problem
-        operation_energy_cost_change = pd.read_excel(r'C:/Users/rickm/Documents/Git/Flex/models/operation/InvestmentScenario_OperationEnergyCostChange.xlsx')"""
         operation_energy_cost_change = self.db.read_dataframe(InterfaceTable.OperationEnergyCostChange.value)
         col_component_id = component_change_info[0]
         benchmark_id = component_change_info[1]
@@ -321,7 +316,7 @@ class OperationAnalyzer:
 
     @staticmethod
     def update_component_changes(
-        building_dict: dict, component_changes: List[Tuple[str, int, int]]
+            building_dict: dict, component_changes: List[Tuple[str, int, int]]
     ):
         def implementable(b_dict, c_c_info):
             col_component_id = c_c_info[0]
@@ -335,7 +330,7 @@ class OperationAnalyzer:
 
     @staticmethod
     def implement_building_component_change(
-        building_dict: dict, component_change_info: Tuple[str, int, int]
+            building_dict: dict, component_change_info: Tuple[str, int, int]
     ):
         col_component_id = component_change_info[0]
         benchmark_id = component_change_info[1]
@@ -344,20 +339,19 @@ class OperationAnalyzer:
             f"ComponentChange: {col_component_id} = {benchmark_id} -> {col_component_id} = {state_id}"
         )
         assert (
-            building_dict[col_component_id] == benchmark_id
+                building_dict[col_component_id] == benchmark_id
         ), "ComponentChange cannot be implemented."
         building_dict[col_component_id] = state_id
         return building_dict
 
     def get_building_pathway(
-        self, scenario_id: int, component_changes: List[Tuple[str, int, int]], components = List[Tuple[str, int]]
+            self, scenario_id: int, component_changes: List[Tuple[str, int, int]], components=List[Tuple[str, int]]
     ):
         building_pathway = []
         benefit_pathway = []
 
-        """ workaround for data loading problem 
-        df = pd.read_excel(r'C:/Users/rickm/Documents/Git/Flex/models/operation/InvestmentScenario_OperationEnergyCost.xlsx')"""
         df = self.db.read_dataframe(InterfaceTable.OperationEnergyCost.value)
+        initial_cost = df[df['ID_Scenario'] == scenario_id]['TotalCost'].item()
         df = df.drop(["ID_OperationScenario", "TotalCost"], axis=1)
         building_dict = kit.filter_df2s(
             df, filter_dict={"ID_Scenario": scenario_id}
@@ -384,8 +378,8 @@ class OperationAnalyzer:
                 building_dict, component_change_info
             )
             building_pathway.append(self.convert_building_dict_to_string(building_dict, components))
-            benefit_pathway.append(round(benefit/100, 2))
-            logger.info(f"Benefit: {round(benefit/100, 2)} (€/a).")
+            benefit_pathway.append(round(benefit / 100, 2))
+            logger.info(f"Benefit: {round(benefit / 100, 2)} (€/a).")
             # By combining the investment cost with benefit, we can identify if there is a "lock-in" effect.
             # Because the system can be totally stuck somewhere, or it can go to a different direction.
             # Then in total, we can start from all possible "starting points" and see,
@@ -395,7 +389,7 @@ class OperationAnalyzer:
                 building_dict, component_changes
             )
         logger.info(f"Final building: {building_dict}.")
-        return building_pathway, benefit_pathway
+        return building_pathway, benefit_pathway, initial_cost
 
     def convert_building_dict_to_string(
             self,
@@ -442,3 +436,34 @@ class OperationAnalyzer:
                                        component=component_id, impacted_var="Grid",
                                        x_label=component_id, y_label="Electricity Consumption (kWh)")
 
+    def plot_pathway_in_graph(
+            self,
+            components: List[Tuple[str, int]],
+            scenario_costs,
+            building_pathways,
+            draw_pathway,
+            draw_pathway_benefits,
+            scenario_id,
+    ):
+        # create all possible scenarios
+        t = [(i for i in range(1, component[1] + 1)) for component in components]
+        prod = itertools.product(*t)
+        scenarios = []
+        for p in prod:
+            scenarios.append(''.join([str(value) for value in p]))
+
+        graph = {}
+        # create all possible pathway edges
+        for key_scenario in scenarios:
+            graph[key_scenario] = [value for value in scenarios if
+                                   sum(c1 != c2 for c1, c2 in zip(value, key_scenario)) == 1
+                                   and
+                                   sum(c1 != c2 for c1, c2 in zip('1' * len(key_scenario), key_scenario)) >= sum(
+                                       c1 != c2 for c1, c2 in zip('1' * len(key_scenario), value))]
+
+        nodesize = dict.fromkeys(scenarios, 0)
+        for pathway in building_pathways:
+            for scenario in pathway:
+                nodesize[scenario] += 1
+
+        self.plotter.directed_graph(graph, nodeweight=scenario_costs, nodesize=nodesize, figname=f'Graph_{scenario_id}', draw_pathway=draw_pathway, draw_pathway_benefits=draw_pathway_benefits)

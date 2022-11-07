@@ -3,6 +3,7 @@ from typing import Sequence, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
+import networkx as nx
 
 from basics.config import Config
 from basics.enums import Color
@@ -48,7 +49,7 @@ class Plotter:
         plt.close(fig)
 
     def get_figure_template(
-        self, x_label: str = "X-axis", y_label: str = "Y-axis", x_lim=None, y_lim=None
+            self, x_label: str = "X-axis", y_label: str = "Y-axis", x_lim=None, y_lim=None
     ):
 
         figure = plt.figure(figsize=self.fig_size, dpi=self.fig_dpi, frameon=False)
@@ -84,13 +85,13 @@ class Plotter:
         )
 
     def line_figure(
-        self,
-        values_dict: "Dict[str, Sequence]",
-        fig_name: str,
-        x_label: str = "X-axis",
-        y_label: str = "Y-axis",
-        x_lim=None,
-        y_lim=None,
+            self,
+            values_dict: "Dict[str, Sequence]",
+            fig_name: str,
+            x_label: str = "X-axis",
+            y_label: str = "Y-axis",
+            x_lim=None,
+            y_lim=None,
     ):
         figure, ax = self.get_figure_template(x_label, y_label, x_lim, y_lim)
         for key, values in values_dict.items():
@@ -100,13 +101,13 @@ class Plotter:
         self.save_fig(figure, fig_name)
 
     def step_figure(
-        self,
-        values_dict: "Dict[str, Sequence]",
-        fig_name: str,
-        x_label: str = "X-axis",
-        y_label: str = "Y-axis",
-        x_lim=None,
-        y_lim=None,
+            self,
+            values_dict: "Dict[str, Sequence]",
+            fig_name: str,
+            x_label: str = "X-axis",
+            y_label: str = "Y-axis",
+            x_lim=None,
+            y_lim=None,
     ):
         figure, ax = self.get_figure_template(x_label, y_label, x_lim, y_lim)
         for key, values in values_dict.items():
@@ -116,14 +117,14 @@ class Plotter:
         self.save_fig(figure, fig_name)
 
     def bar_figure(
-        self,
-        values_dict: "Dict[str, np.array]",
-        fig_name: str,
-        x_label: str = "X-axis",
-        y_label: str = "Y-axis",
-        x_lim=None,
-        y_lim=None,
-        x_tick_labels: list = None,
+            self,
+            values_dict: "Dict[str, np.array]",
+            fig_name: str,
+            x_label: str = "X-axis",
+            y_label: str = "Y-axis",
+            x_lim=None,
+            y_lim=None,
+            x_tick_labels: list = None,
     ):
         figure, ax = self.get_figure_template(x_label, y_label, x_lim, y_lim)
         x = [i + 1 for i in range(0, len(list(values_dict.values())[0]))]
@@ -157,3 +158,54 @@ class Plotter:
             ax.set_xticks(ticks=x, labels=x_tick_labels, rotation=90)
         self.add_legend(figure, ax, len(values_dict))
         self.save_fig(figure, fig_name)
+
+    def directed_graph(
+            self,
+            graph: "Dict[str, str]",
+            nodeweight,
+            nodesize,
+            figname: str,
+            draw_pathway=[],
+            draw_pathway_benefits=[]
+    ):
+        G = nx.DiGraph()
+
+        node_labels = {}
+        node_size = []
+        node_color = []
+        for node in graph:
+            label = ''
+            if node in draw_pathway:
+                label = node
+            G.add_node(node, layer=len(node) - sum(c1 != c2 for c1, c2 in zip('1' * len(node), node)))
+            node_color.append(nodeweight[node])
+            node_size.append(nodesize[node])
+            node_labels[node] = label
+
+        edge_labels = {}
+        for node, edges in graph.items():
+            for edge in edges:
+                color = 'lightgrey'
+                width = 0.4
+                label = ''
+                if node in draw_pathway:
+                    idx = draw_pathway.index(node)
+                    if draw_pathway[idx+1] == edge:
+                        label = f'{draw_pathway_benefits[idx]} (€/a)'
+                        color = 'red'
+                        width = 1
+                G.add_edge(node, edge, color=color, width=width)
+                edge_labels[(node, edge)] = label
+        edge_color = nx.get_edge_attributes(G, 'color').values()
+        widths = list(nx.get_edge_attributes(G, 'width').values())
+
+        pos = nx.multipartite_layout(G, subset_key="layer", )
+
+        nx.draw(G, pos=pos, arrows=True, connectionstyle='arc3, rad = -0.1',
+                node_color=node_color, node_size=[x * 2.5 + 7 for x in node_size], cmap=plt.cm.get_cmap('PiYG').reversed(), linewidths=0.5,
+                edgecolors='grey',
+                edge_color=edge_color, width=widths)
+        nx.draw_networkx_labels(G, pos=pos, labels=node_labels, font_size=6, verticalalignment='top')
+        nx.draw_networkx_edge_labels(G, pos=pos, edge_labels=edge_labels, font_size=4, verticalalignment='bottom', rotate=False)
+
+        plt.savefig(os.path.join(self.fig_folder, figname + ".png"), dpi=300)

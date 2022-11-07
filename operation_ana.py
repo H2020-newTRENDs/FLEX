@@ -8,27 +8,27 @@ import os
 logger = kit.get_logger(__name__)
 
 COMPONENT_CHANGES = [
-        ("ID_Building", 3, 2),
-        ("ID_Building", 3, 1),
-        ("ID_Building", 2, 1),
-        ("ID_SEMS", 2, 1),
-        ("ID_Boiler", 2, 1),
-        ("ID_SpaceHeatingTank", 2, 1),
-        ("ID_HotWaterTank", 2, 1),
-        # ("ID_SpaceCoolingTechnology", 2, 1),
-        ("ID_PV", 2, 1),
-        ("ID_Battery", 2, 1),
-    ]
+    ("ID_Building", 3, 2),
+    ("ID_Building", 3, 1),
+    ("ID_Building", 2, 1),
+    ("ID_SEMS", 2, 1),
+    ("ID_Boiler", 2, 1),
+    ("ID_SpaceHeatingTank", 2, 1),
+    ("ID_HotWaterTank", 2, 1),
+    # ("ID_SpaceCoolingTechnology", 2, 1),
+    ("ID_PV", 2, 1),
+    ("ID_Battery", 2, 1),
+]
 COMPONENTS = [
-        ("ID_Building", 3),
-        ("ID_SEMS", 2),
-        ("ID_Boiler", 2),
-        ("ID_SpaceHeatingTank", 2),
-        ("ID_HotWaterTank", 2),
-        # ("ID_SpaceCoolingTechnology", 2),
-        ("ID_PV", 2),
-        ("ID_Battery", 2),
-    ]
+    ("ID_Building", 3),
+    ("ID_SEMS", 2),
+    ("ID_Boiler", 2),
+    ("ID_SpaceHeatingTank", 2),
+    ("ID_HotWaterTank", 2),
+    # ("ID_SpaceCoolingTechnology", 2),
+    ("ID_PV", 2),
+    ("ID_Battery", 2),
+]
 
 
 class ProjectOperationAnalyzer(OperationAnalyzer):
@@ -62,42 +62,58 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
         self.create_component_energy_cost_change_tables(COMPONENT_CHANGES)
         self.plot_operation_energy_cost_change_curve(COMPONENT_CHANGES)
 
-    def plot_building_pathway(self):
-        for scenario_id in range(384, 385):
-            logger.info(f'Scenario = {scenario_id}')
-            self.get_building_pathway(scenario_id, COMPONENT_CHANGES, COMPONENTS)
-
-    def summarize_building_pathway(
-        self,
-        usefile: bool = True,
-        start_scenario_id: int = 192,
-        end_scenario_id: int = 1 #has to be smaler than start id
+    def plot_building_pathway(
+            self,
+            start_scenario_id: int = 192,
+            end_scenario_id: int = 1  # has to be smaller than start id#
     ):
         dirname = os.path.dirname(__file__)
-        filename_building = os.path.join(dirname, f'data/output/pathways_from_{start_scenario_id}_to_{end_scenario_id}_building.json')
-        filename_benefit = os.path.join(dirname, f'data/output/pathways_from_{start_scenario_id}_to_{end_scenario_id}_benefit.json')
+        filename_building = os.path.join(dirname,
+                                         f'data/output/pathways_from_{start_scenario_id}_to_{end_scenario_id}_building.json')
+        filename_costs = os.path.join(dirname,
+                                      f'data/output/pathways_from_{start_scenario_id}_to_{end_scenario_id}_costs.json')
 
-        if(usefile):
-            with open(filename_building, "r") as file:
-                building_pathways = json.load(file)
-            with open(filename_benefit, "r") as file:
-                benefit_pathways = json.load(file)
-        else:
-            building_pathways = []
-            benefit_pathways = []
-            for scenario_id in range(start_scenario_id, end_scenario_id-1, -1):
-                building_pathway, benefit_pathway = self.get_building_pathway(scenario_id, COMPONENT_CHANGES, COMPONENTS)
-                building_pathways.append(building_pathway)
-                benefit_pathways.append(benefit_pathway)
-            with open(filename_building, "w") as file:
-                json.dump(building_pathways, file)
-            with open(filename_benefit, "w") as file:
-                json.dump(benefit_pathways, file)
+        building_pathways = []
+        scenario_costs = {}
+        for scenario_id in range(start_scenario_id, end_scenario_id - 1, -1):
+            logger.info(f'Scenario = {scenario_id}')
+            building_pathway, benefit_pathway, initial_cost = self.get_building_pathway(scenario_id, COMPONENT_CHANGES,
+                                                                                        COMPONENTS)
+            building_pathways.append(building_pathway)
+            scenario_costs[building_pathway[0]] = initial_cost
+        with open(filename_building, "w") as file:
+            json.dump(building_pathways, file)
+        with open(filename_costs, "w") as file:
+            json.dump(scenario_costs, file)
 
+    def summarize_building_pathway(
+            self,
+            scenario_id: int,
+            usefile: bool = False,
+            start_scenario_id: int = 192,
+            end_scenario_id: int = 1,  # has to be smaller than start id
+    ):
+        dirname = os.path.dirname(__file__)
+        filename_building = os.path.join(dirname,
+                                         f'data/output/pathways_from_{start_scenario_id}_to_{end_scenario_id}_building.json')
+        filename_costs = os.path.join(dirname,
+                                      f'data/output/pathways_from_{start_scenario_id}_to_{end_scenario_id}_costs.json')
+
+        if not usefile:
+            self.plot_building_pathway()  # create files
+
+        with open(filename_building, "r") as file:
+            building_pathways = json.load(file)
+        with open(filename_costs, "r") as file:
+            scenario_costs = json.load(file)
+
+        draw_pathway, draw_pathway_benefits, initial_cost = self.get_building_pathway(scenario_id, COMPONENT_CHANGES,
+                                                                                      COMPONENTS)
+        self.plot_pathway_in_graph(COMPONENTS, scenario_costs, building_pathways, draw_pathway, draw_pathway_benefits, scenario_id)
 
 
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
-    # ana.summarize_operation_energy_cost()
-    ana.plot_building_pathway()
-    #ana.summarize_building_pathway(usefile=False, start_scenario_id=192, end_scenario_id=192)
+    #ana.summarize_operation_energy_cost()
+    # ana.plot_building_pathway(start_scenario_id=192, end_scenario_id=192)
+    ana.summarize_building_pathway(usefile=True, scenario_id=192)
