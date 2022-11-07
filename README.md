@@ -9,7 +9,7 @@
 
 
 # FLEX Model <div id="FLEX_MODEL"/>
-
+Status: The mode is still under development
 ## Overview and scope
 This model was created to calculate the energy demand for single buildings
 considering consumers, prosumers and prosumagers (a prosumager is a household
