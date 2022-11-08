@@ -421,3 +421,5 @@ flex/data/result/*.sqlite
 *.png
 
 *.pdf
+/data/output/pathways_from_192_to_1_building.json
+/data/output/pathways_from_192_to_1_costs.json
