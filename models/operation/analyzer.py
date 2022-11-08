@@ -192,7 +192,6 @@ class OperationAnalyzer:
 
         table_name = InterfaceTable.OperationEnergyCost.value
         self.db.write_dataframe(table_name, sce_summary, if_exists="replace")
-        self.db.save_dataframe_to_investment_input(sce_summary, table_name)
 
     def plot_operation_energy_cost_curve(self):
 

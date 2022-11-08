@@ -21,9 +21,9 @@ COMPONENT_CHANGES = [
 class ProjectOperationAnalyzer(OperationAnalyzer):
 
     def plot_scenario_comparison(self):
-        # self.compare_opt_ref(1)
+        self.compare_opt_ref(1)
         self.compare_opt(id1=119, id2=126)
-        # self.compare_ref(id1=1, id2=16)
+        self.compare_ref(id1=1, id2=16)
 
     def plot_scenario_electricity_balance(self):
         scenario_ids = [1]
@@ -50,11 +50,15 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
         self.plot_operation_energy_cost_change_curve(COMPONENT_CHANGES)
 
     def plot_building_pathway(self):
-        for scenario_id in range(384, 385):
-            logger.info(f'Scenario = {scenario_id}')
+        for scenario_id in [192]:
+            logger.info(f'ID_Scenario = {scenario_id}')
             self.get_building_pathway(scenario_id, COMPONENT_CHANGES)
 
 
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
+    ana.plot_scenario_comparison()
+    ana.plot_scenario_electricity_balance()
+    ana.summarize_operation_energy_cost()
+    ana.summarize_operation_energy_cost_change()
     ana.plot_building_pathway()

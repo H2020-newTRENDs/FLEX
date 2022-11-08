@@ -44,7 +44,7 @@ def run_scenarios(community_scenario_ids, operation_scenario_ids):
 
 
 if __name__ == "__main__":
-    COMMUNITY_SCENARIO_IDS = [id_scenario for id_scenario in range(1, 31)]
+    COMMUNITY_SCENARIO_IDS = [id_scenario for id_scenario in range(1, 11)]
     OPERATION_SCENARIO_IDS = [id_scenario for id_scenario in range(1, 193)]
     run_scenarios(COMMUNITY_SCENARIO_IDS, OPERATION_SCENARIO_IDS)
 
