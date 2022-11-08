@@ -1,15 +1,8 @@
-# README
-
-# Table of contents
-1. [FLEX MODEL](#FLEX_MODEL)
-2. [Getting started](#Getting_started)
-   1. [FLEX Operation](#FLEX_Operation)
-   2. [FLEX Community](#FLEX_Community)
-   3. [FLEX Behavior](#FLEX_Behavior)
+# FLEX Model
+[![license](path_to_license here)]()
 
 
-# FLEX Model <div id="FLEX_MODEL"/>
-Status: The mode is still under development
+Status: The model is still under development
 ## Overview and scope
 This model was created to calculate the energy demand for single buildings
 considering consumers, prosumers and prosumagers (a prosumager is a household
@@ -43,11 +36,16 @@ total amount of space heating provided.
 The tables with hourly results contain vectors of length 8760 for each variable in each scenario. 
 
 # Getting started <div id="Getting_started"/>
-
-### 
+ 
+install the requirements with
+```
+pip install -r requirements.txt
+```
 
 ## FLEX Operation <div id="FLEX_Operation"/>
-
+To run the operation model, the input excels have to be filled. "operation_init.py" will initialize a 
+sqlite database with the input parameters and a scenario table.
+"operation_run.py" starts the model runs. Results will be saved to the same sqlite database.
 
 ## FLEX Community <div id="FLEX_Community"/>
 
