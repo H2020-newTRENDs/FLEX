@@ -10,7 +10,6 @@ class Config(ABC):
         self.input_behavior: "Path" = self.setup_path("data/input_behavior/")
         self.input_operation: "Path" = self.setup_path("data/input_operation/")
         self.input_community: "Path" = self.setup_path("data/input_community/")
-        self.input_investment: "Path" = self.setup_path("data/input_investment/")
         self.output: "Path" = self.setup_path("data/output/")
         self.fig: "Path" = self.setup_path(f"data/figure/{project_name}/")
 

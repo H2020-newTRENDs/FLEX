@@ -3,6 +3,8 @@ from models.operation import components
 
 
 class OperationScenarioComponent(Enum):
+    value: str
+
     Region = "region"
     Building = "building"
     Boiler = "boiler"
@@ -17,12 +19,12 @@ class OperationScenarioComponent(Enum):
     HeatingElement = "heating_element"
 
     @property
-    def table_name(self):
+    def table_name(self) -> str:
         table_name = "OperationScenario_Component_" + self.name
         return table_name
 
     @property
-    def id(self):
+    def id(self) -> str:
         return "ID_" + self.name
 
     @property
@@ -31,6 +33,7 @@ class OperationScenarioComponent(Enum):
 
 
 class OperationTable(Enum):
+    value: str
     Scenarios = "OperationScenario"
     BehaviorProfile = "OperationScenario_BehaviorProfile"
     EnergyPriceProfile = "OperationScenario_EnergyPrice"
@@ -42,6 +45,7 @@ class OperationTable(Enum):
 
 
 class OperationResultVar(Enum):
+    value: str
 
     # space heating
     T_outside = "year_not_include"

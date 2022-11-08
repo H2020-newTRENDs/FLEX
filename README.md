@@ -5,7 +5,7 @@
 2. [Getting started](#Getting_started)
    1. [FLEX Operation](#FLEX_Operation)
    2. [FLEX Community](#FLEX_Community)
-   3. [FLEX Investment](#FLEX_Investment)
+   3. [FLEX Behavior](#FLEX_Behavior)
 
 
 # FLEX Model <div id="FLEX_MODEL"/>
@@ -52,7 +52,7 @@ The tables with hourly results contain vectors of length 8760 for each variable 
 ## FLEX Community <div id="FLEX_Community"/>
 
 
-## FLEX Investment <div id="FLEX_Investment"/>
+## FLEX Behavior <div id="FLEX_Behavior"/>
 
 
 

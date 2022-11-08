@@ -92,14 +92,6 @@ class DB:
     def query(self, sql) -> pd.DataFrame:
         return pd.read_sql(sql, self.connection)
 
-    def save_dataframe_to_operation_input(self, df: pd.DataFrame, table_name):
-        path = self.config.input_operation / Path(table_name + ".xlsx")
-        df.to_excel(path, index=False)
-
-    def save_dataframe_to_investment_input(self, df: pd.DataFrame, table_name):
-        path = self.config.input_investment / Path(table_name + ".xlsx")
-        df.to_excel(path, index=False)
-
 
 def create_db_conn(config: "Config") -> DB:
     return DB(config)

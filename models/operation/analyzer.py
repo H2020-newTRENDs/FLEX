@@ -1,5 +1,5 @@
 import copy
-from typing import TYPE_CHECKING, ClassVar, List, Tuple
+from typing import TYPE_CHECKING, Type, List, Tuple
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -21,7 +21,7 @@ logger = kit.get_logger(__name__)
 
 class OperationAnalyzer:
     def __init__(
-        self, config: "Config", plotter: ClassVar["Plotter"] = OperationPlotter
+        self, config: "Config", plotter: Type["OperationPlotter"] = OperationPlotter
     ):
         self.db = create_db_conn(config)
         self.plotter = plotter(config)
@@ -271,7 +271,6 @@ class OperationAnalyzer:
         df = pd.DataFrame(energy_cost_change_dicts)
         table_name = InterfaceTable.OperationEnergyCostChange.value
         self.db.write_dataframe(table_name, df, if_exists="replace")
-        self.db.save_dataframe_to_investment_input(df, table_name)
 
     def plot_operation_energy_cost_change_curve(
         self, component_changes: List[Tuple[str, int, int]]
