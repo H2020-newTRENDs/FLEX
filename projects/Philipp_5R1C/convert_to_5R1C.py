@@ -33,7 +33,7 @@ class Create5R1CParameters:
         self.foot_print = None
         self.floors = None
         self.roof_area = None
-        self.wall_area = None
+        self.wall_outside_area = None
         self.volume = None
         self.u_wall = None
         self.u_window = None
@@ -53,40 +53,42 @@ class Create5R1CParameters:
         self.window_area_north = None
         self.window_area_south = None
 
-        self.Cm = None
-        self.Cm_wall = None
-        self.Cm_ceiling = None
+        self.Cm_total = None
+        self.Cm_outer_walls = None
+        self.Cm_roof = None
         self.Cm_ground = None
 
     def fill_params(self):
         self.length = self.df.loc[:, "Sides_m"]
         self.width = self.df.loc[:, "Sides_m"]
         self.height = self.df.loc[:, "clearHeight"]
-        self.foot_print = self.df.loc[:, "mean_footprint_m2"]
-        self.floors = self.df.loc[:, "floors"]
-        self.roof_area = self.df.loc[:, "roof_area_m2"]
-        self.wall_area = self.df.loc[:, "wallarea_m2"]
-        self.volume = self.df.loc[:, "zonevolume"] * self.floors
-        self.u_wall = self.df.loc[:, "U_Walls"]
-        self.u_window = self.df.loc[:, "U_windows"]
-        self.u_floor = self.df.loc[:, "U_floor"]
-        self.u_roof = self.df.loc[:, "U_roof"]
-        self.n_air = self.df.loc[:, "n_air"]
-        self.internal_gains = self.df.loc[:, "internal_gains"]
+        self.foot_print = self.df.loc[:, "mean_Gebaeudeflaeche_m2"]
+        self.floors = self.df.loc[:, "mean_Geschosse_n"]
+        self.roof_area = self.df.loc[:, "mean_Dachflaeche_m2"]
+        self.wall_outside_area = self.df.loc[:, "mean_WandKlasse_1_m2"]
+        self.volume = self.df.loc[:, "Gebaeudevolumen_m3_netto"]
+        self.u_wall = self.df.loc[:, "median_UWert_weighted_mean_AW"]
+        self.u_window = self.df.loc[:, "median_UWert_weighted_mean_AF"]
+        self.u_floor = self.df.loc[:, "median_UWert_weighted_mean_Boden_gesamt"]
+        self.u_roof = self.df.loc[:, "median_UWert_weighted_mean_Decke_Dach_gesamt"]
+        self.n_air = self.df.loc[:, "n_air_oenorm"]
+        self.internal_gains = self.df.loc[:, "equipment_internalgains_EZFH_W_m2"] + self.df.loc[:, "occupants_internalgains_EZFH_W_m2"]
         self.Af = self.df.loc[:, "NGF_m2"]
-        self.wall_east = self.df.loc[:, "wallarea_east_m2"]
-        self.wall_west = self.df.loc[:, "wallarea_west_m2"]
-        self.wall_north = self.df.loc[:, "wallarea_north_m2"]
-        self.wall_south = self.df.loc[:, "wallarea_south_m2"]
-        self.window_area_east = self.wall_area * self.df.loc[:, "window_to_wall_ratio"] * 0.25 * 0.7
-        self.window_area_west = self.wall_area * self.df.loc[:, "window_to_wall_ratio"] * 0.25 * 0.7
-        self.window_area_north = self.wall_area * self.df.loc[:, "window_to_wall_ratio"] * 0.25 * 0.7
-        self.window_area_south = self.wall_area * self.df.loc[:, "window_to_wall_ratio"] * 0.25 * 0.7
+        self.wall_east = self.df.loc[:, "mean_WandKlasse_1_Ost_m2"]
+        self.wall_west = self.df.loc[:, "mean_WandKlasse_1_West_m2"]
+        self.wall_north = self.df.loc[:, "mean_WandKlasse_1_Nord_m2"]
+        self.wall_south = self.df.loc[:, "mean_WandKlasse_1_Sued_m2"]
+        self.window_area_east = self.wall_outside_area * self.df.loc[:, "median_window_to_wall_ratio"] * 0.25 * 0.7
+        self.window_area_west = self.wall_outside_area * self.df.loc[:, "median_window_to_wall_ratio"] * 0.25 * 0.7
+        self.window_area_north = self.wall_outside_area * self.df.loc[:, "median_window_to_wall_ratio"] * 0.25 * 0.7
+        self.window_area_south = self.wall_outside_area * self.df.loc[:, "median_window_to_wall_ratio"] * 0.25 * 0.7
 
-        self.Cm = self.df.loc[:, "Cm J/K"]
-        self.Cm_wall = self.df.loc[:, "Cm Wall"]
-        self.Cm_ceiling = self.df.loc[:, "Cm ceiling"]
-        self.Cm_ground = self.df.loc[:, "Cm ground"]
+        self.Cm_total = self.df.loc[:, "Cm_total"]
+        self.Cm_outer_walls = self.df.loc[:, "Cm_outer_walls"]
+        self.Cm_roof = self.df.loc[:, "Cm_roof"]
+        self.Cm_ground = self.df.loc[:, "Cm_ground"]
+        self.Cm_inner_walls = self.df.loc[:, "Cm_inner_walls"]
+        self.area_inner_walls = self.df.loc[:, "Area_inner_walls_m2"]
 
     def fill_params_invert(self):
         self.length = self.df.loc[:, "length_of_building"]
@@ -97,7 +99,7 @@ class Create5R1CParameters:
         self.floors = self.df.loc[:, "number_of_floors"]
         self.height = (self.df.loc[:, "room_height"] + 0.3) * self.floors
         self.roof_area = self.length * self.width
-        self.wall_area = self.df.loc[:, "total_vertical_surface_area"]
+        self.wall_outside_area = self.df.loc[:, "total_vertical_surface_area"]
         self.volume = self.df.loc[:, "heatedvolume"]
 
         self.u_wall = self.df.loc[:, "u_value_exterior_walls"]
@@ -131,27 +133,29 @@ class Create5R1CParameters:
         return floor_area * 4.5
 
     def total_area_of_building_elements(self):
-        return self.foot_print + self.roof_area + self.wall_area
+        return self.foot_print + self.roof_area + self.wall_outside_area + self.area_inner_walls
 
     def specific_capacity_per_sqm(self):
-        cm_wall_spec = self.Cm_wall / self.wall_area
+        cm_wall_spec = self.Cm_outer_walls / self.wall_outside_area
         cm_ground_spec = self.Cm_ground / self.foot_print
-        cm_roof_spec = self.Cm_ceiling / self.roof_area
-        return cm_wall_spec + cm_ground_spec + cm_roof_spec
+        cm_roof_spec = self.Cm_roof / self.roof_area
+        cm_inner_wall_spec = self.Cm_inner_walls / self.area_inner_walls
+        return cm_wall_spec + cm_ground_spec + cm_roof_spec + cm_inner_wall_spec
 
     def calculate_Am(self):
         """Am is Cm^2 divided by the area of building elements * specific capacity^2"""
-        Cm2 = self.Cm * self.Cm
-        km_wall = (self.Cm_wall / self.wall_area) * (self.Cm_wall / self.wall_area)
-        km_ceiling = (self.Cm_ceiling / self.roof_area) * (self.Cm_ceiling / self.roof_area)
+        Cm2 = self.Cm_total * self.Cm_total
+        km_wall = (self.Cm_outer_walls / self.wall_outside_area) * (self.Cm_outer_walls / self.wall_outside_area)
+        km_ceiling = (self.Cm_roof / self.roof_area) * (self.Cm_roof / self.roof_area)
         km_ground = (self.Cm_ground / self.foot_print) * (self.Cm_ground / self.foot_print)
+        km_inner_wall = (self.Cm_inner_walls / self.area_inner_walls) * (self.Cm_inner_walls / self.area_inner_walls)
 
-        return Cm2 / (km_wall * self.wall_area + km_ground * self.foot_print + km_ceiling * self.roof_area)
+        return Cm2 / (km_wall * self.wall_outside_area + km_ground * self.foot_print + km_ceiling * self.roof_area + km_inner_wall * self.area_inner_walls)
 
     def calculate_HD(self):
         """heat transfer to external environment"""
         # Area of the walls * U value of the walls
-        return self.wall_area * self.u_wall + self.roof_area * self.u_roof
+        return self.wall_outside_area * self.u_wall + self.roof_area * self.u_roof
 
     def calculate_Hg(self):
         """heat transmission to the ground after DIN ISO 13370 ignoring Ψg*P"""
@@ -218,13 +222,13 @@ class Create5R1CParameters:
         self.building_df.loc[:, "Hop"] = self.calculate_Hop()
         self.building_df.loc[:, "Htr_w"] = self.calculate_Htr_w()
         self.building_df.loc[:, "Hve"] = self.calculate_Hve()
-        self.building_df.loc[:, "CM_factor"] = self.Cm / self.Af
+        self.building_df.loc[:, "CM_factor"] = self.Cm_total / self.Af
         self.building_df.loc[:, "Am_factor"] = self.calculate_Am() / self.Af
         self.building_df.loc[:, "internal_gains"] = self.internal_gains
-        self.building_df.loc[:, "effective_window_area_west_east"] = (self.window_area_east * self.df.loc[:, "g_windows"] +
-                                                                      self.window_area_west * self.df.loc[:, "g_windows"])
-        self.building_df.loc[:, "effective_window_area_south"] = self.window_area_south * self.df.loc[:, "g_windows"]
-        self.building_df.loc[:, "effective_window_area_north"] = self.window_area_north * self.df.loc[:, "g_windows"]
+        self.building_df.loc[:, "effective_window_area_west_east"] = (self.window_area_east * self.df.loc[:, "median_gWert_weighted_mean_AF"] +
+                                                                      self.window_area_west * self.df.loc[:, "median_gWert_weighted_mean_AF"])
+        self.building_df.loc[:, "effective_window_area_south"] = self.window_area_south * self.df.loc[:, "median_gWert_weighted_mean_AF"]
+        self.building_df.loc[:, "effective_window_area_north"] = self.window_area_north * self.df.loc[:, "median_gWert_weighted_mean_AF"]
         self.building_df.loc[:, "grid_power_max"] = np.full((len(self.Af,)), 21_000)
 
 
@@ -233,17 +237,14 @@ class Create5R1CParameters:
         self.fill_params()
 
         self.fill_building_df()
-        output_dir = Path(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\ouput_data")
+        output_dir = Path(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\5R1C_validation\output")
         self.building_df.to_excel(output_dir / Path("5R1C_buildings.xlsx"))
-
-        pass
-
 
 
 if __name__ == "__main__":
     import_directory = Path(
-        r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\input_data"
+        r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\5R1C_validation\input"
     )
-    filename = "Mascherbauer_220509.csv"
+    filename = "Gebäudedaten_daniel.csv"
     frame = pd.read_csv(import_directory / Path(filename), sep=";")
     Create5R1CParameters(frame).main()
