@@ -123,8 +123,10 @@ consumption behavior. Thesis for Master of Science. Hochschuler Ulm.
 
 ## Lisence
 
-As mentioned, FLEX is under development by Fraunhofer ISI and TU Wien (Energy Economics Group)
-in the framework of the H2020 project [newTRENDs](https://newTRENDs2020.eu/). 
+As mentioned, FLEX is under development by 
+[Fraunhofer ISI](https://www.isi.fraunhofer.de/) and 
+[TU Wien (Energy Economics Group)](https://eeg.tuwien.ac.at/)
+in the framework of the H2020 project [newTRENDs](https://newTRENDs2020.eu/).
 The developers (2021-2022) include:
 * [Songmin Yu](https://www.isi.fraunhofer.de/en/competence-center/energiepolitik-energiemaerkte/mitarbeiter/yu.html): songmin.yu@isi.fraunhofer.de
 * [Philipp Mascherbauer](https://eeg.tuwien.ac.at/staff/people/philipp-mascherbauer): philipp.mascherbauer@tuwien.ac.at
