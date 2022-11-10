@@ -4,7 +4,9 @@
 ## Overview
 
 FLEX is a modeling suite for the operation and energy consumption of households and energy communities.
-Currently, FLEX is under development by **Fraunhofer ISI** and **TU Wien (Energy Economics Group)** 
+Currently, FLEX is under development by 
+**[Fraunhofer ISI](https://www.isi.fraunhofer.de/)** and 
+**[TU Wien (Energy Economics Group)](https://eeg.tuwien.ac.at/)** 
 in the framework of the H2020 project [newTRENDs](https://newTRENDs2020.eu/). 
 
 FLEX contains three modules:
@@ -114,9 +116,9 @@ consumption behavior. Thesis for Master of Science. Hochschuler Ulm.
 As mentioned, FLEX is under development by **Fraunhofer ISI** and **TU Wien (Energy Economics Group)** 
 in the framework of the H2020 project [newTRENDs](https://newTRENDs2020.eu/). 
 The developers (2021-2022) include:
-* Songmin Yu: songmin.yu@isi.fraunhofer.de
-* Philipp Mascherbauer: philipp.mascherbauer@tuwien.ac.at
-* Thomas Haupt: thomas.haupt@hs-ansbach.de
+* [Songmin Yu](https://www.isi.fraunhofer.de/en/competence-center/energiepolitik-energiemaerkte/mitarbeiter/yu.html): songmin.yu@isi.fraunhofer.de
+* [Philipp Mascherbauer](https://eeg.tuwien.ac.at/staff/people/philipp-mascherbauer): philipp.mascherbauer@tuwien.ac.at
+* [Thomas Haupt](https://www.hs-ansbach.de/personen/haupt-thomas/): thomas.haupt@hs-ansbach.de
 
 FLEX is licensed under the open source [MIT License]().
 
