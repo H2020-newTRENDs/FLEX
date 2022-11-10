@@ -5,9 +5,9 @@
 
 FLEX is a modeling suite for the operation and energy consumption of households and energy communities.
 Currently, FLEX is under development by 
-**[Fraunhofer ISI](https://www.isi.fraunhofer.de/)** and 
-**[TU Wien (Energy Economics Group)](https://eeg.tuwien.ac.at/)** 
-in the framework of the H2020 project [newTRENDs](https://newTRENDs2020.eu/). 
+[Fraunhofer ISI](https://www.isi.fraunhofer.de/) and 
+[TU Wien (Energy Economics Group)](https://eeg.tuwien.ac.at/)
+in the framework of the H2020 project [newTRENDs](https://newTRENDs2020.eu/).
 
 FLEX contains three modules:
 
@@ -24,6 +24,8 @@ energy community from the perspective of an aggregator, who makes profit by usin
 (2) Buy the surplus electricity from the community at a lower price, save it in the battery, 
 and sell it later at a higher price.
 
+![Interation between FLEX and other Models in newTRENDs](docs/images/modeling_suite.png)
+
 Currently, `FLEX-Operation` and `FLEX-Community` are developed and released in this repository.
 `FLEX-Behavior` is under development. So, the activity and energy demand profile of households are temporally
 generated based on the results from the [HOTMAPS project](https://www.hotmaps.eu).
@@ -37,6 +39,8 @@ and the building mass is considered as thermal storage.
 - Detailed and flexible configuration of a household is supported, including building, heating system 
 (heat pump, fuel-based boiler, electric heater), thermal storages for space heating and domestic hot water, space 
 cooling technology, PV, battery, and electric vehicle.
+
+![FLEX-Operation Model Input](docs/images/FLEX-Operation.png)
 
 ### FLEX-Community
 - The operation of the energy community is modeled in hourly resolution.
@@ -77,6 +81,9 @@ Then, the tables with yearly results contain the sum of each variable over the y
 e.g., the total energy cost in the year. Finally, by running the `operation_ana.py` file, 
 more analysis results will be generated and saved in the database and the output folder.
 
+![FLEX-Operation Model Output - Household Balance in Summer](docs/images/household_balance_summer.png)
+![FLEX-Operation Model Output - Household Balance in Winter](docs/images/household_balance_winter.png)
+
 ### FLEX-Community <div id="FLEX_Community"/>
 
 With the results of `FLEX-Operation` saved in the database, 
@@ -87,9 +94,12 @@ First, in the `data/input_community` folder, you will find the overarching scena
 Then, in the `community_run.py` file, you can select 
 (1) which scenarios to run by setting the `COMMUNITY_SCENARIO_IDS` variable, 
 and (2) which households you want to cover in the community by setting the `OPERATION_SCENARIO_IDS` variable.
-Finally, by running the `community_run.py` file, you start the model and will receive two result tables in the database file:
+Third, by running the `community_run.py` file, you start the model and will receive two result tables in the database file:
 * CommunityResult_AggregatorHour
 * CommunityResult_AggregatorYear
+Finally, by running the `community_ana.py`, figures will be generated and saved in the output folder.
+
+![FLEX-Community Model Output - Community](docs/images/community_balance_vertical.png)
 
 ## Citation
 
