@@ -121,7 +121,7 @@ electricity consumption in Austria. In Energy 249, p. 123665. DOI:
 10.1016/j.energy.2022.123665.
 * Haupt, Thomas (2021): Prosuming, demand response and technological
 flexibility: An integrated optimization model for households' energy
-consumption behavior. Thesis for Master of Science. Hochschuler Ulm.
+consumption behavior. Thesis for Master of Science. Hochschule Ulm.
 
 ## Lisence
 
