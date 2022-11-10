@@ -1,9 +1,6 @@
 # Introduction to FLEX
 > A Modeling Suite for the Operation and Energy Consumption of Households and Energy Communities
 
-[![license](path_to_license here)]()
-
-
 ## Overview
 
 FLEX is a modeling suite for the operation and energy consumption of households and energy communities.
