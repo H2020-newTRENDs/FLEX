@@ -24,6 +24,8 @@ energy community from the perspective of an aggregator, who makes profit by usin
 (2) Buy the surplus electricity from the community at a lower price, save it in the battery, 
 and sell it later at a higher price.
 
+The figure below shows how FLEX interacts with other bottom-up models involved in the newTRENDs project.
+
 ![Interation between FLEX and other Models in newTRENDs](docs/images/modeling_suite.png)
 
 Currently, `FLEX-Operation` and `FLEX-Community` are developed and released in this repository.
@@ -97,6 +99,7 @@ and (2) which households you want to cover in the community by setting the `OPER
 Third, by running the `community_run.py` file, you start the model and will receive two result tables in the database file:
 * CommunityResult_AggregatorHour
 * CommunityResult_AggregatorYear
+
 Finally, by running the `community_ana.py`, figures will be generated and saved in the output folder.
 
 ![FLEX-Community Model Output - Community](docs/images/community_balance_vertical.png)
@@ -119,7 +122,6 @@ electricity consumption in Austria. In Energy 249, p. 123665. DOI:
 * Haupt, Thomas (2021): Prosuming, demand response and technological
 flexibility: An integrated optimization model for households' energy
 consumption behavior. Thesis for Master of Science. Hochschuler Ulm.
-
 
 ## Lisence
 
