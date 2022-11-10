@@ -120,5 +120,5 @@ The developers (2021-2022) include:
 * [Philipp Mascherbauer](https://eeg.tuwien.ac.at/staff/people/philipp-mascherbauer): philipp.mascherbauer@tuwien.ac.at
 * [Thomas Haupt](https://www.hs-ansbach.de/personen/haupt-thomas/): thomas.haupt@hs-ansbach.de
 
-FLEX is licensed under the open source [MIT License]().
+FLEX is licensed under the open source [MIT License](https://github.com/H2020-newTRENDs/FLEX/blob/master/LICENSE.txt).
 
