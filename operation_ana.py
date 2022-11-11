@@ -62,6 +62,20 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
         self.create_component_energy_cost_change_tables(COMPONENT_CHANGES)
         self.plot_operation_energy_cost_change_curve(COMPONENT_CHANGES)
 
+    def summarize_operation_energy_cost_change_relation_two_components(
+            self,
+            component_change, # (str: component name, int: start state, int: end state)
+            identify_component): # (str: component name, int: amount possible states)
+        self.create_component_energy_cost_change_tables(COMPONENT_CHANGES)
+        self.plot_operation_energy_cost_change_relation_two_components(component_change, identify_component)
+
+    def summarize_operation_energy_cost_change_for_one_component(
+            self,
+            component_change): # (str: component name, int: start state, int: end state)
+        self.create_component_energy_cost_change_tables(COMPONENT_CHANGES)
+        components = list(filter(lambda item: item[0] != component_change[0], COMPONENTS)) # so that we dont change COMPONENTS
+        self.plot_operation_energy_cost_change_curve_one_component(component_change, components)
+
     def plot_building_pathway(
             self,
             start_scenario_id: int = 192,
@@ -114,6 +128,7 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
 
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
-    #ana.summarize_operation_energy_cost()
+    # ana.summarize_operation_energy_cost_change_relation_two_components(("ID_PV", 2, 1), ("ID_Battery", 2))
+    ana.summarize_operation_energy_cost_change_for_one_component(("ID_PV", 2, 1))
     # ana.plot_building_pathway(start_scenario_id=192, end_scenario_id=192)
-    ana.summarize_building_pathway(usefile=True, scenario_id=192)
+    # ana.summarize_building_pathway(usefile=True, scenario_id=96)

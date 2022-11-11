@@ -422,14 +422,5 @@ flex/data/result/*.sqlite
 
 *.pdf
 /data/output/pathways_from_192_to_1.json
-/data/output/pathways_from_192_to_190.json
-/data/output/pathways_from_192_to_191.json
-/data/output/pathways_from_192_to_190_benefit.json
-/data/output/pathways_from_192_to_190_building.json
-/data/output/pathways_from_192_to_192_benefit.json
-/data/output/pathways_from_192_to_192_building.json
-/data/output/pathways_from_192_to_192_costs.json
-/data/output/pathways_from_192_to_190_costs.json
-/data/output/scenario_costs.json
 /data/output/pathways_from_192_to_1_building.json
 /data/output/pathways_from_192_to_1_costs.json

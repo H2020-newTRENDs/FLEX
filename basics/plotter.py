@@ -116,6 +116,52 @@ class Plotter:
         self.add_legend(figure, ax, len(values_dict))
         self.save_fig(figure, fig_name)
 
+    def dot_figure(
+            self,
+            values_dict: "Dict[str, Sequence]",  # dict with keys: Component State, values: Filtered Df
+            fig_name: str,
+            x_label: str = "X-axis",
+            y_label: str = "Y-axis",
+            x_lim=None,
+            y_lim=None,
+    ):
+        figure, ax = self.get_figure_template(x_label, y_label, x_lim, y_lim)
+        for key, values in values_dict.items():
+            ax.scatter(list(values['Scenario']), list(values["CostChange"] / 100), label=key)
+        self.add_legend(figure, ax, len(values_dict))
+        self.save_fig(figure, fig_name)
+
+    def dot_subplots_figure(
+            self,
+            values_dict: "Dict[str, Sequence]",  # dict with keys: component, values: dict with values per component
+            components: "List[Tuple[str, int]]",
+            fig_name: str,
+            x_label: str = "X-axis",
+            y_label: str = "Y-axis",
+            x_lim=None,
+            y_lim=None,
+    ):
+        rows, cols = int(np.ceil(len(values_dict) / 3)), 3
+        figure, ax = plt.subplots(nrows=rows, ncols=cols, sharey=True, sharex=True)
+
+        for row in range(rows):
+            for col in range(cols):
+                idx = 3 * row + col
+                if idx >= len(components): # then all components already have been plotted
+                    break
+                for key, values in values_dict[components[idx][0]].items():
+                    ax[row, col].scatter(list(values['Scenario']), list(values["CostChange"] / 100), label=key, s=10)
+                ax[row, col].legend()
+                plt.xlim(x_lim)
+                plt.ylim(y_lim)
+
+        plt.setp(ax[-1, :], xlabel=x_label)  # figure.supxlabel(x_label) # for super labels
+        plt.setp(ax[:, 0], ylabel=y_label)  # figure.supylabel(y_label) # for super labels
+        figure.set_size_inches(18.5, 8)
+        figure.suptitle(fig_name, fontsize=20)
+
+        plt.savefig(os.path.join(self.fig_folder, fig_name + ".png"), dpi=300)
+
     def bar_figure(
             self,
             values_dict: "Dict[str, np.array]",
@@ -190,7 +236,7 @@ class Plotter:
                 label = ''
                 if node in draw_pathway:
                     idx = draw_pathway.index(node)
-                    if draw_pathway[idx+1] == edge:
+                    if draw_pathway[idx + 1] == edge:
                         label = f'{draw_pathway_benefits[idx]} (€/a)'
                         color = 'red'
                         width = 1
@@ -202,10 +248,12 @@ class Plotter:
         pos = nx.multipartite_layout(G, subset_key="layer", )
 
         nx.draw(G, pos=pos, arrows=True, connectionstyle='arc3, rad = -0.1',
-                node_color=node_color, node_size=[x * 2.5 + 7 for x in node_size], cmap=plt.cm.get_cmap('PiYG').reversed(), linewidths=0.5,
+                node_color=node_color, node_size=[x * 2.5 + 7 for x in node_size],
+                cmap=plt.cm.get_cmap('PiYG').reversed(), linewidths=0.5,
                 edgecolors='grey',
                 edge_color=edge_color, width=widths)
         nx.draw_networkx_labels(G, pos=pos, labels=node_labels, font_size=6, verticalalignment='top')
-        nx.draw_networkx_edge_labels(G, pos=pos, edge_labels=edge_labels, font_size=4, verticalalignment='bottom', rotate=False)
+        nx.draw_networkx_edge_labels(G, pos=pos, edge_labels=edge_labels, font_size=4, verticalalignment='bottom',
+                                     rotate=False)
 
         plt.savefig(os.path.join(self.fig_folder, figname + ".png"), dpi=300)

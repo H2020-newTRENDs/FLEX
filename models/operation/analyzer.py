@@ -298,6 +298,55 @@ class OperationAnalyzer:
             y_lim=(-100, 2000),
         )
 
+    def plot_operation_energy_cost_change_relation_two_components(
+            self, component_change: Tuple[str, int, int], identify_component: Tuple[str, int], save_figure: bool = True
+    ):
+        df = self.db.read_dataframe(InterfaceTable.OperationEnergyCostChange.value)
+        values_dict = {}
+        col_component_id = component_change[0]
+        benchmark_id = component_change[1]
+        state_id = component_change[2]
+        filter_dict = {
+            col_component_id: 0,
+            "ID_Benchmark": benchmark_id,
+            "ID_State": state_id,
+        }
+        component_df = kit.filter_df(df, filter_dict=filter_dict)
+        component_df = component_df.sort_values(by=['CostChange', identify_component[0]], ascending=[True, False])
+        component_df['Scenario'] = range(1, component_df.shape[0] + 1)
+        for state in range(1, identify_component[1]+1):
+            filter_dict = {identify_component[0]: state}
+            identify_df = kit.filter_df(component_df, filter_dict=filter_dict)
+            values_dict[f"{identify_component[0]}_{state}"] = identify_df
+        if save_figure:
+            self.plotter.dot_figure(
+                values_dict=values_dict,
+                fig_name=f"OperationEnergyCostChange_{col_component_id}_{identify_component[0]}",
+                x_label="Scenarios",
+                y_label="Energy Saving Benefit (€/a)",
+                y_lim=(-100, 2000),
+            )
+        return values_dict
+
+    def plot_operation_energy_cost_change_curve_one_component(
+            self,
+            component_change: Tuple[str, int, int],
+            identify_components: List[Tuple[str, int]],
+    ):
+        values_dict = {}
+        for identify_component in identify_components:
+            values_of_component = self.plot_operation_energy_cost_change_relation_two_components(component_change, identify_component, save_figure=False)
+            values_dict[identify_component[0]] = values_of_component
+
+        self.plotter.dot_subplots_figure(
+            values_dict=values_dict,
+            components=identify_components,
+            fig_name=f"OperationEnergyCostChange_{component_change[0]}",
+            x_label="Scenarios",
+            y_label="Energy Saving Benefit (€/a)",
+            y_lim=(-100, 2000),
+        )
+
     def get_operation_energy_cost_change(
             self, building_dict: dict, component_change_info: Tuple[str, int, int]
     ):
