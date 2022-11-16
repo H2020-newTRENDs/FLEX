@@ -9,7 +9,6 @@ from config import config, get_config
 from models.operation.enums import OperationTable
 
 
-
 class PRNImporter:
     def __init__(self, project_name):
 
@@ -125,9 +124,6 @@ class PRNImporter:
         return df
 
     def modify_heat_demand(self):
-        # TODO for the optimized profiles, if the heat demand in the 5R1C model is zero, it has to be zero for the IDA ICE
-        #  model as well. The indoor temp in the 5R1C model is input to the IDA ICE. After the summer, the temperature in
-        #  the 5R1C is much higher, causing IDA ICE to heat even though it is not nessecary.
 
         # Solution: Whenever the heat demand in the opt scenario = 0, the heat demand of the IDA ICE opt will be set to
         # the same heat demand the IDA ICE model has in the reference scenario

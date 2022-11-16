@@ -480,9 +480,9 @@ class CompareModels:
         fig_heat.show()
 
     def main(self):
+        self.indoor_temp_to_csv()
         self.show_rmse()
         self.subplots_relative()
-        self.indoor_temp_to_csv()
         self.subplots_yearly()
         self.show_plotly_comparison()
 
