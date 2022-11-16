@@ -1,0 +1,36 @@
+{
+    "description": "<p>This version of the FLEX model was used to calculate all results and figures for the paper \"Impact of variable electricity price on heat pump operated buildings\". The data used as well as all the results obtained can be found on <a href=\"https://zenodo.org/record/7299360\">Zenodo</a>.</p>\nWhat's Changed\n<ul>\n<li>integrated the essential changes from the electricity price paper branch by @PhilippMaschi in <a href=\"https://github.com/H2020-newTRENDs/FLEX/pull/3\">https://github.com/H2020-newTRENDs/FLEX/pull/3</a></li>\n<li>Songmin dev by @PhilippMaschi in <a href=\"https://github.com/H2020-newTRENDs/FLEX/pull/5\">https://github.com/H2020-newTRENDs/FLEX/pull/5</a></li>\n<li>Include ev charge efficiency by @PhilippMaschi in <a href=\"https://github.com/H2020-newTRENDs/FLEX/pull/6\">https://github.com/H2020-newTRENDs/FLEX/pull/6</a></li>\n<li>Split Optimization into creating the Optimization framework and updating + solving it by @PhilippMaschi in <a href=\"https://github.com/H2020-newTRENDs/FLEX/pull/10\">https://github.com/H2020-newTRENDs/FLEX/pull/10</a></li>\n<li>change from read_excel to read_csv  by @PhilippMaschi in <a href=\"https://github.com/H2020-newTRENDs/FLEX/pull/13\">https://github.com/H2020-newTRENDs/FLEX/pull/13</a></li>\n<li>14 back to excel as input by @PhilippMaschi in <a href=\"https://github.com/H2020-newTRENDs/FLEX/pull/15\">https://github.com/H2020-newTRENDs/FLEX/pull/15</a></li>\n<li>18 setting the minimum and maximum temperature for the optimization for pre heating and pre cooling by @PhilippMaschi in <a href=\"https://github.com/H2020-newTRENDs/FLEX/pull/19\">https://github.com/H2020-newTRENDs/FLEX/pull/19</a></li>\n<li>changed read_dataframe function by @PhilippMaschi in <a href=\"https://github.com/H2020-newTRENDs/FLEX/pull/17\">https://github.com/H2020-newTRENDs/FLEX/pull/17</a></li>\n<li>Add heating element as technology by @PhilippMaschi in <a href=\"https://github.com/H2020-newTRENDs/FLEX/pull/12\">https://github.com/H2020-newTRENDs/FLEX/pull/12</a></li>\n<li>model_base.py: generate_target_indoor_temp does NOT overide the tempe\u2026 by @PhilippMaschi in <a href=\"https://github.com/H2020-newTRENDs/FLEX/pull/23\">https://github.com/H2020-newTRENDs/FLEX/pull/23</a></li>\n<li>20 add fuel based boiler by @PhilippMaschi in <a href=\"https://github.com/H2020-newTRENDs/FLEX/pull/24\">https://github.com/H2020-newTRENDs/FLEX/pull/24</a></li>\n</ul>\n<p><strong>Full Changelog</strong>: <a href=\"https://github.com/H2020-newTRENDs/FLEX/commits/V0.2\">https://github.com/H2020-newTRENDs/FLEX/commits/V0.2</a></p>", 
+    "license": "MIT", 
+    "title": "H2020-newTRENDs/FLEX: FLEX model: A model for the operation and energy consumption of households", 
+    "version": "V0.2", 
+    "upload_type": "software", 
+    "publication_date": "2022-11-15", 
+    "creators": [
+        {
+            "name": "Philipp Mascherbauer",
+            "affiliation": "TU Wien Energy Economics Group, 1040 Vienna, Austria"
+        }, 
+        {
+            "name": "Songmin Yu",
+            "affiliation": "Fraunhofer Institute for Systems and Innovation Research ISI, Karlsruhe, Germany"
+            
+        }, 
+        {
+            "name": "Thomas Haupt",
+            "affiliation": "Hochschule Ansbach, An der Hochschule 1, 91555 Feuchtwangen, Germany"
+        }
+    ], 
+    "access_right": "open", 
+    "related_identifiers": [
+        {
+            "scheme": "url", 
+            "identifier": "https://github.com/H2020-newTRENDs/FLEX/tree/V0.2", 
+            "relation": "isSupplementTo"
+        }, 
+        {
+            "scheme": "doi", 
+            "identifier": "10.5281/zenodo.7324378", 
+            "relation": "isVersionOf"
+        }
+    ]
+}
