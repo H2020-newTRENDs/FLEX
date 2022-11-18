@@ -20,14 +20,14 @@ COMPONENT_CHANGES = [
     ("ID_Battery", 2, 1),
 ]
 COMPONENTS = [
-    ("ID_Building", 3),
+    ("ID_PV", 2),
     ("ID_SEMS", 2),
     ("ID_Boiler", 2),
     ("ID_SpaceHeatingTank", 2),
     ("ID_HotWaterTank", 2),
     # ("ID_SpaceCoolingTechnology", 2),
-    ("ID_PV", 2),
     ("ID_Battery", 2),
+    ("ID_Building", 3),
 ]
 
 
@@ -75,6 +75,11 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
         self.create_component_energy_cost_change_tables(COMPONENT_CHANGES)
         components = list(filter(lambda item: item[0] != component_change[0], COMPONENTS)) # so that we dont change COMPONENTS
         self.plot_operation_energy_cost_change_curve_one_component(component_change, components)
+
+    def summarize_operation_energy_cost_change_heatmap(self, component_change, component_1, component_2):
+        # Order of List COMPONENTS is important on position of Scenarios in HeatMap and therefor crucial for the interpretation of the figure.
+        self.create_component_energy_cost_change_tables(COMPONENT_CHANGES)
+        self.plot_operation_energy_cost_change_heatmap(component_change, component_1, component_2, COMPONENTS)
 
     def plot_building_pathway(
             self,
@@ -129,6 +134,7 @@ class ProjectOperationAnalyzer(OperationAnalyzer):
 if __name__ == "__main__":
     ana = ProjectOperationAnalyzer(config)
     # ana.summarize_operation_energy_cost_change_relation_two_components(("ID_PV", 2, 1), ("ID_Battery", 2))
-    ana.summarize_operation_energy_cost_change_for_one_component(("ID_PV", 2, 1))
+    # ana.summarize_operation_energy_cost_change_for_one_component(("ID_PV", 2, 1))
     # ana.plot_building_pathway(start_scenario_id=192, end_scenario_id=192)
     # ana.summarize_building_pathway(usefile=True, scenario_id=96)
+    ana.summarize_operation_energy_cost_change_heatmap(("ID_PV", 2, 1), ("ID_Boiler", 2), ("ID_SpaceHeatingTank", 2))

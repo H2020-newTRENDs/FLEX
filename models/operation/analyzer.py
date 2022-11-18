@@ -347,6 +347,51 @@ class OperationAnalyzer:
             y_lim=(-100, 2000),
         )
 
+    def plot_operation_energy_cost_change_heatmap(
+            self,
+            component_change: Tuple[str, int, int],
+            component_1: Tuple[str, int],
+            component_2: Tuple[str, int],
+            component_list: List[Tuple[str, int]],
+    ):
+        df = self.db.read_dataframe(InterfaceTable.OperationEnergyCostChange.value)
+        component_list = [component[0] for component in component_list if
+                          component[0] != component_2[0] and component[0] != component_1[0]
+                          and component[0] != component_change[0]]
+        df = df.sort_values(by=[component_1[0], component_2[0]] + component_list, ascending=False)
+        filter_dict = {
+            component_change[0]: 0,
+            "ID_Benchmark": component_change[1],
+            "ID_State": component_change[2],
+        }
+        df = kit.filter_df(df, filter_dict=filter_dict)
+        y_labels = []
+
+        cost_change = []
+        for i, j in itertools.product(range(1, component_1[1]+1), range(1, component_2[1]+1)):
+            filter_dict = {
+                component_1[0]: i,
+                component_2[0]: j,
+            }
+            component_df = kit.filter_df(df, filter_dict=filter_dict)#
+            component_df = component_df['CostChange'] / 100
+            cost_change.append(component_df.to_numpy())
+            y_labels.append(f'{component_1[0]} = {i}, {component_2[0]} = {j}')
+
+        cost_change = np.array(cost_change)
+        x_labels = list(range(1, len(cost_change[0]) + 1))
+
+        self.plotter.heatmap(
+            data=cost_change,
+            row_labels=y_labels,
+            col_labels=x_labels,
+            figname=f'CostChange_{component_change[0]}_{component_1[0]}_{component_2[0]}',
+            title=f'CostChange_{component_change[0]}',
+            explanation=f'Sorting: {component_list}',
+            cbarlabel="Energy Saving Benefit (€/a)",
+        )
+
+
     def get_operation_energy_cost_change(
             self, building_dict: dict, component_change_info: Tuple[str, int, int]
     ):

@@ -205,6 +205,46 @@ class Plotter:
         self.add_legend(figure, ax, len(values_dict))
         self.save_fig(figure, fig_name)
 
+    def heatmap(
+            self,
+            data, # np.array
+            row_labels,
+            col_labels,
+            figname='',
+            title='',
+            explanation='',
+            cbar_kw={},
+            cbarlabel=""):
+        fig, ax = plt.subplots()
+
+        # Plot the heatmap
+        im = ax.imshow(data, cmap="RdYlGn")
+
+        # Create colorbar
+        cbar = ax.figure.colorbar(im, ax=ax, **cbar_kw)
+        cbar.ax.set_ylabel(cbarlabel, rotation=-90, va="bottom")
+
+        # Show all ticks and label them with the respective list entries.
+        ax.set_xticks(np.arange(data.shape[1]), labels=col_labels, fontsize=18)
+        ax.set_yticks(np.arange(data.shape[0]), labels=row_labels, fontsize=18)
+
+        # Let the horizontal axes labeling appear on top.
+        ax.tick_params(top=True, bottom=False, labeltop=True, labelbottom=False)
+
+        # Turn spines off and create white grid.
+        ax.spines[:].set_visible(False)
+
+        ax.set_xticks(np.arange(data.shape[1] + 1) - .5, minor=True)
+        ax.set_yticks(np.arange(data.shape[0] + 1) - .5, minor=True)
+        ax.grid(which="minor", color="w", linestyle='-', linewidth=3)
+        ax.tick_params(which="minor", bottom=False, left=False)
+
+        plt.suptitle(title, fontsize=24, ha='right', va='top')
+        plt.title(explanation, fontsize=18, loc='left', pad=20)
+        fig.set_size_inches(25, 6)
+
+        plt.savefig(os.path.join(self.fig_folder, 'HeatMap' + figname + '.png'), dpi=300, bbox_inches='tight')
+
     def directed_graph(
             self,
             graph: "Dict[str, str]",
