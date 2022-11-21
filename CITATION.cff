@@ -1,0 +1,10 @@
+cff-version: 1.1.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Mascherbauer, Yu, Haupt
+    given-names: Philipp, Songmin, Thomas
+    orcid: https://orcid.org/0000-0002-5736-5620, https://orcid.org/0000-0001-6062-4382
+    
+title: H2020-newTRENDs/FLEX: FLEX model: A model for the operation and energy consumption of households
+version: V0.2
+date-released: 2022-11-15

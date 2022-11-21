@@ -2,6 +2,7 @@ from enum import Enum
 
 
 class InterfaceTable(Enum):
+    value: str
 
     # from operation to investment
     OperationEnergyCost = "InvestmentScenario_OperationEnergyCost"
@@ -9,6 +10,8 @@ class InterfaceTable(Enum):
 
 
 class Color(Enum):
+    value: str
+
     Appliance = "tab:orange"
     SpaceHeating = "tab:red"
     HotWater = "tab:green"
@@ -25,6 +28,7 @@ class Color(Enum):
     GridFeed = "tab:green"
     P2P_Profit = "tab:brown"
     Opt_Profit = "tab:olive"
+    P2P_trading = "tab:brown"
     # DIMGRAY = "dimgray"
     # LIGHTCORAL = "lightcoral"
     # TOMATO = "tomato"

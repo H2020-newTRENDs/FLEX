@@ -453,7 +453,7 @@ class OptOperationModel(OperationModel):
     @performance_counter
     def solve(self, instance):
         instance = OptConfig(self).config_instance(instance)
-        pyo.SolverFactory("gurobi").solve(instance, tee=False)#, logfile=r"C:\Users\mascherbauer\pyomo_log.log")
+        pyo.SolverFactory("gurobi").solve(instance, tee=False)
         logger.info(f"OptCost: {round(instance.total_operation_cost_rule(), 2)}")
         return instance
 
@@ -663,7 +663,7 @@ class OptConfig:
                 instance.Q_DHWTank_in[t].fix(0)
                 instance.Q_DHWTank[t].fix(0)
 
-                instance.E_DHW_HP_out[t].setub(self.model.SpaceHeating_HeatPumpMaximalElectricPower)  # tODO
+                instance.E_DHW_HP_out[t].setub(self.model.SpaceHeating_HeatPumpMaximalElectricPower)  # TODO
             instance.tank_energy_rule_DHW.deactivate()
         else:
             for t in range(1, 8761):

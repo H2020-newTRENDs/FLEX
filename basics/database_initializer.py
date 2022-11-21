@@ -1,10 +1,9 @@
 from pathlib import Path
 import itertools
-from typing import Dict, List, TYPE_CHECKING, get_type_hints
+from typing import Dict, List, TYPE_CHECKING, get_type_hints, Type
 import sqlalchemy
 import numpy as np
 import pandas as pd
-from typing import ClassVar
 from enum import Enum
 from basics.db import create_db_conn
 from basics import kit
@@ -20,7 +19,7 @@ class DatabaseInitializer:
         self,
         config: "Config",
         input_folder: "Path",
-        scenario_components: ClassVar["Enum"] = None,
+        scenario_components: Type["Enum"] = None,
     ):
         self.config = config
         self.db = create_db_conn(config)
@@ -31,7 +30,7 @@ class DatabaseInitializer:
         logger.info(f"clearing database {self.config.project_name}.sqlite.")
         self.db.clear_database()
 
-    def load_component_table(self, component: ClassVar["Enum"]):
+    def load_component_table(self, component: "Enum"):
         file = self.input_folder / Path(component.table_name + ".xlsx")
         logger.info(f"loading table -> {component.table_name}")
         df = pd.read_excel(file, engine="openpyxl").dropna(how="all")  # drop columns and rows that contain only nan
@@ -46,14 +45,14 @@ class DatabaseInitializer:
             component.table_name, df, data_types=data_types, if_exists="replace"
         )
 
-    def load_table(self, table_enum: ClassVar["Enum"]):
+    def load_table(self, table_enum: "Enum"):
         table_name = table_enum.value
         file = self.input_folder / Path(table_name + ".xlsx")
         logger.info(f"loading table -> {table_name}")
         df = pd.read_excel(file, engine="openpyxl")
         self.db.write_dataframe(table_name, df, if_exists="replace")
 
-    def drop_table(self, table_enum: ClassVar["Enum"]):
+    def drop_table(self, table_enum: "Enum"):
         table_name = table_enum.value
         logger.info(f"dropping table -> {table_name}")
         self.db.drop_table(table_name)
