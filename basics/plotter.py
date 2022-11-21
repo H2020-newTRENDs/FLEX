@@ -1,5 +1,5 @@
 import os
-from typing import Sequence, Dict
+from typing import Sequence, Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -147,7 +147,7 @@ class Plotter:
         for row in range(rows):
             for col in range(cols):
                 idx = 3 * row + col
-                if idx >= len(components): # then all components already have been plotted
+                if idx >= len(components):  # then all components already have been plotted
                     break
                 for key, values in values_dict[components[idx][0]].items():
                     ax[row, col].scatter(list(values['Scenario']), list(values["CostChange"] / 100), label=key, s=10)
@@ -174,12 +174,8 @@ class Plotter:
     ):
         figure, ax = self.get_figure_template(x_label, y_label, x_lim, y_lim)
         x = [i + 1 for i in range(0, len(list(values_dict.values())[0]))]
-        bottom_positive = np.zeros(
-            len(x),
-        )
-        bottom_negative = np.zeros(
-            len(x),
-        )
+        bottom_positive = np.zeros(len(x),)
+        bottom_negative = np.zeros(len(x),)
         for key, values in values_dict.items():
             if values.mean() > 0:
                 ax.bar(
@@ -207,7 +203,7 @@ class Plotter:
 
     def heatmap(
             self,
-            data, # np.array
+            data,  # np.array
             row_labels,
             col_labels,
             figname='',

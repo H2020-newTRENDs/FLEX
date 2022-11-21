@@ -1,5 +1,5 @@
 import copy
-from typing import TYPE_CHECKING, ClassVar, List, Tuple
+from typing import TYPE_CHECKING, ClassVar, List, Tuple, Type
 import numpy as np
 import pandas as pd
 import itertools
@@ -21,9 +21,10 @@ logger = kit.get_logger(__name__)
 
 class OperationAnalyzer:
     def __init__(
-            self, config: "Config", plotter: ClassVar["Plotter"] = OperationPlotter
+            self, config: "Config", plotter: Type["Plotter"] = OperationPlotter
     ):
         self.db = create_db_conn(config)
+        self.output_folder = config.output
         self.plotter = plotter(config)
         self.opt_hour_df = None
         self.opt_year_df = None
@@ -62,9 +63,7 @@ class OperationAnalyzer:
             )
         return self.ref_year_df
 
-    def get_hour_df(
-            self, scenario_id: int, model: str, start_hour: int = None, end_hour: int = None
-    ):
+    def get_hour_df(self, scenario_id: int, model: str, start_hour: int = None, end_hour: int = None):
         if model == "opt":
             df = kit.filter_df(
                 self.opt_hour, filter_dict={"ID_Scenario": scenario_id}
@@ -148,9 +147,7 @@ class OperationAnalyzer:
         fig.update_layout(height=400 * subplots_number, width=1600)
         fig.show()
 
-    def plot_electricity_balance(
-            self, scenario_id: int, model: str, start_hour: int = None, end_hour: int = None
-    ):
+    def plot_electricity_balance(self, scenario_id: int, model: str, start_hour: int = None, end_hour: int = None):
         df = self.get_hour_df(scenario_id, model, start_hour, end_hour)
         values_dict = {
             "Appliance": np.array(df["BaseLoadProfile"]) / 1000,
@@ -189,10 +186,8 @@ class OperationAnalyzer:
         sce_summary = pd.concat([opt_sce, ref_sce], ignore_index=True, sort=False)
         sce_summary_ids = list(range(1, len(sce_summary) + 1))
         sce_summary.insert(loc=0, column="ID_Scenario", value=sce_summary_ids)
-
         table_name = InterfaceTable.OperationEnergyCost.value
         self.db.write_dataframe(table_name, sce_summary, if_exists="replace")
-        self.db.save_dataframe_to_investment_input(sce_summary, table_name)
 
     def plot_operation_energy_cost_curve(self):
 
@@ -218,28 +213,17 @@ class OperationAnalyzer:
             y_lim=(0, 4000),
         )
 
-    def get_component_energy_cost_change_dict(
-            self, col_id_component: str, benchmark_id: int, state_id: int
-    ):
-        operation_energy_cost = self.db.read_dataframe(
-            InterfaceTable.OperationEnergyCost.value
-        )
+    def get_component_energy_cost_change_dict(self, col_id_component: str, benchmark_id: int, state_id: int):
+        operation_energy_cost = self.db.read_dataframe(InterfaceTable.OperationEnergyCost.value)
 
         def get_total_cost(partial_filter: dict, component_state_id: int):
             f = copy.deepcopy(partial_filter)
             f[col_id_component] = component_state_id
-            total_cost = kit.filter_df2s(operation_energy_cost, filter_dict=f)[
-                "TotalCost"
-            ]
+            total_cost = kit.filter_df2s(operation_energy_cost, filter_dict=f)["TotalCost"]
             return total_cost
 
-        df = kit.filter_df(
-            operation_energy_cost, filter_dict={col_id_component: benchmark_id}
-        )
-        df = df.drop(
-            ["ID_Scenario", "ID_OperationScenario", "TotalCost", col_id_component],
-            axis=1,
-        )
+        df = kit.filter_df(operation_energy_cost, filter_dict={col_id_component: benchmark_id})
+        df = df.drop(["ID_Scenario", "ID_OperationScenario", "TotalCost", col_id_component], axis=1)
         component_energy_cost_change_dicts = []
         for index, row in df.iterrows():
             filter_dict = row.to_dict()
@@ -257,9 +241,7 @@ class OperationAnalyzer:
 
         return component_energy_cost_change_dicts
 
-    def create_component_energy_cost_change_tables(
-            self, component_changes: List[Tuple[str, int, int]]
-    ):
+    def create_component_energy_cost_change_tables(self, component_changes: List[Tuple[str, int, int]]):
         energy_cost_change_dicts = []
         for component_change_info in component_changes:
             component_name = component_change_info[0]
@@ -271,7 +253,6 @@ class OperationAnalyzer:
         df = pd.DataFrame(energy_cost_change_dicts)
         table_name = InterfaceTable.OperationEnergyCostChange.value
         self.db.write_dataframe(table_name, df, if_exists="replace")
-        self.db.save_dataframe_to_investment_input(df, table_name)
 
     def plot_operation_energy_cost_change_curve(
             self, component_changes: List[Tuple[str, int, int]]
@@ -298,8 +279,11 @@ class OperationAnalyzer:
             y_lim=(-100, 2000),
         )
 
-    def plot_operation_energy_cost_change_relation_two_components(
-            self, component_change: Tuple[str, int, int], identify_component: Tuple[str, int], save_figure: bool = True
+    def plot_component_interaction_specific(
+            self,
+            component_change: Tuple[str, int, int],
+            identify_component: Tuple[str, int],
+            save_figure: bool = True
     ):
         df = self.db.read_dataframe(InterfaceTable.OperationEnergyCostChange.value)
         values_dict = {}
@@ -314,7 +298,7 @@ class OperationAnalyzer:
         component_df = kit.filter_df(df, filter_dict=filter_dict)
         component_df = component_df.sort_values(by=['CostChange', identify_component[0]], ascending=[True, False])
         component_df['Scenario'] = range(1, component_df.shape[0] + 1)
-        for state in range(1, identify_component[1]+1):
+        for state in range(1, identify_component[1] + 1):
             filter_dict = {identify_component[0]: state}
             identify_df = kit.filter_df(component_df, filter_dict=filter_dict)
             values_dict[f"{identify_component[0]}_{state}"] = identify_df
@@ -328,14 +312,14 @@ class OperationAnalyzer:
             )
         return values_dict
 
-    def plot_operation_energy_cost_change_curve_one_component(
+    def plot_component_interaction_full(
             self,
             component_change: Tuple[str, int, int],
             identify_components: List[Tuple[str, int]],
     ):
         values_dict = {}
         for identify_component in identify_components:
-            values_of_component = self.plot_operation_energy_cost_change_relation_two_components(component_change, identify_component, save_figure=False)
+            values_of_component = self.plot_component_interaction_specific(component_change, identify_component, save_figure=False)
             values_dict[identify_component[0]] = values_of_component
 
         self.plotter.dot_subplots_figure(
@@ -347,7 +331,7 @@ class OperationAnalyzer:
             y_lim=(-100, 2000),
         )
 
-    def plot_operation_energy_cost_change_heatmap(
+    def plot_component_interaction_heatmap(
             self,
             component_change: Tuple[str, int, int],
             component_1: Tuple[str, int],
@@ -390,7 +374,6 @@ class OperationAnalyzer:
             explanation=f'Sorting: {component_list}',
             cbarlabel="Energy Saving Benefit (€/a)",
         )
-
 
     def get_operation_energy_cost_change(
             self, building_dict: dict, component_change_info: Tuple[str, int, int]
@@ -456,7 +439,6 @@ class OperationAnalyzer:
         component_changes = self.update_component_changes(
             building_dict, component_changes
         )
-
         while len(component_changes) > 0:
             component_change_benefit = []
             for component_change_info in component_changes:
@@ -485,11 +467,8 @@ class OperationAnalyzer:
         logger.info(f"Final building: {building_dict}.")
         return building_pathway, benefit_pathway, initial_cost
 
-    def convert_building_dict_to_string(
-            self,
-            building_dict: dict,
-            components: List[Tuple[str, int]]
-    ):
+    @staticmethod
+    def convert_building_dict_to_string(building_dict: dict, components: List[Tuple[str, int]]):
         string_builder = ""
         for component in components:
             string_builder += str(building_dict[component[0]])
@@ -560,4 +539,11 @@ class OperationAnalyzer:
             for scenario in pathway:
                 nodesize[scenario] += 1
 
-        self.plotter.directed_graph(graph, nodeweight=scenario_costs, nodesize=nodesize, figname=f'Graph_{scenario_id}', draw_pathway=draw_pathway, draw_pathway_benefits=draw_pathway_benefits)
+        self.plotter.directed_graph(
+            graph,
+            nodeweight=scenario_costs,
+            nodesize=nodesize,
+            figname=f'Graph_{scenario_id}',
+            draw_pathway=draw_pathway,
+            draw_pathway_benefits=draw_pathway_benefits
+        )
