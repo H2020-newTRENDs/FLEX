@@ -19,6 +19,9 @@ class DB:
             f'sqlite:///{os.path.join(self.config.project_root.parent, self.config.output, database_name + ".sqlite")}'
         )
 
+    def if_exists(self, table_name: str) -> bool:
+        return self.connection.has_table(table_name)
+
     def get_engine(self):
         return self.connection
 
