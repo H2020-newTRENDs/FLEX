@@ -7,5 +7,4 @@ class BehaviorModel:
         self.scenario = scenario
 
     def run(self):
-        print(self.scenario.activity_profile)
-        print(self.scenario.scenario_id)
+        print(f"FLEX-Behavior --> ID_Scenario = {self.scenario.scenario_id}.")

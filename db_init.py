@@ -11,7 +11,8 @@ class ProjectDatabaseInit(DatabaseInitializer):
 
     def load_behavior_tables(self):
         self.load_behavior_table(BehaviorTable.Scenarios)
-        self.load_behavior_table(BehaviorTable.ToUProfile)
+        self.load_behavior_table(BehaviorTable.ID_Activity)
+        self.load_behavior_table(BehaviorTable.ActivityProfile)
 
     def load_operation_component_tables(self):
         self.load_operation_table(OperationScenarioComponent.Region.table_name)
@@ -55,7 +56,7 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.setup_operation_scenario_table()
         self.load_operation_profile_tables()
         self.load_community_tables()
-        self.drop_tables()
+        # self.drop_tables()
 
 
 if __name__ == "__main__":

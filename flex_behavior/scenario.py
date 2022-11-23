@@ -1,7 +1,3 @@
-from pathlib import Path
-
-import pandas as pd
-
 from flex.config import Config
 from flex.db import create_db_conn
 from flex.plotter import Plotter
@@ -20,7 +16,6 @@ class BehaviorScenario:
     def setup(self):
         self.setup_scenario_params()
         self.import_scenario_data()
-        self.generate_activity_transition_matrix()
 
     def setup_scenario_params(self):
         behavior_scenarios = self.db.read_dataframe(BehaviorTable.Scenarios)
@@ -30,8 +25,6 @@ class BehaviorScenario:
                 self.__setattr__(key, value)
 
     def import_scenario_data(self):
+        self.id_activity = self.db.read_dataframe(BehaviorTable.ID_Activity)
         self.activity_profile = self.db.read_dataframe(BehaviorTable.ActivityProfile)
-
-    def generate_activity_transition_matrix(self):
-        ...
 
