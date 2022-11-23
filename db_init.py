@@ -1,12 +1,17 @@
-from flex.config import Config
+from config import cfg
 from flex.database_initializer import DatabaseInitializer
-from flex_operation.constants import OperationComponentInfo, OperationScenarioComponent, OperationTable
 from flex_behavior.constants import BehaviorTable
 from flex_community.constants import CommunityTable
-from config import cfg
+from flex_operation.constants import OperationComponentInfo
+from flex_operation.constants import OperationScenarioComponent
+from flex_operation.constants import OperationTable
 
 
 class ProjectDatabaseInit(DatabaseInitializer):
+
+    def load_behavior_tables(self):
+        self.load_behavior_table(BehaviorTable.Scenarios)
+        self.load_behavior_table(BehaviorTable.ToUProfile)
 
     def load_operation_component_tables(self):
         self.load_operation_table(OperationScenarioComponent.Region.table_name)
@@ -35,23 +40,20 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.load_operation_table(OperationTable.EnergyPriceProfile)
         self.load_operation_table(OperationTable.RegionWeatherProfile)
 
+    def load_community_tables(self):
+        self.load_community_table(CommunityTable.Scenarios)
+
     def drop_tables(self):
         self.drop_table(OperationTable.ResultOptHour)
         self.drop_table(OperationTable.ResultOptYear)
         self.drop_table(OperationTable.ResultRefHour)
         self.drop_table(OperationTable.ResultRefYear)
 
-    def load_behavior_tables(self):
-        self.load_behavior_table(BehaviorTable.ToUProfile)
-
-    def load_community_tables(self):
-        self.load_community_table(CommunityTable.Scenarios)
-
     def run(self):
+        self.load_behavior_tables()
         self.load_operation_component_tables()
         self.setup_operation_scenario_table()
         self.load_operation_profile_tables()
-        self.load_behavior_tables()
         self.load_community_tables()
         self.drop_tables()
 

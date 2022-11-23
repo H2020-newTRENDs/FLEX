@@ -38,7 +38,7 @@ class DatabaseInitializer:
         self.db.write_dataframe(table_name, df, if_exists="replace")
 
     def generate_operation_scenario_table(self, scenario_table_name: str, component_table_names: Dict[str, str]):
-        self.db.drop_table(scenario_table_name)
+        self.drop_table(scenario_table_name)
         logger.info(f"Generating FLEX-Operation scenario table -> {scenario_table_name}")
         scenario_df = self.generate_params_combination_df(self.get_component_scenario_ids(component_table_names))
         scenario_ids = np.array(range(1, 1 + len(scenario_df)))
@@ -66,4 +66,7 @@ class DatabaseInitializer:
         return pd.DataFrame(permutations_dicts)
 
     def drop_table(self, table_name: str):
-        self.db.drop_table(table_name)
+        engine = self.db.get_engine().connect()
+        if engine.dialect.has_table(engine, table_name):
+            logger.info(f"Dropping table -> {table_name}")
+            self.db.drop_table(table_name)

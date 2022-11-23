@@ -36,11 +36,9 @@ class Household:
                                                                         self.operation_scenario_id].iloc[0].to_dict()
         del component_scenario_ids["ID_Scenario"]
         for id_component, component_scenario_id in component_scenario_ids.items():
-            component_name_cap = id_component.replace("ID_", "")
-            component_enum = OperationScenarioComponent.__dict__[component_name_cap]
-            id_component_name = f'id_{component_enum.value}'
-            if id_component_name in self.__dict__.keys():
-                setattr(self, id_component_name, component_scenario_id)
+            component_info = OperationScenarioComponent.__dict__[id_component.replace("ID_", "")]
+            if f'id_{component_info.name}' in self.__dict__.keys():
+                setattr(self, f'id_{component_info.name}', component_scenario_id)
 
     def setup_operation_result_hour(self, df: pd.DataFrame):
         operation_result_hour: pd.DataFrame = df.loc[df["ID_Scenario"] == self.operation_scenario_id]

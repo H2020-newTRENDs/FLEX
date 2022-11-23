@@ -1,11 +1,11 @@
 import os
+from dataclasses import dataclass
 from typing import Sequence, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from flex.config import Config
-from flex.constants import Color
 
 
 class Plotter:
@@ -138,7 +138,7 @@ class Plotter:
                     values,
                     bottom=bottom_positive,
                     label=key,
-                    color=[Color.__dict__[key].value for i in range(0, len(x))],
+                    color=[Color.__dict__[key] for i in range(0, len(x))],
                 )
                 bottom_positive += values
             else:
@@ -147,7 +147,7 @@ class Plotter:
                     values,
                     bottom=bottom_negative,
                     label=key,
-                    color=[Color.__dict__[key].value for i in range(0, len(x))],
+                    color=[Color.__dict__[key] for i in range(0, len(x))],
                 )
                 bottom_negative += values
 
@@ -197,3 +197,36 @@ class Plotter:
 
         plt.savefig(os.path.join(self.fig_folder, 'HeatMap' + fig_name + '.png'), dpi=300, bbox_inches='tight')
 
+
+@dataclass
+class Color:
+    Appliance = "tab:orange"
+    SpaceHeating = "tab:red"
+    HotWater = "tab:green"
+    SpaceCooling = "tab:blue"
+    BatteryCharge = "tab:purple"
+    VehicleCharge = "tab:brown"
+    Grid = "tab:gray"
+    PV = "gold"
+    BatteryDischarge = "tab:olive"
+    VehicleDischarge = "tab:cyan"
+    PV2Grid = "tab:pink"
+    GridConsumption = "tab:brown"
+    PVConsumption = "gold"
+    GridFeed = "tab:green"
+    P2P_Profit = "tab:brown"
+    Opt_Profit = "tab:olive"
+    P2P_trading = "tab:brown"
+    # DIMGRAY = "dimgray"
+    # LIGHTCORAL = "lightcoral"
+    # TOMATO = "tomato"
+    # PERU = "peru"
+    # DARKORANGE = "darkorange"
+    # GOLD = "gold"
+    # OLIVEDRAB = "olivedrab"
+    # LIME = "lime"
+    # DARKSLATEGREY = "darkslategrey"
+    # ROYALBLUE = "royalblue"
+    # VIOLET = "violet"
+    # NAVY = "navy"
+    # CRIMSON = "crimson"

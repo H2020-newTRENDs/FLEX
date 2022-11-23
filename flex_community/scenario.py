@@ -37,26 +37,27 @@ class CommunityScenario:
         self.households: List["Household"] = []
 
     def setup(self):
-        self.import_community_scenario()
         self.setup_scenario_params()
         self.setup_energy_price()
         self.setup_households()
         self.setup_community_results()
 
-    def import_community_scenario(self):
-        self.community_scenario = pd.read_excel(self.config.input_community / Path(CommunityTable.Scenarios + ".xlsx"),
-                                                engine="openpyxl").dropna(how="all")
-        self.db.write_dataframe(CommunityTable.Scenarios, self.community_scenario, if_exists='replace')
+    def import_community_dataframe(self, file_name: str):
+        if not self.db.if_exists(file_name):
+            df = pd.read_excel(self.config.input_community / Path(file_name + ".xlsx"), engine="openpyxl")
+            self.db.write_dataframe(file_name, df, if_exists='replace')
+        df = self.db.read_dataframe(file_name)
+        return df
 
     def setup_scenario_params(self):
-        params_dict = self.community_scenario.loc[self.community_scenario["ID_Scenario"] ==
-                                                  self.scenario_id].iloc[0].to_dict()
+        df = self.import_community_dataframe(CommunityTable.Scenarios)
+        params_dict = df.loc[df["ID_Scenario"] == self.scenario_id].iloc[0].to_dict()
         for key, value in params_dict.items():
             if key in self.__dict__.keys():
                 self.__setattr__(key, value)
 
     def setup_energy_price(self):
-        self.energy_prices = self.db.read_dataframe(OperationTable.EnergyPriceProfile.value,
+        self.energy_prices = self.db.read_dataframe(OperationTable.EnergyPriceProfile,
                                                     filter={"region": self.region_code, "year": self.year})
         self.electricity_price = self.energy_prices[f"electricity_{self.id_electricity}"].to_numpy()
         self.feed_in_price = self.energy_prices[f"electricity_feed_in_{self.id_electricity_feed_in}"].to_numpy()
@@ -125,7 +126,7 @@ class CommunityScenario:
 
     def plot_community_grid(self):
         winter_hours = (25, 192)
-        summer_hours = (5761, 5928)
+        summer_hours = (4153, 4320)
         hour_ranges = [winter_hours, summer_hours]
         for hour_range in hour_ranges:
             h1 = hour_range[0]

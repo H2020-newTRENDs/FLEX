@@ -15,16 +15,24 @@ class BehaviorScenario:
         self.config = config
         self.db = create_db_conn(self.config)
         self.plotter = Plotter(config)
+        self.person_num: int = None
 
-    def import_dataframe(self, file_name: str):
+    def import_behavior_dataframe(self, file_name: str):
         if not self.db.if_exists(file_name):
             df = pd.read_excel(self.config.input_behavior / Path(file_name + ".xlsx"), engine="openpyxl")
             self.db.write_dataframe(file_name, df, if_exists='replace')
         df = self.db.read_dataframe(file_name)
         return df
 
+    def setup_scenario_params(self):
+        df = self.import_behavior_dataframe(BehaviorTable.Scenarios)
+        params_dict = df.loc[df["ID_Scenario"] == self.scenario_id].iloc[0].to_dict()
+        for key, value in params_dict.items():
+            if key in self.__dict__.keys():
+                self.__setattr__(key, value)
+
     def import_scenario_data(self):
-        self.tou_profile = self.import_dataframe(BehaviorTable.ToUProfile)
+        self.tou_profile = self.import_behavior_dataframe(BehaviorTable.ToUProfile)
 
 
 

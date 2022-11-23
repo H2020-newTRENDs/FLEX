@@ -4,11 +4,8 @@ from typing import TYPE_CHECKING, List
 import pandas as pd
 import sqlalchemy
 
-from flex import kit
-
 if TYPE_CHECKING:
     from .config import Config
-logger = kit.get_logger(__name__)
 
 
 class DB:
@@ -35,7 +32,6 @@ class DB:
             self.connection.execute(f"drop table {table_name}")
 
     def drop_table(self, table_name: str):
-        logger.info(f"dropping table -> {table_name}")
         self.connection.execute(f"drop table if exists {table_name}")
 
     def write_dataframe(

@@ -9,7 +9,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from flex.db import create_db_conn
-from flex.constants import InterfaceTable
 from flex import kit
 from flex_operation.constants import OperationTable
 from flex_operation.plotter import OperationPlotter
@@ -35,7 +34,7 @@ class OperationAnalyzer:
     def opt_hour(self):
         if self.opt_hour_df is None:
             self.opt_hour_df = self.db.read_dataframe(
-                OperationTable.ResultOptHour.value
+                OperationTable.ResultOptHour
             )
         return self.opt_hour_df
 
@@ -43,7 +42,7 @@ class OperationAnalyzer:
     def opt_year(self):
         if self.opt_year_df is None:
             self.opt_year_df = self.db.read_dataframe(
-                OperationTable.ResultOptYear.value
+                OperationTable.ResultOptYear
             )
         return self.opt_year_df
 
@@ -51,7 +50,7 @@ class OperationAnalyzer:
     def ref_hour(self):
         if self.ref_hour_df is None:
             self.ref_hour_df = self.db.read_dataframe(
-                OperationTable.ResultRefHour.value
+                OperationTable.ResultRefHour
             )
         return self.ref_hour_df
 
@@ -59,7 +58,7 @@ class OperationAnalyzer:
     def ref_year(self):
         if self.ref_year_df is None:
             self.ref_year_df = self.db.read_dataframe(
-                OperationTable.ResultRefYear.value
+                OperationTable.ResultRefYear
             )
         return self.ref_year_df
 
@@ -149,7 +148,7 @@ class OperationAnalyzer:
 
     def plot_scenario_electricity_balance(self, scenario_id: int):
         winter_hours = (25, 192)
-        summer_hours = (5761, 5928)
+        summer_hours = (4153, 4320)
         hour_ranges = [winter_hours, summer_hours]
         models = ["opt", "ref"]
         for model in models:
@@ -187,7 +186,7 @@ class OperationAnalyzer:
 
     def create_operation_energy_cost_table(self):
 
-        scenarios = self.db.read_dataframe(OperationTable.Scenarios.value)
+        scenarios = self.db.read_dataframe(OperationTable.Scenarios)
 
         def add_total_cost(df: pd.DataFrame, id_sems):
             sce = scenarios.rename(columns={"ID_Scenario": "ID_OperationScenario"})
@@ -200,14 +199,12 @@ class OperationAnalyzer:
         sce_summary = pd.concat([opt_sce, ref_sce], ignore_index=True, sort=False)
         sce_summary_ids = list(range(1, len(sce_summary) + 1))
         sce_summary.insert(loc=0, column="ID_Scenario", value=sce_summary_ids)
-        table_name = InterfaceTable.OperationEnergyCost.value
+        table_name = OperationTable.ResultEnergyCost
         self.db.write_dataframe(table_name, sce_summary, if_exists="replace")
 
     def plot_operation_energy_cost_curve(self):
 
-        operation_energy_cost = self.db.read_dataframe(
-            InterfaceTable.OperationEnergyCost.value
-        )
+        operation_energy_cost = self.db.read_dataframe(OperationTable.ResultEnergyCost)
         building_ids = operation_energy_cost["ID_Building"].unique()
         scenario_cost_dict = {}
 
@@ -228,7 +225,7 @@ class OperationAnalyzer:
         )
 
     def get_component_energy_cost_change_dict(self, col_id_component: str, benchmark_id: int, state_id: int):
-        operation_energy_cost = self.db.read_dataframe(InterfaceTable.OperationEnergyCost.value)
+        operation_energy_cost = self.db.read_dataframe(OperationTable.ResultEnergyCost)
 
         def get_total_cost(partial_filter: dict, component_state_id: int):
             f = copy.deepcopy(partial_filter)
@@ -265,13 +262,13 @@ class OperationAnalyzer:
                 component_name, benchmark_id, state_id
             )
         df = pd.DataFrame(energy_cost_change_dicts)
-        table_name = InterfaceTable.OperationEnergyCostChange.value
+        table_name = OperationTable.ResultEnergyCostChange
         self.db.write_dataframe(table_name, df, if_exists="replace")
 
     def plot_operation_energy_cost_change_curve(
             self, component_changes: List[Tuple[str, int, int]]
     ):
-        df = self.db.read_dataframe(InterfaceTable.OperationEnergyCostChange.value)
+        df = self.db.read_dataframe(OperationTable.ResultEnergyCostChange)
         values_dict = {}
         for component_change_info in component_changes:
             col_component_id = component_change_info[0]
@@ -299,7 +296,7 @@ class OperationAnalyzer:
             identify_component: Tuple[str, int],
             save_figure: bool = True
     ):
-        df = self.db.read_dataframe(InterfaceTable.OperationEnergyCostChange.value)
+        df = self.db.read_dataframe(OperationTable.ResultEnergyCostChange)
         values_dict = {}
         col_component_id = component_change[0]
         benchmark_id = component_change[1]
@@ -352,7 +349,7 @@ class OperationAnalyzer:
             component_2: Tuple[str, int],
             component_list: List[Tuple[str, int]],
     ):
-        df = self.db.read_dataframe(InterfaceTable.OperationEnergyCostChange.value)
+        df = self.db.read_dataframe(OperationTable.ResultEnergyCostChange)
         component_list = [component[0] for component in component_list if
                           component[0] != component_2[0] and component[0] != component_1[0]
                           and component[0] != component_change[0]]
@@ -392,7 +389,7 @@ class OperationAnalyzer:
     def get_operation_energy_cost_change(
             self, building_dict: dict, component_change_info: Tuple[str, int, int]
     ):
-        operation_energy_cost_change = self.db.read_dataframe(InterfaceTable.OperationEnergyCostChange.value)
+        operation_energy_cost_change = self.db.read_dataframe(OperationTable.ResultEnergyCostChange)
         col_component_id = component_change_info[0]
         benchmark_id = component_change_info[1]
         state_id = component_change_info[2]
@@ -444,7 +441,7 @@ class OperationAnalyzer:
     ):
         building_pathways = []
         scenario_costs = {}
-        df = self.db.read_dataframe(InterfaceTable.OperationEnergyCost.value)
+        df = self.db.read_dataframe(OperationTable.ResultEnergyCost)
         for scenario_id in range(1, len(df) + 1):
             logger.info(f'Scenario = {scenario_id}')
             building_pathway, benefit_pathway, initial_cost = self.get_building_pathway(
@@ -502,7 +499,7 @@ class OperationAnalyzer:
         building_pathway = []
         benefit_pathway = []
 
-        df = self.db.read_dataframe(InterfaceTable.OperationEnergyCost.value)
+        df = self.db.read_dataframe(OperationTable.ResultEnergyCost)
         initial_cost = df[df['ID_Scenario'] == scenario_id]['TotalCost'].item()
         df = df.drop(["ID_OperationScenario", "TotalCost"], axis=1)
         building_dict = kit.filter_df2s(
@@ -550,7 +547,7 @@ class OperationAnalyzer:
         return string_builder
 
     def plot_component_impact_violin(self):
-        scenarios = self.db.read_dataframe(OperationTable.Scenarios.value).drop('ID_Scenario', axis=1)
+        scenarios = self.db.read_dataframe(OperationTable.Scenarios).drop('ID_Scenario', axis=1)
         ref_year = copy.deepcopy(self.ref_year).assign(Option="simulation")
         opt_year = copy.deepcopy(self.opt_year).assign(Option="optimization")
         df = pd.concat(

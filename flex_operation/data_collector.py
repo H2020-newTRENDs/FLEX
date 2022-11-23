@@ -51,7 +51,7 @@ class OperationDataCollector(ABC):
             if not variable_name.startswith("_"):
                 var_values = self.get_var_values(variable_name)
                 self.hour_result[variable_name] = var_values
-                if variable_type == "year_include":
+                if variable_type == "hour&year":
                     self.year_result[variable_name] = var_values.sum()
 
     def save_hour_result(self):

@@ -14,10 +14,10 @@ logger = get_logger(__name__)
 
 def run_community_model(community_scenario_ids, operation_scenario_ids, config: "Config"):
     db = create_db_conn(config)
-    logger.info(f"Importing the OperationModel results...")
-    operation_scenario = db.read_dataframe(OperationTable.Scenarios.value)
-    ref_operation_result_hour = db.read_dataframe(OperationTable.ResultRefHour.value)
-    ref_operation_result_year = db.read_dataframe(OperationTable.ResultRefYear.value)
+    logger.info(f"Importing the FLEX-Operation results...")
+    operation_scenario = db.read_dataframe(OperationTable.Scenarios)
+    ref_operation_result_hour = db.read_dataframe(OperationTable.ResultRefHour)
+    ref_operation_result_year = db.read_dataframe(OperationTable.ResultRefYear)
     for id_community_scenario in community_scenario_ids:
         logger.info(f"FLEX-Community Model --> ID_Scenario = {id_community_scenario}.")
         scenario = CommunityScenario(id_community_scenario, config)
