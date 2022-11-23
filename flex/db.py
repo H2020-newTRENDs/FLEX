@@ -5,7 +5,7 @@ import pandas as pd
 import sqlalchemy
 
 if TYPE_CHECKING:
-    from .config import Config
+    from flex.config import Config
 
 
 class DB:

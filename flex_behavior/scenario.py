@@ -32,7 +32,8 @@ class BehaviorScenario:
                 self.__setattr__(key, value)
 
     def import_scenario_data(self):
-        self.tou_profile = self.import_behavior_dataframe(BehaviorTable.ToUProfile)
+        self.activity_profile = self.import_behavior_dataframe(BehaviorTable.ActivityProfile)
 
-
+    def generate_activity_transition_prob_matrix(self):
+        ...
 
