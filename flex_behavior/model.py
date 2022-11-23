@@ -7,5 +7,5 @@ class BehaviorModel:
         self.scenario = scenario
 
     def run(self):
-        print(self.scenario.tou_profile)
+        print(self.scenario.activity_profile)
         print(self.scenario.scenario_id)

@@ -5,4 +5,3 @@ from dataclasses import dataclass
 class BehaviorTable:
     Scenarios = "BehaviorScenario"
     ActivityProfile = "BehaviorScenario_ActivityProfile"
-

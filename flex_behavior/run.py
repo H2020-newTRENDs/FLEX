@@ -12,6 +12,7 @@ def run_behavior_model(behavior_scenario_ids: List[int], config: "Config"):
     for id_behavior_scenario in behavior_scenario_ids:
         logger.info(f"FLEX-Behavior Model --> ID_Scenario = {id_behavior_scenario}.")
         behavior_scenario = BehaviorScenario(scenario_id=id_behavior_scenario, config=config)
+        behavior_scenario.setup_scenario_params()
         behavior_scenario.import_scenario_data()
         model = BehaviorModel(behavior_scenario)
         model.run()

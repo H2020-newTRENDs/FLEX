@@ -60,8 +60,8 @@ def run_flex_behavior_analyzer(config):
 
 
 if __name__ == "__main__":
-    # run_flex_behavior_model(cfg)
-    run_flex_behavior_analyzer(cfg)
+    run_flex_behavior_model(cfg)
+    # run_flex_behavior_analyzer(cfg)
     # run_flex_operation_model(cfg)
     # run_flex_operation_analyzer(cfg)
     # run_flex_community_model(cfg)

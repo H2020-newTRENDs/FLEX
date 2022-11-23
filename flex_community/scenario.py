@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import List
 
 import numpy as np
@@ -9,8 +8,8 @@ from flex.db import create_db_conn
 from flex.plotter import Plotter
 from flex_community.constants import CommunityTable
 from flex_community.household import Household
-from flex_operation.constants import OperationTable
 from flex_operation.constants import OperationScenarioComponent
+from flex_operation.constants import OperationTable
 
 
 class CommunityScenario:
@@ -42,16 +41,9 @@ class CommunityScenario:
         self.setup_households()
         self.setup_community_results()
 
-    def import_community_dataframe(self, file_name: str):
-        if not self.db.if_exists(file_name):
-            df = pd.read_excel(self.config.input_community / Path(file_name + ".xlsx"), engine="openpyxl")
-            self.db.write_dataframe(file_name, df, if_exists='replace')
-        df = self.db.read_dataframe(file_name)
-        return df
-
     def setup_scenario_params(self):
-        df = self.import_community_dataframe(CommunityTable.Scenarios)
-        params_dict = df.loc[df["ID_Scenario"] == self.scenario_id].iloc[0].to_dict()
+        community_scenarios = self.db.read_dataframe(CommunityTable.Scenarios)
+        params_dict = community_scenarios.loc[community_scenarios["ID_Scenario"] == self.scenario_id].iloc[0].to_dict()
         for key, value in params_dict.items():
             if key in self.__dict__.keys():
                 self.__setattr__(key, value)
