@@ -35,13 +35,22 @@ class CompareModels:
             2: "EZFH_5_S",
             3: "EZFH_9_B",
             4: "EZFH_1_B",
-            5: "EZFH_1_S"
+            5: "EZFH_1_S",
+            6: "MFH_5_B",
+            7: "MFH_5_S",
+            8: "MFH_1_B",
+            9: "MFH_1_S"
         }
+        self.cooling_status = {1: "no cooling",
+                               2: "cooling"}
 
     def scenario_id_2_building_name(self, id_scenario: int) -> str:
         building_id = int(
             self.scenario_table.loc[self.scenario_table.loc[:, "ID_Scenario"] == id_scenario, "ID_Building"])
-        return self.building_names[building_id]
+        cooling_id = int(
+            self.scenario_table.loc[
+                self.scenario_table.loc[:, "ID_Scenario"] == id_scenario, "ID_SpaceCoolingTechnology"])
+        return f"{self.building_names[building_id]} {self.cooling_status[cooling_id]}"
 
     def grab_scenario_ids_for_price(self, id_price: int) -> list:
         ids = self.scenario_table.loc[self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price, "ID_Scenario"]
@@ -390,7 +399,7 @@ class CompareModels:
         plt.show()
 
     def indoor_temp_to_csv(self):
-        for price_id in [2, 3, 4]:  # price 1 is linear
+        for price_id in [1, 2, 3, 4]:  # price 1 is linear
             scenario_ids = self.grab_scenario_ids_for_price(price_id)
             temp_df = self.db.read_dataframe(table_name=OperationTable.ResultOptHour.value,
                                              column_names=["ID_Scenario", "Hour"], filter={"ID_Scenario": 1})
@@ -402,7 +411,8 @@ class CompareModels:
                 temp_df = pd.concat([temp_df, indoor_temp_opt], axis=1)
 
             # save indoor temp opt to csv for daniel:
-            temp_df.to_csv(self.input_path.parent / Path(f"output/indoor_set_temp_price{price_id}.csv"), sep=";")
+            temp_df.to_csv(self.input_path.parent / Path(f"output/indoor_set_temp_price{price_id}.csv"), sep=";",
+                           index=False)
             del temp_df
 
     def show_plotly_comparison(self):
@@ -481,10 +491,10 @@ class CompareModels:
 
     def main(self):
         self.indoor_temp_to_csv()
-        self.show_rmse()
-        self.subplots_relative()
-        self.subplots_yearly()
-        self.show_plotly_comparison()
+        # self.show_rmse()
+        # self.subplots_relative()
+        # self.subplots_yearly()
+        # self.show_plotly_comparison()
 
 
 

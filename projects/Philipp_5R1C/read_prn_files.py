@@ -109,8 +109,6 @@ class PRNImporter:
             indoor_temp_df = pd.DataFrame(indoor_temp)
             indoor_temp_df.to_csv(self.main_path / Path(f"indoor_temp_daniel_{strat}.csv"), sep=";", index=False)
 
-        # self.modify_heat_demand()
-
     def read_heat_demand(self, table_name: str, prize_scenario: str):
         scenario_id = self.grab_scenario_ids_for_price(int(prize_scenario[-1]))
         demand = DB(get_config(self.project_name)).read_dataframe(table_name=table_name,
