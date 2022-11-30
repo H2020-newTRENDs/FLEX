@@ -400,11 +400,12 @@ class OperationModel(ABC):
                 max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
             elif indoor_temp > temperature_min_summer + 0.5:
                 min_temperature_list.append(temperature_min_summer)
-                max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
+                # if no cooling is adopted, remove upper temperature limit
+                if self.scenario.space_cooling_technology.power == 0:
+                    max_temperature_list.append(T_room[i] + 2)  # make sure its not going to be infeasible
+                else:  # with cooling max temperature is set
+                    max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
 
-        # if no cooling is adopted, remove upper temperature limit
-        if self.scenario.space_cooling_technology.power == 0:
-            max_temperature_list = [100 for i in max_temperature_list]
         return np.array(max_temperature_list), np.array(
             min_temperature_list)  # plt.plot(np.arange(8760), max_temperature_list)
 
