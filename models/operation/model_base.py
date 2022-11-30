@@ -385,48 +385,22 @@ class OperationModel(ABC):
         Returns: array of the maximum temperature, array of minimum temperature
         """
         heating_demand, cooling_demand, T_room, _ = self.calculate_heating_and_cooling_demand()
-        # create max temperature array:
         max_temperature_list = []
-        for i, heat_demand in enumerate(heating_demand):
-            # if heat demand == 0 and the heat demand in the following 8 hours is also 0 and the heat demand of 3
-            # hours before that is also 0, then the max temperature is raised so model does not become infeasible:
-            if (heat_demand == 0
-                    and i + 8 < 8760
-                    and heating_demand[i - 3] == 0
-                    and heating_demand[i - 2] == 0
-                    and heating_demand[i - 1] == 0
-                    and heating_demand[i + 1] == 0
-                    and heating_demand[i + 2] == 0
-                    and heating_demand[i + 3] == 0
-                    and heating_demand[i + 4] == 0
-            ):
-                if self.scenario.space_cooling_technology.power > 0:
-                    max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
-                else:
-                    # append the temperature of the reference model + 1°C to make sure it is feasible
-                    if T_room[i] + 1 < temperature_max_winter:  # should still not be lower than the max in winter
-                        max_temperature_list.append(temperature_max_winter)
-                    else:
-                        max_temperature_list.append(T_room[i] + 1)
-            else:
-                max_temperature_list.append(temperature_max_winter)
+        min_temperature_list = []
+        for i, indoor_temp in enumerate(T_room):
 
-        # implement a fail-save whenever after this function the maximum temperature list is above the indoor
-        # temperature it is being corrected:
-        for index in np.where(max_temperature_list - T_room < 2)[0]:
-            max_temperature_list[index] = T_room[index] + 2
-
-        # in summer the maximum allowed indoor temperture is allowed to be 2°C higher because there is no heating..
-        # to fix this:
-        min_temperature_list = []  # also minimum temperature in summer needs to be raised to prevent the optimization
-        # from cooling down to 20°C
-        for i, cool_demand in enumerate(cooling_demand):
-            # if cooling demand != 0 the minimum temperature is raised to the minimum temp in summer
-            if cool_demand > 0:
-                min_temperature_list.append(temperature_min_summer)
-                max_temperature_list[i] = self.scenario.behavior.target_temperature_array_max[i]
-            else:
+            if indoor_temp < temperature_max_winter:
                 min_temperature_list.append(self.scenario.behavior.target_temperature_array_min[i])
+                if temperature_max_winter - indoor_temp < 0.5:
+                    max_temperature_list.append(temperature_max_winter + 0.5)
+                else:
+                    max_temperature_list.append(temperature_max_winter)
+            elif temperature_max_winter < indoor_temp < temperature_min_summer + 0.5:
+                min_temperature_list.append(self.scenario.behavior.target_temperature_array_min[i])
+                max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
+            elif indoor_temp > temperature_min_summer + 0.5:
+                min_temperature_list.append(temperature_min_summer)
+                max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
 
         return np.array(max_temperature_list), np.array(
             min_temperature_list)  # plt.plot(np.arange(8760), max_temperature_list)
