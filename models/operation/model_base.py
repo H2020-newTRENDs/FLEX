@@ -418,15 +418,20 @@ class OperationModel(ABC):
         for index in np.where(max_temperature_list - T_room < 2)[0]:
             max_temperature_list[index] = T_room[index] + 2
 
-        min_temperature_list = []
+        # in summer the maximum allowed indoor temperture is allowed to be 2°C higher because there is no heating..
+        # to fix this:
+        min_temperature_list = []  # also minimum temperature in summer needs to be raised to prevent the optimization
+        # from cooling down to 20°C
         for i, cool_demand in enumerate(cooling_demand):
             # if cooling demand != 0 the minimum temperature is raised to the minimum temp in summer
             if cool_demand > 0:
                 min_temperature_list.append(temperature_min_summer)
+                max_temperature_list[i] = self.scenario.behavior.target_temperature_array_max[i]
             else:
                 min_temperature_list.append(self.scenario.behavior.target_temperature_array_min[i])
 
-        return np.array(max_temperature_list), np.array(min_temperature_list)  #plt.plot(np.arange(8760), max_temperature_list)
+        return np.array(max_temperature_list), np.array(
+            min_temperature_list)
 
     @staticmethod
     def calc_cop(
