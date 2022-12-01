@@ -469,8 +469,9 @@ class OperationModel(ABC):
         # calculate the heating demand in reference mode:
         heating_demand, _, _, _ = self.calculate_heating_and_cooling_demand()
         max_heating_demand = heating_demand.max()
+        max_dhw_demand = self.scenario.behavior.hot_water_demand.max()
         # round to the next 500 W
-        max_thermal_power = np.ceil(max_heating_demand / 500) * 500
+        max_thermal_power = np.ceil((max_heating_demand + max_dhw_demand) / 500) * 500
         # calculate the design condition COP (-12°C)
         worst_COP = OperationModel.calc_cop(
             outside_temperature=[self.scenario.region.norm_outside_temperature],
