@@ -26,5 +26,31 @@ class BehaviorScenario:
 
     def import_scenario_data(self):
         self.id_activity = self.db.read_dataframe(BehaviorTable.ID_Activity)
+        self.id_technology = self.db.read_dataframe(BehaviorTable.ID_Technology)
         self.activity_profile = self.db.read_dataframe(BehaviorTable.ActivityProfile)
+        self.technology_trigger_prob = self.db.read_dataframe(BehaviorTable.TechnologyTriggerProbability)
+        self.technology_ownership_rate = self.db.read_dataframe(BehaviorTable.TechnologyOwnershipRate)
+        self.technology_power_active = self.db.read_dataframe(BehaviorTable.TechnologyPowerActive)
+        self.technology_power_standby = self.db.read_dataframe(BehaviorTable.TechnologyPowerStandby)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
