@@ -12,7 +12,12 @@ class ProjectDatabaseInit(DatabaseInitializer):
     def load_behavior_tables(self):
         self.load_behavior_table(BehaviorTable.Scenarios)
         self.load_behavior_table(BehaviorTable.ID_Activity)
+        self.load_behavior_table(BehaviorTable.ID_Technology)
         self.load_behavior_table(BehaviorTable.ActivityProfile)
+        self.load_behavior_table(BehaviorTable.TechnologyTriggerProbability)
+        self.load_behavior_table(BehaviorTable.TechnologyOwnershipRate)
+        self.load_behavior_table(BehaviorTable.TechnologyPowerActive)
+        self.load_behavior_table(BehaviorTable.TechnologyPowerStandby)
 
     def load_operation_component_tables(self):
         self.load_operation_table(OperationScenarioComponent.Region.table_name)
