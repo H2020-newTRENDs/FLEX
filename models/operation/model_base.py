@@ -1,6 +1,6 @@
 from abc import ABC
 import numpy as np
-import copy
+from typing import Union
 from models.operation.scenario import OperationScenario
 
 
@@ -374,36 +374,34 @@ class OperationModel(ABC):
 
         return heating_demand, cooling_demand, room_temperature, Tm_t
 
-    def generate_target_indoor_temperature(
-            self, temperature_max_winter, temperature_min_summer: float
-    ) -> (np.array, np.array):
+    def generate_target_indoor_temperature(self, temperature_offset: Union[int, float]) -> (np.array, np.array):
         """
         This function modifies the exogenous target temperature range, so that
         1. the building will not be pre-heated (or pre-cooled) to too-high (or too-low) temperature;
         2. the optimization will not be infeasible if the building is heated above maximum temperature by radiation.
 
         Args:
-            temperature_max_winter: float, maximum pre-heating temperature
-            temperature_min_summer: float, maximum pre-cooling temperature
+            temperature_offset: int or float, temperature the optimization can pre-heat or pre-cool the building
 
         Returns: array of the maximum temperature, array of minimum temperature
         """
         max_temperature_list = []
         min_temperature_list = []
         for i, indoor_temp in enumerate(self.T_Room):
+            temperature_max_winter = self.scenario.behavior.target_temperature_array_min[i] + temperature_offset
             if indoor_temp < temperature_max_winter:
                 min_temperature_list.append(self.scenario.behavior.target_temperature_array_min[i])
-                max_temperature_list.append(indoor_temp + 3)
+                max_temperature_list.append(indoor_temp + temperature_offset)
             elif temperature_max_winter <= indoor_temp <= self.scenario.behavior.target_temperature_array_max[i]:
                 if self.scenario.space_cooling_technology.power == 0:
-                    max_temperature_list.append(indoor_temp + 3)
-                    min_temperature_list.append(indoor_temp - 3)
+                    max_temperature_list.append(indoor_temp + temperature_offset)
+                    min_temperature_list.append(indoor_temp - temperature_offset)
                 else:
                     max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
-                    min_temperature_list.append(indoor_temp - 3)
+                    min_temperature_list.append(indoor_temp - temperature_offset)
             else:  # if no cooling than temperature can be higher than max:
-                max_temperature_list.append(indoor_temp + 3)
-                min_temperature_list.append(indoor_temp - 3)
+                max_temperature_list.append(indoor_temp + temperature_offset)
+                min_temperature_list.append(indoor_temp - temperature_offset)
 
         return np.array(max_temperature_list), np.array(
             min_temperature_list)

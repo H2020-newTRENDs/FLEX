@@ -729,12 +729,8 @@ class OptConfig:
 
     def config_room_temperature(self, instance):
         # in winter only 3°C increase to keep comfort level and in summer maximum reduction of 3°C
-        max_target_temperature, min_target_temperature = (
-            self.model.generate_target_indoor_temperature(
-                temperature_max_winter=self.scenario.behavior.target_temperature_at_home_min + 3,
-                temperature_min_summer=self.scenario.behavior.target_temperature_at_home_max - 3
-            )
-        )
+        max_target_temperature, min_target_temperature = self.model.generate_target_indoor_temperature(
+            temperature_offset=3)
         for t in range(1, 8761):
             instance.T_Room[t].setub(max_target_temperature[t - 1])
             instance.T_Room[t].setlb(min_target_temperature[t - 1])
