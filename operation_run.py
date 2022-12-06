@@ -18,11 +18,9 @@ def run_ref_operation(scenario: "OperationScenario"):
 
 
 def run_opt_scenario(scenario: "OperationScenario", opt_instance):
-    try:
-        opt_model = OptOperationModel(scenario).solve(opt_instance)
+    opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
+    if solve_status:
         OptDataCollector(opt_model, scenario.scenario_id, config, save_hour_results=True).run()
-    except ValueError:
-        print(f'Infeasible --> ID_Scenario = {scenario.scenario_id}')
 
 
 def run_scenarios(scenario_ids):

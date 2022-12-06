@@ -1,5 +1,6 @@
 import numpy as np
 import pyomo.environ as pyo
+from pyomo.opt import TerminationCondition
 
 from basics.kit import performance_counter, get_logger
 from models.operation.model_base import OperationModel
@@ -453,9 +454,15 @@ class OptOperationModel(OperationModel):
     @performance_counter
     def solve(self, instance):
         instance = OptConfig(self).config_instance(instance)
-        pyo.SolverFactory("gurobi").solve(instance, tee=False)#, logfile=r"C:\Users\mascherbauer\pyomo_log.log")
-        logger.info(f"OptCost: {round(instance.total_operation_cost_rule(), 2)}")
-        return instance
+        results = pyo.SolverFactory("gurobi").solve(instance, tee=False)
+        if results.solver.termination_condition == TerminationCondition.optimal:
+            instance.solutions.load_from(results)
+            logger.info(f"OptCost: {round(instance.total_operation_cost_rule(), 2)}")
+            solved = True
+        else:
+            print(f'Infeasible Scenario Warning!!!!!!!!!!!!!!!!!!!!!! --> ID_Scenario = {self.scenario.scenario_id}')
+            solved = False
+        return instance, solved
 
 
 class OptConfig:
