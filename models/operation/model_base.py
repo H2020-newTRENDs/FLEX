@@ -53,6 +53,10 @@ class OperationModel(ABC):
         _, _, _, mass_temperature = self.calculate_heating_and_cooling_demand(static=True)
         self.BuildingMassTemperatureStartValue = mass_temperature[-1]
 
+        self.Q_RoomHeating, self.Q_RoomCooling, self.T_Room, self.T_BuildingMass = \
+            self.calculate_heating_and_cooling_demand(thermal_start_temperature=self.BuildingMassTemperatureStartValue,
+                                                      static=False)
+
     def setup_space_heating_params(self):
         self.fuel_boiler_efficiency = 0.95  # TODO specify as input??
         self.SpaceHeatingHourlyCOP = self.calc_cop(
@@ -384,10 +388,9 @@ class OperationModel(ABC):
 
         Returns: array of the maximum temperature, array of minimum temperature
         """
-        heating_demand, cooling_demand, T_room, _ = self.calculate_heating_and_cooling_demand()
         max_temperature_list = []
         min_temperature_list = []
-        for i, indoor_temp in enumerate(T_room):
+        for i, indoor_temp in enumerate(self.T_Room):
             if indoor_temp < temperature_max_winter:
                 min_temperature_list.append(self.scenario.behavior.target_temperature_array_min[i])
                 max_temperature_list.append(indoor_temp + 3)
@@ -467,8 +470,7 @@ class OperationModel(ABC):
         and the respective source and supply temperature.
         """
         # calculate the heating demand in reference mode:
-        heating_demand, _, _, _ = self.calculate_heating_and_cooling_demand()
-        max_heating_demand = heating_demand.max()
+        max_heating_demand = self.Q_RoomHeating.max()
         max_dhw_demand = self.scenario.behavior.hot_water_demand.max()
         # round to the next 500 W
         max_thermal_power = np.ceil((max_heating_demand + max_dhw_demand) / 500) * 500
