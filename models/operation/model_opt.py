@@ -629,7 +629,6 @@ class OptConfig:
 
     def config_space_heating(self, instance):
         for t in range(1, 8761):
-            instance.T_Room[t].setlb(self.scenario.behavior.target_temperature_array_min[t - 1])
             instance.T_BuildingMass[t].setub(100)
         if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
             for t in range(1, 8761):
