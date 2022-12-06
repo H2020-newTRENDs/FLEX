@@ -388,23 +388,19 @@ class OperationModel(ABC):
         max_temperature_list = []
         min_temperature_list = []
         for i, indoor_temp in enumerate(T_room):
-
             if indoor_temp < temperature_max_winter:
                 min_temperature_list.append(self.scenario.behavior.target_temperature_array_min[i])
-                if temperature_max_winter - indoor_temp < 1:
-                    max_temperature_list.append(temperature_max_winter + 1)
-                else:
-                    max_temperature_list.append(temperature_max_winter)
-            elif temperature_max_winter < indoor_temp < temperature_min_summer + 1:
-                min_temperature_list.append(self.scenario.behavior.target_temperature_array_min[i])
-                max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
-            elif indoor_temp > temperature_min_summer + 1:
-                min_temperature_list.append(temperature_min_summer)
-                # if no cooling is adopted, remove upper temperature limit
+                max_temperature_list.append(indoor_temp + 3)
+            elif temperature_max_winter <= indoor_temp <= self.scenario.behavior.target_temperature_array_max[i]:
                 if self.scenario.space_cooling_technology.power == 0:
-                    max_temperature_list.append(T_room[i] + 2)  # make sure its not going to be infeasible
-                else:  # with cooling max temperature is set
+                    max_temperature_list.append(indoor_temp + 3)
+                    min_temperature_list.append(indoor_temp - 3)
+                else:
                     max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
+                    min_temperature_list.append(indoor_temp - 3)
+            else:  # if no cooling than temperature can be higher than max:
+                max_temperature_list.append(indoor_temp + 3)
+                min_temperature_list.append(indoor_temp - 3)
 
         return np.array(max_temperature_list), np.array(
             min_temperature_list)
