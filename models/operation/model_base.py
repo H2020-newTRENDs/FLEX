@@ -392,7 +392,8 @@ class OperationModel(ABC):
             if indoor_temp < temperature_max_winter:
                 min_temperature_list.append(self.scenario.behavior.target_temperature_array_min[i])
                 max_temperature_list.append(indoor_temp + temperature_offset)
-            elif temperature_max_winter <= indoor_temp <= self.scenario.behavior.target_temperature_array_max[i]:
+            elif temperature_max_winter <= indoor_temp <= self.scenario.behavior.target_temperature_array_max[
+                i] + 0.01:  # 0.01 is added to ignore floating point errors
                 if self.scenario.space_cooling_technology.power == 0:
                     max_temperature_list.append(indoor_temp + temperature_offset)
                     min_temperature_list.append(indoor_temp - temperature_offset)
