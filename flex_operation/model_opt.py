@@ -1,5 +1,6 @@
 import numpy as np
 import pyomo.environ as pyo
+from pyomo.opt import TerminationCondition
 
 from flex.kit import performance_counter, get_logger
 from flex_operation.model_base import OperationModel
@@ -453,9 +454,15 @@ class OptOperationModel(OperationModel):
     @performance_counter
     def solve(self, instance):
         instance = OptConfig(self).config_instance(instance)
-        pyo.SolverFactory("gurobi").solve(instance, tee=False)
-        logger.info(f"OptCost: {round(instance.total_operation_cost_rule(), 2)}")
-        return instance
+        results = pyo.SolverFactory("gurobi").solve(instance, tee=False)
+        if results.solver.termination_condition == TerminationCondition.optimal:
+            instance.solutions.load_from(results)
+            logger.info(f"OptCost: {round(instance.total_operation_cost_rule(), 2)}")
+            solved = True
+        else:
+            print(f'Infeasible Scenario Warning!!!!!!!!!!!!!!!!!!!!!! --> ID_Scenario = {self.scenario.scenario_id}')
+            solved = False
+        return instance, solved
 
 
 class OptConfig:
@@ -622,7 +629,6 @@ class OptConfig:
 
     def config_space_heating(self, instance):
         for t in range(1, 8761):
-            instance.T_Room[t].setlb(self.scenario.behavior.target_temperature_array_min[t - 1])
             instance.T_BuildingMass[t].setub(100)
         if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
             for t in range(1, 8761):
@@ -722,12 +728,8 @@ class OptConfig:
 
     def config_room_temperature(self, instance):
         # in winter only 3°C increase to keep comfort level and in summer maximum reduction of 3°C
-        max_target_temperature, min_target_temperature = (
-            self.model.generate_target_indoor_temperature(
-                temperature_max_winter=self.scenario.behavior.target_temperature_at_home_min + 3,
-                temperature_min_summer=self.scenario.behavior.target_temperature_at_home_max - 3
-            )
-        )
+        max_target_temperature, min_target_temperature = self.model.generate_target_indoor_temperature(
+            temperature_offset=3)
         for t in range(1, 8761):
             instance.T_Room[t].setub(max_target_temperature[t - 1])
             instance.T_Room[t].setlb(min_target_temperature[t - 1])

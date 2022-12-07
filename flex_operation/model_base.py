@@ -1,7 +1,7 @@
 from abc import ABC
 
 import numpy as np
-
+from typing import Union
 from flex_operation.scenario import OperationScenario
 
 
@@ -54,6 +54,10 @@ class OperationModel(ABC):
         self.PHI_ia = 0.5 * self.Qi  # Equ. C.1
         _, _, _, mass_temperature = self.calculate_heating_and_cooling_demand(static=True)
         self.BuildingMassTemperatureStartValue = mass_temperature[-1]
+
+        self.Q_RoomHeating, self.Q_RoomCooling, self.T_Room, self.T_BuildingMass = \
+            self.calculate_heating_and_cooling_demand(thermal_start_temperature=self.BuildingMassTemperatureStartValue,
+                                                      static=False)
 
     def setup_space_heating_params(self):
         self.fuel_boiler_efficiency = 0.95  # TODO specify as input??
@@ -372,63 +376,35 @@ class OperationModel(ABC):
 
         return heating_demand, cooling_demand, room_temperature, Tm_t
 
-    def generate_target_indoor_temperature(
-            self, temperature_max_winter, temperature_min_summer: float
-    ) -> (np.array, np.array):
+    def generate_target_indoor_temperature(self, temperature_offset: Union[int, float]) -> (np.array, np.array):
         """
         This function modifies the exogenous target temperature range, so that
         1. the building will not be pre-heated (or pre-cooled) to too-high (or too-low) temperature;
         2. the optimization will not be infeasible if the building is heated above maximum temperature by radiation.
 
         Args:
-            temperature_max_winter: float, maximum pre-heating temperature
-            temperature_min_summer: float, maximum pre-cooling temperature
+            temperature_offset: int or float, temperature the optimization can pre-heat or pre-cool the building
 
         Returns: array of the maximum temperature, array of minimum temperature
         """
-        heating_demand, cooling_demand, T_room, _ = self.calculate_heating_and_cooling_demand()
-        # create max temperature array:
         max_temperature_list = []
-        for i, heat_demand in enumerate(heating_demand):
-            # if heat demand == 0 and the heat demand in the following 8 hours is also 0 and the heat demand of 3
-            # hours before that is also 0, then the max temperature is raised so model does not become infeasible:
-            if (heat_demand == 0
-                    and i + 8 < 8760
-                    and heating_demand[i - 3] == 0
-                    and heating_demand[i - 2] == 0
-                    and heating_demand[i - 1] == 0
-                    and heating_demand[i + 1] == 0
-                    and heating_demand[i + 2] == 0
-                    and heating_demand[i + 3] == 0
-                    and heating_demand[i + 4] == 0
-            ):
-                if self.scenario.space_cooling_technology.power > 0:
-                    max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
-                else:
-                    # append the temperature of the reference model + 1°C to make sure it is feasible
-                    if T_room[i] + 1 < temperature_max_winter:  # should still not be lower than the max in winter
-                        max_temperature_list.append(temperature_max_winter)
-                    else:
-                        max_temperature_list.append(T_room[i] + 1)
-            else:
-                max_temperature_list.append(temperature_max_winter)
-
-        # implement a fail-save whenever after this function the maximum temperature list is above the indoor
-        # temperature it is being corrected:
-        for index in np.where(max_temperature_list - T_room < 2)[0]:
-            max_temperature_list[index] = T_room[index] + 2
-
-        # in summer the maximum allowed indoor temperture is allowed to be 2°C higher because there is no heating..
-        # to fix this:
-        min_temperature_list = []  # also minimum temperature in summer needs to be raised to prevent the optimization
-        # from cooling down to 20°C
-        for i, cool_demand in enumerate(cooling_demand):
-            # if cooling demand != 0 the minimum temperature is raised to the minimum temp in summer
-            if cool_demand > 0:
-                min_temperature_list.append(temperature_min_summer)
-                max_temperature_list[i] = self.scenario.behavior.target_temperature_array_max[i]
-            else:
+        min_temperature_list = []
+        for i, indoor_temp in enumerate(self.T_Room):
+            temperature_max_winter = self.scenario.behavior.target_temperature_array_min[i] + temperature_offset
+            if indoor_temp < temperature_max_winter:
                 min_temperature_list.append(self.scenario.behavior.target_temperature_array_min[i])
+                max_temperature_list.append(indoor_temp + temperature_offset)
+            elif temperature_max_winter <= indoor_temp <= self.scenario.behavior.target_temperature_array_max[
+                i] + 0.01:  # 0.01 is added to ignore floating point errors
+                if self.scenario.space_cooling_technology.power == 0:
+                    max_temperature_list.append(indoor_temp + temperature_offset)
+                    min_temperature_list.append(indoor_temp - temperature_offset)
+                else:
+                    max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
+                    min_temperature_list.append(indoor_temp - temperature_offset)
+            else:  # if no cooling than temperature can be higher than max:
+                max_temperature_list.append(indoor_temp + temperature_offset)
+                min_temperature_list.append(indoor_temp - temperature_offset)
 
         return np.array(max_temperature_list), np.array(
             min_temperature_list)
@@ -491,10 +467,10 @@ class OperationModel(ABC):
         and the respective source and supply temperature.
         """
         # calculate the heating demand in reference mode:
-        heating_demand, _, _, _ = self.calculate_heating_and_cooling_demand()
-        max_heating_demand = heating_demand.max()
+        max_heating_demand = self.Q_RoomHeating.max()
+        max_dhw_demand = self.scenario.behavior.hot_water_demand.max()
         # round to the next 500 W
-        max_thermal_power = np.ceil(max_heating_demand / 500) * 500
+        max_thermal_power = np.ceil((max_heating_demand + max_dhw_demand) / 500) * 500
         # calculate the design condition COP (-12°C)
         worst_COP = OperationModel.calc_cop(
             outside_temperature=[self.scenario.region.norm_outside_temperature],

@@ -17,15 +17,6 @@ class RefOperationModel(OperationModel):
         return model_ref
 
     def calc_space_heating_demand(self):
-        (
-            self.Q_RoomHeating,
-            self.Q_RoomCooling,
-            self.T_Room,
-            self.T_BuildingMass,
-        ) = self.calculate_heating_and_cooling_demand(
-            thermal_start_temperature=self.BuildingMassTemperatureStartValue,
-            static=False,
-        )
         hp_max = (
             self.SpaceHeating_HeatPumpMaximalElectricPower * self.SpaceHeatingHourlyCOP
         )
@@ -569,11 +560,6 @@ class RefOperationModel(OperationModel):
         return self
 
     def calc_space_heating_demand_fuel_boiler(self):
-        (self.Q_RoomHeating, self.Q_RoomCooling, self.T_Room, self.T_BuildingMass) = \
-            self.calculate_heating_and_cooling_demand(
-                thermal_start_temperature=self.BuildingMassTemperatureStartValue,
-                static=False,
-            )
         boiler_max = self.scenario.boiler.power_max
 
         self.Q_HeatingElement = np.where(

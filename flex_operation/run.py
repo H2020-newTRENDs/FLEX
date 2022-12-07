@@ -1,8 +1,10 @@
 from typing import List, Tuple
 
 from flex.config import Config
+from flex.db import create_db_conn
 from flex.kit import get_logger
 from flex_operation.analyzer import OperationAnalyzer
+from flex_operation.constants import OperationTable
 from flex_operation.data_collector import OptDataCollector
 from flex_operation.data_collector import RefDataCollector
 from flex_operation.model_opt import OptInstance
@@ -14,19 +16,19 @@ logger = get_logger(__name__)
 
 
 def run_operation_model(operation_scenario_ids: List[int], config: "Config"):
+    opt_instance = OptInstance().create_instance()
+
     for id_operation_scenario in operation_scenario_ids:
         logger.info(f"FlexOperation Model --> Scenario = {id_operation_scenario}.")
-        opt_instance = OptInstance().create_instance()
         scenario = OperationScenario(scenario_id=id_operation_scenario, config=config)
         # run ref model
         ref_model = RefOperationModel(scenario).solve()
-        RefDataCollector(ref_model, scenario.scenario_id, config, save_hour_results=True).run()
+        RefDataCollector(ref_model, scenario.scenario_id, config, save_hour_results=False).run()
         # run opt model
-        try:
-            opt_model = OptOperationModel(scenario).solve(opt_instance)
-            OptDataCollector(opt_model, scenario.scenario_id, config, save_hour_results=True).run()
-        except ValueError:
-            print(f'Infeasible --> ID_Scenario = {scenario.scenario_id}')
+
+        opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
+        if solve_status:
+            OptDataCollector(opt_model, scenario.scenario_id, config, save_hour_results=False).run()
 
 
 def run_operation_analyzer(
@@ -46,3 +48,13 @@ def run_operation_analyzer(
     ana.plot_component_interaction_full(component_change, other_components)
     ana.plot_component_interaction_specific(component_change, ("ID_Battery", 2))
     ana.plot_component_interaction_heatmap(component_change, ("ID_Boiler", 2), ("ID_SpaceHeatingTank", 2), components)
+
+
+def find_infeasible_scenarios(config: "Config"):
+    db = create_db_conn(config)
+    opt = db.read_dataframe(OperationTable.ResultOptYear)
+    ref = db.read_dataframe(OperationTable.ResultRefYear)
+    opt_scenarios = list(opt["ID_Scenario"].unique())
+    ref_scenarios = list(ref["ID_Scenario"].unique())
+    infeasible_scenarios = set(ref_scenarios) - set(opt_scenarios)
+    print(f'Infeasible Scenarios: {infeasible_scenarios}.')
