@@ -47,10 +47,7 @@ class CompareModels:
     def scenario_id_2_building_name(self, id_scenario: int) -> str:
         building_id = int(
             self.scenario_table.loc[self.scenario_table.loc[:, "ID_Scenario"] == id_scenario, "ID_Building"])
-        cooling_id = int(
-            self.scenario_table.loc[
-                self.scenario_table.loc[:, "ID_Scenario"] == id_scenario, "ID_SpaceCoolingTechnology"])
-        return f"{self.building_names[building_id]} {self.cooling_status[cooling_id]}"
+        return f"{self.building_names[building_id]}"
 
     def grab_scenario_ids_for_price(self, id_price: int) -> list:
         ids = self.scenario_table.loc[self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price, "ID_Scenario"]
@@ -403,16 +400,25 @@ class CompareModels:
             scenario_ids = self.grab_scenario_ids_for_price(price_id)
             temp_df = self.db.read_dataframe(table_name=OperationTable.ResultOptHour.value,
                                              column_names=["ID_Scenario", "Hour"], filter={"ID_Scenario": 1})
+            temp_df_cooling = temp_df.copy()
             for scen_id in scenario_ids:
                 indoor_temp_opt = self.db.read_dataframe(
                     table_name=OperationTable.ResultOptHour.value,
                     column_names=["T_Room"], filter={"ID_Scenario": scen_id}).rename(
                     columns={"T_Room": self.scenario_id_2_building_name(scen_id)})
-                temp_df = pd.concat([temp_df, indoor_temp_opt], axis=1)
+                cooling_id = int(self.scenario_table.loc[self.scenario_table.loc[:, "ID_Scenario"] == scen_id,
+                                                         "ID_SpaceCoolingTechnology"])
+                if cooling_id == 1:
+                    temp_df = pd.concat([temp_df, indoor_temp_opt], axis=1)
+                else:
+                    temp_df_cooling = pd.concat([temp_df_cooling, indoor_temp_opt], axis=1)
 
             # save indoor temp opt to csv for daniel:
             temp_df.to_csv(self.input_path.parent / Path(f"output/indoor_set_temp_price{price_id}.csv"), sep=";",
                            index=False)
+            temp_df_cooling.to_csv(self.input_path.parent / Path(f"output/indoor_set_temp_price{price_id}_cooling.csv"),
+                                   sep=";", index=False)
+
             del temp_df
 
     def show_plotly_comparison(self):
