@@ -425,3 +425,4 @@ flex/data/result/*.sqlite
 /data/output/pathways_from_192_to_1_building.json
 /data/output/pathways_from_192_to_1_costs.json
 /data/input_behavior/data_prep/
+/data/output/
