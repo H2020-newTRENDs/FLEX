@@ -19,14 +19,26 @@ class PRNImporter:
             2: "EZFH_5_S",
             3: "EZFH_9_B",
             4: "EZFH_1_B",
-            5: "EZFH_1_S"
+            5: "EZFH_1_S",
+            6: "MFH_5_B",
+            7: "MFH_5_S",
+            8: "MFH_1_B",
+            9: "MFH_1_S"
         }
-        self.scenario_table = DB(get_config(self.project_name)).read_dataframe(table_name=OperationTable.Scenarios.value)
+        self.scenario_table = DB(get_config(self.project_name)).read_dataframe(
+            table_name=OperationTable.Scenarios.value)
 
     def scenario_id_2_building_name(self, id_scenario: int) -> str:
         building_id = int(
             self.scenario_table.loc[self.scenario_table.loc[:, "ID_Scenario"] == id_scenario, "ID_Building"])
         return self.building_names[building_id]
+
+    def get_folder_names(self, path: Path) -> list:
+        dicts = []
+        for child in path.iterdir():
+            if child.is_dir():
+                dicts.append(child.name)
+        return dicts
 
     def grab_scenario_ids_for_price(self, id_price: int) -> list:
         ids = self.scenario_table.loc[self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price, "ID_Scenario"]
@@ -51,12 +63,14 @@ class PRNImporter:
             # df to csv:
             df.to_csv(Path(path) / Path(name.replace("prn", "csv")), sep=";", index=False)
 
-    def load_csv_heat_balance_file(self, path):
+    def load_csv_heat_balance_file(self, path) -> (np.array, np.array):
         file_name = "HEAT_BALANCE.csv"
         table = pd.read_csv(Path(path) / Path(file_name), sep=";")
         table = table[~table.loc[:, "time"].duplicated(keep='first')]
-        heating = table.loc[:, "qhc2zone"].to_numpy()[1:]  # drop first hour because daniel has 8761
-        return heating
+        qhc2zone = table.loc[:, "qhc2zone"].to_numpy()[1:]  # drop first hour because daniel has 8761
+        heating = qhc2zone[qhc2zone < 0] = 0
+        cooling = qhc2zone[qhc2zone > 0] = 0
+        return heating, cooling
 
     def load_csv_temperature_file(self, path):
         print(path)
@@ -67,47 +81,58 @@ class PRNImporter:
         return indoor_temp
 
     def iterate_through_folders(self, folder_path) -> List[str]:
-        list_subfolders_paths = [f.path for f in os.scandir(folder_path) if f.is_dir() and f.path.split("\\")[-1]!="heating"]
+        list_subfolders_paths = [f.path for f in os.scandir(folder_path) if f.is_dir()
+                                 and f.path.split("\\")[-1] != "heating" and f.path.split("\\")[-1] != "cooling"]
         return list_subfolders_paths
 
     def main(self):
-        strategies = ["price1", "price2", "price3", "price4"]
-        for strat in strategies:
-            folders = self.iterate_through_folders(self.main_path / Path(strat))
-            heating_demand = {}
-            indoor_temp = {}
-            for folder in folders:
-                # load folders of zones:
-                zone_paths = self.iterate_through_folders(Path(folder))
-                house_heat_load = np.zeros((8760,))
+        heating_systems = ["ideal", "floor_heating"]
+        for system in heating_systems:
+            strategies = self.get_folder_names(self.main_path / system)
+            for strat in strategies:
+                folders = self.iterate_through_folders(self.main_path / system / strat)
+                heating_demand = {}
+                cooling_demand = {}
+                indoor_temp = {}
+                for folder in folders:
+                    # load folders of zones:
+                    zone_paths = self.iterate_through_folders(Path(folder))
+                    house_heat_load = np.zeros((8760,))
+                    house_cool_load = np.zeros((8760,))
 
-                number_of_zones = 0
-                air_temp = np.zeros((8760,))
-                # get heat load from each zone:
-                for zone in zone_paths:
-                    number_of_zones += 1
-                    # create the csv files:
-                    self.prn_to_csv(zone)
-                    # load the csv file:
-                    zone_heat_load = self.load_csv_heat_balance_file(zone)
-                    house_heat_load += zone_heat_load
+                    number_of_zones = 0
+                    air_temp = np.zeros((8760,))
+                    # get heat load from each zone:
+                    for zone in zone_paths:
+                        number_of_zones += 1
+                        # create the csv files:
+                        self.prn_to_csv(zone)
+                        # load the csv file:
+                        zone_heat_load, zone_cool_load = self.load_csv_heat_balance_file(zone)
+                        house_heat_load += zone_heat_load
+                        house_cool_load += zone_cool_load
 
-                    air_temp_zone = self.load_csv_temperature_file(zone)
-                    air_temp += air_temp_zone
-                # divide air temp by number of zones to get mean
-                air_temp_mean = air_temp / number_of_zones
+                        air_temp_zone = self.load_csv_temperature_file(zone)
+                        air_temp += air_temp_zone
+                    # divide air temp by number of zones to get mean
+                    air_temp_mean = air_temp / number_of_zones
 
-                # house name:
-                house_name = folder.split("\\")[-1]
-                heating_demand[house_name] = house_heat_load
-                indoor_temp[house_name] = air_temp_mean
+                    # house name:
+                    house_name = folder.split("\\")[-1]
+                    heating_demand[house_name] = house_heat_load
+                    cooling_demand[house_name] = house_cool_load
+                    indoor_temp[house_name] = air_temp_mean
 
-            # heating demand to csv for later analysis:
-            heating_demand_df = pd.DataFrame(heating_demand)
-            heating_demand_df.to_csv(self.main_path / Path(f"heating_demand_daniel_{strat}.csv"), sep=";", index=False)
-            # air temp to csv
-            indoor_temp_df = pd.DataFrame(indoor_temp)
-            indoor_temp_df.to_csv(self.main_path / Path(f"indoor_temp_daniel_{strat}.csv"), sep=";", index=False)
+                # heating demand to csv for later analysis:
+                heating_demand_df = pd.DataFrame(heating_demand)
+                heating_demand_df.to_csv(self.main_path / Path(f"heating_demand_daniel_{strat}.csv"), sep=";",
+                                         index=False)
+                # cooling demand to csv:
+                cooling_demand_df = pd.DataFrame(cooling_demand)
+                cooling_demand_df.to_csv(self.main_path / f"cooling_demand_daniel_{strat}.csv", sep=";", index=False)
+                # air temp to csv
+                indoor_temp_df = pd.DataFrame(indoor_temp)
+                indoor_temp_df.to_csv(self.main_path / Path(f"indoor_temp_daniel_{strat}.csv"), sep=";", index=False)
 
     def read_heat_demand(self, table_name: str, prize_scenario: str):
         scenario_id = self.grab_scenario_ids_for_price(int(prize_scenario[-1]))
