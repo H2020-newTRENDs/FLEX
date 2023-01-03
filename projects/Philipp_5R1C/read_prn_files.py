@@ -40,8 +40,9 @@ class PRNImporter:
                 dicts.append(child.name)
         return dicts
 
-    def grab_scenario_ids_for_price(self, id_price: int) -> list:
-        ids = self.scenario_table.loc[self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price, "ID_Scenario"]
+    def grab_scenario_ids_for_price(self, id_price: int, cooling: int) -> list:
+        ids = self.scenario_table.loc[self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price &
+                                      self.scenario_table.loc[:, "ID_SpaceCoolingTechnology"] == cooling, "ID_Scenario"]
         return list(ids)
 
     def prn_to_csv(self, path) -> None:
@@ -68,8 +69,10 @@ class PRNImporter:
         table = pd.read_csv(Path(path) / Path(file_name), sep=";")
         table = table[~table.loc[:, "time"].duplicated(keep='first')]
         qhc2zone = table.loc[:, "qhc2zone"].to_numpy()[1:]  # drop first hour because daniel has 8761
-        heating = qhc2zone[qhc2zone < 0] = 0
-        cooling = qhc2zone[qhc2zone > 0] = 0
+        heating = qhc2zone.copy()
+        heating[heating < 0] = 0
+        cooling = qhc2zone.copy()
+        cooling[cooling > 0] = 0
         return heating, cooling
 
     def load_csv_temperature_file(self, path):
@@ -125,17 +128,17 @@ class PRNImporter:
 
                 # heating demand to csv for later analysis:
                 heating_demand_df = pd.DataFrame(heating_demand)
-                heating_demand_df.to_csv(self.main_path / Path(f"heating_demand_daniel_{strat}.csv"), sep=";",
+                heating_demand_df.to_csv(self.main_path / Path(f"heating_demand_daniel_{system}_{strat}.csv"), sep=";",
                                          index=False)
                 # cooling demand to csv:
                 cooling_demand_df = pd.DataFrame(cooling_demand)
-                cooling_demand_df.to_csv(self.main_path / f"cooling_demand_daniel_{strat}.csv", sep=";", index=False)
+                cooling_demand_df.to_csv(self.main_path / f"cooling_demand_daniel_{system}_{strat}.csv", sep=";", index=False)
                 # air temp to csv
                 indoor_temp_df = pd.DataFrame(indoor_temp)
-                indoor_temp_df.to_csv(self.main_path / Path(f"indoor_temp_daniel_{strat}.csv"), sep=";", index=False)
+                indoor_temp_df.to_csv(self.main_path / Path(f"indoor_temp_daniel_{system}_{strat}.csv"), sep=";", index=False)
 
-    def read_heat_demand(self, table_name: str, prize_scenario: str):
-        scenario_id = self.grab_scenario_ids_for_price(int(prize_scenario[-1]))
+    def read_heat_demand(self, table_name: str, prize_scenario: str, cooling: int):
+        scenario_id = self.grab_scenario_ids_for_price(int(prize_scenario.replace("_cooling", "")[-1]), cooling)
         demand = DB(get_config(self.project_name)).read_dataframe(table_name=table_name,
                                         column_names=["ID_Scenario", "Q_HeatingTank_bypass", "Hour"],
                                         )
@@ -152,35 +155,49 @@ class PRNImporter:
         # the same heat demand the IDA ICE model has in the reference scenario
 
         # load heat demand from first price scenario
-        filename = f"heating_demand_daniel_price1.csv"
+        filename = f"heating_demand_daniel_ideal_price1.csv"
         ref_demand_df = pd.read_csv(self.main_path / Path(filename), sep=";")
+        heating_systems = ["ideal", "floor_heating"]
+        for system in heating_systems:
+            prices = self.get_folder_names(self.main_path / system)
+            for price in prices:
+                if "cooling" in price:
+                    cooling = 1
+                else:
+                    cooling = 2
+                # load heat demand from other price scenarios:
+                filename = f"heating_demand_daniel_{system}_{price}.csv"
+                opt_demand_IDA = pd.read_csv(self.main_path / Path(filename), sep=";")
 
-        for price in ["price2", "price3", "price4"]:
-            # load heat demand from other price scenarios:
-            filename = f"heating_demand_daniel_{price}.csv"
-            opt_demand_IDA = pd.read_csv(self.main_path / Path(filename), sep=";")
+                # load heat demand from 5R1C model optimized:
+                opt_demand_5R1C = self.read_heat_demand(OperationTable.ResultOptHour.value, price, cooling)
 
-            # load heat demand from 5R1C model optimized:
-            opt_demand_5R1C = self.read_heat_demand(OperationTable.ResultOptHour.value, price)
+                # order the columns of both dfs:
+                column_order = list(opt_demand_IDA.columns)
+                opt_demand_5R1C = opt_demand_5R1C[column_order].reset_index(drop=True)
 
-            # order the columns of both dfs:
-            column_order = list(opt_demand_IDA.columns)
-            opt_demand_5R1C = opt_demand_5R1C[column_order].reset_index(drop=True)
+                # check each hour if the heat demand is 0 in the 5R1C model and above 0 in the IDA. If this is the case
+                # the heat demand in the IDA model will be exchanged with the heat demand of the IDA model without
+                # optimization:
+                for column_name, series in opt_demand_IDA.iteritems():
+                    for index, value in enumerate(series):
+                        if opt_demand_5R1C.loc[index, column_name] == 0 and value > 0:
+                            # exchange with the ref demand from IDA:
+                            opt_demand_IDA.loc[index, column_name] = ref_demand_df.loc[index, column_name]
 
-            # check each hour if the heat demand is 0 in the 5R1C model and above 0 in the IDA. If this is the case
-            # the heat demand in the IDA model will be exchanged with the heat demand of the IDA model without
-            # optimization:
-            for column_name, series in opt_demand_IDA.iteritems():
-                for index, value in enumerate(series):
-                    if opt_demand_5R1C.loc[index, column_name] == 0 and value > 0:
-                        # exchange with the ref demand from IDA:
-                        opt_demand_IDA.loc[index, column_name] = ref_demand_df.loc[index, column_name]
+                # save opt_demand_IDA as csv under the old name
+                opt_demand_IDA.to_csv(self.main_path / Path(f"heating_demand_daniel_{price}.csv"), sep=";", index=False)
 
-            # save opt_demand_IDA as csv under the old name
-            opt_demand_IDA.to_csv(self.main_path / Path(f"heating_demand_daniel_{price}.csv"), sep=";", index=False)
+    def clean_up(self):
+        """ delete the csv files that only contain zeros (cooling demand for scenarios without cooling)"""
+        for file in self.main_path.glob('*.csv'):
+            if file.name.lower().startswith("cooling"):
+                if file.name.lower().count("cooling") == 1:
+                    file.unlink()
 
 
 if __name__ == "__main__":
     prn_importer = PRNImporter("5R1C_validation")
     prn_importer.main()
-    prn_importer.modify_heat_demand()
+    prn_importer.clean_up()
+    # prn_importer.modify_heat_demand()

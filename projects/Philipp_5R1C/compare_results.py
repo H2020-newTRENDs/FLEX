@@ -10,6 +10,7 @@ import plotly.figure_factory as ff
 import matplotlib.pyplot as plt
 import seaborn as sns
 import math
+import re
 
 from basics.db import DB
 from config import config, get_config
@@ -43,14 +44,22 @@ class CompareModels:
         }
         self.cooling_status = {1: "no cooling",
                                2: "cooling"}
+        self.heating_system = ["ideal", "floor_heating"]
+
+    def check_price_scenario_name(self, prize_scenario: str):
+        if "cooling" in prize_scenario:
+            return prize_scenario.replace("_cooling", "")
+
 
     def scenario_id_2_building_name(self, id_scenario: int) -> str:
         building_id = int(
             self.scenario_table.loc[self.scenario_table.loc[:, "ID_Scenario"] == id_scenario, "ID_Building"])
         return f"{self.building_names[building_id]}"
 
-    def grab_scenario_ids_for_price(self, id_price: int) -> list:
-        ids = self.scenario_table.loc[self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price, "ID_Scenario"]
+    def grab_scenario_ids_for_price(self, id_price: int, cooling: int) -> list:
+        ids = self.scenario_table.loc[self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price &
+              self.scenario_table.loc[self.scenario_table.loc[:, "ID_SpaceCoolingTechnology"] == cooling],
+                                      "ID_Scenario"]
         return list(ids)
 
     def show_elec_prices(self):
@@ -80,16 +89,16 @@ class CompareModels:
         fig.savefig(self.figure_path / Path("electricity_prices.svg"))
         fig.show()
 
-    def read_daniel_heat_demand(self, strat: str):
+    def read_daniel_heat_demand(self, strat: str, cooling: str, system: str) -> pd.DataFrame:
         filename = f"heating_demand_daniel_{strat}.csv"
         demand_df = pd.read_csv(self.input_path / Path(filename), sep=";")
-        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
+        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S", "MFH_5_B", "MFH_5_S", "MFH_1_B", "MFH_1_S"]
         # rearrange the df:
         df = demand_df[column_list]
         return df
 
-    def read_heat_demand(self, table_name: str, prize_scenario: str):
-        scenario_id = self.grab_scenario_ids_for_price(int(prize_scenario[-1]))
+    def read_heat_demand(self, table_name: str, prize_scenario: str, cooling: int) -> pd.DataFrame:
+        scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", prize_scenario)[0]), cooling)
         demand = self.db.read_dataframe(table_name=table_name,
                                         column_names=["ID_Scenario", "Q_HeatingTank_bypass", "Hour"],
                                         )
@@ -100,8 +109,20 @@ class CompareModels:
         df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
         return df
 
-    def read_indoor_temp(self, table_name: str, prize_scenario: str):
-        scenario_id = self.grab_scenario_ids_for_price(int(prize_scenario[-1]))
+    def read_cooling_demand(self, table_name: str, prize_scenario: str, cooling: str, system: str) -> pd.DataFrame:
+        scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", prize_scenario)[0]))
+        demand = self.db.read_dataframe(table_name=table_name,
+                                        column_names=["ID_Scenario", "Q_HeatingTank_bypass", "Hour"],
+                                        )
+        # split the demand into columns for every Scenario ID:
+        df = demand.pivot_table(index="Hour", columns="ID_Scenario")
+        # drop columns which are not in this price
+        df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
+        df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
+        return df
+
+    def read_indoor_temp(self, table_name: str, prize_scenario: str, cooling: int) -> pd.DataFrame:
+        scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", prize_scenario)[0]), cooling)
         temp = self.db.read_dataframe(table_name=table_name,
                                       column_names=["ID_Scenario", "T_Room", "Hour"])
         df = temp.pivot_table(index="Hour", columns="ID_Scenario")
@@ -109,20 +130,20 @@ class CompareModels:
         df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
         return df
 
-    def read_indoor_temp_daniel(self, strat):
+    def read_indoor_temp_daniel(self, strat, cooling: str, system: str) -> pd.DataFrame:
         filename = f"indoor_temp_daniel_{strat}.csv"
         temp_df = pd.read_csv(self.input_path / Path(filename), sep=";")
-        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
+        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S", "MFH_5_B", "MFH_5_S", "MFH_1_B", "MFH_1_S"]
         # rearrange the df:
         df = temp_df[column_list]
         return df
 
-    def read_costs(self, table_name: str):
+    def read_costs(self, table_name: str) -> pd.DataFrame:
         cost = self.db.read_dataframe(table_name=table_name,
                                       column_names=["TotalCost"])
         cost.loc[:, "index"] = np.arange(1, len(cost) + 1)
         df = cost.pivot_table(columns="index")
-        df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S"]
+        df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S", "MFH_5_B", "MFH_5_S", "MFH_1_B", "MFH_1_S"]
         return df
 
     def read_electricity_price(self, price_id: str) -> np.array:
@@ -131,7 +152,7 @@ class CompareModels:
                                        column_names=[f"electricity_{number}"]).to_numpy()
         return price
 
-    def read_COP(self, table_name: str):
+    def read_COP(self, table_name: str) -> pd.DataFrame:
         # cop is the same in alle price scenarios
         scenario_id = self.grab_scenario_ids_for_price(1)
         cop = self.db.read_dataframe(table_name=table_name,
@@ -144,17 +165,33 @@ class CompareModels:
         df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
         return df
 
-    def calculate_costs(self, table_name: str, price_id: str):
+    def read_COP_AC(self, table_name: str) -> pd.DataFrame:
+        # cop is the same in alle price scenarios
+        scenario_id = self.grab_scenario_ids_for_price(1)
+        cop = self.db.read_dataframe(table_name=table_name,
+                                     column_names=["ID_Scenario", "CoolingHourlyCOP",
+                                                   "Hour"])
+        # split the demand into columns for every Scenario ID:
+        df = cop.pivot_table(index="Hour", columns="ID_Scenario")
+        # drop columns which are not in this price
+        df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
+        df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
+        return df
+
+    def calculate_costs(self, table_name: str, price_id: str, cooling: str) -> pd.DataFrame:
         price_profile = self.read_electricity_price(price_id).squeeze()
-        heat_demand = self.read_heat_demand(table_name, price_id)
+        heat_demand = self.read_heat_demand(table_name, price_id, cooling)
+        cool_demand = self.read_cooling_demand(table_name, price_id, cooling)
         COP_HP = self.read_COP(table_name)
-        electricity = (heat_demand / COP_HP).reset_index(drop=True)
+        COP_AC = self.read_COP_AC(table_name)
+        electricity_heat = (heat_demand / COP_HP).reset_index(drop=True)
+        electricity_cool = ()
 
         hourly_cost = electricity.mul(pd.Series(price_profile), axis=0)
         total_cost = hourly_cost.sum(axis=0)
         return pd.DataFrame(total_cost).transpose()
 
-    def calculate_costs_daniel_opt(self, table_name: str, price_id: str):
+    def calculate_costs_daniel_opt(self, table_name: str, price_id: str) -> pd.DataFrame:
         price_profile = self.read_electricity_price(price_id).squeeze()
         COP_HP = self.read_COP(table_name)
         heat_demand = self.read_daniel_heat_demand(price_id)
@@ -164,7 +201,7 @@ class CompareModels:
         total_cost = hourly_cost.sum(axis=0)
         return pd.DataFrame(total_cost).transpose()
 
-    def calculate_costs_daniel_ref(self, table_name: str, price_id: str):
+    def calculate_costs_daniel_ref(self, table_name: str, price_id: str) -> pd.DataFrame:
         price_profile = self.read_electricity_price(price_id).squeeze()
         COP_HP = self.read_COP(table_name)
         heat_demand = self.read_daniel_heat_demand("price1")  # because here the indoor set temp is steady
@@ -293,7 +330,7 @@ class CompareModels:
 
 
 
-    def subplots_yearly(self):
+    def subplots_yearly(self, prizes: list, system: str):
         plt.style.use("seaborn-paper")
         prizes = ["price1", "price2", "price3", "price4"]
 
@@ -344,7 +381,7 @@ class CompareModels:
         fig2.savefig(self.figure_path / Path("total_heating_cost.svg"))
         plt.show()
 
-    def subplots_relative(self):
+    def subplots_relative(self, prizes: list, system: str):
         plt.style.use("seaborn-paper")
         prizes = ["price1", "price2", "price3", "price4"]
 
@@ -453,15 +490,14 @@ class CompareModels:
         RMSE = math.sqrt(MSE)
         return RMSE
 
-    def show_rmse(self):
+    def show_rmse(self, prizes: list, system: str, cooling: int):
         plt.style.use("seaborn-paper")
         fig_temp, axes_temp = plt.subplots(nrows=2, ncols=2, figsize=(12, 7), sharex=True, sharey=True)
         fig_heat, axes_heat = plt.subplots(nrows=2, ncols=2, figsize=(12, 7), sharex=True, sharey=True)
-        prizes = ["price1", "price2", "price3", "price4"]
         for i, price in enumerate(prizes):
             # ref heat demand is always the same
-            heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, price)
-            indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value, price)
+            heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, price, cooling)
+            indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value, price, cooling)
             # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
             heat_demand_IDA_ref = self.read_daniel_heat_demand(price)
             temperature_daniel_ref = self.read_indoor_temp_daniel(price)
@@ -496,11 +532,15 @@ class CompareModels:
         fig_heat.show()
 
     def main(self):
-        self.indoor_temp_to_csv()
-        # self.show_rmse()
-        # self.subplots_relative()
-        # self.subplots_yearly()
-        # self.show_plotly_comparison()
+        price_scenarios = ["price1", "price2", "price3", "price4"]
+        price_scenarios_cooling = ["price1_cooling", "price2_cooling", "price3_cooling", "price4_cooling"]
+        # self.indoor_temp_to_csv()
+
+        # compare the ideal case without cooling:
+        self.show_rmse(prizes=price_scenarios, system="ideal", cooling=1)
+        self.subplots_relative(prizes=price_scenarios, system="ideal")
+        self.subplots_yearly()
+        self.show_plotly_comparison()
 
 
 
