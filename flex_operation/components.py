@@ -42,6 +42,7 @@ class Building(OperationComponent):
     effective_window_area_south: Optional[float] = None
     effective_window_area_north: Optional[float] = None
     grid_power_max: Optional[float] = None
+    supply_temperature: Optional[float] = None
 
 
 @dataclass
@@ -52,8 +53,6 @@ class Boiler(OperationComponent):
     heating_element_power: Optional[float] = None
     heating_element_power_unit: Optional[str] = None
     carnot_efficiency_factor: Optional[float] = None
-    heating_supply_temperature: Optional[float] = None
-    hot_water_supply_temperature: Optional[float] = None
 
 
 @dataclass
