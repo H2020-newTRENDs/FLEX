@@ -8,6 +8,7 @@ from flex_operation.scenario import OperationScenario
 class OperationModel(ABC):
 
     def __init__(self, scenario: "OperationScenario"):
+        self.hot_water_supply_temperature = 55  # same for all buildings
         self.scenario = scenario
         self.CPWater = 4200 / 3600
         self.setup_operation_model_params()
@@ -63,13 +64,13 @@ class OperationModel(ABC):
         self.fuel_boiler_efficiency = 0.95  # TODO specify as input??
         self.SpaceHeatingHourlyCOP = self.calc_cop(
             outside_temperature=self.scenario.region.temperature,
-            supply_temperature=self.scenario.boiler.heating_supply_temperature,
+            supply_temperature=self.scenario.building.supply_temperature,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
             source=self.scenario.boiler.type,
         )
         self.SpaceHeatingHourlyCOP_tank = self.calc_cop(
             outside_temperature=self.scenario.region.temperature,
-            supply_temperature=self.scenario.boiler.heating_supply_temperature + 10,
+            supply_temperature=self.scenario.building.supply_temperature + 10,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
             source=self.scenario.boiler.type,
         )
@@ -91,13 +92,13 @@ class OperationModel(ABC):
     def setup_hot_water_params(self):
         self.HotWaterHourlyCOP = self.calc_cop(
             outside_temperature=self.scenario.region.temperature,
-            supply_temperature=self.scenario.boiler.hot_water_supply_temperature,
+            supply_temperature=self.hot_water_supply_temperature,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
             source=self.scenario.boiler.type,
         )
         self.HotWaterHourlyCOP_tank = self.calc_cop(
             outside_temperature=self.scenario.region.temperature,
-            supply_temperature=self.scenario.boiler.hot_water_supply_temperature + 10,
+            supply_temperature=self.hot_water_supply_temperature + 10,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
             source=self.scenario.boiler.type,
         )
@@ -474,7 +475,7 @@ class OperationModel(ABC):
         # calculate the design condition COP (-12°C)
         worst_COP = OperationModel.calc_cop(
             outside_temperature=[self.scenario.region.norm_outside_temperature],
-            supply_temperature=self.scenario.boiler.heating_supply_temperature,
+            supply_temperature=self.scenario.building.supply_temperature,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
             source=self.scenario.boiler.type,
         )
