@@ -34,7 +34,7 @@ class DatabaseInitializer:
         self.load_table(file_name=file_name, table_name=table_name)
 
     def load_table(self, file_name: "Path", table_name: str):
-        df = pd.read_excel(file_name, engine="openpyxl")
+        df = pd.read_excel(file_name, engine="openpyxl").dropna(axis=0)
         self.db.write_dataframe(table_name, df, if_exists="replace")
 
     def generate_operation_scenario_table(self, scenario_table_name: str, component_table_names: Dict[str, str]):
