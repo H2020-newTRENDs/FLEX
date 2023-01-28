@@ -25,7 +25,6 @@ def run_operation_model(operation_scenario_ids: List[int], config: "Config"):
         ref_model = RefOperationModel(scenario).solve()
         RefDataCollector(ref_model, scenario.scenario_id, config, save_hour_results=False).run()
         # run opt model
-
         opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
         if solve_status:
             OptDataCollector(opt_model, scenario.scenario_id, config, save_hour_results=False).run()
