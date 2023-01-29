@@ -6,6 +6,7 @@ from flex.plotter import Plotter
 from flex_behavior.constants import BehaviorTable
 from flex import kit
 
+
 class BehaviorScenario:
 
     def __init__(self, scenario_id: int, config: "Config"):
