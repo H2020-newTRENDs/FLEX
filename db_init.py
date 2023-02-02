@@ -38,6 +38,9 @@ class ProjectDatabaseInit(DatabaseInitializer):
 
     def load_operation_profile_tables(self):
         self.load_operation_table(OperationTable.BehaviorProfile)
+        self.load_operation_table(OperationTable.DrivingProfile_ParkingHome)
+        self.load_operation_table(OperationTable.DrivingProfile_Distance)
+        self.load_operation_table(OperationTable.DrivingProfile_ChargingOutside)
         self.load_operation_table(OperationTable.EnergyPriceProfile)
         self.load_operation_table(OperationTable.RegionWeatherProfile)
 
