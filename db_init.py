@@ -11,9 +11,14 @@ class ProjectDatabaseInit(DatabaseInitializer):
 
     def load_behavior_tables(self):
         self.load_behavior_table(BehaviorTable.Scenarios)
+        self.load_behavior_table(BehaviorTable.ID_HouseholdType)
+        self.load_behavior_table(BehaviorTable.ID_PersonType)
         self.load_behavior_table(BehaviorTable.ID_Activity)
         self.load_behavior_table(BehaviorTable.ID_Technology)
+        self.load_behavior_table(BehaviorTable.ID_TechnologyType)
+        self.load_behavior_table(BehaviorTable.HouseholdComposition)
         self.load_behavior_table(BehaviorTable.ActivityProfile)
+        self.load_behavior_table(BehaviorTable.TechnologyType)
         self.load_behavior_table(BehaviorTable.TechnologyTriggerProbability)
         self.load_behavior_table(BehaviorTable.TechnologyOwnershipRate)
         self.load_behavior_table(BehaviorTable.TechnologyPowerActive)
