@@ -38,10 +38,12 @@ class OptInstance:
         self.setup_objective(m)
         return m
 
-    def setup_sets(self, m):
+    @staticmethod
+    def setup_sets(m):
         m.t = pyo.Set(initialize=np.arange(1, 8761))
 
-    def setup_params(self, m):
+    @staticmethod
+    def setup_params(m):
         # time dependent parameters:
         # external parameters:
         # outside temperature
@@ -123,7 +125,8 @@ class OptInstance:
         m.Cm = pyo.Param(mutable=True)
         m.BuildingMassTemperatureStartValue = pyo.Param(mutable=True)
 
-    def setup_variables(self, m):
+    @staticmethod
+    def setup_variables(m):
         # space heating
         m.Q_HeatingTank_in = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Q_HeatingTank_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
@@ -406,12 +409,13 @@ class OptInstance:
 
         def calc_EVSoC(m, t):
             if t == 1:
-                return m.EVSoC[t] == 0 + m.EVCharge[t] * m.EVChargeEfficiency - \
-                       m.EVDischarge[t] * (1 + (1 - m.EVDischargeEfficiency))
+                return m.EVSoC[t] == 0 + \
+                                     m.EVCharge[t] * m.EVChargeEfficiency - \
+                                     m.EVDischarge[t] / m.EVDischargeEfficiency
             else:
-                return m.EVSoC[t] == \
-                       m.EVSoC[t - 1] + m.EVCharge[t] * m.EVChargeEfficiency - \
-                       m.EVDischarge[t] * (1 + (1 - m.EVDischargeEfficiency))
+                return m.EVSoC[t] == m.EVSoC[t - 1] + \
+                                     m.EVCharge[t] * m.EVChargeEfficiency - \
+                                     m.EVDischarge[t] / m.EVDischargeEfficiency
         m.EVSoC_rule = pyo.Constraint(m.t, rule=calc_EVSoC)
 
     def setup_constraint_electricity_demand(self, m):

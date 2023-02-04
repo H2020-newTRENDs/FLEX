@@ -166,12 +166,13 @@ class RefOperationModel(OperationModel):
         self.Bat2EV = np.zeros(pv_surplus.shape)
 
         if self.scenario.vehicle.capacity > 0:
-            self.EVDemandProfile = self.scenario.behavior.vehicle_demand
-            self.EVDischarge = self.EVDemandProfile
 
-            capacity = self.scenario.vehicle.capacity  # kWh
-            max_charge_power = self.scenario.vehicle.charge_power_max  # kW
-            charge_efficiency = self.scenario.vehicle.charge_efficiency
+            capacity = self.scenario.vehicle.capacity  # Wh
+            max_charge_power = self.scenario.vehicle.charge_power_max  # W
+            charge_efficiency = self.scenario.vehicle.charge_efficiency  # %
+            discharge_efficiency = self.scenario.vehicle.discharge_efficiency  # %
+            self.EVDemandProfile = self.scenario.behavior.vehicle_demand
+            self.EVDischarge = self.EVDemandProfile / discharge_efficiency
 
             grid_demand_after_ev = np.copy(grid_demand)
             pv_surplus_after_ev = np.copy(pv_surplus)
@@ -183,42 +184,30 @@ class RefOperationModel(OperationModel):
                 else:
                     ev_soc_start = self.EVSoC[i - 1]
 
-                if self.EVAtHomeProfile[i] == 1:
+                if self.EVAtHomeProfile[i] == 1 and ev_soc_start <= capacity:
 
-                    if ev_soc_start <= capacity:
-
-                        charge_necessary = capacity - ev_soc_start
-                        if charge_necessary <= max_charge_power:
-                            charge_amount = charge_necessary
-                        else:
-                            charge_amount = max_charge_power
-
-                        if pv_surplus[i] > 0:
-                            if pv_surplus[i] * charge_efficiency <= charge_amount:
-                                pv_surplus_after_ev[i] -= pv_surplus[i]
-                                grid_demand_after_ev[i] += (
-                                    charge_amount / charge_efficiency - pv_surplus[i]
-                                )
-                                self.Grid2EV[i] = (
-                                    charge_amount - pv_surplus[i] * charge_efficiency
-                                )
-                            else:
-                                pv_surplus_after_ev[i] -= (
-                                    charge_amount / charge_efficiency
-                                )
-
-                        else:
-                            grid_demand_after_ev[i] += charge_amount / charge_efficiency
-                            self.Grid2EV[i] = charge_amount
-
-                        self.EVCharge[i] = charge_amount
-                        self.EVSoC[i] = ev_soc_start + charge_amount
-
+                    charge_necessary = capacity - ev_soc_start
+                    if charge_necessary <= max_charge_power:
+                        charge_amount = charge_necessary
                     else:
-                        pass
+                        charge_amount = max_charge_power
 
+                    if pv_surplus[i] > 0:
+                        if pv_surplus[i] * charge_efficiency <= charge_amount:
+                            pv_surplus_after_ev[i] -= pv_surplus[i]
+                            grid_demand_after_ev[i] += (charge_amount / charge_efficiency - pv_surplus[i])
+                            self.Grid2EV[i] = charge_amount - pv_surplus[i] * charge_efficiency
+                        else:
+                            pv_surplus_after_ev[i] -= charge_amount / charge_efficiency
+                    else:
+                        grid_demand_after_ev[i] += charge_amount / charge_efficiency
+                        self.Grid2EV[i] = charge_amount
+
+                    self.EVCharge[i] = charge_amount
+                    self.EVSoC[i] = ev_soc_start + charge_amount
                 else:
                     self.EVSoC[i] = ev_soc_start - self.EVDischarge[i]
+                # self.EVSoC[i] -= self.EVDischarge[i]
 
         else:
             grid_demand_after_ev = grid_demand
@@ -552,9 +541,7 @@ class RefOperationModel(OperationModel):
         grid_demand, pv_surplus = self.calc_load()
         grid_demand, pv_surplus = self.calc_battery_energy(grid_demand, pv_surplus)
         grid_demand, pv_surplus = self.calculate_ev_energy(grid_demand, pv_surplus)
-        grid_demand, pv_surplus = self.calc_hot_water_tank_energy(
-            grid_demand, pv_surplus
-        )
+        grid_demand, pv_surplus = self.calc_hot_water_tank_energy(grid_demand, pv_surplus)
         self.calc_grid(grid_demand, pv_surplus)
         self.set_boiler_parameters_to_zero()
         return self

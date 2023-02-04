@@ -41,12 +41,17 @@ def run_operation_analyzer(
     ana.create_component_energy_cost_change_tables(component_changes)
     ana.plot_operation_energy_cost_change_curve(component_changes)
     ana.plot_scenario_electricity_balance(scenario_id=1)
-    # # component interaction
+    # component interaction
     component_change = ("ID_PV", 2, 1)
     other_components = list(filter(lambda item: item[0] != component_change[0], components))
     ana.plot_component_interaction_full(component_change, other_components)
     ana.plot_component_interaction_specific(component_change, ("ID_Battery", 2))
     ana.plot_component_interaction_heatmap(component_change, ("ID_Boiler", 2), ("ID_SpaceHeatingTank", 2), components)
+
+
+def debug_operation_result(config: "Config"):
+    ana = OperationAnalyzer(config)
+    ana.compare_opt_ref(scenario_id=1)
 
 
 def find_infeasible_scenarios(config: "Config"):
