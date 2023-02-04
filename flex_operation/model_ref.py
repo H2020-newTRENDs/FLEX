@@ -204,10 +204,11 @@ class RefOperationModel(OperationModel):
                         self.Grid2EV[i] = charge_amount
 
                     self.EVCharge[i] = charge_amount
-                    self.EVSoC[i] = ev_soc_start + charge_amount
+                    # self.EVSoC[i] = ev_soc_start + charge_amount
+                    self.EVSoC[i] = ev_soc_start + charge_amount - self.EVDischarge[i]
+
                 else:
                     self.EVSoC[i] = ev_soc_start - self.EVDischarge[i]
-                # self.EVSoC[i] -= self.EVDischarge[i]
 
         else:
             grid_demand_after_ev = grid_demand

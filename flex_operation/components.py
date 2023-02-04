@@ -133,6 +133,8 @@ class Vehicle(OperationComponent):
     discharge_power_max: Optional[float] = None
     discharge_power_max_unit: Optional[str] = None
     charge_bidirectional: Optional[float] = None
+    id_parking_at_home_profile: Optional[int] = None
+    id_distance_profile: Optional[int] = None
 
 
 @dataclass

@@ -16,7 +16,7 @@ def run_flex_behavior_analyzer(config):
 
 
 def run_flex_operation_model(config):
-    operation_scenario_ids = [id_scenario for id_scenario in range(2, 3)]
+    operation_scenario_ids = [id_scenario for id_scenario in range(145, 146)]
     run_operation_model(operation_scenario_ids, config)
 
 
