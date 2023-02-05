@@ -1,4 +1,3 @@
-from config import cfg
 from flex.db_init import DatabaseInitializer
 from flex_behavior.constants import BehaviorTable
 from flex_community.constants import CommunityTable
@@ -62,6 +61,6 @@ class ProjectDatabaseInit(DatabaseInitializer):
         # self.drop_tables()
 
 
-if __name__ == "__main__":
-    init = ProjectDatabaseInit(config=cfg)
-    init.run()
+# if __name__ == "__main__":
+#     init = ProjectDatabaseInit(config=cfg)
+#     init.run()
