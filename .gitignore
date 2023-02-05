@@ -427,3 +427,8 @@ flex/data/result/*.sqlite
 /data/input_behavior/data_prep/
 /data/input_operation/*.csv
 /data/output/
+/data/input_operation/EV2000/
+/data/input_operation/EV3000/
+/data/input_operation/EV4000/
+/data/input_operation/EV5000/
+/data/input_operation/EV6000/
