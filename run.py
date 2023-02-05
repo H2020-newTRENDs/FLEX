@@ -1,7 +1,12 @@
 from config import cfg
-from flex_behavior.run import run_behavior_model, run_behavior_analyzer
-from flex_community.run import run_community_model, run_community_analyzer
-from flex_operation.run import run_operation_model, run_operation_analyzer, debug_operation_result, find_infeasible_scenarios
+from flex_behavior.run import run_behavior_model
+from flex_behavior.run import run_behavior_analyzer
+from flex_operation.run import run_operation_model
+from flex_operation.run import run_operation_analyzer
+from flex_operation.run import debug_operation_result
+from flex_operation.run import find_infeasible_scenarios
+from flex_community.run import run_community_model
+from flex_community.run import run_community_analyzer
 
 
 def run_flex_behavior_model(config):
@@ -68,8 +73,3 @@ if __name__ == "__main__":
     # find_infeasible_scenarios(cfg)
     # run_flex_community_model(cfg)
     # run_flex_community_analyzer(cfg)
-
-
-
-
-
