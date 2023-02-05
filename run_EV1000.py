@@ -12,12 +12,13 @@ def run_init(config):
 
 
 def run_scenarios(config):
-    operation_scenario_ids = [id_scenario for id_scenario in range(2, 3)]
+    # operation_scenario_ids = [id_scenario for id_scenario in range(1, 24001)]
+    operation_scenario_ids = [id_scenario for id_scenario in range(1, 43)]
     run_operation_model(operation_scenario_ids, config)
 
 
 if __name__ == "__main__":
     cfg = Config(project_name="EV1000")
     # run_init(cfg)
-    run_scenarios(cfg)
-    # find_infeasible_scenarios(cfg)
+    # run_scenarios(cfg)
+    find_infeasible_scenarios(cfg)

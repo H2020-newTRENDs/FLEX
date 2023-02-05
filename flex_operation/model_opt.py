@@ -810,7 +810,6 @@ class OptConfig:
                 instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
                 instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
                 instance.EVDischarge[t].setub(max_discharge_ev[t - 1])
-
                 instance.EVDemandProfile[t] = self.model.EVDemandProfile[t-1]
                 # fix variables when EV is not at home:
                 if self.model.EVAtHomeProfile[t-1] == 0:
