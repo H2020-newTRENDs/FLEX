@@ -108,6 +108,7 @@ class OptInstance:
         # electric vehicle
         m.EVChargeEfficiency = pyo.Param(mutable=True)
         m.EVDischargeEfficiency = pyo.Param(mutable=True)
+        m.EVCapacity = pyo.Param(mutable=True)
 
         # building parameters
         m.Am = pyo.Param(mutable=True)
@@ -420,7 +421,7 @@ class OptInstance:
 
         def calc_EVSoC(m, t):
             if t == 1:
-                return m.EVSoC[t] == 0 + \
+                return m.EVSoC[t] == m.EVCapacity + \
                                      m.EVCharge[t] * m.EVChargeEfficiency - \
                                      m.EVDischarge[t] / m.EVDischargeEfficiency
             else:
@@ -532,7 +533,7 @@ class OptConfig:
         # EV parameters
         instance.EVChargeEfficiency = self.scenario.vehicle.charge_efficiency
         instance.EVDischargeEfficiency = self.scenario.vehicle.discharge_efficiency
-        instance.ev_capacity = self.scenario.vehicle.capacity
+        instance.EVCapacity = self.scenario.vehicle.capacity
 
         # Thermal storage heating parameters
         instance.T_TankStart_heating = self.scenario.space_heating_tank.temperature_start
