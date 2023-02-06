@@ -50,15 +50,14 @@ class CompareModels:
         if "cooling" in prize_scenario:
             return prize_scenario.replace("_cooling", "")
 
-
     def scenario_id_2_building_name(self, id_scenario: int) -> str:
         building_id = int(
             self.scenario_table.loc[self.scenario_table.loc[:, "ID_Scenario"] == id_scenario, "ID_Building"])
         return f"{self.building_names[building_id]}"
 
-    def grab_scenario_ids_for_price(self, id_price: int, cooling: int) -> list:
-        ids = self.scenario_table.loc[self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price &
-              self.scenario_table.loc[self.scenario_table.loc[:, "ID_SpaceCoolingTechnology"] == cooling],
+    def grab_scenario_ids_for_price(self, id_price: int, cooling: bool) -> list:
+        ids = self.scenario_table.loc[(self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price) &
+                                      (self.scenario_table.loc[:, "ID_SpaceCoolingTechnology"] == cooling),
                                       "ID_Scenario"]
         return list(ids)
 
@@ -89,10 +88,28 @@ class CompareModels:
         fig.savefig(self.figure_path / Path("electricity_prices.svg"))
         fig.show()
 
-    def read_daniel_heat_demand(self, strat: str, cooling: str, system: str) -> pd.DataFrame:
-        filename = f"heating_demand_daniel_{strat}.csv"
+    def read_daniel_heat_demand(self, price: str, cooling: bool, floor_heating: bool) -> pd.DataFrame:
+        if floor_heating:
+            system = "floor_heating"
+        else:
+            system = "ideal"
+        if cooling:
+            ac = "_cooling"
+        else:
+            ac = ""
+        filename = f"heating_demand_daniel_{system}_{price}{ac}.csv"
         demand_df = pd.read_csv(self.input_path / Path(filename), sep=";")
-        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S", "MFH_5_B", "MFH_5_S", "MFH_1_B", "MFH_1_S"]
+        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S", "MFH_5_B", "MFH_5_S", "MFH_1_B",
+                       "MFH_1_S"]
+        # rearrange the df:
+        df = demand_df[column_list]
+        return df
+
+    def read_daniel_cooling_demand(self, price: str):
+        filename = f"cooling_demand_daniel_{price}_cooling.csv"
+        demand_df = pd.read_csv(self.input_path / Path(filename), sep=";")
+        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S", "MFH_5_B", "MFH_5_S", "MFH_1_B",
+                       "MFH_1_S"]
         # rearrange the df:
         df = demand_df[column_list]
         return df
@@ -130,10 +147,19 @@ class CompareModels:
         df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
         return df
 
-    def read_indoor_temp_daniel(self, strat, cooling: str, system: str) -> pd.DataFrame:
-        filename = f"indoor_temp_daniel_{strat}.csv"
+    def read_indoor_temp_daniel(self, price, cooling: bool, floor_heating: bool) -> pd.DataFrame:
+        if floor_heating:
+            system = "floor_heating"
+        else:
+            system = "ideal"
+        if cooling:
+            ac = "_cooling"
+        else:
+            ac = ""
+        filename = f"indoor_temp_daniel_{system}_{price}{ac}.csv"
         temp_df = pd.read_csv(self.input_path / Path(filename), sep=";")
-        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S", "MFH_5_B", "MFH_5_S", "MFH_1_B", "MFH_1_S"]
+        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S", "MFH_5_B", "MFH_5_S", "MFH_1_B",
+                       "MFH_1_S"]
         # rearrange the df:
         df = temp_df[column_list]
         return df
@@ -490,7 +516,8 @@ class CompareModels:
         RMSE = math.sqrt(MSE)
         return RMSE
 
-    def show_rmse(self, prizes: list, system: str, cooling: int):
+    def show_rmse(self, prizes: list, floor_heating: bool, cooling: bool):
+        """ plots the RMSE for all scenarios. In one plot all buildings """
         plt.style.use("seaborn-paper")
         fig_temp, axes_temp = plt.subplots(nrows=2, ncols=2, figsize=(12, 7), sharex=True, sharey=True)
         fig_heat, axes_heat = plt.subplots(nrows=2, ncols=2, figsize=(12, 7), sharex=True, sharey=True)
@@ -499,8 +526,10 @@ class CompareModels:
             heat_demand_ref = self.read_heat_demand(OperationTable.ResultRefHour.value, price, cooling)
             indoor_temp_ref = self.read_indoor_temp(OperationTable.ResultRefHour.value, price, cooling)
             # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
-            heat_demand_IDA_ref = self.read_daniel_heat_demand(price)
-            temperature_daniel_ref = self.read_indoor_temp_daniel(price)
+            heat_demand_IDA_ref = self.read_daniel_heat_demand(price=price, cooling=cooling,
+                                                               floor_heating=floor_heating)
+            temperature_daniel_ref = self.read_indoor_temp_daniel(price=price, cooling=cooling,
+                                                                  floor_heating=floor_heating)
             building_names = list(heat_demand_IDA_ref.columns)
             rmse_temp_list = []
             rmse_heat_list = []
@@ -518,16 +547,27 @@ class CompareModels:
             # plot the RMSE:
             ax_temp.bar(building_names, rmse_temp_list)
             ax_temp.set_ylabel("RMSE indoor temperature")
-            ax_temp.set_title(f"price {price[-1]}")
+            ax_temp.set_title(f"Price ID: {price[-1]}")
 
             ax_heat.bar(building_names, rmse_heat_list)
             ax_heat.set_ylabel("RMSE heat demand")
-            ax_heat.set_title(f"price {price[-1]}")
+            ax_heat.set_title(f"Price ID: {price[-1]}")
 
+        if cooling:
+            ac = "cooling"
+        else:
+            ac = "no cooling"
+        if floor_heating:
+            system = "floor heating"
+        else:
+            system = "ideal"
+        fig_temp.suptitle(f"Heating system: {system}, {ac}")
+        fig_heat.suptitle(f"Heating system: {system}, {ac}")
         fig_temp.tight_layout()
         fig_heat.tight_layout()
-        fig_temp.savefig(self.figure_path / "RMSE_temperature.svg")
-        fig_heat.savefig(self.figure_path / "RMSE_heat_demand.svg")
+
+        fig_temp.savefig(self.figure_path / f"RMSE_temperature_{ac.replace(' ', '_')}_{system}.svg")
+        fig_heat.savefig(self.figure_path / f"RMSE_heat_demand_{ac.replace(' ', '_')}_{system}.svg")
         fig_temp.show()
         fig_heat.show()
 
@@ -537,7 +577,7 @@ class CompareModels:
         # self.indoor_temp_to_csv()
 
         # compare the ideal case without cooling:
-        self.show_rmse(prizes=price_scenarios, system="ideal", cooling=1)
+        self.show_rmse(prizes=price_scenarios, floor_heating=False, cooling=True)
         self.subplots_relative(prizes=price_scenarios, system="ideal")
         self.subplots_yearly()
         self.show_plotly_comparison()
@@ -545,5 +585,5 @@ class CompareModels:
 
 
 if __name__ == "__main__":
-    CompareModels("5R1C_validation").show_elec_prices()
+    # CompareModels("5R1C_validation").show_elec_prices()
     CompareModels("5R1C_validation").main()
