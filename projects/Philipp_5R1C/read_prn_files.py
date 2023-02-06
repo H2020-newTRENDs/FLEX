@@ -150,7 +150,7 @@ class PRNImporter:
                 multi_list.append((system, strategy))
 
         with multiprocessing.Pool(processes=6) as pool:
-            pool.map(self.create_csvs, multi_list)
+            pool.starmap(self.create_csvs, multi_list)
 
     def read_heat_demand(self, table_name: str, prize_scenario: str, cooling: int):
         scenario_id = self.grab_scenario_ids_for_price(int(prize_scenario.replace("_cooling", "")[-1]), cooling)
