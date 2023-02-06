@@ -78,7 +78,7 @@ class PRNImporter:
         heating[heating < 0] = 0
         cooling = qhc2zone.copy()
         cooling[cooling > 0] = 0
-        return heating, cooling
+        return heating, abs(cooling)
 
     def load_csv_temperature_file(self, path):
         print(path)
@@ -149,8 +149,10 @@ class PRNImporter:
             for strategy in strategies:
                 multi_list.append((system, strategy))
 
-        with multiprocessing.Pool(processes=6) as pool:
-            pool.starmap(self.create_csvs, multi_list)
+        self.create_csvs("ideal", "price2_cooling")
+
+        # with multiprocessing.Pool(processes=6) as pool:
+        #     pool.starmap(self.create_csvs, multi_list)
 
     def read_heat_demand(self, table_name: str, prize_scenario: str, cooling: int):
         scenario_id = self.grab_scenario_ids_for_price(int(prize_scenario.replace("_cooling", "")[-1]), cooling)
