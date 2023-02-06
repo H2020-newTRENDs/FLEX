@@ -786,14 +786,16 @@ class CompareModels:
         # self.indoor_temp_to_csv()
 
         floor_heating = True
-        cooling = False
+        cooling = True
         # compare the ideal case without cooling:
-        if floor_heating:
-            cooling = False
-        # self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
-        self.subplots_relative(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
-        self.subplots_yearly(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
-        self.show_plotly_comparison(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
+        for floor_heating in [False]:
+            for cooling in [True, False]:
+                if floor_heating:
+                    cooling = False
+                self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
+                self.subplots_relative(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
+                self.subplots_yearly(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
+                self.show_plotly_comparison(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
 
 
 if __name__ == "__main__":

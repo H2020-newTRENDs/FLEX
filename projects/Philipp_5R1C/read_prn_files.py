@@ -50,22 +50,30 @@ class PRNImporter:
                                       self.scenario_table.loc[:, "ID_SpaceCoolingTechnology"] == cooling, "ID_Scenario"]
         return list(ids)
 
+    def find_plant_power_pnr(self, path: Path) -> Path:
+        for file_path in path.iterdir():
+            if "PLANT_POWER" in file_path.name:
+                return file_path
+
+    def read_pnr_file(self, path_2_file: Path) -> pd.DataFrame:
+        table = pd.read_table(path_2_file)
+        column_name = list(table.columns)[0].replace("#", "").split(" ")
+        column_names = [word for word in column_name if word != ""]
+
+        # create new dataframe:
+        df = pd.DataFrame(columns=column_names)
+
+        all_values = table.iloc[:, 0]
+        for i, entry in enumerate(all_values):
+            # split entries
+            row = [float(number) for number in entry.split(" ") if number != ""]
+            df = df.append(pd.DataFrame([row], columns=column_names), ignore_index=True)
+        return df
+
     def prn_to_csv(self, path) -> None:
         file_names = ["HEAT_BALANCE.prn", "TEMPERATURES.prn"]
         for name in file_names:
-            table = pd.read_table(Path(path) / Path(name))
-            column_name = list(table.columns)[0].replace("#", "").split(" ")
-            column_names = [word for word in column_name if word != ""]
-
-            # create new dataframe:
-            df = pd.DataFrame(columns=column_names)
-
-            all_values = table.iloc[:, 0]
-            for i, entry in enumerate(all_values):
-                # split entries
-                row = [float(number) for number in entry.split(" ") if number != ""]
-                df = df.append(pd.DataFrame([row], columns=column_names), ignore_index=True)
-
+            df = self.read_pnr_file(Path(path) / Path(name))
             # df to csv:
             df.to_csv(Path(path) / Path(name.replace("prn", "csv")), sep=";", index=False)
 
@@ -99,34 +107,47 @@ class PRNImporter:
         heating_demand = {}
         cooling_demand = {}
         indoor_temp = {}
-        for folder in folders:
+        for building in folders:
             # load folders of zones:
-            zone_paths = self.iterate_through_folders(Path(folder))
-            house_heat_load = np.zeros((8760,))
-            house_cool_load = np.zeros((8760,))
+            if system == "ideal":
+                zone_paths = self.iterate_through_folders(Path(building))
 
-            number_of_zones = 0
-            air_temp = np.zeros((8760,))
-            # get heat load from each zone:
-            for zone in zone_paths:
-                number_of_zones += 1
-                # create the csv files:
-                self.prn_to_csv(zone)
-                # load the csv file:
-                zone_heat_load, zone_cool_load = self.load_csv_heat_balance_file(zone)
-                house_heat_load += zone_heat_load
-                house_cool_load += zone_cool_load
+                house_heat_load = np.zeros((8760,))
+                house_cool_load = np.zeros((8760,))
+                plant_power_file = Path(building) / "PLANT_POWER.prn"
 
-                air_temp_zone = self.load_csv_temperature_file(zone)
-                air_temp += air_temp_zone
-            # divide air temp by number of zones to get mean
-            air_temp_mean = air_temp / number_of_zones
+                number_of_zones = 0
+                air_temp = np.zeros((8760,))
+                # get heat load from each zone:
+                for zone in zone_paths:
+                    number_of_zones += 1
+                    # create the csv files:
+                    self.prn_to_csv(zone)
+                    # load the csv file:
+                    zone_heat_load, zone_cool_load = self.load_csv_heat_balance_file(zone)
+                    house_heat_load += zone_heat_load
+                    house_cool_load += zone_cool_load
 
-            # house name:
-            house_name = folder.split("\\")[-1]
-            heating_demand[house_name] = house_heat_load
-            cooling_demand[house_name] = house_cool_load
-            indoor_temp[house_name] = air_temp_mean
+                    air_temp_zone = self.load_csv_temperature_file(zone)
+                    air_temp += air_temp_zone
+                # divide air temp by number of zones to get mean
+                air_temp_mean = air_temp / number_of_zones
+
+                # house name:
+                house_name = building.split("\\")[-1]
+                heating_demand[house_name] = house_heat_load
+                cooling_demand[house_name] = house_cool_load
+                indoor_temp[house_name] = air_temp_mean
+
+            else:
+                zone_path = building / Path("heating")
+                plant_power_path = self.find_plant_power_pnr(path=zone_path)
+                house_heat_load = np.zeros((8760,))
+                house_cool_load = np.zeros((8760,))
+                # read plant_power file:
+                df = self.read_pnr_file(plant_power_path)
+
+                pass
 
         # heating demand to csv for later analysis:
         heating_demand_df = pd.DataFrame(heating_demand)
@@ -149,10 +170,10 @@ class PRNImporter:
             for strategy in strategies:
                 multi_list.append((system, strategy))
 
-        # self.create_csvs("ideal", "price2_cooling")
+        self.create_csvs("floor_heating", "price2")
 
-        with multiprocessing.Pool(processes=6) as pool:
-            pool.starmap(self.create_csvs, multi_list)
+        # with multiprocessing.Pool(processes=6) as pool:
+        #     pool.starmap(self.create_csvs, multi_list)
 
     def read_heat_demand(self, table_name: str, prize_scenario: str, cooling: int):
         scenario_id = self.grab_scenario_ids_for_price(int(prize_scenario.replace("_cooling", "")[-1]), cooling)
