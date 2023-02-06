@@ -707,19 +707,19 @@ class CompareModels:
             if cooling:
                 ac = "with cooling"
             else:
-                ac = ""
+                ac = "no cooling"
             if floor_heating:
                 system = "floor heating"
             else:
                 system = "ideal"
             self.compare_hourly_profile([heat_demand_IDA_ref, heat_demand_ref, heat_demand_daniel, heat_demand_opt],
                                         ["IDA ICE", "5R1C", "IDA ICE optimized", "5R1C optimized"],
-                                        f"heat demand {price} {ac}, Heating system: {system}")
+                                        f"heat demand {price}, {ac}, Heating system: {system}")
 
             self.compare_hourly_profile(
                 [indoor_temp_ref, temperature_daniel_ref, indoor_temp_daniel_opt, indoor_temp_opt],
                 ["5R1C", "IDA ICE", "IDA ICE optimized", "5R1C optimized"],
-                f"indoor temperature {price} {ac}, Heating system: {system}")
+                f"indoor temperature {price}, {ac}, Heating system: {system}")
 
     def calculate_RMSE(self, profile_IDA_ICE: np.array, profile_5R1C: np.array) -> float:
         MSE = np.square(np.subtract(profile_IDA_ICE, profile_5R1C)).mean()
