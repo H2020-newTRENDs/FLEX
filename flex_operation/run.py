@@ -61,4 +61,4 @@ def find_infeasible_scenarios(config: "Config"):
     opt_scenarios = list(opt["ID_Scenario"].unique())
     ref_scenarios = list(ref["ID_Scenario"].unique())
     infeasible_scenarios = set(ref_scenarios) - set(opt_scenarios)
-    print(f'Infeasible Scenarios: {infeasible_scenarios}.')
+    print(f'{len(infeasible_scenarios)} infeasible scenarios: {infeasible_scenarios}.')
