@@ -1,3 +1,4 @@
+import multiprocessing
 from typing import List
 import logging
 
@@ -781,21 +782,26 @@ class CompareModels:
         fig_temp.show()
         fig_heat.show()
 
+    def run(self, price_scenarios: list, floor_heating: bool, cooling: bool):
+        self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
+        self.subplots_relative(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
+        self.subplots_yearly(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
+        self.show_plotly_comparison(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
+
     def main(self):
         price_scenarios = ["price1", "price2", "price3", "price4"]
         # self.indoor_temp_to_csv()
 
         floor_heating = True
         cooling = True
-        # compare the ideal case without cooling:
-        for floor_heating in [False]:
-            for cooling in [True, False]:
-                if floor_heating:
-                    cooling = False
-                self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
-                self.subplots_relative(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
-                self.subplots_yearly(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
-                self.show_plotly_comparison(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
+        # run throuhg results: run takes scenarios, floor_heating, cooling as input
+        # run it with floor heating and without cooling (not included in floor heating)
+        # run it with ideal heating system including end excluding cooling:
+        list_for_multi = [(price_scenarios, True, False),
+                          (price_scenarios, False, False),
+                          (price_scenarios, False, True)]
+        with multiprocessing.Pool(processes=3) as pool:
+            pool.starmap(self.run, list_for_multi)
 
 
 if __name__ == "__main__":
