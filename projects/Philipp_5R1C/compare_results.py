@@ -797,11 +797,9 @@ class CompareModels:
         # run throuhg results: run takes scenarios, floor_heating, cooling as input
         # run it with floor heating and without cooling (not included in floor heating)
         # run it with ideal heating system including end excluding cooling:
-        list_for_multi = [(price_scenarios, True, False),
-                          (price_scenarios, False, False),
-                          (price_scenarios, False, True)]
-        with multiprocessing.Pool(processes=3) as pool:
-            pool.starmap(self.run, list_for_multi)
+        self.run(price_scenarios, True, False)
+        self.run(price_scenarios, False, False)
+        self.run(price_scenarios, False, True)
 
 
 if __name__ == "__main__":
