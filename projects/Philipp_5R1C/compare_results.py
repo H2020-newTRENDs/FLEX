@@ -149,7 +149,7 @@ class CompareModels:
     def read_cooling_demand(self, table_name: str, prize_scenario: str, cooling: bool) -> pd.DataFrame:
         scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", prize_scenario)[0]), cooling)
         demand = self.db.read_dataframe(table_name=table_name,
-                                        column_names=["ID_Scenario", "Q_HeatingTank_bypass", "Hour"],
+                                        column_names=["ID_Scenario", "Q_RoomCooling", "Hour"],
                                         )
         # split the demand into columns for every Scenario ID:
         df = demand.pivot_table(index="Hour", columns="ID_Scenario")
@@ -786,7 +786,7 @@ class CompareModels:
         self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
         self.subplots_relative(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
         self.subplots_yearly(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
-        self.show_plotly_comparison(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
+        # self.show_plotly_comparison(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
 
     def main(self):
         price_scenarios = ["price1", "price2", "price3", "price4"]
@@ -794,11 +794,11 @@ class CompareModels:
 
         floor_heating = True
         cooling = True
-        # run throuhg results: run takes scenarios, floor_heating, cooling as input
+        # run through results: run takes scenarios, floor_heating, cooling as input
         # run it with floor heating and without cooling (not included in floor heating)
         # run it with ideal heating system including end excluding cooling:
-        self.run(price_scenarios, True, False)
-        self.run(price_scenarios, False, False)
+        # self.run(price_scenarios, True, False)
+        # self.run(price_scenarios, False, False)
         self.run(price_scenarios, False, True)
 
 
