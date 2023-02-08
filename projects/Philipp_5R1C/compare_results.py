@@ -438,6 +438,8 @@ class CompareModels:
         else:
             ac = "no cooling"
         fig.suptitle(f"Total heat demand with {system} and {ac}")
+        for ax in [fig.axes[2], fig.axes[3]]:
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
         fig.savefig(self.figure_path / Path(f"Total heat demand with {system} and {ac}.svg"))
         plt.show()
 
@@ -471,6 +473,8 @@ class CompareModels:
                    borderaxespad=0, ncol=4, bbox_transform=fig.transFigure)
 
         fig.suptitle(f"Total cooling demand")
+        for ax in [fig.axes[2], fig.axes[3]]:
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
         fig.savefig(self.figure_path / Path(f"Total cooling demand.svg"))
         plt.show()
 
@@ -511,8 +515,11 @@ class CompareModels:
         else:
             system = "ideal"
         # plot legend in the top middle of the figure
-        fig2.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.97), loc="lower center",
+        fig2.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.92), loc="lower center",
                     borderaxespad=0, ncol=4, bbox_transform=fig2.transFigure)
+        fig2.suptitle(f"total_heating{ac}_cost_{system}".replace("_", " ").replace("ideal", ""))
+        for ax in [fig2.axes[2], fig2.axes[3]]:
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
         fig2.savefig(self.figure_path / Path(f"total_heating{ac}_cost_{system}.svg"))
         plt.show()
 
@@ -556,7 +563,7 @@ class CompareModels:
             ax_number += 1
 
         # plot legend in the top middle of the figure
-        fig.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.97), loc="lower center",
+        fig.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.92), loc="lower center",
                    borderaxespad=0, ncol=4, bbox_transform=fig.transFigure)
         if cooling:
             ac = "cooling"
@@ -567,6 +574,8 @@ class CompareModels:
         else:
             system = "ideal"
         fig.suptitle(f"Heating system: {system}, {ac}")
+        for ax in [fig.axes[2], fig.axes[3]]:
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
         fig.savefig(self.figure_path / Path(f"relative_change_in_heat_demand_{system}_{ac.replace(' ', '_')}.svg"))
         plt.show()
 
@@ -596,10 +605,12 @@ class CompareModels:
             ax_number += 1
 
         # plot legend in the top middle of the figure
-        fig.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.97), loc="lower center",
+        fig.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.92), loc="lower center",
                    borderaxespad=0, ncol=4, bbox_transform=fig.transFigure)
 
         fig.suptitle(f"Cooling demand")
+        for ax in [fig.axes[2], fig.axes[3]]:
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
         fig.savefig(self.figure_path / Path(f"relative_change_in_cooling_demand.svg"))
         plt.show()
 
@@ -637,8 +648,11 @@ class CompareModels:
             ax_number += 1
 
         # plot legend in the top middle of the figure
-        fig2.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.97), loc="lower center",
+        fig2.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.92), loc="lower center",
                     borderaxespad=0, ncol=4, bbox_transform=fig2.transFigure)
+        for ax in [fig2.axes[2], fig2.axes[3]]:
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
+        fig2.suptitle(f"relative_change_in_heating{ac}_cost".replace('_', ' '))
         fig2.savefig(self.figure_path / Path(f"relative_change_in_heating{ac}_cost.svg"))
         plt.show()
 
@@ -783,7 +797,7 @@ class CompareModels:
         fig_heat.show()
 
     def run(self, price_scenarios: list, floor_heating: bool, cooling: bool):
-        self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
+        # self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
         self.subplots_relative(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
         self.subplots_yearly(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
         # self.show_plotly_comparison(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
@@ -797,9 +811,9 @@ class CompareModels:
         # run through results: run takes scenarios, floor_heating, cooling as input
         # run it with floor heating and without cooling (not included in floor heating)
         # run it with ideal heating system including end excluding cooling:
-        # self.run(price_scenarios, True, False)
-        # self.run(price_scenarios, False, False)
-        self.run(price_scenarios, False, True)
+        self.run(price_scenarios, True, False)
+        self.run(price_scenarios, False, False)
+        # self.run(price_scenarios, False, True)
 
 
 if __name__ == "__main__":
