@@ -60,6 +60,21 @@ class CompareModels:
             self.scenario_table.loc[self.scenario_table.loc[:, "ID_Scenario"] == id_scenario, "ID_Building"])
         return f"{self.building_names[building_id]}"
 
+    def reorder_table(self, df: pd.DataFrame) -> pd.DataFrame:
+        """ reorder the buildings in the table for the plots to start with light weight structures and end with
+        heavy weight. Makes interpreting the results easier"""
+        order = ["EZFH_1_B",
+                 "EZFH_1_S",
+                 "EZFH_5_B",
+                 "EZFH_5_S",
+                 "EZFH_9_B",
+                 "MFH_1_B",
+                 "MFH_1_S",
+                 "MFH_5_B",
+                 "MFH_5_S"]
+        return_df = df[order]
+        return return_df
+
     def grab_scenario_ids_for_price(self, id_price: int, cooling: bool) -> list:
         if cooling:
             cooling_id = 2
@@ -108,20 +123,16 @@ class CompareModels:
             ac = ""
         filename = f"heating_demand_daniel_{system}_{price}{ac}.csv"
         demand_df = pd.read_csv(self.input_path / Path(filename), sep=";")
-        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S", "MFH_5_B", "MFH_5_S", "MFH_1_B",
-                       "MFH_1_S"]
         # rearrange the df:
-        df = demand_df[column_list]
+        df = self.reorder_table(demand_df)
         return df
 
     def read_daniel_cooling_demand(self, price: str):
         system = "ideal"
         filename = f"cooling_demand_daniel_{system}_{price}_cooling.csv"
         demand_df = pd.read_csv(self.input_path / Path(filename), sep=";")
-        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S", "MFH_5_B", "MFH_5_S", "MFH_1_B",
-                       "MFH_1_S"]
         # rearrange the df:
-        df = demand_df[column_list]
+        df = self.reorder_table(demand_df)
         return df
 
     def read_heat_demand(self, table_name: str, prize_scenario: str, cooling: bool) -> pd.DataFrame:
@@ -144,7 +155,7 @@ class CompareModels:
         # drop columns which are not in this price
         df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
         df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
-        return df
+        return self.reorder_table(df)
 
     def read_cooling_demand(self, table_name: str, prize_scenario: str, cooling: bool) -> pd.DataFrame:
         scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", prize_scenario)[0]), cooling)
@@ -156,7 +167,7 @@ class CompareModels:
         # drop columns which are not in this price
         df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
         df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
-        return df
+        return self.reorder_table(df)
 
     def read_indoor_temp(self, table_name: str, prize_scenario: str, cooling: int) -> pd.DataFrame:
         scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", prize_scenario)[0]), cooling)
@@ -165,7 +176,7 @@ class CompareModels:
         df = temp.pivot_table(index="Hour", columns="ID_Scenario")
         df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
         df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
-        return df
+        return self.reorder_table(df)
 
     def read_indoor_temp_daniel(self, price, cooling: bool, floor_heating: bool) -> pd.DataFrame:
         if floor_heating:
@@ -178,10 +189,8 @@ class CompareModels:
             ac = ""
         filename = f"indoor_temp_daniel_{system}_{price}{ac}.csv"
         temp_df = pd.read_csv(self.input_path / Path(filename), sep=";")
-        column_list = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S", "MFH_5_B", "MFH_5_S", "MFH_1_B",
-                       "MFH_1_S"]
         # rearrange the df:
-        df = temp_df[column_list]
+        df = self.reorder_table(temp_df)
         return df
 
     def read_costs(self, table_name: str) -> pd.DataFrame:
@@ -191,7 +200,7 @@ class CompareModels:
         df = cost.pivot_table(columns="index")
         df.columns = ["EZFH_5_B", "EZFH_5_S", "EZFH_9_B", "EZFH_1_B", "EZFH_1_S", "MFH_5_B", "MFH_5_S", "MFH_1_B",
                       "MFH_1_S"]
-        return df
+        return self.reorder_table(df)
 
     def read_electricity_price(self, price_id: str) -> np.array:
         number = int(price_id[-1])
@@ -210,7 +219,7 @@ class CompareModels:
         # drop columns which are not in this price
         df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
         df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
-        return df
+        return self.reorder_table(df)
 
     def read_COP_AC(self, table_name: str) -> pd.DataFrame:
         # cop is the same in alle price scenarios
@@ -223,7 +232,7 @@ class CompareModels:
         # drop columns which are not in this price
         df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
         df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
-        return df
+        return self.reorder_table(df)
 
     def calculate_costs(self, table_name: str, price_id: str, cooling: bool) -> pd.DataFrame:
         """ floor heatig does not have an impact because it is not explicitly modeled by the 5R1C"""
@@ -333,7 +342,7 @@ class CompareModels:
                     row=i + 1,
                     col=1,
                 )
-        fig.update_layout(title_text=title)
+        fig.update_layout(title_text=title, height=400 * column_number, width=1600)
         fig.show()
 
     def compare_yearly_value(self, profile_list: List[pd.DataFrame], profile_names: list, title: str):
@@ -421,7 +430,8 @@ class CompareModels:
             x="Building",
             y=y_label,
             hue="model",
-            ax=ax)
+            ax=ax,
+            palette=["blue", "green"])
         # save legend
         handles, labels = ax.get_legend_handles_labels()
         by_label = dict(zip(labels, handles))
@@ -906,9 +916,9 @@ class CompareModels:
         # run through results: run takes scenarios, floor_heating, cooling as input
         # run it with floor heating and without cooling (not included in floor heating)
         # run it with ideal heating system including end excluding cooling:
-        # self.run(price_scenarios, floor_heating=True, cooling=False)
+        self.run(price_scenarios, floor_heating=True, cooling=False)
         # self.run(price_scenarios, floor_heating=False, cooling=False)
-        self.run(price_scenarios, floor_heating=False, cooling=True)
+        # self.run(price_scenarios, floor_heating=False, cooling=True)
 
 
 if __name__ == "__main__":
