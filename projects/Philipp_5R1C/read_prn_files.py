@@ -46,8 +46,9 @@ class PRNImporter:
         return dicts
 
     def grab_scenario_ids_for_price(self, id_price: int, cooling: int) -> list:
-        ids = self.scenario_table.loc[self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price &
-                                      self.scenario_table.loc[:, "ID_SpaceCoolingTechnology"] == cooling, "ID_Scenario"]
+        ids = self.scenario_table.loc[(self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price) &
+                                      (self.scenario_table.loc[:,
+                                       "ID_SpaceCoolingTechnology"] == cooling), "ID_Scenario"]
         return list(ids)
 
     def find_plant_power_pnr(self, path: Path) -> Path:
@@ -114,7 +115,6 @@ class PRNImporter:
 
                 house_heat_load = np.zeros((8760,))
                 house_cool_load = np.zeros((8760,))
-                plant_power_file = Path(building) / "PLANT_POWER.prn"
 
                 number_of_zones = 0
                 air_temp = np.zeros((8760,))
@@ -140,14 +140,35 @@ class PRNImporter:
                 indoor_temp[house_name] = air_temp_mean
 
             else:
-                zone_path = building / Path("heating")
+                house_name = building.split("\\")[-1]
+                zone_path = Path(building)
                 plant_power_path = self.find_plant_power_pnr(path=zone_path)
-                house_heat_load = np.zeros((8760,))
-                house_cool_load = np.zeros((8760,))
+
                 # read plant_power file:
                 df = self.read_pnr_file(plant_power_path)
+                df_clean = df[~df.loc[:, "time"].duplicated(keep='first')]
+                house_hc_load = df_clean.loc[:, "boil_q_2"].to_numpy()[1:]
+                house_heat_load, house_cool_load = np.copy(house_hc_load), np.copy(house_hc_load)
+                house_heat_load[house_heat_load < 0] = 0
+                house_cool_load[house_heat_load > 0] = 0
 
-                pass
+                heating_demand[house_name] = house_heat_load
+                cooling_demand[house_name] = house_cool_load
+
+                # now collect the temperature from the single zones:
+                zone_paths = self.iterate_through_folders(Path(building))
+                number_of_zones = 0
+                air_temp = np.zeros((8760,))
+                for zone in zone_paths:
+                    number_of_zones += 1
+                    # create the csv files:
+                    self.prn_to_csv(zone)
+                    air_temp_zone = self.load_csv_temperature_file(zone)
+                    air_temp += air_temp_zone
+
+                # divide air temp by number of zones to get mean
+                air_temp_mean = air_temp / number_of_zones
+                indoor_temp[house_name] = air_temp_mean
 
         # heating demand to csv for later analysis:
         heating_demand_df = pd.DataFrame(heating_demand)
@@ -170,10 +191,10 @@ class PRNImporter:
             for strategy in strategies:
                 multi_list.append((system, strategy))
 
-        self.create_csvs("floor_heating", "price2")
+        # self.create_csvs("floor_heating", "price2")
 
-        # with multiprocessing.Pool(processes=6) as pool:
-        #     pool.starmap(self.create_csvs, multi_list)
+        with multiprocessing.Pool(processes=6) as pool:
+            pool.starmap(self.create_csvs, multi_list)
 
     def read_heat_demand(self, table_name: str, prize_scenario: str, cooling: int):
         scenario_id = self.grab_scenario_ids_for_price(int(prize_scenario.replace("_cooling", "")[-1]), cooling)
@@ -193,10 +214,10 @@ class PRNImporter:
         # the same heat demand the IDA ICE model has in the reference scenario
 
         # load heat demand from first price scenario
-        filename = f"heating_demand_daniel_ideal_price1.csv"
-        ref_demand_df = pd.read_csv(self.main_path / Path(filename), sep=";")
         heating_systems = ["ideal", "floor_heating"]
         for system in heating_systems:
+            filename = f"heating_demand_daniel_{system}_price1.csv"
+            ref_demand_df = pd.read_csv(self.main_path / Path(filename), sep=";")
             prices = self.get_folder_names(self.main_path / system)
             for price in prices:
                 if "cooling" in price:
@@ -224,7 +245,8 @@ class PRNImporter:
                             opt_demand_IDA.loc[index, column_name] = ref_demand_df.loc[index, column_name]
 
                 # save opt_demand_IDA as csv under the old name
-                opt_demand_IDA.to_csv(self.main_path / Path(f"heating_demand_daniel_{price}.csv"), sep=";", index=False)
+                opt_demand_IDA.to_csv(self.main_path / Path(f"heating_demand_daniel_{system}_{price}.csv"), sep=";",
+                                      index=False)
 
     def clean_up(self):
         """ delete the csv files that only contain zeros (cooling demand for scenarios without cooling)"""
@@ -236,6 +258,6 @@ class PRNImporter:
 
 if __name__ == "__main__":
     prn_importer = PRNImporter("5R1C_validation")
-    prn_importer.main()
-    prn_importer.clean_up()
-    # prn_importer.modify_heat_demand()
+    # prn_importer.main()
+    # prn_importer.clean_up()
+    prn_importer.modify_heat_demand()
