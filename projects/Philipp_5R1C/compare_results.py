@@ -692,7 +692,7 @@ class CompareModels:
         """ plot the relative cost reduction of ideal heating together with floor heating in comparison"""
         plt.style.use("seaborn-paper")
         # create figure
-        fig2, axes2 = plt.subplots(nrows=3, ncols=1, figsize=(5, 7), sharex=True)
+        fig2, axes2 = plt.subplots(nrows=3, ncols=1, figsize=(6, 8), sharex=True)
         for i, price in enumerate(prices[1:]):  # skipping first price because its not optimised and static
             # read and compare the total demand
             costs_ref = self.calculate_costs(table_name=OperationTable.ResultRefHour.value,
@@ -732,6 +732,7 @@ class CompareModels:
             ax = axes2.flatten()[i]
             plot = sns.barplot(data=melted_df, x="Building", y="change in cost (%)", hue="model", ax=ax,
                                palette=["blue", self.orange, "green"])
+            ax.set_title(f"price {i + 1}")
 
             # save legend
             handles, labels = ax.get_legend_handles_labels()
@@ -846,6 +847,26 @@ class CompareModels:
 
         self.plot_relative_cost_reduction(prices=prizes, floor_heating=floor_heating, cooling=cooling)
 
+    def find_cooling_time_for_ida_ice(self):
+        """ find the time window where IDA ICE is supposed to follow the temperature in 5R1C model in summer"""
+        # only consider prices 2,3 ,4
+        for price in ["price2", "price3", "price4"]:
+            # read cooling demand from 5R1C
+            cooling_5R1C = self.read_cooling_demand(table_name=OperationTable.ResultOptHour.value,
+                                                    prize_scenario=price,
+                                                    cooling=True)
+            result = {}
+            for column in cooling_5R1C.columns:
+                non_zero = cooling_5R1C[column][cooling_5R1C[column] != 0]
+                if non_zero.empty:
+                    result[column] = (0, 8759)
+                else:
+                    result[column] = (non_zero.index.min(), non_zero.index.max())
+
+            pd.DataFrame(result).to_csv(self.input_path.parent / Path(f"output/cooling_interval_{price}.csv"),
+                                        sep=";",
+                                        index=False)
+
     def indoor_temp_to_csv(self, cooling: bool):
 
         for price_id in [1, 2, 3, 4]:  # price 1 is linear
@@ -872,6 +893,9 @@ class CompareModels:
                                sep=";", index=False)
 
             del temp_df
+
+        if cooling:
+            self.find_cooling_time_for_ida_ice()
 
     def show_plotly_comparison(self, prices: list, cooling: bool, floor_heating: bool):
         # ref heat demand is always the same
@@ -1058,7 +1082,6 @@ class CompareModels:
         ticks = np.array(["Mon", "Tue", "Wed", "Thur", "Fri", "Sat", "Sun"])
         ax5.set_xticklabels(ticks)
 
-
         plt.tight_layout()
         fig2.savefig(self.figure_path / f"Single_building_week_{building}.svg")
         plt.show()
@@ -1075,9 +1098,9 @@ class CompareModels:
     def main(self):
         price_scenarios = ["price1", "price2", "price3", "price4"]
         # self.indoor_temp_to_csv(cooling=False)
-        # self.indoor_temp_to_csv(cooling=True)
+        self.indoor_temp_to_csv(cooling=True)
 
-        self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
+        # self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
         # self.plot_yearly_heat_demand_floor_ideal_not_optimized()
 
         floor_heating = True
