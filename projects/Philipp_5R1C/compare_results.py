@@ -10,6 +10,7 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import seaborn as sns
 import math
 import re
@@ -703,6 +704,30 @@ class CompareModels:
         fig.savefig(self.figure_path / Path(f"relative_change_in_cooling_demand.svg"))
         plt.show()
 
+    def plot_yearly_heat_demand_floor_ideal_not_optimized(self):
+        """ plot the yearly heat demand for 5R1C, IDA ICE and IDA ICE Floor heating"""
+        plt.style.use("seaborn-paper")
+        heat_5R1C = self.read_heat_demand(table_name=OperationTable.ResultRefHour.value,
+                                          prize_scenario="price1",
+                                          cooling=False).sum() / 1_000  # kWh
+        heat_ida = self.read_daniel_heat_demand(price="price1", cooling=False, floor_heating=False).sum() / 1_000
+        heat_ida_floor = self.read_daniel_heat_demand(price="price1", cooling=False, floor_heating=True).sum() / 1_000
+        plot_df = pd.concat([heat_5R1C, heat_ida, heat_ida_floor], axis=1)  # kWh
+        plot_df.columns = ["5R1C", "IDA ICE ideal heating", "IDA ICE floor heating"]
+        plot_df = plot_df.reset_index().rename(columns={"index": "Building"})
+        melted_df = plot_df.melt(id_vars="Building").rename(columns={"value": "heat demand (kWh)",
+                                                                     "variable": "model"})
+
+        sns.barplot(data=melted_df, x="Building", y="heat demand (kWh)", hue="model",
+                    palette=["blue", self.orange, "green"])
+        ax = plt.gca()
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
+        ax.get_yaxis().set_major_formatter(
+            ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
+        plt.title("heat demand")
+        plt.savefig(self.figure_path / f"Yearly_heat_demand_comparison.svg")
+        plt.show()
+
     def plot_relative_cost_reduction_floor_ideal(self, prices):
         """ plot the relative cost reduction of ideal heating together with floor heating in comparison"""
         plt.style.use("seaborn-paper")
@@ -1080,7 +1105,8 @@ class CompareModels:
         # self.indoor_temp_to_csv(cooling=False)
         # self.indoor_temp_to_csv(cooling=True)
 
-        self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
+        # self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
+        self.plot_yearly_heat_demand_floor_ideal_not_optimized()
 
         floor_heating = True
         cooling = True
