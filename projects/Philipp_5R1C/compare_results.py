@@ -728,50 +728,67 @@ class CompareModels:
         plt.savefig(self.figure_path / f"Yearly_heat_demand_comparison.svg")
         plt.show()
 
+    def calculate_relative_cost_change(self, opt_df, ref_df) -> pd.DataFrame:
+        # compare total demand
+        relative = (opt_df - ref_df) / ref_df * 100
+        return relative
+
     def plot_relative_cost_reduction_floor_ideal(self, prices):
         """ plot the relative cost reduction of ideal heating together with floor heating in comparison"""
         plt.style.use("seaborn-paper")
         # create figure
-        fig2, axes2 = plt.subplots(nrows=3, ncols=2, figsize=(12, 8.5), sharex=True, sharey=True)
-        counter = 0
-        for column, floor_heating in enumerate([False, True]):
-            for price in prices:
-                if price == "price1":
-                    continue
-                ax_numbers = [0, 2, 4, 1, 3, 5]
-                ax_number = ax_numbers[counter]
+        fig2, axes2 = plt.subplots(nrows=3, ncols=1, figsize=(5, 7), sharex=True)
+        for i, price in enumerate(prices[1:]):  # skipping first price because its not optimised and static
+            # read and compare the total demand
+            costs_ref = self.calculate_costs(table_name=OperationTable.ResultRefHour.value,
+                                             price_id=price,
+                                             cooling=False)
+            costs_opt = self.calculate_costs(table_name=OperationTable.ResultOptHour.value,
+                                             price_id=price,
+                                             cooling=False)
+            relative_5R1C = self.calculate_relative_cost_change(opt_df=costs_opt, ref_df=costs_ref)
 
-                costs_ref = self.calculate_costs(table_name=OperationTable.ResultRefHour.value,
-                                                 price_id=price,
-                                                 cooling=False)
-                costs_opt = self.calculate_costs(table_name=OperationTable.ResultOptHour.value,
-                                                 price_id=price,
-                                                 cooling=False)
+            cost_daniel_ref = self.calculate_costs_daniel_ref(table_name=OperationTable.ResultRefHour.value,
+                                                              price_id=price,
+                                                              cooling=False,
+                                                              floor_heating=False)
+            cost_daniel_opt = self.calculate_costs_daniel_opt(table_name=OperationTable.ResultOptHour.value,
+                                                              price_id=price,
+                                                              cooling=False,
+                                                              floor_heating=False)
+            relative_ida = self.calculate_relative_cost_change(opt_df=cost_daniel_opt, ref_df=cost_daniel_ref)
 
-                cost_daniel_ref = self.calculate_costs_daniel_ref(table_name=OperationTable.ResultRefHour.value,
-                                                                  price_id=price,
-                                                                  cooling=False,
-                                                                  floor_heating=floor_heating)
-                cost_daniel_opt = self.calculate_costs_daniel_opt(table_name=OperationTable.ResultOptHour.value,
-                                                                  price_id=price,
-                                                                  cooling=False,
-                                                                  floor_heating=floor_heating)
+            cost_daniel_ref_floor = self.calculate_costs_daniel_ref(table_name=OperationTable.ResultRefHour.value,
+                                                                    price_id=price,
+                                                                    cooling=False,
+                                                                    floor_heating=True)
+            cost_daniel_opt_floor = self.calculate_costs_daniel_opt(table_name=OperationTable.ResultOptHour.value,
+                                                                    price_id=price,
+                                                                    cooling=False,
+                                                                    floor_heating=True)
+            relative_ida_floor = self.calculate_relative_cost_change(opt_df=cost_daniel_opt_floor,
+                                                                     ref_df=cost_daniel_ref_floor)
+            # plot the relative bars:
+            # create one pandas dataframe
+            plot_df = pd.concat([relative_5R1C.T, relative_ida.T, relative_ida_floor.T], axis=1).reset_index()
+            plot_df.columns = ["Building", "5R1C", "IDA ICE ideal heating", "IDA ICE floor heating"]
+            melted_df = plot_df.melt(id_vars="Building").rename(columns={"variable": "model",
+                                                                         "value": "change in cost (%)"})
+            ax = axes2.flatten()[i]
+            plot = sns.barplot(data=melted_df, x="Building", y="change in cost (%)", hue="model", ax=ax,
+                               palette=["blue", self.orange, "green"])
 
-                by_label = self.relative_yearly_comparison_floor_ideal(fig2, axes2,
-                                                                       [costs_opt, costs_ref, cost_daniel_opt,
-                                                                        cost_daniel_ref],
-                                                                       ["5R1C optimized", "5R1C", "IDA ICE optimized",
-                                                                        "IDA ICE"],
-                                                                       y_label=f"change in heating cost (%)",
-                                                                       ax_number=ax_number)
-                counter += 1
+            # save legend
+            handles, labels = ax.get_legend_handles_labels()
+            by_label = dict(zip(labels, handles))
+            # remove legend from subplot
+            plot.legend().remove()
 
         # plot legend in the top middle of the figure
         fig2.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.92), loc="lower center",
                     borderaxespad=0, ncol=4, bbox_transform=fig2.transFigure)
-        for ax in [fig2.axes[4], fig2.axes[5]]:
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
-        fig2.suptitle(f"Left: ideal heating, Right: floor heating")
+        ax = fig2.axes[2]
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
         fig2.savefig(
             self.figure_path / Path(f"cost_change.svg"))
         plt.show()
@@ -1105,8 +1122,8 @@ class CompareModels:
         # self.indoor_temp_to_csv(cooling=False)
         # self.indoor_temp_to_csv(cooling=True)
 
-        # self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
-        self.plot_yearly_heat_demand_floor_ideal_not_optimized()
+        self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
+        # self.plot_yearly_heat_demand_floor_ideal_not_optimized()
 
         floor_heating = True
         cooling = True
