@@ -400,51 +400,6 @@ class CompareModels:
 
         return by_label
 
-    def relative_yearly_comparison_floor_ideal(self,
-                                               figure, axes,
-                                               profile_list: List[pd.DataFrame],
-                                               profile_names: list,
-                                               y_label: str,
-                                               ax_number: int) -> dict:
-        if "demand" in y_label:
-            denominator = 1_000  # kW
-        elif "cost" in y_label:
-            denominator = 100  # €
-        else:
-            print("neither kW nor € in y_label")
-        # compare total demand
-        total_df = pd.concat([profile.sum() for profile in profile_list], axis=1) / denominator  # kW
-        total_df.columns = [name for name in profile_names]
-
-        total_df.loc[:, "5R1C"] = (total_df.loc[:, "5R1C optimized"] - total_df.loc[:, "5R1C"]) / total_df.loc[:,
-                                                                                                  "5R1C"] * 100
-        total_df.loc[:, "IDA ICE"] = (total_df.loc[:, "IDA ICE optimized"] - total_df.loc[:, "IDA ICE"]) / total_df.loc[
-                                                                                                           :,
-                                                                                                           "IDA ICE"] * 100
-        total_df = total_df.drop(columns=["5R1C optimized", "IDA ICE optimized"])
-
-        ax = axes.flatten()[ax_number]
-        # optimization is always measured against the reference case (reference = 100%)
-        plot = sns.barplot(
-            data=total_df.reset_index().melt(id_vars="index").rename(
-                columns={"variable": "model", "value": y_label, "index": "Building"}),
-            x="Building",
-            y=y_label,
-            hue="model",
-            ax=ax,
-            palette=["blue", "green"])
-        # save legend
-        handles, labels = ax.get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        # remove legend from subplot
-        plot.legend().remove()
-        price_numbers = [1, 1, 2, 2, 3, 3]
-
-        price_number = price_numbers[ax_number]
-        ax.set_title(f"price {price_number}")
-
-        return by_label
-
     def relative_yearly_comparison(self,
                                    figure, axes,
                                    profile_list: List[pd.DataFrame],
