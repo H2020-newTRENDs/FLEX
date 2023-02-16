@@ -19,5 +19,5 @@ def run_scenarios(config):
 if __name__ == "__main__":
     cfg = Config(project_name="EV100")
     # run_init(cfg)
-    # run_scenarios(cfg)
-    find_infeasible_scenarios(cfg)
+    run_scenarios(cfg)
+    # find_infeasible_scenarios(cfg)
