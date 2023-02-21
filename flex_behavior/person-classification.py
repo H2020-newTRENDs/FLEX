@@ -8,46 +8,59 @@ import seaborn as sns
 
 class PersonClassification:
 
+    def __init__(self):
+        self.dirname = os.path.dirname(__file__)
+        self.datadir = os.path.join(self.dirname, '..', 'data')
+
     def person_filtering(
             self,
-            person_filter,
-            output_filename: str,
+            person_filter: {str, list[int]},
             household_filter: {str, list[int]},
             eval_household: bool = False,
+            tod_filter: {str, list[int]} = {'wtagfei': range(1, 8)},
     ):
-        dirname = os.path.dirname(__file__)
-        filepath = os.path.join(dirname, '..', 'data', 'input_behavior', 'person_info.xlsx')
-        df = pd.read_excel(filepath)
-
-        # filter unemployed
-        df = df[~df.pb3.isin([11, 10, 9, 8, 7, 5, 4])]
-        df = df[~df.soz.eq(4)]
-
-        # filter household type
-        if eval_household:
-            filepath = os.path.join(dirname, '..', 'data', 'input_behavior', 'household_info.xlsx')
-            df_household = pd.read_excel(filepath)
-
-            for key, value in household_filter.items():
-                df_household = df_household[df_household[key].isin(value)]
-
-            household_list = df_household['id_hhx'].values.tolist()
-            df = df[df.id_hhx.isin(household_list)]
-
-        # filter person type
-        df_person = df
-        for key, value in person_filter.items():
-            df_person = df_person[df_person[key].isin(value)]
-
-        person_list = df_person['id_persx'].values.tolist()
+        person_list = self.filter_person_type(person_filter, household_filter, eval_household)
 
         # get activity profile for filtered persons
-        filepath = os.path.join(dirname, '..', 'data', 'input_behavior', 'BehaviorScenario_ActivityProfile.xlsx')
+        filepath = os.path.join(self.datadir, 'input_behavior', 'BehaviorScenario_ActivityProfile.xlsx')
         df = pd.read_excel(filepath)
-        df_person = df[df.id_persx.isin(person_list)]
+        df = df[df.id_persx.isin(person_list)]
 
-        filepath = os.path.join(dirname, '..', 'data', 'output', output_filename)
-        df_person.to_excel(filepath, index=False)
+        for key, value in tod_filter.items():
+            df = df[df[key].isin(value)]
+
+        return df
+
+    def save_excel(self, df, output_filename: str, ):
+        filepath = os.path.join(self.datadir, 'output', output_filename)
+        df.to_excel(filepath, index=False)
+
+    def filter_household_type(self, household_filter: {str, list[int]}) -> "List":
+        filepath = os.path.join(self.datadir, 'input_behavior', 'household_info.xlsx')
+        df_household = pd.read_excel(filepath)
+
+        for key, value in household_filter.items():
+            df_household = df_household[df_household[key].isin(value)]
+
+        household_list = df_household['id_hhx'].values.tolist()
+        return household_list
+
+    def filter_person_type(self, person_filter, household_filter, eval_household) -> "List":
+        filepath = os.path.join(self.datadir, 'input_behavior', 'person_info.xlsx')
+        df_person = pd.read_excel(filepath)
+
+        if eval_household:
+            household_list = self.filter_household_type(household_filter)
+            df_person = df_person[df_person.id_hhx.isin(household_list)]
+
+        # filter unemployed
+        df_person = df_person[~df_person.pb3.isin([11, 10, 9, 8, 7, 5, 4])]
+        df_person = df_person[~df_person.soz.eq(4)]
+
+        for key, value in person_filter.items():
+            df_person = df_person[df_person[key].isin(value)]
+        person_list = df_person['id_persx'].values.tolist()
+        return person_list
 
     def plot_activity_share(
             self,
@@ -70,38 +83,52 @@ class PersonClassification:
         plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), ncol=1)
         plt.tight_layout(rect=[0, 0, 0.75, 1])
 
-        dirname = os.path.dirname(__file__)
-        filename = os.path.join(dirname, '..', 'data', 'figure', f'activity_share_{fig_name}.png')
+        filename = os.path.join(self.datadir, 'figure', f'activity_share_{fig_name}.png')
         fig.savefig(filename, bbox_inches="tight")
 
-    def plot_activity_share_data_prep(
+    def calculate_activity_share(
             self,
             filename: str,
-            plot_title: str
     ):
-        dirname = os.path.dirname(__file__)
-
-        filepath = os.path.join(dirname, '..', 'data', 'output', filename)
+        filepath = os.path.join(self.datadir, 'output', filename)
         df = pd.read_excel(filepath)
         df = df.drop(columns=['id_hhx', 'id_persx', 'id_tagx', 'monat', 'wtagfei'])
         arr = df.to_numpy()
 
-        filepath = os.path.join(dirname, '..', 'data', 'input_behavior', 'BehaviorScenario_ActivityInfo.xlsx')
+        filepath = os.path.join(self.datadir, 'input_behavior', 'BehaviorScenario_ActivityInfo.xlsx')
         activities = pd.read_excel(filepath)['name'].values.tolist()
 
-        self.plot_activity_share(arr, activities, plot_title)
+        return arr, activities
 
 
 if __name__ == '__main__':
     PC = PersonClassification()
 
-    person_filter = {'alterx': range(20, 39), 'pc7': [1]}  # pc7: Employment type, 'ha6x': [1] role in household
-    household_filer = {'ha1x': [1]}
-    PC.person_filtering(
+    person_types = {'p_1': {'alterx': range(20, 39), 'pc7': [1]},  # employed full time
+                    'p_2': {'alterx': range(20, 66), 'pc7': [1]},  # employed full time
+                    'p_3_1': {'alterx': range(39, 60), 'pc7': [1], 'ha6x': [1]},  # employed full time, main income
+                    'p_3_2': {'alterx': range(39, 60), 'pc7': [2]},  # employed part time
+                    'p_3_34': {'alterx': range(0, 20), 'ha6x': [3]}}  # child
+
+    household_types = {'h_1': {'ha1x': [1]}, 'h_2': {'ha1x': [2]}, 'h_3': {'ha1x': [4]}}
+
+    type_of_days = {'week': {'wtagfei': range(1, 5)},
+                    'friday': {'wtagfei': [5]},
+                    'saturday': {'wtagfei': [6]},
+                    'sunday': {'wtagfei': [7]}}
+
+    person_filter = person_types['p_1']
+    household_filter = household_types['h_1']
+    tod_filter = type_of_days['week']
+
+    df = PC.person_filtering(
         person_filter=person_filter,
-        output_filename='test.xlsx',
-        household_filter=household_filer,
-        eval_household=True
+        household_filter=household_filter,
+        eval_household=False,
+        tod_filter=tod_filter,
     )
 
-    PC.plot_activity_share_data_prep('ActivityProfile_HH_1.xlsx', 'HH_1')
+    PC.save_excel(df, output_filename='duration-probability.xlsx', )
+
+    # data, labels = PC.calculate_activity_share('ActivityProfile_HH_1.xlsx')
+    # PC.plot_activity_share(data, labels, 'HH_1')
