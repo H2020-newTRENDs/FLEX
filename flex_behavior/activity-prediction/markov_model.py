@@ -1,8 +1,12 @@
 import itertools
 from collections import Counter
+from typing import List, Tuple, Dict
+
 import numpy as np
 import pandas as pd
 import os
+
+from numpy import double
 
 
 class MarkovModel:
@@ -21,8 +25,9 @@ class MarkovModel:
         comparing_list[:] = itertools.filterfalse(lambda x: x[0] == x[1], comparing_list)
 
         changes = dict(Counter(comparing_list))
+        print()
         changes = {**{t: 0 for t in itertools.product(range(1, self.n_activities + 1), repeat=2)}, **changes}
-
+        print()
         return changes
 
     def compute_change_probability(self, changes, tod) -> "Dict[Tuple[str, int, int], double]":
@@ -78,7 +83,7 @@ class MarkovModel:
         column_name = ['ToD', 't', 'activity at t-1', 'activity at t', 'probability']
         model.save_probabilities(prob_dict, 'change-probability.xlsx', column_name)
 
-    def build_duration_matrix(self, filename: str):
+    def build_duration_matrix(self):
         filepath = os.path.join(self.datadir, 'input_behavior', 'BehaviorScenario_ActivityProfile.xlsx')
         df = pd.read_excel(filepath)
         # Filter ToD and Person Classification before or use already filtered data
