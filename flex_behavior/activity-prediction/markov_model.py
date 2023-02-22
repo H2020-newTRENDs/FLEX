@@ -25,9 +25,7 @@ class MarkovModel:
         comparing_list[:] = itertools.filterfalse(lambda x: x[0] == x[1], comparing_list)
 
         changes = dict(Counter(comparing_list))
-        print()
         changes = {**{t: 0 for t in itertools.product(range(1, self.n_activities + 1), repeat=2)}, **changes}
-        print()
         return changes
 
     def compute_change_probability(self, changes, tod) -> "Dict[Tuple[str, int, int], double]":
@@ -35,15 +33,11 @@ class MarkovModel:
         for before in range(1, self.n_activities + 1):
             n_changes_from_before = sum(v for k, v in changes.items() if k[0] == before)
             if n_changes_from_before == 0:
-                probabilities[(tod, before, 1)] = 0
-            else:
-                probabilities[(tod, before, 1)] = changes[(before, 1)] / n_changes_from_before
-            for now in range(2, self.n_activities + 1):
-                if n_changes_from_before == 0:
-                    probabilities[(tod, before, now)] = 0
-                else:
-                    probabilities[(tod, before, now)] = probabilities[(tod, before, now - 1)] + changes[
-                        (before, now)] / n_changes_from_before
+                continue
+            for now in range(1, self.n_activities + 1):
+                prob = changes[(before, now)] / n_changes_from_before
+                if prob != 0:
+                    probabilities[(tod, before, now)] = (prob, changes[(before, now)])
         return probabilities
 
     def print_probabilities_as_matrix(self, probabilities):
@@ -56,7 +50,7 @@ class MarkovModel:
         data = []
         for (tod, t) in prob_dict:
             for key, value in prob_dict[(tod, t)].items():
-                data.append([tod, t, key[1], key[2], value])
+                data.append([tod, t, key[1], key[2], value[0], value[1]])
         df = pd.DataFrame(data, columns=column_name)
         filepath = os.path.join(self.datadir, 'output', filename)
         df.to_excel(filepath, index=False)
@@ -80,7 +74,7 @@ class MarkovModel:
                 probability = model.compute_change_probability(changes, tod)
                 prob_dict[(tod, t)] = probability
 
-        column_name = ['ToD', 't', 'activity at t-1', 'activity at t', 'probability']
+        column_name = ['ToD', 't', 'activity at t-1', 'activity at t', 'probability', 'n_changes']
         model.save_probabilities(prob_dict, 'change-probability.xlsx', column_name)
 
     def build_duration_matrix(self):
@@ -104,7 +98,7 @@ class MarkovModel:
                 time_filtered = filter(lambda x: x[0] == t, durations)
                 prob_dict[(tod, t)] = self.compute_duration_probability(list(time_filtered), tod)
 
-        column_name = ['ToD', 't', 'activity', 'duration', 'probability']
+        column_name = ['ToD', 't', 'activity', 'duration', 'probability', 'n_cases']
         model.save_probabilities(prob_dict, 'duration-probability.xlsx', column_name)
 
     def filter_tod(self, df, tod):
@@ -119,31 +113,24 @@ class MarkovModel:
             self,
             act_duration: "List[Tuple[int, int, int]]",  # (timestep, activity, duration)
             tod: int,  # type of day
-    ) -> "Dict[Tuple[int, int, int], double]":  # (activity, duration): accumulated probability
+    ) -> "Dict[Tuple[int, int, int], Tuple[float, int]]":  # (activity, duration): accumulated probability
         probabilities = {}  # keys = (activity, duration)
         for act in range(1, self.n_activities + 1):
             act_list = [x[2] for x in act_duration if x[1] == act]
             n_durations = len(act_list)
-            if n_durations == 0:
-                probabilities[(tod, act, 1)] = 0
-            else:
-                probabilities[(tod, act, 1)] = act_list.count(1) / n_durations
-            for duration in range(2, 145):
-                if n_durations == 0:
-                    probabilities[(tod, act, duration)] = 0
-                else:
-                    probabilities[(tod, act, duration)] = probabilities[(tod, act, duration - 1)] + act_list.count(
-                        duration) / n_durations
-                    if probabilities[(tod, act, duration)] == 1.0:
-                        break
+            if n_durations != 0:
+                for duration in range(1, 145):
+                    prob = act_list.count(duration) / n_durations
+                    if prob != 0:
+                        probabilities[(tod, act, duration)] = (prob, act_list.count(duration))
         return probabilities
 
     def count_occurences_in_list(
             self,
             activities: "List[int]"
-    ) -> "List[Tuple[int, int, int]]":  # Start Position, Item, Duration
+    ) -> "List[Tuple[int, int, int]]":  # Start Position, Activity, Duration
         act_duration = []
-        pos = 0
+        pos = 1
         for key, iter in itertools.groupby(activities):
             l = len(list(iter))
             act_duration.append((pos, key, l))
