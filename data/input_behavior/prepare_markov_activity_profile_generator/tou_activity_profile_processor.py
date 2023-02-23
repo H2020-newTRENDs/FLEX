@@ -126,7 +126,7 @@ class ActivityProfileProcessor:
 
 if __name__ == "__main__":
     app = ActivityProfileProcessor()
-    # app.convert_tou_activity_profile()
-    # app.generate_input_activity_profile()
+    app.convert_tou_activity_profile()
+    app.generate_input_activity_profile()
     app.plot_activity_share()
 
