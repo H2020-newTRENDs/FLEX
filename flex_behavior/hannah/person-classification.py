@@ -1,4 +1,5 @@
 import os
+from typing import List
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,7 +11,7 @@ class PersonClassification:
 
     def __init__(self):
         self.dirname = os.path.dirname(__file__)
-        self.datadir = os.path.join(self.dirname, '..', 'data')
+        self.datadir = os.path.join(self.dirname, '../..', 'data')
 
     def person_filtering(
             self,
@@ -35,7 +36,7 @@ class PersonClassification:
         filepath = os.path.join(self.datadir, 'output', output_filename)
         df.to_excel(filepath, index=False)
 
-    def filter_household_type(self, household_filter: {str, list[int]}) -> "List":
+    def filter_household_type(self, household_filter: {str, list[int]}) -> List[int]:
         filepath = os.path.join(self.datadir, 'input_behavior', 'household_info.xlsx')
         df_household = pd.read_excel(filepath)
 
@@ -45,7 +46,7 @@ class PersonClassification:
         household_list = df_household['id_hhx'].values.tolist()
         return household_list
 
-    def filter_person_type(self, person_filter, household_filter, eval_household) -> "List":
+    def filter_person_type(self, person_filter, household_filter, eval_household) -> List[int]:
         filepath = os.path.join(self.datadir, 'input_behavior', 'person_info.xlsx')
         df_person = pd.read_excel(filepath)
 
@@ -104,13 +105,19 @@ class PersonClassification:
 if __name__ == '__main__':
     PC = PersonClassification()
 
-    person_types = {'p_1': {'alterx': range(20, 39), 'pc7': [1]},  # employed full time
-                    'p_2': {'alterx': range(20, 66), 'pc7': [1]},  # employed full time
-                    'p_3_1': {'alterx': range(39, 60), 'pc7': [1], 'ha6x': [1]},  # employed full time, main income
-                    'p_3_2': {'alterx': range(39, 60), 'pc7': [2]},  # employed part time
-                    'p_3_34': {'alterx': range(0, 20), 'ha6x': [3]}}  # child
+    person_types = {
+        'p_1': {'alterx': range(20, 39), 'pc7': [1]},  # employed full time
+        'p_2': {'alterx': range(20, 66), 'pc7': [1]},  # employed full time
+        'p_3_1': {'alterx': range(39, 60), 'pc7': [1], 'ha6x': [1]},  # employed full time, main income
+        'p_3_2': {'alterx': range(39, 60), 'pc7': [2]},  # employed part-time
+        'p_3_34': {'alterx': range(0, 20), 'ha6x': [3]}  # child
+    }
 
-    household_types = {'h_1': {'ha1x': [1]}, 'h_2': {'ha1x': [2]}, 'h_3': {'ha1x': [4]}}
+    household_types = {
+        'h_1': {'ha1x': [1]},
+        'h_2': {'ha1x': [2]},
+        'h_3': {'ha1x': [4]}
+    }
 
     type_of_days = {'week': {'wtagfei': range(1, 5)},
                     'friday': {'wtagfei': [5]},
@@ -124,11 +131,11 @@ if __name__ == '__main__':
     df = PC.person_filtering(
         person_filter=person_filter,
         household_filter=household_filter,
-        eval_household=False,
+        eval_household=True,
         tod_filter=tod_filter,
     )
 
-    PC.save_excel(df, output_filename='duration-probability.xlsx', )
+    PC.save_excel(df, output_filename='filtered_activity_profile.xlsx', )
 
     # data, labels = PC.calculate_activity_share('ActivityProfile_HH_1.xlsx')
     # PC.plot_activity_share(data, labels, 'HH_1')

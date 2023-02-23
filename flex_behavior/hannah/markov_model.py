@@ -13,7 +13,7 @@ class MarkovModel:
     def __init__(self, n_activities):
         self.n_activities = n_activities
         self.dirname = os.path.dirname(__file__)
-        self.datadir = os.path.join(self.dirname, '..', '..', 'data')
+        self.datadir = os.path.join(self.dirname, '../../../../flex_behavior', '..', 'data')
 
     def compute_activity_changes(
             self,
