@@ -16,8 +16,6 @@ class BehaviorTable:
     ActivityLocation = "BehaviorScenario_Activity_Location"
     TechnologyType = "BehaviorScenario_Technology_Type"
     TechnologyTriggerProbability = "BehaviorScenario_Technology_TriggerProbability"
-    TechnologyOwnershipRate = "BehaviorScenario_Technology_OwnershipRate"
-    TechnologyPowerActive = "BehaviorScenario_Technology_PowerActive"
-    TechnologyPowerStandby = "BehaviorScenario_Technology_PowerStandby"
+    TechnologyPower = "BehaviorScenario_Technology_Power"
     PersonProfiles = "BehaviorResult_PersonProfiles"
 
