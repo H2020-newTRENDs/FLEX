@@ -59,6 +59,7 @@ def convert_datatype_py2sql(data_types: dict) -> dict:
 
 
 def filter_df(df: pd.DataFrame, filter_dict: dict) -> pd.DataFrame:
+    df = df.copy()
     df_filtered = df.loc[(df[list(filter_dict)] == pd.Series(filter_dict)).all(axis=1)]
     return df_filtered
 

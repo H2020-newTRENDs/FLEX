@@ -5,6 +5,7 @@ from flex.db import create_db_conn
 from flex.plotter import Plotter
 from flex_behavior.constants import BehaviorTable
 from flex import kit
+from collections import OrderedDict
 
 
 class BehaviorScenario:
@@ -17,12 +18,14 @@ class BehaviorScenario:
         self.period_num = 8760
         # imported from excel input: BehaviorScenario
         self.id_household_type: Optional[int] = None
+        self.wfh_share: Optional[float] = None
         self.setup()
 
     def setup(self):
         self.setup_scenario_params()
         self.import_scenario_data()
         self.setup_day_type()
+        self.setup_activity_location()
 
     def setup_scenario_params(self):
         df = self.db.read_dataframe(BehaviorTable.Scenarios)
@@ -51,28 +54,40 @@ class BehaviorScenario:
             0: 4,  # Sunday --> weekday % 7 = 0
         }
 
+    def setup_activity_location(self):
+        df = self.db.read_dataframe(BehaviorTable.ActivityLocation)
+        self.activity_location = {}
+        for i, row in df.iterrows():
+            self.activity_location[row["ID_Activity"]] = row["ID_Location"]
+
     @staticmethod
-    def filter_dataframe_smart(df, columns, values):
-        while len(df[df[columns] == values]) == 0 and len(columns) > 1:
-            columns = columns[:-1]
-            values = values[:-1]
-        filtered_df = df[df[columns] == values]
-        print()
+    def filter_dataframe_dynamic(df, od_filter: "OrderedDict"):
+        while len(kit.filter_df(df, od_filter)) == 0 and len(od_filter) > 1:
+            od_filter.popitem()
+        filtered_df = kit.filter_df(df, od_filter)
         return filtered_df
 
     def get_activity_duration(self, id_person_type: int, id_day_type: int, id_activity: int, timeslot: int):
-        columns = ["ID_Activity", "t", "ID_PersonType", "ID_DayType"]
-        values = [id_activity, timeslot, id_person_type, id_day_type]
-        df = self.filter_dataframe_smart(self.activity_duration_prob.copy(), columns, values)
+        od = OrderedDict([
+            ("ID_Activity", id_activity),
+            ("t", timeslot),
+            ("ID_DayType", id_day_type),
+            ("ID_PersonType", id_person_type),
+        ])  # these items are ranked from most to least important
+        df = self.filter_dataframe_dynamic(self.activity_duration_prob.copy(), od)
         d = {}
         for index, row in df.iterrows():
             d[row["duration"]] = row["probability"]
         return int(kit.dict_sample(d))
 
     def get_activity_now(self, id_person_type: int, id_day_type: int, id_activity_before: int, timeslot: int):
-        columns = ["ID_ActivityBefore", "t", "ID_PersonType", "ID_DayType"]
-        values = [id_activity_before, timeslot, id_person_type, id_day_type]
-        df = self.filter_dataframe_smart(self.activity_change_prob.copy(), columns, values)
+        od = OrderedDict([
+            ("ID_ActivityBefore", id_activity_before),
+            ("t", timeslot),
+            ("ID_DayType", id_day_type),
+            ("ID_PersonType", id_person_type),
+        ])  # these items are ranked from most to least important
+        df = self.filter_dataframe_dynamic(self.activity_change_prob.copy(), od)
         d = {}
         for index, row in df.iterrows():
             d[row["ID_ActivityNow"]] = row["probability"]
