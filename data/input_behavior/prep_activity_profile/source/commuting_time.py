@@ -50,4 +50,5 @@ class CommutingTimer:
                     'commuting_start_count': commuting_start_count,
                     'commuting_end_count': commuting_end_count,
                 }))
-        pd.concat(commuting_count, axis=0).to_excel(os.path.join(self.output_dir, self.Output_CommutingTimer), index=False)
+        df = pd.concat(commuting_count, axis=0).reset_index(drop=True)
+        df.to_excel(os.path.join(self.output_dir, self.Output_CommutingTimer), index=False)
