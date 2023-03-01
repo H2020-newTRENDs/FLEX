@@ -40,8 +40,7 @@ class BehaviorScenario:
         self.activity_change_prob = self.db.read_dataframe(BehaviorTable.ActivityChangeProb)
         self.activity_duration_prob = self.db.read_dataframe(BehaviorTable.ActivityDurationProb)
         self.technology_trigger_prob = self.db.read_dataframe(BehaviorTable.TechnologyTriggerProbability)
-        self.technology_power_active = self.db.read_dataframe(BehaviorTable.TechnologyPowerActive)
-        self.technology_power_standby = self.db.read_dataframe(BehaviorTable.TechnologyPowerStandby)
+        self.technology_power_active = self.db.read_dataframe(BehaviorTable.TechnologyPower)
 
     def setup_day_type(self):
         self.day_type = {

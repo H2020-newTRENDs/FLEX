@@ -22,6 +22,6 @@ def gen_commuting_time():
 
 
 if __name__ == "__main__":
-    # process_tou_activity_profile()
-    # gen_markov_matrix()
+    process_tou_activity_profile()
+    gen_markov_matrix()
     gen_commuting_time()

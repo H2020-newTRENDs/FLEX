@@ -16,8 +16,7 @@ class Person:
 
     def setup(self):
         self.setup_activity_profile()
-        self.setup_electricity_demand_profile()
-        self.setup_hot_water_demand_profile()
+        self.setup_electricity_and_hotwater_demand_profile()
 
     def setup_activity_profile(self):
         for day in range(2, 367):  # The year of 2019 started with Tuesday
@@ -45,14 +44,10 @@ class Person:
             day_activities = day_activities[-24:] + day_activities[:-24]
             self.activity_profile.extend(day_activities)
 
-    def setup_electricity_demand_profile(self):
+    def setup_electricity_and_hotwater_demand_profile(self):
         for id_activity in self.activity_profile:
             # id_technology = self.scenario.get_activity_technology(id_activity)
             # technology
             self.electricity_demand.append(1)
-
-    def setup_hot_water_demand_profile(self):
-        for id_activity in self.activity_profile:
-            # id_technology = self.scenario.get_activity_technology(id_activity)
-            # technology
             self.hot_water_demand.append(1)
+
