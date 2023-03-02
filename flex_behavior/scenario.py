@@ -100,11 +100,15 @@ class BehaviorScenario:
         return d
 
     def get_activity_technology(self, id_activity: int):
-        df = self.technology_power_standby.loc[self.technology_power_standby["ID_Activity"] == id_activity]
-        techs = {}
-        for _, row in df.iterrows():
-            techs[row["ID_Technology"]] = row["value"]
-        return kit.dict_sample(techs)
+        df = self.technology_trigger_prob.loc[self.technology_trigger_prob["ID_Activity"] == id_activity]
+        d = {}
+        for index, row in df.iterrows():
+            d[row["ID_Technology"]] = row["value"]
+        return int(kit.dict_sample(d))
+
+    def get_technology_power(self, id_technology: int):
+        power = self.technology_power_active.loc[self.technology_power_active["ID_Technology"] == id_technology, ['value']]
+        return power.iloc[0, 0]
 
 
 

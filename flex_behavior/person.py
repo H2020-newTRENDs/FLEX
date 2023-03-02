@@ -1,5 +1,4 @@
 from typing import TYPE_CHECKING
-import numpy as np
 
 if TYPE_CHECKING:
     from flex_behavior.scenario import BehaviorScenario
@@ -46,8 +45,10 @@ class Person:
 
     def setup_electricity_and_hotwater_demand_profile(self):
         for id_activity in self.activity_profile:
-            # id_technology = self.scenario.get_activity_technology(id_activity)
-            # technology
-            self.electricity_demand.append(1)
-            self.hot_water_demand.append(1)
-
+            id_technology = self.scenario.get_activity_technology(id_activity)
+            technology_power = self.scenario.get_technology_power(id_technology)
+            self.electricity_demand.append(technology_power)
+            if id_technology == 25:  # hot water was triggered
+                self.hot_water_demand.append(1)
+            else:
+                self.hot_water_demand.append(0)
