@@ -47,8 +47,9 @@ class Person:
         for id_activity in self.activity_profile:
             id_technology = self.scenario.get_activity_technology(id_activity)
             technology_power = self.scenario.get_technology_power(id_technology)
-            self.electricity_demand.append(technology_power)
             if id_technology == 25:  # hot water was triggered
-                self.hot_water_demand.append(1)
+                self.hot_water_demand.append(technology_power)
+                self.electricity_demand.append(0)
             else:
+                self.electricity_demand.append(technology_power)
                 self.hot_water_demand.append(0)
