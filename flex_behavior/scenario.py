@@ -1,4 +1,5 @@
 from typing import Optional
+import random
 
 from flex.config import Config
 from flex.db import create_db_conn
@@ -107,25 +108,23 @@ class BehaviorScenario:
         return int(kit.dict_sample(d))
 
     def get_technology_power(self, id_technology: int):
-        power = self.technology_power_active.loc[self.technology_power_active["ID_Technology"] == id_technology, ['value']]
+        power = self.technology_power_active.loc[
+            self.technology_power_active["ID_Technology"] == id_technology, ['value']]
         return power.iloc[0, 0]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def get_building_occupancy_by_hourly_activity(
+            self,
+            activities: list[int],
+            work_from_home: int  # home = 0, outside = 1
+    ):
+        self.setup_activity_location()
+        locations = [self.activity_location[activity] for activity in activities]  # translate activities to locations
+        locations = [1 if loc == 4 else loc - 1 for loc in locations]  # commute is also not at home = 1, home = 0
+        for idx, loc in enumerate(locations):
+            if loc == 2:
+                if activities[idx] == 2:  # eating and drinking, 50% probability to be from home/outside
+                    rand = random.uniform(0, 1)
+                    locations[idx] = 0 if rand < 0.5 else 1
+                else:
+                    locations[idx] = work_from_home  # working/education and breaks
+        return locations
