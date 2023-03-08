@@ -42,6 +42,8 @@ class BehaviorScenario:
         self.activity_duration_prob = self.db.read_dataframe(BehaviorTable.ActivityDurationProb)
         self.technology_trigger_prob = self.db.read_dataframe(BehaviorTable.TechnologyTriggerProbability)
         self.technology_power_active = self.db.read_dataframe(BehaviorTable.TechnologyPower)
+        self.technology_type = self.db.read_dataframe(BehaviorTable.TechnologyType)
+        self.technology_duration = self.db.read_dataframe(BehaviorTable.TechnologyDuration)
 
     def setup_day_type(self):
         self.day_type = {
@@ -112,6 +114,16 @@ class BehaviorScenario:
             self.technology_power_active["ID_Technology"] == id_technology, ['value']]
         return power.iloc[0, 0]
 
+    def get_technology_type(self, id_technology: int):
+        tec_type = self.technology_type.loc[
+            self.technology_type["ID_Technology"] == id_technology, ['ID_TechnologyType']]
+        return tec_type.iloc[0, 0]
+
+    def get_technology_duration(self, id_technology: int):
+        duration = self.technology_duration.loc[
+            self.technology_duration["ID_Technology"] == id_technology, ['value']]
+        return duration.iloc[0, 0]
+
     def get_building_occupancy_by_hourly_activity(
             self,
             activities: list[int],
@@ -122,7 +134,7 @@ class BehaviorScenario:
         locations = [0 if loc == 4 else loc - 1 for loc in locations]  # commute is also not at home = 0, home = 1
         for idx, loc in enumerate(locations):
             if loc == 2:
-                if activities[idx] == 2:  # eating and drinking, 50% probability to be from home/outside
+                if activities[idx] == 2:  # eating and drinking, 50% probability to be from home/outside TODO keep this assumption?
                     rand = random.uniform(0, 1)
                     locations[idx] = 0 if rand < 0.5 else 1
                 else:

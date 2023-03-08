@@ -3,6 +3,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from flex_behavior.scenario import BehaviorScenario
 
+from flex.config import Config
+from flex_behavior.scenario import BehaviorScenario
+
 
 class Person:
     def __init__(self, scenario: "BehaviorScenario", id_person_type):
@@ -45,16 +48,26 @@ class Person:
             self.activity_profile.extend(day_activities)
 
     def setup_electricity_and_hotwater_demand_profile(self):
-        for id_activity in self.activity_profile:
+        self.electricity_demand = [0] * len(self.activity_profile)
+        self.hot_water_demand = [0] * len(self.activity_profile)
+
+        for timeslot, id_activity in enumerate(self.activity_profile):
             id_technology = self.scenario.get_activity_technology(id_activity)
             self.technology_ids.append(id_technology)
-
-            # check technology type and see if it is "duration-relevant" and add the profile
-
             technology_power = self.scenario.get_technology_power(id_technology)
-            if id_technology == 25:  # hot water was triggered
-                self.hot_water_demand.append(technology_power)
-                self.electricity_demand.append(0)
-            else:
-                self.electricity_demand.append(technology_power)
-                self.hot_water_demand.append(0)
+
+            tec_duration = self.scenario.get_technology_duration(id_technology)
+            if timeslot + tec_duration > len(self.activity_profile):
+                tec_duration = len(self.activity_profile) - timeslot  # duration of technology ends with end of day (if longer)
+
+            for idx in range(tec_duration):
+                if id_technology == 25:  # hot water was triggered
+                    self.hot_water_demand[timeslot + idx] += technology_power
+                else:
+                    self.electricity_demand[timeslot + idx] += technology_power
+
+if __name__ == "__main__":
+    cfg = Config(project_name="FLEX_Behavior")
+    scenario = BehaviorScenario(scenario_id=1, config=cfg)
+    person = Person(scenario, 1)
+    person.setup_electricity_and_hotwater_demand_profile()

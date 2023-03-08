@@ -4,7 +4,8 @@ import numpy as np
 import random
 
 from flex_behavior.constants import BehaviorTable
-
+from flex.config import Config
+from flex_behavior.scenario import BehaviorScenario
 if TYPE_CHECKING:
     from flex_behavior.scenario import BehaviorScenario
 
@@ -15,6 +16,7 @@ class HouseholdPerson:
         self.scenario = scenario
         self.id_person_type = id_person_type
         self.activity_ids_10min: Optional[List[float]] = None
+        self.building_occupancy_profile_10min: Optional[List[float]] = None
         self.technology_ids_10min: Optional[List[float]] = None
         self.electricity_profile_10min: Optional[List[float]] = None
         self.hot_water_profile_10min: Optional[List[float]] = None
@@ -27,17 +29,13 @@ class HouseholdPerson:
         self.setup_building_occupancy_profile()
         self.setup_electricity_and_hot_water_profile()
 
-        print(self.electricity_profile)
-        print(self.hot_water_profile)
-        print(self.building_occupancy_profile)
-
     def read_profiles(self):
-        # read from db --> BehaviorTable.PersonProfiles, randomly select one sample (magic number for sample size)
         df = self.scenario.db.read_dataframe(BehaviorTable.PersonProfiles)
-        self.activity_ids_10min: Optional[List[float]] = None
-        self.technology_ids_10min: Optional[List[float]] = None
-        self.electricity_profile_10min: Optional[List[float]] = None
-        self.hot_water_profile_10min: Optional[List[float]] = None
+        sample = 0  # TODO generate randomly
+        self.activity_ids_10min = df[f"activity_p{self.id_person_type}s{sample}"].tolist()
+        self.technology_ids_10min = df[f"id_technology_p{self.id_person_type}s{sample}"].tolist()
+        self.electricity_profile_10min = df[f"electricity_p{self.id_person_type}s{sample}"].tolist()
+        self.hot_water_profile_10min = df[f"hotwater_p{self.id_person_type}s{sample}"].tolist()
 
     def setup_building_occupancy_profile(self):
         # sets building_occupancy_profile with list of 1 and 0: 1 meaning at home, 0 meaning outside
@@ -52,6 +50,7 @@ class HouseholdPerson:
             return wfh
 
         min_activity = self.activity_ids_10min
+        min_occupancy = []
         hour_occupancy = []
         work_outside_prob = 1 - self.scenario.wfh_share
 
@@ -59,33 +58,41 @@ class HouseholdPerson:
             if i % 24 == 0:  # start of new day
                 wfh = generate_wfh(work_outside_prob)
             hour_activity = min_activity[i*6:i*6 + 6]
-            min_occupancy = self.scenario.get_building_occupancy_by_hourly_activity(hour_activity, wfh)
-            sum_occupancy = sum(min_occupancy)/6
+            min_occupancy_in_hour = self.scenario.get_building_occupancy_by_hourly_activity(hour_activity, wfh)
+            min_occupancy.extend(min_occupancy_in_hour)
+            sum_occupancy = sum(min_occupancy_in_hour)/6
             if sum_occupancy == 0.5:  # 30 min home, 30 min outside
                 rand = random.uniform(0, 1)
-                occupancy = 0 if rand < 0.5 else 1  # occupancy based on where was person most in this hour
+                occupancy = 0 if rand < 0.5 else 1  # occupancy based on where person was most in this hour
             else:
                 occupancy = round(sum_occupancy)
             hour_occupancy.append(occupancy)
+        self.building_occupancy_profile_10min = min_occupancy
         self.building_occupancy_profile = hour_occupancy
 
     def setup_electricity_and_hot_water_profile(self):
-        # read from databases and initialize electricity_profile and hot_water_profile
-        # aggregate to hourly resolution
-        # lighting is added here: at home and not sleeping
+        # lighting is added to electricity demand, if person at home and not sleeping
+        self.add_electricity_demand_for_lighting()
+
         min_electricity = self.electricity_profile_10min
         hour_electricity = []
 
         min_hot_water = self.hot_water_profile_10min
         hour_hot_water = []
 
+        # aggregate to hourly resolution
         for i in range(int(len(min_electricity) / 6)):
-            slice = min_electricity[i*6:i*6 + 6]
             hour_electricity.append(sum(min_electricity[i*6:i*6 + 6]))
             hour_hot_water.append(sum(min_hot_water[i*6:i*6+6]))
 
         self.electricity_profile = hour_electricity
         self.hot_water_profile = hour_hot_water
+
+    def add_electricity_demand_for_lighting(self):
+        idx = [self.activity_ids_10min[i] != 1 and self.building_occupancy_profile_10min[i] == 1 for i in range(len(self.activity_ids_10min))]
+        power = self.scenario.get_technology_power(38)  # electricity demand of lightning
+        lightning = [power if i else 0 for i in idx]  # if person at home and not sleeping -> use the light
+        self.electricity_profile_10min = [x + y for x, y in zip(self.electricity_profile_10min, lightning)]
 
 
 class Household:
@@ -106,8 +113,7 @@ class Household:
         for id_person_type, person_num in composition.items():
             for i in range(0, person_num):
                 person = HouseholdPerson(self.scenario, id_person_type)
-                person.setup_electricity_and_hot_water_profile()
-                person.setup_building_occupancy_profile()
+                person.setup_household_person()
                 self.persons.append(person)
 
     def setup_building_occupancy_profile(self):
@@ -119,8 +125,10 @@ class Household:
                     break
 
     def setup_household_base_electricity_demand_profile(self):
-        ...
-        # add base load - 37, 39 - always on
+        # Add base load - 37, 39 - always on
+        power_modem = self.scenario.get_technology_power(37)  # electricity demand of internet_modem
+        power_refrigerator_freezer = self.scenario.get_technology_power(39)  # electricity demand of refrigerator_freezer_combi
+        self.base_electricity_demand = (power_modem + power_refrigerator_freezer) * np.ones(self.scenario.period_num)
 
     def setup_electricity_demand_profile(self):
         self.setup_household_base_electricity_demand_profile()
@@ -132,3 +140,9 @@ class Household:
         self.hot_water_demand = np.zeros(self.scenario.period_num)
         for person in self.persons:
             self.hot_water_demand += person.hot_water_profile
+
+if __name__ == "__main__":
+    cfg = Config(project_name="FLEX_Behavior")
+    scenario = BehaviorScenario(scenario_id=1, config=cfg)
+    hperson = HouseholdPerson(scenario, 1)
+    hperson.setup_household_person()
