@@ -17,5 +17,6 @@ class BehaviorTable:
     TechnologyType = "BehaviorScenario_Technology_Type"
     TechnologyTriggerProbability = "BehaviorScenario_Technology_TriggerProbability"
     TechnologyPower = "BehaviorScenario_Technology_Power"
+    TechnologyDuration = "BehaviorScenario_Technology_Duration"
     PersonProfiles = "BehaviorResult_PersonProfiles"
 

@@ -24,6 +24,7 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.load_behavior_table(BehaviorTable.TechnologyType)
         self.load_behavior_table(BehaviorTable.TechnologyTriggerProbability)
         self.load_behavior_table(BehaviorTable.TechnologyPower)
+        self.load_behavior_table(BehaviorTable.TechnologyDuration)
 
     def load_operation_component_tables(self):
         self.load_operation_table(OperationScenarioComponent.Region.table_name)
