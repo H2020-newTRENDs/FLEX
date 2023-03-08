@@ -115,11 +115,11 @@ class BehaviorScenario:
     def get_building_occupancy_by_hourly_activity(
             self,
             activities: list[int],
-            work_from_home: int  # home = 0, outside = 1
+            work_from_home: int  # home = 1, outside = 0
     ):
         self.setup_activity_location()
-        locations = [self.activity_location[activity] for activity in activities]  # translate activities to locations
-        locations = [1 if loc == 4 else loc - 1 for loc in locations]  # commute is also not at home = 1, home = 0
+        locations = [self.activity_location[activity] for activity in activities]  # translate activities to locations - 1: outside, 2: home, 3: home or outside, 4: commuting
+        locations = [0 if loc == 4 else loc - 1 for loc in locations]  # commute is also not at home = 0, home = 1
         for idx, loc in enumerate(locations):
             if loc == 2:
                 if activities[idx] == 2:  # eating and drinking, 50% probability to be from home/outside

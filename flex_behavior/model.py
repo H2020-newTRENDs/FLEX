@@ -14,6 +14,9 @@ class BehaviorModel:
         household.setup()
         return household
 
+    def save_household_profiles(self):
+        ...
+
     def run(self):
         print("")
         print(f"FLEX-Behavior --> ID_Scenario = {self.scenario.scenario_id}.")

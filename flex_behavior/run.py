@@ -23,6 +23,7 @@ def gen_person_profiles(config: "Config", sample_size: int = 1):
             person = Person(scenario, id_person_type)
             person.setup()
             d[f"activity_p{id_person_type}s{sample}"] = person.activity_profile
+            d[f"id_technology_p{id_person_type}s{sample}"] = person.technology_ids
             d[f"electricity_p{id_person_type}s{sample}"] = person.electricity_demand
             d[f"hotwater_p{id_person_type}s{sample}"] = person.hot_water_demand
     df = pd.DataFrame(d)

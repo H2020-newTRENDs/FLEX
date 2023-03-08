@@ -10,6 +10,7 @@ class Person:
         self.timeslot_num = 144  # each timeslot represents 10min, in total 144 timeslots in a day
         self.id_person_type = id_person_type
         self.activity_profile = []
+        self.technology_ids = []
         self.electricity_demand = []
         self.hot_water_demand = []
 
@@ -21,7 +22,7 @@ class Person:
         for day in range(2, 367):  # The year of 2019 started with Tuesday
             print(f'day = {day}')
             id_day_type = self.scenario.day_type[day % 7]
-            sleep_duration = self.scenario.get_activity_duration(self.id_person_type, id_day_type, 1, 1)
+            sleep_duration = self.scenario.get_activity_duration(self.id_person_type, id_day_type, 1, 120)
             day_activities = [1] * sleep_duration  # sleeping, at the beginning of the day (4:00 am)
             while len(day_activities) <= self.timeslot_num:
                 timeslot = len(day_activities) + 1
@@ -46,6 +47,10 @@ class Person:
     def setup_electricity_and_hotwater_demand_profile(self):
         for id_activity in self.activity_profile:
             id_technology = self.scenario.get_activity_technology(id_activity)
+            self.technology_ids.append(id_technology)
+
+            # check technology type and see if it is "duration-relevant" and add the profile
+
             technology_power = self.scenario.get_technology_power(id_technology)
             if id_technology == 25:  # hot water was triggered
                 self.hot_water_demand.append(technology_power)

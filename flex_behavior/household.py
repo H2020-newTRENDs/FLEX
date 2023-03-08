@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import random
 
-from flex_behavior.person import Person
+from flex_behavior.constants import BehaviorTable
 
 if TYPE_CHECKING:
     from flex_behavior.scenario import BehaviorScenario
@@ -14,51 +14,50 @@ class HouseholdPerson:
     def __init__(self, scenario: "BehaviorScenario", id_person_type):
         self.scenario = scenario
         self.id_person_type = id_person_type
+        self.activity_ids_10min: Optional[List[float]] = None
+        self.technology_ids_10min: Optional[List[float]] = None
+        self.electricity_profile_10min: Optional[List[float]] = None
+        self.hot_water_profile_10min: Optional[List[float]] = None
         self.electricity_profile: Optional[List[float]] = None
         self.hot_water_profile: Optional[List[float]] = None
         self.building_occupancy_profile: Optional[List[int]] = None
 
     def setup_household_person(self):
-        person = Person(self.scenario, self.id_person_type)
-        person.setup()
-        self.setup_electricity_and_hot_water_profile(person)
-        self.setup_building_occupancy_profile(person)
+        self.read_profiles()
+        self.setup_building_occupancy_profile()
+        self.setup_electricity_and_hot_water_profile()
+
         print(self.electricity_profile)
         print(self.hot_water_profile)
         print(self.building_occupancy_profile)
 
-    def setup_electricity_and_hot_water_profile(self, person):
-        # read from databases and initialize electricity_profile and hot_water_profile
-        # aggregate to hourly resolution
-        min_electricity = person.electricity_demand
-        hour_electricity = []
+    def read_profiles(self):
+        # read from db --> BehaviorTable.PersonProfiles, randomly select one sample (magic number for sample size)
+        df = self.scenario.db.read_dataframe(BehaviorTable.PersonProfiles)
+        self.activity_ids_10min: Optional[List[float]] = None
+        self.technology_ids_10min: Optional[List[float]] = None
+        self.electricity_profile_10min: Optional[List[float]] = None
+        self.hot_water_profile_10min: Optional[List[float]] = None
 
-        min_hot_water = person.hot_water_demand
-        hour_hot_water = []
-
-        for i in range(int(len(min_electricity) / 6)):
-            slice = min_electricity[i*6:i*6 + 6]
-            hour_electricity.append(sum(min_electricity[i*6:i*6 + 6]))
-            hour_hot_water.append(sum(min_hot_water[i*6:i*6+6]))
-
-        self.electricity_profile = hour_electricity
-        self.hot_water_profile = hour_hot_water
-
-    def setup_building_occupancy_profile(self, person):
+    def setup_building_occupancy_profile(self):
         # sets building_occupancy_profile with list of 1 and 0: 1 meaning at home, 0 meaning outside
         # do this based on WFH assumptions, which are parameters of scenario
         # we also need the length and starting point of the working/education time window
         # in the working/education time window are possible outside, which is decided by WFH assumption. For the other activities, we decided based on the table (if home_or_outside, 0.5-0.5).
         # aggregate to hourly resolution (based on assumption --> more than 30min in an hour, it is counted as at-home or outside; equaling to 30min, we use 0.5-0.5.
 
-        min_activity = person.activity_profile
-        hour_occupancy = []
+        def generate_wfh(whf_probability):
+            rand = random.uniform(0, 1)
+            wfh = 0 if rand < whf_probability else 1
+            return wfh
 
-        wfh_probability = 0.5  # TODO wfh = 0.3 -> 30% days at home
+        min_activity = self.activity_ids_10min
+        hour_occupancy = []
+        work_outside_prob = 1 - self.scenario.wfh_share
 
         for i in range(int(len(min_activity) / 6)):
             if i % 24 == 0:  # start of new day
-                wfh = self.generate_wfh(wfh_probability)
+                wfh = generate_wfh(work_outside_prob)
             hour_activity = min_activity[i*6:i*6 + 6]
             min_occupancy = self.scenario.get_building_occupancy_by_hourly_activity(hour_activity, wfh)
             sum_occupancy = sum(min_occupancy)/6
@@ -70,11 +69,23 @@ class HouseholdPerson:
             hour_occupancy.append(occupancy)
         self.building_occupancy_profile = hour_occupancy
 
+    def setup_electricity_and_hot_water_profile(self):
+        # read from databases and initialize electricity_profile and hot_water_profile
+        # aggregate to hourly resolution
+        # lighting is added here: at home and not sleeping
+        min_electricity = self.electricity_profile_10min
+        hour_electricity = []
 
-    def generate_wfh(self, whf_probability):
-        rand = random.uniform(0, 1)
-        wfh = 0 if rand < whf_probability else 1
-        return wfh
+        min_hot_water = self.hot_water_profile_10min
+        hour_hot_water = []
+
+        for i in range(int(len(min_electricity) / 6)):
+            slice = min_electricity[i*6:i*6 + 6]
+            hour_electricity.append(sum(min_electricity[i*6:i*6 + 6]))
+            hour_hot_water.append(sum(min_hot_water[i*6:i*6+6]))
+
+        self.electricity_profile = hour_electricity
+        self.hot_water_profile = hour_hot_water
 
 
 class Household:
@@ -96,7 +107,7 @@ class Household:
             for i in range(0, person_num):
                 person = HouseholdPerson(self.scenario, id_person_type)
                 person.setup_electricity_and_hot_water_profile()
-                person.setup_building_occupancy_profile(self.scenario)
+                person.setup_building_occupancy_profile()
                 self.persons.append(person)
 
     def setup_building_occupancy_profile(self):
@@ -109,6 +120,7 @@ class Household:
 
     def setup_household_base_electricity_demand_profile(self):
         ...
+        # add base load - 37, 39 - always on
 
     def setup_electricity_demand_profile(self):
         self.setup_household_base_electricity_demand_profile()
