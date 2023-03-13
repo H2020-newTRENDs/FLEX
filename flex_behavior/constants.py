@@ -19,4 +19,5 @@ class BehaviorTable:
     TechnologyPower = "BehaviorScenario_Technology_Power"
     TechnologyDuration = "BehaviorScenario_Technology_Duration"
     PersonProfiles = "BehaviorResult_PersonProfiles"
+    HouseholdProfiles = "BehaviorResult_HouseholdProfiles"
 

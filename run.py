@@ -1,7 +1,11 @@
 from config import cfg
-from flex_behavior.run import run_behavior_model, run_behavior_analyzer
+from flex_behavior.run import gen_person_profiles, run_behavior_model, run_behavior_analyzer
 from flex_community.run import run_community_model, run_community_analyzer
 from flex_operation.run import run_operation_model, run_operation_analyzer
+
+
+def run_flex_behavior_person_profile_generator(config):
+    gen_person_profiles(config, sample_size=1)
 
 
 def run_flex_behavior_model(config):
@@ -59,6 +63,7 @@ def run_flex_community_analyzer(config):
 
 
 if __name__ == "__main__":
+    # run_flex_behavior_person_profile_generator(cfg)
     run_flex_behavior_model(cfg)
     # run_flex_behavior_analyzer(cfg)
     # run_flex_operation_model(cfg)

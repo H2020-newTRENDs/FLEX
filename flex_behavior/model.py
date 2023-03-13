@@ -1,22 +1,18 @@
-from flex_behavior.scenario import BehaviorScenario
+from typing import Optional
+
 from flex_behavior.household import Household
+from flex_behavior.scenario import BehaviorScenario
 
 
 class BehaviorModel:
 
     def __init__(self, scenario: "BehaviorScenario"):
         self.scenario = scenario
-        self.household = self.setup_household(scenario)
+        self.household: Optional["Household"] = None
 
-    @staticmethod
-    def setup_household(scenario: "BehaviorScenario"):
-        household = Household(scenario)
-        household.setup()
-        return household
-
-    def save_household_profiles(self):
-        ...
+    def setup_household(self):
+        self.household = Household(self.scenario)
+        self.household.setup()
 
     def run(self):
-        print("")
-        print(f"FLEX-Behavior --> ID_Scenario = {self.scenario.scenario_id}.")
+        self.setup_household()

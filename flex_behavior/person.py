@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from flex_behavior.scenario import BehaviorScenario
 
-from flex.config import Config
 from flex_behavior.scenario import BehaviorScenario
 
 
@@ -66,8 +65,3 @@ class Person:
                 else:
                     self.electricity_demand[timeslot + idx] += technology_power
 
-if __name__ == "__main__":
-    cfg = Config(project_name="FLEX_Behavior")
-    scenario = BehaviorScenario(scenario_id=1, config=cfg)
-    person = Person(scenario, 1)
-    person.setup_electricity_and_hotwater_demand_profile()

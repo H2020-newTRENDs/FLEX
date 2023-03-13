@@ -1,14 +1,14 @@
+import random
 from typing import List, Optional
 from typing import TYPE_CHECKING
+
 import numpy as np
-import random
 
 from flex_behavior.constants import BehaviorTable
-from flex.config import Config
 from flex_behavior.scenario import BehaviorScenario
+
 if TYPE_CHECKING:
     from flex_behavior.scenario import BehaviorScenario
-
 
 
 class HouseholdPerson:
@@ -135,14 +135,10 @@ class Household:
         self.electricity_demand = np.zeros(self.scenario.period_num)
         for person in self.persons:
             self.electricity_demand += person.electricity_profile
+        self.electricity_demand += self.base_electricity_demand
 
     def setup_hot_water_demand_profile(self):
         self.hot_water_demand = np.zeros(self.scenario.period_num)
         for person in self.persons:
             self.hot_water_demand += person.hot_water_profile
 
-if __name__ == "__main__":
-    cfg = Config(project_name="FLEX_Behavior")
-    scenario = BehaviorScenario(scenario_id=1, config=cfg)
-    hperson = HouseholdPerson(scenario, 1)
-    hperson.setup_household_person()
