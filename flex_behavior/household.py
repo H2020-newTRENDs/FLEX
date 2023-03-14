@@ -82,8 +82,8 @@ class HouseholdPerson:
 
         # aggregate to hourly resolution
         for i in range(int(len(min_electricity) / 6)):
-            hour_electricity.append(sum(min_electricity[i*6:i*6 + 6]))
-            hour_hot_water.append(sum(min_hot_water[i*6:i*6+6]))
+            hour_electricity.append(sum(min_electricity[i*6:i*6 + 6])/6)
+            hour_hot_water.append(sum(min_hot_water[i*6:i*6+6])/6)
 
         self.electricity_profile = hour_electricity
         self.hot_water_profile = hour_hot_water
