@@ -70,7 +70,7 @@ def run_behavior_model(behavior_scenario_ids: List[int], config: "Config"):
 def run_behavior_analyzer(behavior_scenario_ids: List[int], config: "Config"):
     for id_behavior_scenario in behavior_scenario_ids:
         logger.info(f"FLEX-Behavior Analyzer --> ID_Scenario = {id_behavior_scenario}.")
-        ana = BehaviorAnalyzer(config)
+        ana = BehaviorAnalyzer(config, scenario_id=id_behavior_scenario)
         ana.run()
 
 

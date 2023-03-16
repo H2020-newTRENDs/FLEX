@@ -140,3 +140,10 @@ class BehaviorScenario:
                 else:
                     locations[idx] = work_from_home  # working/education and breaks
         return locations
+
+    def get_daytype_from_hour(self, hour):
+        day = (hour // 24) + 1
+        return self.day_type[day % 7]
+
+    def get_time_from_hour(self, hour):
+        return (hour % 24) + 1
