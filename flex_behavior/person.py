@@ -48,7 +48,7 @@ class Person:
                 timeslot
             )
             activities.extend([id_activity_now] * duration)
-            day = (len(activities) // self.timeslot_num) + 2 # + 1 to get days from 1 to 365, +1 bc yaer starts at day 2
+            day = (len(activities) // self.timeslot_num) + 2 # + 1 to get days from 1 to 365, +1 bc year starts at day 2
         activities = activities[:(365 * self.timeslot_num)]
         self.activity_profile = activities
 
