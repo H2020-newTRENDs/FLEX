@@ -65,6 +65,10 @@ class Person:
             if timeslot + tec_duration > len(self.activity_profile):
                 tec_duration = len(self.activity_profile) - timeslot  # duration of technology ends with end of day (if longer)
 
+            if tec_duration < 1:
+                technology_power = technology_power * tec_duration
+                tec_duration = 1
+
             for idx in range(tec_duration):
                 if id_technology == 25:  # hot water was triggered
                     self.hot_water_demand[timeslot + idx] += technology_power

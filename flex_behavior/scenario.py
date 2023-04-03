@@ -42,7 +42,6 @@ class BehaviorScenario:
         self.activity_duration_prob = self.db.read_dataframe(BehaviorTable.ActivityDurationProb)
         self.technology_trigger_prob = self.db.read_dataframe(BehaviorTable.TechnologyTriggerProbability)
         self.technology_power_active = self.db.read_dataframe(BehaviorTable.TechnologyPower)
-        self.technology_type = self.db.read_dataframe(BehaviorTable.TechnologyType)
         self.technology_duration = self.db.read_dataframe(BehaviorTable.TechnologyDuration)
 
     def setup_day_type(self):
@@ -113,11 +112,6 @@ class BehaviorScenario:
         power = self.technology_power_active.loc[
             self.technology_power_active["ID_Technology"] == id_technology, ['value']]
         return power.iloc[0, 0]
-
-    def get_technology_type(self, id_technology: int):
-        tec_type = self.technology_type.loc[
-            self.technology_type["ID_Technology"] == id_technology, ['ID_TechnologyType']]
-        return tec_type.iloc[0, 0]
 
     def get_technology_duration(self, id_technology: int):
         duration = self.technology_duration.loc[
