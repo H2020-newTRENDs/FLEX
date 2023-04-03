@@ -43,6 +43,8 @@ class BehaviorScenario:
         self.technology_trigger_prob = self.db.read_dataframe(BehaviorTable.TechnologyTriggerProbability)
         self.technology_power_active = self.db.read_dataframe(BehaviorTable.TechnologyPower)
         self.technology_duration = self.db.read_dataframe(BehaviorTable.TechnologyDuration)
+        self.activities = self.db.read_dataframe(BehaviorTable.ID_Activity)['name'].tolist()
+        self.technologies = self.db.read_dataframe(BehaviorTable.ID_Technology)['name'].tolist()
 
     def setup_day_type(self):
         self.day_type = {
@@ -136,8 +138,15 @@ class BehaviorScenario:
         return locations
 
     def get_daytype_from_hour(self, hour):
-        day = (hour // 24) + 1
+        day = (hour // 24) + 2  # first day is tuesday
         return self.day_type[day % 7]
 
     def get_time_from_hour(self, hour):
-        return (hour % 24) + 1
+        return hour % 24
+
+    def get_daytype_from_10_min(self, index):
+        day = (index // 144) + 2  # first day is tuesday
+        return self.day_type[day % 7]
+
+    def get_time_from_10_min(self, index):
+        return index % 144

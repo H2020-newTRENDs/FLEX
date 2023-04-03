@@ -69,7 +69,7 @@ class Person:
                 technology_power = technology_power * tec_duration
                 tec_duration = 1
 
-            for idx in range(tec_duration):
+            for idx in range(int(tec_duration)):
                 if id_technology == 25:  # hot water was triggered
                     self.hot_water_demand[timeslot + idx] += technology_power
                 else:
