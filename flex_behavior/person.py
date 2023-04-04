@@ -24,8 +24,8 @@ class Person:
         day = 2  # The year of 2019 started with Tuesday
         id_day_type = self.scenario.day_type[day % 7]
         init_timeslot = 121  # 0:00 am
-        sleep_duration = self.scenario.get_activity_duration(self.id_person_type, id_day_type, 1, init_timeslot)
-        activities = [1] * sleep_duration  # sleeping, at the beginning of the day (0:00 am)
+        sleep_duration = self.scenario.get_activity_duration(self.id_person_type, id_day_type, 1, 1) #sleep duration starting at 4 am
+        activities = [1] * (sleep_duration + 24)  # sleeping, at the beginning of the day (0:00 am) until 4 am and then generate sleeping duration
         day = (len(activities) // self.timeslot_num) + 2  # + 1 to get days from 1 to 365, +1 bc yaer starts at day 2
         prev_day = day
         while day < 367:
@@ -33,7 +33,7 @@ class Person:
                 print('day:', day)
                 prev_day = day
             id_day_type = self.scenario.day_type[day % 7]
-            timeslot = (init_timeslot + len(activities)) % self.timeslot_num + 1
+            timeslot = (init_timeslot - 1 + len(activities)) % self.timeslot_num + 1
             id_activity_before = activities[-1]
             id_activity_now = self.scenario.get_activity_now(
                 self.id_person_type,
@@ -47,7 +47,15 @@ class Person:
                 id_activity_now,
                 timeslot
             )
-            activities.extend([id_activity_now] * duration)
+            duration_next_day = 0
+            if timeslot + duration >= 144:  # activity last until end of day
+                duration_next_day = self.scenario.get_activity_duration(
+                    self.id_person_type,
+                    id_day_type,
+                    id_activity_now,
+                    (timeslot + duration) % self.timeslot_num
+                )
+            activities.extend([id_activity_now] * (duration + duration_next_day))
             day = (len(activities) // self.timeslot_num) + 2 # + 1 to get days from 1 to 365, +1 bc year starts at day 2
         activities = activities[:(365 * self.timeslot_num)]
         self.activity_profile = activities

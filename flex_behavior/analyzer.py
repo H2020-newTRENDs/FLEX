@@ -92,4 +92,5 @@ class BehaviorAnalyzer:
 
 
     def run(self):
+        self.plot_household_profiles()
         self.plot_activity_share()
