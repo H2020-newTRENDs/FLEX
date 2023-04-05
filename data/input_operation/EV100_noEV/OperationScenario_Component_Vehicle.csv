@@ -1,2 +1,0 @@
-ID_Vehicle,type,capacity,capacity_unit,consumption_rate,consumption_rate_unit,charge_efficiency,charge_power_max,charge_power_max_unit,discharge_efficiency,discharge_power_max,discharge_power_max_unit,charge_bidirectional,id_parking_at_home_profile,id_distance_profile
-20092705831,electricity,0,Wh,188,Wh/km,0.95,6130,W,0.9,6130,W,0,20092705831,20092705831
