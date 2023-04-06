@@ -125,7 +125,7 @@ class Household:
                     break
 
     def setup_household_base_electricity_demand_profile(self):
-        # Add base load - 37, 39 - always on
+        # Add base load - 35, 37 - always on
         power_modem = self.scenario.get_technology_power(35)  # electricity demand of internet_modem
         power_refrigerator_freezer = self.scenario.get_technology_power(37)  # electricity demand of refrigerator_freezer_combi
         self.base_electricity_demand = (power_modem + power_refrigerator_freezer) * np.ones(self.scenario.period_num)
