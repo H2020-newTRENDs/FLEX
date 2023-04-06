@@ -73,10 +73,10 @@ class HouseholdPerson:
     def setup_electricity_and_hot_water_profile(self):
         # lighting is added to electricity demand, if person at home and not sleeping
         self.add_electricity_demand_for_lighting()
+        self.take_out_consumption_when_outside()
 
         min_electricity = self.electricity_profile_10min
         hour_electricity = []
-
         min_hot_water = self.hot_water_profile_10min
         hour_hot_water = []
 
@@ -93,6 +93,12 @@ class HouseholdPerson:
         power = self.scenario.get_technology_power(36)  # electricity demand of lightning
         lightning = [power if i else 0 for i in idx]  # if person at home and not sleeping -> use the light
         self.electricity_profile_10min = [x + y for x, y in zip(self.electricity_profile_10min, lightning)]
+
+    def take_out_consumption_when_outside(self):
+        for timeslot, location in enumerate(self.building_occupancy_profile_10min):
+            if location == 0:
+                self.electricity_profile_10min[timeslot] = 0
+                self.hot_water_profile_10min[timeslot] = 0
 
 
 class Household:
