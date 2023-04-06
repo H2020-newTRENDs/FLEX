@@ -24,9 +24,9 @@ class Person:
         day = 2  # The year of 2019 started with Tuesday
         id_day_type = self.scenario.day_type[day % 7]
         init_timeslot = 121  # 0:00 am
-        sleep_duration = self.scenario.get_activity_duration(self.id_person_type, id_day_type, 1, 1) #sleep duration starting at 4 am
+        sleep_duration = self.scenario.get_activity_duration(self.id_person_type, id_day_type, 1, 1) # sleep duration starting at 4 am
         activities = [1] * (sleep_duration + 24)  # sleeping, at the beginning of the day (0:00 am) until 4 am and then generate sleeping duration
-        day = (len(activities) // self.timeslot_num) + 2  # + 1 to get days from 1 to 365, +1 bc yaer starts at day 2
+        day = (len(activities) // self.timeslot_num) + 2  # + 1 to get days from 1 to 365, +1 bc year starts at day 2
         prev_day = day
         while day < 367:
             if day != prev_day:
@@ -68,17 +68,20 @@ class Person:
             id_technology = self.scenario.get_activity_technology(id_activity)
             self.technology_ids.append(id_technology)
             technology_power = self.scenario.get_technology_power(id_technology)
-
             tec_duration = self.scenario.get_technology_duration(id_technology)
             if timeslot + tec_duration > len(self.activity_profile):
                 tec_duration = len(self.activity_profile) - timeslot  # duration of technology ends with end of day (if longer)
 
-            if tec_duration < 1:
+            if tec_duration > 1 and id_technology == self.technology_ids[-2]:
+                technology_power = 0
+            elif tec_duration < 1:
                 technology_power = technology_power * tec_duration
                 tec_duration = 1
+            else:
+                pass
 
             for idx in range(int(tec_duration)):
-                if id_technology == 25:  # hot water was triggered
+                if id_technology == 23:  # hot water was triggered
                     self.hot_water_demand[timeslot + idx] += technology_power
                 else:
                     self.electricity_demand[timeslot + idx] += technology_power

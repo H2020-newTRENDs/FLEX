@@ -90,7 +90,7 @@ class HouseholdPerson:
 
     def add_electricity_demand_for_lighting(self):
         idx = [self.activity_ids_10min[i] != 1 and self.building_occupancy_profile_10min[i] == 1 for i in range(len(self.activity_ids_10min))]
-        power = self.scenario.get_technology_power(38)  # electricity demand of lightning
+        power = self.scenario.get_technology_power(36)  # electricity demand of lightning
         lightning = [power if i else 0 for i in idx]  # if person at home and not sleeping -> use the light
         self.electricity_profile_10min = [x + y for x, y in zip(self.electricity_profile_10min, lightning)]
 
@@ -126,8 +126,8 @@ class Household:
 
     def setup_household_base_electricity_demand_profile(self):
         # Add base load - 37, 39 - always on
-        power_modem = self.scenario.get_technology_power(37)  # electricity demand of internet_modem
-        power_refrigerator_freezer = self.scenario.get_technology_power(39)  # electricity demand of refrigerator_freezer_combi
+        power_modem = self.scenario.get_technology_power(35)  # electricity demand of internet_modem
+        power_refrigerator_freezer = self.scenario.get_technology_power(37)  # electricity demand of refrigerator_freezer_combi
         self.base_electricity_demand = (power_modem + power_refrigerator_freezer) * np.ones(self.scenario.period_num)
 
     def setup_electricity_demand_profile(self):

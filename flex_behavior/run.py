@@ -17,7 +17,8 @@ logger = get_logger(__name__)
 def gen_person_profiles(config: "Config", sample_size: int = 1):
     scenario = BehaviorScenario(scenario_id=1, config=config)
     data_collector = BehaviorDataCollector(config)
-    person_types = scenario.db.read_dataframe(BehaviorTable.ID_PersonType)["ID_PersonType"].tolist()
+    # person_types = scenario.db.read_dataframe(BehaviorTable.ID_PersonType)["ID_PersonType"].tolist()
+    person_types = [1]
     d = {}
     for sample in range(0, sample_size):
         for id_person_type in person_types:

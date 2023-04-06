@@ -90,7 +90,6 @@ class BehaviorAnalyzer:
             occ_dict[daytype] = occ
         return occ_dict
 
-
     def run(self):
         self.plot_household_profiles()
         self.plot_activity_share()
