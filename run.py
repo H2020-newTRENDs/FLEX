@@ -9,7 +9,7 @@ def run_flex_behavior_person_profile_generator(config):
 
 
 def run_flex_behavior_model(config):
-    behavior_scenario_ids = [id_scenario for id_scenario in range(1, 4)]
+    behavior_scenario_ids = [id_scenario for id_scenario in range(1, 10)]
     run_behavior_model(behavior_scenario_ids, config)
 
 
