@@ -46,21 +46,31 @@ class BehaviorAnalyzer:
 
     def plot_activity_share(self):
         df = self.db.read_dataframe(BehaviorTable.PersonProfiles)
+
+        """
+        person_type selection
+        """
+        person_type = 1
+        # df.drop(['activity_p1s0', 'id_technology_p1s0', 'electricity_p1s0', 'hotwater_p1s0'], axis=1)
         df.drop(['activity_p2s0', 'id_technology_p2s0', 'electricity_p2s0', 'hotwater_p2s0'], axis=1)
         df.drop(['activity_p3s0', 'id_technology_p3s0', 'electricity_p3s0', 'hotwater_p3s0'], axis=1)
+
+        """
+        time selection
+        """
         df['daytype'] = [self.scenario.get_daytype_from_10_min(index) for index in range(len(df))]
         df['time'] = [self.scenario.get_time_from_10_min(index) for index in range(len(df))]
 
         labels_activity = self.scenario.activities
         labels_technology = self.scenario.technologies
-        occ_dict_activity = self.count_occurences_in_df(df, 'activity_p1s0', labels_activity)
-        occ_dict_technology = self.count_occurences_in_df(df, 'id_technology_p1s0', labels_technology)
+        occ_dict_activity = self.count_occurences_in_df(df, f'activity_p{person_type}s0', labels_activity)
+        occ_dict_technology = self.count_occurences_in_df(df, f'id_technology_p{person_type}s0', labels_technology)
 
         for daytype in df['daytype'].unique():
             occ_activity = occ_dict_activity[daytype]
-            self.plot_stackplot(occ_activity, labels_activity, figname=f'generated_activity_share_d_{daytype}')
+            self.plot_stackplot(occ_activity, labels_activity, figname=f'generated_activity_share_p{person_type}d{daytype}')
             occ_technology = occ_dict_technology[daytype]
-            self.plot_stackplot(occ_technology, labels_technology, figname=f'generated_technology_share_d_{daytype}')
+            self.plot_stackplot(occ_technology, labels_technology, figname=f'generated_technology_share_p{person_type}d{daytype}')
 
     def plot_stackplot(self, occ, label, figname):
         colors = sns.color_palette("Spectral", len(label)).as_hex()
