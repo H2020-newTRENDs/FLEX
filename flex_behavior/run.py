@@ -44,7 +44,7 @@ def run_behavior_model(behavior_scenario_ids: List[int], config: "Config"):
                 model.scenario.scenario_id,
                 h,
                 model.scenario.get_daytype_from_hour(h),
-                model.scenario.get_time_from_hour(h),
+                model.scenario.get_time_from_hour(h - 1) + 1,
                 model.household.building_occupancy[h - 1],
                 model.household.electricity_demand[h - 1],
                 model.household.hot_water_demand[h - 1],

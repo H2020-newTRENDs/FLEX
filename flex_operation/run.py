@@ -16,17 +16,23 @@ logger = get_logger(__name__)
 def run_operation_model(operation_scenario_ids: List[int], config: "Config"):
     for id_operation_scenario in operation_scenario_ids:
         logger.info(f"FlexOperation Model --> Scenario = {id_operation_scenario}.")
-        opt_instance = OptInstance().create_instance()
         scenario = OperationScenario(scenario_id=id_operation_scenario, config=config)
-        # run ref model
+
+        """
+        run ref model
+        """
         ref_model = RefOperationModel(scenario).solve()
         RefDataCollector(ref_model, scenario.scenario_id, config, save_hour_results=True).run()
-        # run opt model
-        try:
-            opt_model = OptOperationModel(scenario).solve(opt_instance)
-            OptDataCollector(opt_model, scenario.scenario_id, config, save_hour_results=True).run()
-        except ValueError:
-            print(f'Infeasible --> ID_Scenario = {scenario.scenario_id}')
+
+        """
+        run opt model
+        """
+        # opt_instance = OptInstance().create_instance()
+        # try:
+        #     opt_model = OptOperationModel(scenario).solve(opt_instance)
+        #     OptDataCollector(opt_model, scenario.scenario_id, config, save_hour_results=True).run()
+        # except ValueError:
+        #     print(f'Infeasible --> ID_Scenario = {scenario.scenario_id}')
 
 
 def run_operation_analyzer(
@@ -46,3 +52,8 @@ def run_operation_analyzer(
     ana.plot_component_interaction_full(component_change, other_components)
     ana.plot_component_interaction_specific(component_change, ("ID_Battery", 2))
     ana.plot_component_interaction_heatmap(component_change, ("ID_Boiler", 2), ("ID_SpaceHeatingTank", 2), components)
+
+
+def run_operation_analyzer_kevan(config: "Config", scenario_id: int):
+    ana = OperationAnalyzer(config)
+    ana.plot_scenario_electricity_balance(scenario_id=scenario_id)
