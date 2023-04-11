@@ -150,7 +150,8 @@ class OperationAnalyzer:
         winter_hours = (25, 192)
         summer_hours = (4153, 4320)
         hour_ranges = [winter_hours, summer_hours]
-        models = ["opt", "ref"]
+        # models = ["opt", "ref"]
+        models = ["ref"]  # for Kevan's work
         for model in models:
             for hour_range in hour_ranges:
                 self.plot_electricity_balance(
