@@ -12,8 +12,7 @@ in the framework of the H2020 project [newTRENDs](https://newTRENDs2020.eu/).
 FLEX contains three modules:
 
 * `FLEX-Behavior` generates the hourly activity and energy demand profile of a pre-defined individual household. 
-The results include (1) appliance electricity demand, (2) domestic hot water demand, (3) driving profile, 
-and (4) building occupation.
+The results include (1) appliance electricity demand, (2) domestic hot water demand, and (3) building occupation.
 * `FLEX-Operation` takes the results of `FLEX-Behavior` as input and calculates the household's system operation and 
 energy demand in hourly resolution, given its building and technology configurations. 
 The household can be calculated as (1) a consumer or prosumer (consumer + PV) without optimization, 
