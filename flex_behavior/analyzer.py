@@ -1,5 +1,8 @@
 from typing import TYPE_CHECKING, Type
 import os
+from datetime import datetime
+import numpy as np
+import pandas as pd
 
 from flex import kit
 from flex.db import create_db_conn
@@ -19,7 +22,7 @@ logger = kit.get_logger(__name__)
 
 class BehaviorAnalyzer:
 
-    def __init__(self, config: "Config", plotter_cls: Type["Plotter"] = BehaviorPlotter, scenario_id = 1):
+    def __init__(self, config: "Config", plotter_cls: Type["Plotter"] = BehaviorPlotter, scenario_id: int = 1):
         self.db = create_db_conn(config)
         self.output_folder = config.output
         self.output_folder_figures = config.fig
@@ -27,21 +30,74 @@ class BehaviorAnalyzer:
         self.scenario = BehaviorScenario(scenario_id, config=config)
         self.config = config
 
-    def plot_household_profiles(self):
+    def get_household_generated_profile_average(self):
         df = self.db.read_dataframe(BehaviorTable.HouseholdProfiles)
         profiles = df.loc[df["id_scenario"] == self.scenario.scenario_id]
-        #profiles['daytype'] = profiles['hour'].apply(lambda x: self.scenario.get_daytype_from_hour(x))
-        #profiles['time'] = profiles['hour'].apply(lambda x: self.scenario.get_time_from_hour(x))
-
         obj = profiles.groupby(['daytype', 'time']).mean().reset_index()
-        for daytype in obj['daytype'].unique():
-            electricity = obj[obj['daytype'] == daytype]['electricity_demand'].to_list()
-            hot_water = obj[obj['daytype'] == daytype]['hotwater_demand'].to_list()
-            plt.plot(range(24), electricity, label='electirity_demand')
+        obj.to_csv("test.csv", index=False)
+        return obj
+
+    def plot_household_profiles(self):
+        df = self.get_household_generated_profile_average()
+        for daytype in df['daytype'].unique():
+            electricity = df[df['daytype'] == daytype]['electricity_demand'].to_list()
+            hot_water = df[df['daytype'] == daytype]['hotwater_demand'].to_list()
+            plt.plot(range(24), electricity, label='electricity_demand')
             plt.plot(range(24), hot_water, label='hot_water')
             plt.legend()
             plt.title('daytype: ' + str(daytype))
             plt.savefig(os.path.join(self.config.fig, f"Behavior_Household_Profiles_daytype_{daytype}.png"))
+            plt.close()
+
+    @staticmethod
+    def get_daytype_from_str(date_string):
+        day_type = {
+            1: 1,  # Monday
+            2: 1,  # Tuesday
+            3: 1,  # Wednesday
+            4: 1,  # Thursday
+            5: 2,  # Friday
+            6: 3,  # Saturday
+            0: 4,  # Sunday --> weekday % 7 = 0
+        }
+
+        date_time_obj = datetime.strptime(date_string, '%Y-%m-%d %H:%M:%S')
+        return day_type[date_time_obj.isoweekday() % 7]
+
+    @staticmethod
+    def get_time_from_str(date_string):
+        date_time_obj = datetime.strptime(date_string, '%Y-%m-%d %H:%M:%S')
+        return date_time_obj.hour + 1
+
+    def plot_electricity_profile_comparison(self):
+        hh_profiles = pd.read_csv(os.path.join(self.config.input_behavior, f'household_profiles.csv'))
+        hh_info = pd.read_csv(os.path.join(self.config.input_behavior, f'household_information.csv'))
+        single_hh = list(hh_info.loc[
+                             (hh_info['numberOfPeople'] == '1') &
+                             (hh_info['ELECTRIC_VEHICLE'] == 0) &
+                             (hh_info['heatingTypes'] != "HEAT_PUMP")
+                         ]['userId'])
+        real_profiles = hh_profiles[hh_profiles['userId'].isin(single_hh)]
+        real_profiles['daytype'] = real_profiles['date'].apply(lambda x: self.get_daytype_from_str(x))
+        real_profiles['time'] = real_profiles['date'].apply(lambda x: self.get_time_from_str(x))
+        generated_profile_average = self.get_household_generated_profile_average()
+        for daytype in generated_profile_average['daytype'].unique():
+            real_profiles_mat = np.reshape(
+                real_profiles[real_profiles['daytype'] == daytype]['power'].to_numpy(),  # TODO: bug found --> not exactly number of 24-hours
+                (-1, 24)
+            )
+            for index, electricity_profile in enumerate(real_profiles_mat):
+                plt.plot(range(1, 25), electricity_profile)
+            # TODO: also plot the mean of the empirical profiles
+            plt.plot(
+                range(24),
+                generated_profile_average[generated_profile_average['daytype'] == daytype]['electricity_demand'],
+                label=f'generated_profile_average'
+            )
+            plt.legend()
+            plt.title('daytype: ' + str(daytype))
+            filename = os.path.join(self.output_folder_figures, f'profile_comparison_D{daytype}.png')
+            plt.savefig(filename, bbox_inches="tight")
             plt.close()
 
     def plot_activity_share(self):
@@ -101,5 +157,6 @@ class BehaviorAnalyzer:
         return occ_dict
 
     def run(self):
-        self.plot_household_profiles()
-        self.plot_activity_share()
+        # self.plot_household_profiles()
+        # self.plot_activity_share()
+        self.plot_electricity_profile_comparison()
