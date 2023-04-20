@@ -185,6 +185,31 @@ class OperationAnalyzer:
             y_lim=(-5, 5),
         )
 
+    def plot_electricity_balance_demand(self, scenario_id: int, model: str, start_hour: int = None, end_hour: int = None):
+        df = self.get_hour_df(scenario_id, model, start_hour, end_hour).rolling(window=24).mean()
+        df = df.rolling(window=24).mean()
+        values_dict = {
+            "Appliance": np.array(df["BaseLoadProfile"]) / 1000,
+            "SpaceHeating": np.array(df["E_Heating_HP_out"] + df["Q_HeatingElement"]) / 1000,
+            "HotWater": np.array(df["E_DHW_HP_out"]) / 1000,
+            "SpaceCooling": np.array(df["E_RoomCooling"]) / 1000,
+            # "BatteryCharge": np.array(df["BatCharge"]) / 1000,
+            # "VehicleCharge": np.array(df["EVCharge"]) / 1000,
+            # "Grid": np.array(-df["Grid"]) / 1000,
+            # "PV": np.array(-(df["PV2Load"] + df["PV2Bat"] + df["PV2EV"])) / 1000,
+            # "BatteryDischarge": np.array(-df["BatDischarge"]) / 1000,
+            # "VehicleDischarge": np.array(-df["EVDischarge"]) / 1000,
+            # "PV2Grid": np.array(-df["PV2Grid"]) / 1000,
+        }
+        self.plotter.bar_figure(
+            values_dict,
+            f"ElectricityBalanceDemand_S{scenario_id}_H{start_hour}To{end_hour}_{model}",
+            x_label="Hour",
+            y_label="Electricity Demand and Supply (kW)",
+            x_lim=None,
+            y_lim=(-5, 5),
+        )
+
     def create_operation_energy_cost_table(self):
 
         scenarios = self.db.read_dataframe(OperationTable.Scenarios)
