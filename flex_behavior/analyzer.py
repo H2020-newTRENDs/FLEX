@@ -69,36 +69,48 @@ class BehaviorAnalyzer:
         date_time_obj = datetime.strptime(date_string, '%Y-%m-%d %H:%M:%S')
         return date_time_obj.hour + 1
 
-    def plot_electricity_profile_comparison(self):
+    def get_real_profiles(self):
         hh_profiles = pd.read_csv(os.path.join(self.config.input_behavior, f'household_profiles.csv'))
         hh_info = pd.read_csv(os.path.join(self.config.input_behavior, f'household_information.csv'))
         single_hh = list(hh_info.loc[
                              (hh_info['numberOfPeople'] == '1') &
                              (hh_info['ELECTRIC_VEHICLE'] == 0) &
                              (hh_info['heatingTypes'] != "HEAT_PUMP")
-                         ]['userId'])
+                             ]['userId'])
         real_profiles = hh_profiles[hh_profiles['userId'].isin(single_hh)]
         real_profiles['daytype'] = real_profiles['date'].apply(lambda x: self.get_daytype_from_str(x))
         real_profiles['time'] = real_profiles['date'].apply(lambda x: self.get_time_from_str(x))
+        group_by_obj = real_profiles.groupby(['daytype', 'time'])
+        return group_by_obj
+
+    def plot_electricity_profile_comparison(self):
         generated_profile_average = self.get_household_generated_profile_average()
-        for daytype in generated_profile_average['daytype'].unique():
-            real_profiles_mat = np.reshape(
-                real_profiles[real_profiles['daytype'] == daytype]['power'].to_numpy(),  # TODO: bug found --> not exactly number of 24-hours
-                (-1, 24)
-            )
-            for index, electricity_profile in enumerate(real_profiles_mat):
-                plt.plot(range(1, 25), electricity_profile)
-            # TODO: also plot the mean of the empirical profiles
-            plt.plot(
+        real_profiles = self.get_real_profiles()
+        real_profiles_mean = real_profiles.mean().reset_index()
+        real_profiles_std = real_profiles.std().reset_index()
+        for daytype in real_profiles_mean['daytype'].unique():
+            electricity_mean = real_profiles_mean[real_profiles_mean['daytype'] == daytype]['power'].to_list()
+            electricity_std = real_profiles_std[real_profiles_std['daytype'] == daytype]['power'].to_list()
+            fig, ax = plt.subplots(facecolor='white')  #
+
+            ax.errorbar(range(24),
+                        electricity_mean,
+                        yerr=electricity_std, fmt='-o',
+                        label=f'mean electirity_demand', color='blue')
+            ax.set_xlabel("time", fontsize=14)
+            ax.set_ylabel("Real Data Electricity Demand", color="blue", fontsize=14)
+
+            ax2 = ax.twinx()
+            ax2.plot(
                 range(24),
                 generated_profile_average[generated_profile_average['daytype'] == daytype]['electricity_demand'],
-                label=f'generated_profile_average'
+                label=f'generated_profile_average', color='red'
             )
-            plt.legend()
-            plt.title('daytype: ' + str(daytype))
+            ax2.set_ylabel("Generated Electricity Demand", color="red", fontsize=14)
+            fig.legend()
+            fig.suptitle('daytype: ' + str(daytype))
             filename = os.path.join(self.output_folder_figures, f'profile_comparison_D{daytype}.png')
-            plt.savefig(filename, bbox_inches="tight")
-            plt.close()
+            fig.savefig(filename, bbox_inches="tight")
 
     def plot_activity_share(self):
         df = self.db.read_dataframe(BehaviorTable.PersonProfiles)
@@ -124,9 +136,11 @@ class BehaviorAnalyzer:
 
         for daytype in df['daytype'].unique():
             occ_activity = occ_dict_activity[daytype]
-            self.plot_stackplot(occ_activity, labels_activity, figname=f'generated_activity_share_p{person_type}d{daytype}')
+            self.plot_stackplot(occ_activity, labels_activity,
+                                figname=f'generated_activity_share_p{person_type}d{daytype}')
             occ_technology = occ_dict_technology[daytype]
-            self.plot_stackplot(occ_technology, labels_technology, figname=f'generated_technology_share_p{person_type}d{daytype}')
+            self.plot_stackplot(occ_technology, labels_technology,
+                                figname=f'generated_technology_share_p{person_type}d{daytype}')
 
     def plot_stackplot(self, occ, label, figname):
         colors = sns.color_palette("Spectral", len(label)).as_hex()
