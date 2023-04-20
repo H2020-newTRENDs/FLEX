@@ -144,6 +144,7 @@ class BehaviorAnalyzer:
 
     def plot_stackplot(self, occ, label, figname):
         colors = sns.color_palette("Spectral", len(label)).as_hex()
+        colors.reverse()  # reverse the order of the colors
         fig = plt.figure(figsize=(20, 7.417))
         plt.stackplot(range(144), occ, labels=label, colors=colors)
         plt.title(figname, fontsize=20)
@@ -171,6 +172,6 @@ class BehaviorAnalyzer:
         return occ_dict
 
     def run(self):
-        # self.plot_household_profiles()
+        self.plot_household_profiles()
         # self.plot_activity_share()
-        self.plot_electricity_profile_comparison()
+        # self.plot_electricity_profile_comparison()
