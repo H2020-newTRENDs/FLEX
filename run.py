@@ -19,7 +19,7 @@ def run_flex_behavior_analyzer(config):
 
 
 def run_flex_operation_model(config):
-    operation_scenario_ids = [id_scenario for id_scenario in range(1, 4)]
+    operation_scenario_ids = [id_scenario for id_scenario in range(1, 10)]
     run_operation_model(operation_scenario_ids, config)
 
 
@@ -66,9 +66,9 @@ def run_flex_community_analyzer(config):
 if __name__ == "__main__":
     # run_flex_behavior_person_profile_generator(cfg)
     # run_flex_behavior_model(cfg)
-    run_flex_behavior_analyzer(cfg)
+    # run_flex_behavior_analyzer(cfg)
     # run_flex_operation_model(cfg)
-    # run_flex_operation_analyzer(cfg)
+    run_flex_operation_analyzer(cfg)
     # run_flex_community_model(cfg)
     # run_flex_community_analyzer(cfg)
 
