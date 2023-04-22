@@ -251,8 +251,8 @@ class OperationAnalyzer:
         models = ["ref"]
         # hour_ranges = [(1000, 3000), (4000, 6000)]
         seasons = {
-            "winter": [(0, 720), (6480, 8760)],  # Nov - Jan
-            "summer": [(2880, 5040)]  # Jun - Aug
+            "winter": [(0, 1440), (6480, 8760)],  # Nov - Feb
+            "summer": [(2880, 5760)]  # Mai - Aug
             # "winter": [(0, 1416), (6577, 8760)],  # Oct, Nov, Dec, Jan, Feb
             # "summer": [(2880, 6576)]  # Mai, Jun, Jul, Aug, Sept
         }
