@@ -56,8 +56,9 @@ def run_operation_analyzer(
 
 def run_operation_analyzer_kevan(config: "Config", scenario_id: int):
     ana = OperationAnalyzer(config)
-    # ana.plot_scenario_electricity_balance(scenario_id=scenario_id)
     # ana.plot_electricity_balance_demand(scenario_id=scenario_id, model="ref")
     # ana.plot_scenario_energy_demand(scenario_id=scenario_id)
-    # ana.plot_scenario_energy_demand_mean(scenario_id=scenario_id)
+
+    # ana.plot_scenario_electricity_balance(scenario_id=scenario_id)
+    ana.plot_scenario_energy_demand_mean_seasonal(scenario_id=scenario_id)
     ana.plot_scenario_energy_demand_mean_yearly(scenario_id=scenario_id)

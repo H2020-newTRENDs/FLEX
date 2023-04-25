@@ -45,7 +45,7 @@ def run_flex_operation_analyzer(config):
     #     ("ID_Building", 3),
     # ]
     # run_operation_analyzer(component_changes, components, config)
-    run_operation_analyzer_kevan(config, scenario_id=5)
+    run_operation_analyzer_kevan(config, scenario_id=1)
 
 
 def run_flex_community_model(config):
