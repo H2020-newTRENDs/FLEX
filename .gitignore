@@ -426,5 +426,3 @@ flex/data/result/*.sqlite
 /data/output/pathways_from_192_to_1_costs.json
 /data/input_behavior/data_prep/
 /data/input_behavior/prepare_markov_activity_profile_generator/output/
-/data/output/model.pth.tar
-/data/output/modelbig.pth.tar

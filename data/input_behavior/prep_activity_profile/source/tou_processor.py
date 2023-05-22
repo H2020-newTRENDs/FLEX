@@ -50,10 +50,8 @@ class TouActivityProfileProcessor:
         }
 
         self.day_types = {
-            1: {'wtagfei': [1, 2, 3, 4]},
-            2: {'wtagfei': [5]},
-            3: {'wtagfei': [6]},
-            4: {'wtagfei': [7]}
+            1: {'wtagfei': [1, 2, 3, 4, 5]},
+            2: {'wtagfei': [6, 7]},
         }
 
     def prepare_tables(self):

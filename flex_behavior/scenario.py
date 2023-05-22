@@ -52,9 +52,9 @@ class BehaviorScenario:
             2: 1,  # Tuesday
             3: 1,  # Wednesday
             4: 1,  # Thursday
-            5: 2,  # Friday
-            6: 3,  # Saturday
-            0: 4,  # Sunday --> weekday % 7 = 0
+            5: 1,  # Friday
+            6: 2,  # Saturday
+            0: 2,  # Sunday --> weekday % 7 = 0
         }
 
     def setup_activity_location(self):
