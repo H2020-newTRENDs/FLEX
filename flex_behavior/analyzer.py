@@ -34,7 +34,6 @@ class BehaviorAnalyzer:
         df = self.db.read_dataframe(BehaviorTable.HouseholdProfiles)
         profiles = df.loc[df["id_scenario"] == self.scenario.scenario_id]
         obj = profiles.groupby(['daytype', 'time']).mean().reset_index()
-        obj.to_csv("test.csv", index=False)
         return obj
 
     def plot_household_profiles(self):
@@ -56,13 +55,26 @@ class BehaviorAnalyzer:
             2: 1,  # Tuesday
             3: 1,  # Wednesday
             4: 1,  # Thursday
-            5: 2,  # Friday
-            6: 3,  # Saturday
-            0: 4,  # Sunday --> weekday % 7 = 0
+            5: 1,  # Friday
+            6: 2,  # Saturday
+            0: 2,  # Sunday --> weekday % 7 = 0
         }
 
         date_time_obj = datetime.strptime(date_string, '%Y-%m-%d %H:%M:%S')
         return day_type[date_time_obj.isoweekday() % 7]
+
+    @staticmethod
+    def get_daytype_from_time(date_time):
+        day_type = {
+            1: 1,  # Monday
+            2: 1,  # Tuesday
+            3: 1,  # Wednesday
+            4: 1,  # Thursday
+            5: 1,  # Friday
+            6: 2,  # Saturday
+            7: 2,  # Sunday --> weekday % 7 = 0
+        }
+        return day_type[date_time.isoweekday()]
 
     @staticmethod
     def get_time_from_str(date_string):
@@ -83,14 +95,21 @@ class BehaviorAnalyzer:
         group_by_obj = real_profiles.groupby(['daytype', 'time'])
         return group_by_obj
 
+    def get_validating_profiles(self):
+        hh_profile = pd.read_excel(os.path.join(self.config.input_behavior, f'WPuQ_household_profile.xlsx'))
+        hh_profile['daytype'] = hh_profile['time'].apply(lambda x: self.get_daytype_from_time(x))
+        hh_profile['daytime'] = hh_profile['time'].apply(lambda x: x.time())
+        group_by_obj = hh_profile.groupby(['daytype', 'daytime'])
+        return group_by_obj
+
     def plot_electricity_profile_comparison(self):
         generated_profile_average = self.get_household_generated_profile_average()
-        real_profiles = self.get_real_profiles()
+        real_profiles = self.get_validating_profiles()
         real_profiles_mean = real_profiles.mean().reset_index()
         real_profiles_std = real_profiles.std().reset_index()
         for daytype in real_profiles_mean['daytype'].unique():
-            electricity_mean = real_profiles_mean[real_profiles_mean['daytype'] == daytype]['power'].to_list()
-            electricity_std = real_profiles_std[real_profiles_std['daytype'] == daytype]['power'].to_list()
+            electricity_mean = real_profiles_mean[real_profiles_mean['daytype'] == daytype]['P_TOT'].to_list()
+            electricity_std = real_profiles_std[real_profiles_std['daytype'] == daytype]['P_TOT'].to_list()
             fig, ax = plt.subplots(facecolor='white')  #
 
             ax.errorbar(range(24),
@@ -111,6 +130,7 @@ class BehaviorAnalyzer:
             fig.suptitle('daytype: ' + str(daytype))
             filename = os.path.join(self.output_folder_figures, f'profile_comparison_D{daytype}.png')
             fig.savefig(filename, bbox_inches="tight")
+            plt.close()
 
     def plot_activity_share(self):
         df = self.db.read_dataframe(BehaviorTable.PersonProfiles)
@@ -154,6 +174,7 @@ class BehaviorAnalyzer:
         plt.tight_layout(rect=[0, 0, 0.75, 1])
         filename = os.path.join(self.output_folder_figures, f'{figname}.png')
         fig.savefig(filename, bbox_inches="tight")
+        plt.close()
 
     def count_occurences_in_df(self, df, column_name, identities):
         df_occ = df.groupby(['daytype', 'time', column_name]).size().reset_index()
@@ -173,5 +194,5 @@ class BehaviorAnalyzer:
 
     def run(self):
         self.plot_household_profiles()
-        # self.plot_activity_share()
-        # self.plot_electricity_profile_comparison()
+        self.plot_activity_share()
+        self.plot_electricity_profile_comparison()
