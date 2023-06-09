@@ -29,12 +29,12 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.load_operation_table(OperationScenarioComponent.Behavior.table_name)
 
     def setup_operation_scenario_table(self):
-        # self.load_operation_table(OperationTable.Scenarios)
-        component_table_names = {}
-        for key, value in OperationScenarioComponent.__dict__.items():
-            if isinstance(value, OperationComponentInfo):
-                component_table_names[value.id_name] = value.table_name
-        self.generate_operation_scenario_table(OperationTable.Scenarios, component_table_names)
+        self.load_operation_table(OperationTable.Scenarios)
+        # component_table_names = {}
+        # for key, value in OperationScenarioComponent.__dict__.items():
+        #     if isinstance(value, OperationComponentInfo):
+        #         component_table_names[value.id_name] = value.table_name
+        # self.generate_operation_scenario_table(OperationTable.Scenarios, component_table_names)
 
     def load_operation_profile_tables(self):
         self.load_operation_table(OperationTable.BehaviorProfile)

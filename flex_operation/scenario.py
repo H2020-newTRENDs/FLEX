@@ -88,11 +88,7 @@ class OperationScenario:
             if key.startswith("id_") and value is not None:
                 energy_carrier = key.replace("id_", "")
                 energy_price_column = f"{energy_carrier}_{value}"
-                self.energy_price.__dict__[energy_carrier] = df[
-                    energy_price_column
-                ].to_numpy()
-            else:
-                pass
+                self.energy_price.__dict__[energy_carrier] = df[energy_price_column].to_numpy()
 
     @staticmethod
     def gen_target_temperature_range_array(
