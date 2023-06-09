@@ -1,3 +1,4 @@
+from config import cfg
 from flex.db_init import DatabaseInitializer
 from flex_behavior.constants import BehaviorTable
 from flex_community.constants import CommunityTable
@@ -36,8 +37,8 @@ class ProjectDatabaseInit(DatabaseInitializer):
                     component_table_names[value.id_name] = value.table_name
             self.generate_operation_scenario_table(OperationTable.Scenarios, component_table_names)
 
-        # create_scenario_table()
-        self.load_operation_table(OperationTable.Scenarios)
+        create_scenario_table()
+        # self.load_operation_table(OperationTable.Scenarios)
 
     def load_operation_profile_tables(self):
         self.load_operation_table(OperationTable.BehaviorProfile)
@@ -65,6 +66,6 @@ class ProjectDatabaseInit(DatabaseInitializer):
         # self.drop_tables()
 
 
-# if __name__ == "__main__":
-#     init = ProjectDatabaseInit(config=cfg)
-#     init.run()
+if __name__ == "__main__":
+    init = ProjectDatabaseInit(config=cfg)
+    init.run()

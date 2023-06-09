@@ -56,7 +56,7 @@ def run_init(config):
 
 
 def run_scenarios(config):
-    operation_scenario_ids = [id_scenario for id_scenario in range(4558, 6177)]  # 6177
+    operation_scenario_ids = [id_scenario for id_scenario in range(5781, 6177)]  # 6177
     run_operation_model(operation_scenario_ids, config)
 
 
