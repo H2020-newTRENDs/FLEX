@@ -1,7 +1,21 @@
 from config import cfg
-from flex_behavior.run import run_behavior_model, run_behavior_analyzer
+from flex_behavior.run import gen_person_profiles, run_behavior_model, run_behavior_analyzer
 from flex_community.run import run_community_model, run_community_analyzer
-from flex_operation.run import run_operation_model, run_operation_analyzer, find_infeasible_scenarios
+from flex_operation.run import run_operation_model, run_operation_analyzer, run_operation_analyzer_kevan
+
+
+def run_flex_behavior_person_profile_generator(config):
+    gen_person_profiles(config, sample_size=1)
+
+
+def run_flex_behavior_model(config):
+    behavior_scenario_ids = [id_scenario for id_scenario in range(1, 10)]
+    run_behavior_model(behavior_scenario_ids, config)
+
+
+def run_flex_behavior_analyzer(config):
+    behavior_scenario_ids = [id_scenario for id_scenario in range(1, 2)]
+    run_behavior_analyzer(behavior_scenario_ids, config)
 
 
 def run_flex_operation_model(config):
@@ -60,15 +74,13 @@ def run_flex_behavior_analyzer(config):
 
 
 if __name__ == "__main__":
+    # run_flex_behavior_person_profile_generator(cfg)
     # run_flex_behavior_model(cfg)
     # run_flex_behavior_analyzer(cfg)
-    run_flex_operation_model(cfg)
-    # find_infeasible_scenarios(cfg)
-    # run_flex_operation_analyzer(cfg)
+    # run_flex_operation_model(cfg)
+    run_flex_operation_analyzer(cfg)
     # run_flex_community_model(cfg)
     # run_flex_community_analyzer(cfg)
-
-
 
 
 

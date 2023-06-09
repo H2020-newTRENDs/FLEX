@@ -86,17 +86,21 @@ class Plotter:
 
     def line_figure(
             self,
-            values_dict: "Dict[str, Sequence]",
+            values_dict: "Dict[str, np.array, Sequence]",
             fig_name: str,
             x_label: str = "X-axis",
             y_label: str = "Y-axis",
             x_lim=None,
             y_lim=None,
+            x_tick_labels: list = None,
+            add_legend: bool = True,
     ):
         figure, ax = self.get_figure_template(x_label, y_label, x_lim, y_lim)
         for key, values in values_dict.items():
             x = [i + 1 for i in range(0, len(values))]
             ax.plot(x, values, label=key)
+        if x_tick_labels is not None:
+            ax.set_xticks(ticks=x, labels=x_tick_labels, rotation=90)
         self.add_legend(figure, ax, len(values_dict))
         self.save_fig(figure, fig_name)
 
@@ -200,6 +204,7 @@ class Plotter:
 
 @dataclass
 class Color:
+    EnergyDemand = "tab:red"
     Appliance = "tab:orange"
     SpaceHeating = "tab:red"
     HotWater = "tab:green"

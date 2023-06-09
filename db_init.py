@@ -11,8 +11,18 @@ class ProjectDatabaseInit(DatabaseInitializer):
 
     def load_behavior_tables(self):
         self.load_behavior_table(BehaviorTable.Scenarios)
+        self.load_behavior_table(BehaviorTable.ID_HouseholdType)
+        self.load_behavior_table(BehaviorTable.ID_PersonType)
         self.load_behavior_table(BehaviorTable.ID_Activity)
-        self.load_behavior_table(BehaviorTable.ActivityProfile)
+        self.load_behavior_table(BehaviorTable.ID_Location)
+        self.load_behavior_table(BehaviorTable.ID_Technology)
+        self.load_behavior_table(BehaviorTable.HouseholdComposition)
+        self.load_behavior_table(BehaviorTable.ActivityChangeProb)
+        self.load_behavior_table(BehaviorTable.ActivityDurationProb)
+        self.load_behavior_table(BehaviorTable.ActivityLocation)
+        self.load_behavior_table(BehaviorTable.TechnologyTriggerProbability)
+        self.load_behavior_table(BehaviorTable.TechnologyPower)
+        self.load_behavior_table(BehaviorTable.TechnologyDuration)
 
     def load_operation_component_tables(self):
         self.load_operation_table(OperationScenarioComponent.Region.table_name)
@@ -29,12 +39,12 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.load_operation_table(OperationScenarioComponent.Behavior.table_name)
 
     def setup_operation_scenario_table(self):
-        # self.load_operation_table(OperationTable.Scenarios)
-        component_table_names = {}
-        for key, value in OperationScenarioComponent.__dict__.items():
-            if isinstance(value, OperationComponentInfo):
-                component_table_names[value.id_name] = value.table_name
-        self.generate_operation_scenario_table(OperationTable.Scenarios, component_table_names)
+        self.load_operation_table(OperationTable.Scenarios)
+        # component_table_names = {}
+        # for key, value in OperationScenarioComponent.__dict__.items():
+        #     if isinstance(value, OperationComponentInfo):
+        #         component_table_names[value.id_name] = value.table_name
+        # self.generate_operation_scenario_table(OperationTable.Scenarios, component_table_names)
 
     def load_operation_profile_tables(self):
         self.load_operation_table(OperationTable.BehaviorProfile)
