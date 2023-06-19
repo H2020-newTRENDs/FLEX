@@ -5,7 +5,7 @@ from flex_operation.run import run_operation_model, run_operation_analyzer, find
 
 
 def run_flex_operation_model(config):
-    operation_scenario_ids = [id_scenario for id_scenario in range(1, 4320)]
+    operation_scenario_ids = [id_scenario for id_scenario in range(1, 4321)]
     run_operation_model(operation_scenario_ids, config)
 
 
