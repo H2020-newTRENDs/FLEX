@@ -38,15 +38,17 @@ class TouActivityProfileProcessor:
 
     def prepare_filters(self):
         """
-        alterx: age range
+        alterx: age range (0-85)
         pc7: employment type: 1: full-time employed; 2: part-time employed
         ha1x: household size
         wtagfei: day of the week
+        pb3: Ruhestand?
         """
         self.person_types = {
             1: {'alterx': range(20, 66), 'pc7': [1]},
             2: {'alterx': range(20, 66), 'pc7': [2], 'ha1x': [4]},
-            3: {'alterx': range(0, 20), 'ha6x': [3]}
+            3: {'alterx': range(0, 20), 'ha6x': [3]},
+            4: {'alterx': range(66, 86), 'pc7': [-2]},
         }
 
         self.day_types = {
@@ -72,7 +74,7 @@ class TouActivityProfileProcessor:
         df.to_excel(os.path.join(self.output_dir, self.TOU_ActivityProfile_Converted), index=False)
 
     def filter_person(self, person_filter: dict) -> List[int]:
-        df_person = self.persons[~self.persons.pb3.isin([11, 10, 9, 8, 7, 5, 4])]
+        df_person = self.persons[~self.persons.pb3.isin([11, 10, 9, 7, 5, 4])]
         df_person = df_person[~df_person.soz.eq(4)]
         for key, value in person_filter.items():
             if key in df_person.columns:
@@ -85,7 +87,9 @@ class TouActivityProfileProcessor:
     def generate_input_activity_profile(self):
         df = pd.read_excel(os.path.join(self.output_dir, self.TOU_ActivityProfile_Converted), engine="openpyxl")
         df_out = pd.DataFrame()
+        print(self.person_types.items())
         for person_key, person_filter in self.person_types.items():
+            print(person_key)
             for day_key, day_filter in self.day_types.items():
                 df_filtered = df[df["id_persx"].isin(self.filter_person(person_filter))]
                 df_filtered = df_filtered[df_filtered["wtagfei"].isin(day_filter["wtagfei"])]
