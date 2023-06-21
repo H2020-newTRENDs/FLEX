@@ -62,10 +62,10 @@ class ProjectDatabaseInit(DatabaseInitializer):
 
     def run(self):
         self.load_behavior_tables()
-        self.load_operation_component_tables()
-        self.setup_operation_scenario_table()
-        self.load_operation_profile_tables()
-        self.load_community_tables()
+        # self.load_operation_component_tables()
+        # self.setup_operation_scenario_table()
+        # self.load_operation_profile_tables()
+        # self.load_community_tables()
         # self.drop_tables()
 
 
