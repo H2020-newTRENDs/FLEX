@@ -43,7 +43,8 @@ def run_behavior_model(behavior_scenario_ids: List[int], config: "Config"):
             lst.append([
                 model.scenario.scenario_id,
                 h,
-                model.scenario.get_daytype_from_hour(h),
+                model.scenario.get_weekday_from_hour(h - 1),
+                model.scenario.get_daytype_from_hour(h - 1),
                 model.scenario.get_time_from_hour(h - 1) + 1,
                 model.household.building_occupancy[h - 1],
                 model.household.electricity_demand[h - 1],
@@ -53,7 +54,7 @@ def run_behavior_model(behavior_scenario_ids: List[int], config: "Config"):
 
     data_collector = BehaviorDataCollector(config)
     result = []
-    result_columns = ["id_scenario", "hour", "daytype", "time",
+    result_columns = ["id_scenario", "hour", "weekday", "daytype", "time",
                       "building_occupancy", "electricity_demand", "hotwater_demand"]
     for id_behavior_scenario in behavior_scenario_ids:
         logger.info(f"FLEX-Behavior Model --> ID_Scenario = {id_behavior_scenario}.")

@@ -137,15 +137,21 @@ class BehaviorScenario:
                     locations[idx] = work_from_home  # working/education and breaks
         return locations
 
+    def get_weekday_from_hour(self, hour):
+        weekday = ((hour // 24) + 2) % 7  # first day is Tuesday
+        if weekday == 0:
+            weekday = 7
+        return weekday
+
     def get_daytype_from_hour(self, hour):
-        day = (hour // 24) + 2  # first day is tuesday
+        day = (hour // 24) + 2  # first day is Tuesday
         return self.day_type[day % 7]
 
     def get_time_from_hour(self, hour):
         return hour % 24
 
     def get_daytype_from_10_min(self, index):
-        day = (index // 144) + 2  # first day is tuesday
+        day = (index // 144) + 2  # first day is Tuesday
         return self.day_type[day % 7]
 
     def get_time_from_10_min(self, index):
