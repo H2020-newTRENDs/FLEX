@@ -29,52 +29,67 @@ class BehaviorAnalyzer:
         self.plotter = plotter_cls(config)
         self.scenario = BehaviorScenario(scenario_id, config=config)
         self.config = config
+        self.person_types = person_types = self.scenario.db.read_dataframe(BehaviorTable.ID_PersonType)["ID_PersonType"].tolist()
 
     def plot_household_profiles(self):
         df = self.db.read_dataframe(BehaviorTable.HouseholdProfiles)
         df = df.groupby(['id_scenario', 'daytype', 'time']).mean().reset_index()
+
+        scenario_ids = df['id_scenario'].unique()
 
         for day_type in df['daytype'].unique():
             fig_electricity = plt.figure()
             fig_hot_water = plt.figure()
             fig_occupancy = plt.figure()
 
-            ax_electricity = fig_electricity.add_subplot(1, 1, 1)
-            ax_hot_water = fig_hot_water.add_subplot(1, 1, 1)
-            ax_occupancy = fig_occupancy.add_subplot(1, 1, 1)
+            ax_electricity = fig_electricity.add_axes((0.1, 0.1, 0.8, 0.8))
+            ax_hot_water = fig_hot_water.add_axes((0.1, 0.1, 0.8, 0.8))
+            ax_occupancy = fig_occupancy.add_axes((0.1, 0.1, 0.8, 0.8))
 
-            for scenario_id in range(1,10):
+            colors = iter([plt.cm.Paired(i) for i in range(len(scenario_ids))])
+
+            for scenario_id in scenario_ids:
                 profiles = df.loc[df["id_scenario"] == scenario_id]
+
+                c = next(colors)
 
                 electricity = profiles[profiles['daytype'] == day_type]['electricity_demand'].to_list()
                 hot_water = profiles[profiles['daytype'] == day_type]['hotwater_demand'].to_list()
                 occupancy = profiles[profiles['daytype'] == day_type]['building_occupancy'].to_list()
 
-                ax_electricity.plot(range(24), electricity, label=f'scenario{scenario_id}')
-                ax_hot_water.plot(range(24), hot_water, label=f'scenario{scenario_id}')
-                ax_occupancy.plot(range(24), occupancy, label=f'scenario{scenario_id}')
+                ax_electricity.plot(range(24), electricity, c=c, label=f'scenario{scenario_id}')
+                ax_hot_water.plot(range(24), hot_water, c=c, label=f'scenario{scenario_id}')
+                ax_occupancy.plot(range(24), occupancy, c=c, label=f'scenario{scenario_id}')
 
             self.save_plots_scenario_profiles(fig_electricity,
                                               ax_electricity,
-                                              figtile=f'Electricity consumption at Daytype {day_type}',
+                                              #figtile=f'Electricity consumption at Daytype {day_type}',
                                               filename=f'electricity_consumption_d{day_type}.png')
 
             self.save_plots_scenario_profiles(fig_hot_water,
                                               ax_hot_water,
-                                              figtile=f'Hot Water consumption at Daytype {day_type}',
+                                              #figtile=f'Hot Water consumption at Daytype {day_type}',
                                               filename=f'hot_water_consumption_d{day_type}.png')
 
             self.save_plots_scenario_profiles(fig_occupancy,
                                               ax_occupancy,
-                                              figtile=f'Building Occupancy at Daytype {day_type}',
+                                              #figtile=f'Building Occupancy at Daytype {day_type}',
                                               filename=f'building_occupandy_d{day_type}.png')
 
             plt.close()
 
-    def save_plots_scenario_profiles(self, fig, axis, figtile: str, filename: str):
+    def save_plots_scenario_profiles(self, fig, axis, filename: str):
         handles, labels = axis.get_legend_handles_labels()
-        fig.legend(handles, labels, loc='upper center', ncol=5, bbox_to_anchor=(0.5, 0))
-        fig.suptitle(figtile, fontsize=18)
+        axis.set_position((0.1, 0.15, 0.8, 0.7))
+        fig.legend(handles,
+                   labels,
+                   loc='upper left',
+                   ncol=4,
+                   bbox_to_anchor=(-0.01, 0, 1.02, -0.1),
+                   mode='expand',
+                   bbox_transform=axis.transAxes,
+                   frameon=True,)
+        # fig.suptitle(figtile, fontsize=18)
         filename = os.path.join(self.output_folder_figures, filename)
         fig.savefig(filename, bbox_inches="tight")
 
@@ -209,7 +224,8 @@ class BehaviorAnalyzer:
             occ.append(np.count_nonzero(data == i + 1, axis=0))
             occ[i] = [x / data_len for x in occ[i]]
 
-        return occ, labels
+        occ_shifted = [x[120:] + x[:120] for x in occ]  # because survey data starts at 4:00am
+        return occ_shifted, labels
 
     def plot_activity_share(self, axis, occ_dict_activity, day_type: int):
         labels_activity = self.scenario.activities
@@ -223,7 +239,7 @@ class BehaviorAnalyzer:
 
         labels_technology = self.scenario.technologies
         daytypes = data['daytype'].unique()
-        for person_type in [1, 2, 3]:
+        for person_type in self.person_types:
             occ_dict_technology = self.count_occurences_in_df(data, f'id_technology_p{person_type}s0', labels_technology)
             for day_type in daytypes:
                 occ_technology = occ_dict_technology[day_type]
@@ -242,7 +258,7 @@ class BehaviorAnalyzer:
                             'Processed_ActivityProfile.xlsx')
         df_original = pd.read_excel(path, engine="openpyxl")
 
-        for person_type in [1, 2, 3]:
+        for person_type in self.person_types:
             occ_dict_activity, daytypes = self.prepare_data_for_generated_activity_share(person_type)
             for day_type in daytypes:
                 occ_original, labels = self.prepare_data_for_original_activity_share(df_original, person_type, day_type)
@@ -254,15 +270,20 @@ class BehaviorAnalyzer:
                 ax_original = self.plot_stackplot(ax_original, occ_original, labels, axis_title='Original Activity Share')
 
                 handles, labels = ax_original.get_legend_handles_labels()
-                plt.figlegend(handles, labels, loc='upper center', ncol=5, bbox_to_anchor=(0.5, 0))
-                plt.suptitle(f'Activity Share for Person {person_type} and Daytype {day_type}', fontsize= 18)
+                plt.figlegend(
+                    handles,
+                    labels,
+                    loc='upper center',
+                    ncol=5,
+                    bbox_to_anchor=(0.5, 0),)
+                # plt.suptitle(f'Activity Share for Person {person_type} and Daytype {day_type}', fontsize= 18)
                 filename = os.path.join(self.output_folder_figures, f'activityshare_p{person_type}_d{day_type}.png')
                 fig.savefig(filename, bbox_inches="tight")
                 plt.close()
 
     def run(self):
         self.plot_household_profiles()
-        # self.compare_activity_share_generated_data()
-        # self.plot_technology_share()
+        self.compare_activity_share_generated_data()
+        self.plot_technology_share()
 
-        #self.plot_electricity_profile_comparison()
+        # self.plot_electricity_profile_comparison()
