@@ -9,8 +9,7 @@ def run_flex_behavior_person_profile_generator(config):
 
 
 def run_flex_behavior_model(config):
-    behavior_scenario_ids = [id_scenario for id_scenario in range(1, 2)]
-    # behavior_scenario_ids = [id_scenario for id_scenario in range(1, 31)]
+    behavior_scenario_ids = [id_scenario for id_scenario in range(1, 31)]
     run_behavior_model(behavior_scenario_ids, config)
 
 
@@ -62,16 +61,6 @@ def run_flex_community_analyzer(config):
     community_scenario_ids = [id_scenario for id_scenario in range(1, 11)]
     run_community_analyzer(community_scenario_ids=community_scenario_ids, config=config)
 
-
-# def run_flex_behavior_model(config):
-#     behavior_scenario_ids = [id_scenario for id_scenario in range(1, 2)]
-#     run_behavior_model(behavior_scenario_ids, config)
-#     run_behavior_analyzer(behavior_scenario_ids, config)
-#
-#
-# def run_flex_behavior_analyzer(config):
-#     behavior_scenario_ids = [id_scenario for id_scenario in range(1, 2)]
-#     run_behavior_analyzer(behavior_scenario_ids, config)
 
 
 if __name__ == "__main__":
