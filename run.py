@@ -62,7 +62,6 @@ def run_flex_community_analyzer(config):
     run_community_analyzer(community_scenario_ids=community_scenario_ids, config=config)
 
 
-
 if __name__ == "__main__":
     # run_flex_behavior_person_profile_generator(cfg)
     run_flex_behavior_model(cfg)
