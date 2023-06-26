@@ -29,12 +29,15 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.load_operation_table(OperationScenarioComponent.Behavior.table_name)
 
     def setup_operation_scenario_table(self):
+        def generate():
+            component_table_names = {}
+            for key, value in OperationScenarioComponent.__dict__.items():
+                if isinstance(value, OperationComponentInfo):
+                    component_table_names[value.id_name] = value.table_name
+            self.generate_operation_scenario_table(OperationTable.Scenarios, component_table_names)
+
+        # generate()
         self.load_operation_table(OperationTable.Scenarios)
-        # component_table_names = {}
-        # for key, value in OperationScenarioComponent.__dict__.items():
-        #     if isinstance(value, OperationComponentInfo):
-        #         component_table_names[value.id_name] = value.table_name
-        # self.generate_operation_scenario_table(OperationTable.Scenarios, component_table_names)
 
     def load_operation_profile_tables(self):
         self.load_operation_table(OperationTable.BehaviorProfile)
@@ -51,12 +54,9 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.drop_table(OperationTable.ResultRefYear)
 
     def run(self):
-        self.load_behavior_tables()
         self.load_operation_component_tables()
         self.setup_operation_scenario_table()
         self.load_operation_profile_tables()
-        self.load_community_tables()
-        # self.drop_tables()
 
 
 if __name__ == "__main__":
