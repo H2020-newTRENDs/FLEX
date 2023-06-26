@@ -47,11 +47,11 @@ class OperationTable:
     EnergyPriceProfile = "OperationScenario_EnergyPrice"
     RegionWeatherProfile = "OperationScenario_RegionWeather"
     ResultOptHour = "OperationResult_OptimizationHour"
-    ResultOptYear = "OperationResult_OptimizationYear"
     ResultOptMonth = "OperationResult_OptimizationMonth"
+    ResultOptYear = "OperationResult_OptimizationYear"
     ResultRefHour = "OperationResult_ReferenceHour"
-    ResultRefYear = "OperationResult_ReferenceYear"
     ResultRefMonth = "OperationResult_ReferenceMonth"
+    ResultRefYear = "OperationResult_ReferenceYear"
     ResultEnergyCost = "OperationResult_OperationEnergyCost"
     ResultEnergyCostChange = "OperationResult_OperationEnergyCostChange"
 

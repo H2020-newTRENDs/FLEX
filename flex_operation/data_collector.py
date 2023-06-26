@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, Optional
 from abc import ABC, abstractmethod
 import pyomo.environ as pyo
 import pandas as pd
@@ -21,14 +21,19 @@ class OperationDataCollector(ABC):
         model: Union["OperationModel", "pyo.ConcreteModel"],
         scenario_id: int,
         config: "Config",
-        save_hour_results: bool
+        save_hour_results: Optional[bool] = False,
+        save_month_results: Optional[bool] = False,
+        save_year_results: Optional[bool] = True,
     ):
         self.model = model
         self.scenario_id = scenario_id
         self.db = create_db_conn(config)
         self.hour_result = {}
+        self.month_result = {}
         self.year_result = {}
         self.save_hour = save_hour_results
+        self.save_month = save_month_results
+        self.save_year = save_year_results
 
     @abstractmethod
     def get_var_values(self, variable_name: str) -> np.array:
@@ -43,8 +48,33 @@ class OperationDataCollector(ABC):
         ...
 
     @abstractmethod
+    def get_month_result_table_name(self) -> str:
+        ...
+
+    @abstractmethod
     def get_year_result_table_name(self) -> str:
         ...
+
+    def convert_hour_to_month(self, values):
+        month_results = []
+        hours_per_month = {
+            1: (1, 744),
+            2: (745, 1416),
+            3: (1417, 2160),
+            4: (2161, 2880),
+            5: (2881, 3624),
+            6: (3625, 4344),
+            7: (4345, 5088),
+            8: (5089, 5832),
+            9: (5833, 6552),
+            10: (6553, 7296),
+            11: (7297, 8016),
+            12: (8017, 8760)
+        }
+        for month, hour_range in hours_per_month.items():
+            month_sum = values[hour_range[0] - 1:hour_range[1]].sum()
+            month_results.append(month_sum)
+        return month_results
 
     def collect_result(self):
         for variable_name, variable_type in OperationResultVar.__dict__.items():
@@ -52,6 +82,7 @@ class OperationDataCollector(ABC):
                 var_values = self.get_var_values(variable_name)
                 self.hour_result[variable_name] = var_values
                 if variable_type == "hour&year":
+                    self.month_result[variable_name] = self.convert_hour_to_month(var_values)
                     self.year_result[variable_name] = var_values.sum()
 
     def save_hour_result(self):
@@ -63,6 +94,14 @@ class OperationDataCollector(ABC):
         )
         self.db.write_dataframe(
             table_name=self.get_hour_result_table_name(), data_frame=result_hour_df
+        )
+
+    def save_month_result(self):
+        result_month_df = pd.DataFrame(self.month_result)
+        result_month_df.insert(loc=0, column="ID_Scenario", value=self.scenario_id)
+        result_month_df.insert(loc=1, column="Month", value=list(range(1, 13)))
+        self.db.write_dataframe(
+            table_name=self.get_month_result_table_name(), data_frame=result_month_df
         )
 
     def save_year_result(self):
@@ -77,7 +116,10 @@ class OperationDataCollector(ABC):
         self.collect_result()
         if self.save_hour:
             self.save_hour_result()
-        self.save_year_result()
+        if self.save_month:
+            self.save_month_result()
+        if self.save_year:
+            self.save_year_result()
 
 
 class OptDataCollector(OperationDataCollector):
@@ -94,6 +136,9 @@ class OptDataCollector(OperationDataCollector):
     def get_hour_result_table_name(self) -> str:
         return OperationTable.ResultOptHour
 
+    def get_month_result_table_name(self) -> str:
+        return OperationTable.ResultOptMonth
+
     def get_year_result_table_name(self) -> str:
         return OperationTable.ResultOptYear
 
@@ -109,6 +154,9 @@ class RefDataCollector(OperationDataCollector):
 
     def get_hour_result_table_name(self) -> str:
         return OperationTable.ResultRefHour
+
+    def get_month_result_table_name(self) -> str:
+        return OperationTable.ResultRefMonth
 
     def get_year_result_table_name(self) -> str:
         return OperationTable.ResultRefYear
