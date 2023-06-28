@@ -108,9 +108,9 @@ Finally, by running the `community_ana.py`, figures will be generated and saved 
 If you want to use FLEX for your research, we would appreciate it if you would cite the following report, 
 which contains the latest and most detailed introduction of the `FLEX-Operation` and `FLEX-Community` models.
 
-* Yu, Songmin; Mascherbauer, Philipp; Kranzl, Lukas (2022): 
+* [Yu, Songmin; Mascherbauer, Philipp; Kranzl, Lukas (2022): 
 Modeling of prosumagers and energy communities in energy demand models. 
-(newTRENDs - Deliverable No. D5.2). Fraunhofer ISI, Karlsruhe.
+(newTRENDs - Deliverable No. D5.2). Fraunhofer ISI, Karlsruhe](https://newtrends2020.eu/wp-content/uploads/2022/12/newTRENDs_D5.2_Modeling-of-prosumagers-and-energy-communities-in-energy-demand-models.pdf).
 
 Besides, you are also welcomed to read and cite other studies from us:
 
