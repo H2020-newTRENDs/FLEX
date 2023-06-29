@@ -4,15 +4,8 @@ import os
 import pandas as pd
 import sqlalchemy
 
-from db_init import ProjectDatabaseInit
 from flex.config import Config
 from flex_operation.run import run_operation_model
-
-
-def init_region_db(region: str):
-    cfg = Config(project_name=region)
-    init = ProjectDatabaseInit(config=cfg)
-    init.run()
 
 
 def run_region(region: str):
@@ -33,7 +26,6 @@ if __name__ == "__main__":
     ]
     for index, region in enumerate(regions):
         print(f'{region} --> {index + 1}/{len(regions)}')
-        # init_region_db(region)
         run_region(region)
 
 
