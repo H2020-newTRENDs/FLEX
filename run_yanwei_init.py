@@ -34,10 +34,11 @@ def init_region_db(region: str):
 
 def init_eu27():
     regions = [
-        'SK', 'SE', 'PL', 'MT', 'BE', 'EE', 'EL',
-        'LV', 'IT', 'CZ', 'RO', 'PT', 'SI', 'HR',
-        'HU', 'NL', 'BG', 'AT', 'DE', 'DK', 'FI',
-        'LU', 'FR', 'ES', 'IE', 'LT', 'CY'
+        # 'SK', 'SE', 'PL', 'MT', 'BE', 'EE', 'EL',
+        # 'LV', 'IT', 'CZ', 'RO', 'PT', 'SI', 'HR',
+        # 'HU', 'NL', 'BG', 'AT', 'DE', 'DK', 'FI',
+        # 'LU', 'FR', 'ES', 'IE', 'LT', 'CY'
+        'LT'
     ]
     for index, region in enumerate(regions):
         print(f'{region} --> {index + 1}/{len(regions)}')
