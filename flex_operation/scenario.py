@@ -70,7 +70,8 @@ class OperationScenario:
     def setup_region_weather_and_pv_generation(self):
         df = self.db.read_dataframe(
             OperationTable.RegionWeatherProfile,
-            filter={"region": self.region.code, "year": self.region.year},
+            # filter={"region": self.region.code, "year": self.region.year},
+            filter={"region": self.region.code},
         )
         self.region.temperature = df["temperature"].to_numpy()
         self.region.radiation_north = df["radiation_north"].to_numpy()

@@ -1,4 +1,4 @@
-from config import cfg
+# from config import cfg
 from flex.db_init import DatabaseInitializer
 from flex_behavior.constants import BehaviorTable
 from flex_community.constants import CommunityTable
