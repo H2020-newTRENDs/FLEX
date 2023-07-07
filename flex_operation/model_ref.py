@@ -533,8 +533,8 @@ class RefOperationModel(OperationModel):
         self.TotalCost = self.ElectricityPrice * grid_demand - pv_surplus * self.FiT
 
     def set_boiler_parameters_to_zero(self):
-        self.Gas = np.zeros(shape=self.Grid.shape)
-        self.GasPrice = np.zeros(shape=self.Grid.shape)
+        self.Fuel = np.zeros(shape=self.Grid.shape)
+        self.FuelPrice = np.zeros(shape=self.Grid.shape)
         self.Q_DHW_Boiler_out = np.zeros(shape=self.Grid.shape)
         self.Q_Heating_Boiler_out = np.zeros(shape=self.Grid.shape)
 
@@ -581,7 +581,7 @@ class RefOperationModel(OperationModel):
         self.Q_DHW_Boiler_out = self.Q_DHWTank_bypass
 
     def calc_gas_demand(self):
-        self.Gas = (self.Q_DHW_Boiler_out + self.Q_Heating_Boiler_out) / self.fuel_boiler_efficiency
+        self.Fuel = (self.Q_DHW_Boiler_out + self.Q_Heating_Boiler_out) / self.fuel_boiler_efficiency
 
     def calc_load_fuel_boiler(self):
         self.Load = (
@@ -603,9 +603,12 @@ class RefOperationModel(OperationModel):
         self.Grid2Load = grid_demand
         self.PV2Grid = pv_surplus
         self.Feed2Grid = pv_surplus
-        self.GasPrice = self.scenario.energy_price.gases
+        if self.scenario.boiler.type not in ['Air_HP', 'Ground_HP']:
+            self.FuelPrice = self.scenario.energy_price.__dict__[self.scenario.boiler.type]
+        else:
+            self.FuelPrice = self.scenario.energy_price.gases
         self.TotalCost = self.ElectricityPrice * grid_demand - pv_surplus * self.FiT + \
-                         self.Gas * self.GasPrice
+                         self.Fuel * self.FuelPrice
 
     def set_heat_pump_parameters_to_zero(self):
         self.E_Heating_HP_out = np.zeros(shape=self.Grid.shape)
@@ -619,8 +622,8 @@ class RefOperationModel(OperationModel):
         grid_demand, pv_surplus = self.calc_load_fuel_boiler()
         grid_demand, pv_surplus = self.calc_battery_energy(grid_demand, pv_surplus)
         grid_demand, pv_surplus = self.calculate_ev_energy(grid_demand, pv_surplus)
-        self.Gas, pv_surplus = self.calc_hot_water_tank_energy_fuel_boiler(
-            self.Gas, pv_surplus
+        self.Fuel, pv_surplus = self.calc_hot_water_tank_energy_fuel_boiler(
+            self.Fuel, pv_surplus
         )
         self.calc_grid_fuel_boiler(grid_demand, pv_surplus)
         self.set_heat_pump_parameters_to_zero()

@@ -121,8 +121,8 @@ class OperationResultVar:
     # energy price
     ElectricityPrice = "hour"
     FiT = "hour"
-    GasPrice = "hour"
-    Gas = "hour&year"
+    FuelPrice = "hour"
+    Fuel = "hour&year"
 
     # grid
     BaseLoadProfile = "hour&year"
