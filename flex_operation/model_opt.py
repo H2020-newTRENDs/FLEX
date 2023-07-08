@@ -353,7 +353,6 @@ class OptInstance:
 
         m.boiler_conversion_rule = pyo.Constraint(m.t, rule=calc_boiler_conversion)
 
-
     def setup_constraint_heating_element(self, m):
         def calc_heating_element(m, t):
             return m.Q_HeatingElement_DHW[t] + m.Q_HeatingElement_heat[t] == m.Q_HeatingElement[t]
@@ -623,7 +622,7 @@ class OptConfig:
             if self.scenario.boiler.type not in ['Air_HP', 'Ground_HP']:
                 instance.FuelPrice[t] = self.scenario.energy_price.__dict__[self.scenario.boiler.type][t - 1]
             else:
-                instance.FuelPrice[t] = self.scenario.energy_price.gases[t - 1]
+                instance.FuelPrice[t] = 0
 
     def config_grid(self, instance):
         for t in range(1, 8761):
