@@ -1,5 +1,6 @@
 from typing import List, Union, Dict, Any
 import random
+from pathlib import Path
 import logging
 import sqlalchemy
 import numpy as np
@@ -8,21 +9,22 @@ from functools import wraps
 import time
 
 
-def get_logger(name, level=logging.INFO, file_name: str = None):
-    logging.basicConfig()
+def get_logger(name, level=logging.DEBUG, file_name: Union[str, "Path"] = None):
     logger = logging.getLogger(name)
     logger.setLevel(level)
     formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
-
     if file_name:
         file_handler = logging.FileHandler(file_name)
+        file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
+    else:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.INFO)
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
 
     return logger
-
-
-logger = get_logger(__name__)
 
 
 def performance_counter(func):
@@ -59,7 +61,6 @@ def convert_datatype_py2sql(data_types: dict) -> dict:
 
 
 def filter_df(df: pd.DataFrame, filter_dict: dict) -> pd.DataFrame:
-    df = df.copy()
     df_filtered = df.loc[(df[list(filter_dict)] == pd.Series(filter_dict)).all(axis=1)]
     return df_filtered
 

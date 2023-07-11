@@ -3,16 +3,14 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import pyomo.environ as pyo
+import logging
 
 from flex.db import create_db_conn
-from flex.kit import get_logger
 from flex_community.constants import CommunityTable
 from flex_community.model import CommunityModel
 
 if TYPE_CHECKING:
     from flex.config import Config
-
-logger = get_logger(__name__)
 
 
 class CommunityDataCollector:

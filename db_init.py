@@ -1,3 +1,5 @@
+import logging
+
 from config import cfg
 from flex.db_init import DatabaseInitializer
 from flex_behavior.constants import BehaviorTable
@@ -39,7 +41,6 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.load_operation_table(OperationScenarioComponent.Behavior.table_name)
 
     def setup_operation_scenario_table(self):
-
         def generate():
             component_table_names = {}
             for key, value in OperationScenarioComponent.__dict__.items():
@@ -62,6 +63,9 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.load_community_table(CommunityTable.Scenarios)
 
     def drop_tables(self):
+        logger = logging.getLogger(__name__)
+        logger.setLevel(level=logging.INFO)
+        logger.info(f"Dropping Results for {self.config.project_name}")
         self.drop_table(OperationTable.ResultOptHour)
         self.drop_table(OperationTable.ResultOptYear)
         self.drop_table(OperationTable.ResultRefHour)

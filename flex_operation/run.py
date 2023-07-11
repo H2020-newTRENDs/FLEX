@@ -1,8 +1,11 @@
 from typing import List, Tuple
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+import logging
 
 from flex.config import Config
 from flex.db import create_db_conn
-from flex.kit import get_logger
 from flex_operation.analyzer import OperationAnalyzer
 from flex_operation.constants import OperationTable
 from flex_operation.data_collector import OptDataCollector
@@ -10,25 +13,187 @@ from flex_operation.data_collector import RefDataCollector
 from flex_operation.model_opt import OptInstance
 from flex_operation.model_opt import OptOperationModel
 from flex_operation.model_ref import RefOperationModel
-from flex_operation.scenario import OperationScenario
-
-logger = get_logger(__name__)
+from flex_operation.scenario import OperationScenario, MotherOperationScenario
 
 
-def run_operation_model(operation_scenario_ids: List[int], config: "Config"):
-    opt_instance = OptInstance().create_instance()
+def determine_number_of_scenarios(cfg: "Config"):
+    scenario_df = create_db_conn(config=cfg).read_dataframe(OperationTable.Scenarios)
+    number_scenarios = len(scenario_df)
+    return number_scenarios
 
-    for id_operation_scenario in operation_scenario_ids:
-        logger.info(f"FlexOperation Model --> Scenario = {id_operation_scenario}.")
+
+def check_if_results_exist(cfg: "Config", result_table_name: str) -> int:
+    """checks if the results already exist, if yes check how many scenarios exist and if some are missing,
+    return the scenario ID from where calculation should start"""
+    db = create_db_conn(cfg)  # connect to database
+    # check if result tables exist
+    engine = db.get_engine().connect()
+    if engine.dialect.has_table(engine, result_table_name):
+        # find the last index where results are still available
+        indices = db.read_dataframe(result_table_name, column_names=["ID_Scenario"]).to_numpy()
+        start_index = np.max(indices) + 1  # return the last/highest index + 1 for the next scenario
+    else:  # table does not exist
+        start_index = 1
+    return start_index
+
+
+def find_start_index(cfg: "Config", mother_operation: "MotherOperationScenario") -> int:
+    logger = logging.getLogger(f"{cfg.project_name}")
+    # before running the model check if results already exist
+    start_index_ref = check_if_results_exist(cfg, OperationTable.ResultRefYear)
+    start_index_opt = check_if_results_exist(cfg, OperationTable.ResultOptYear)
+    if start_index_opt == start_index_ref:
+        start_index = start_index_opt
+    elif start_index_ref > start_index_opt:  # ref scenario is further ahead by 1 scenario (any other case should not happen)
+        # calculate the missing opt scenario and then return the start index of the ref scenario:
+        logger.info(f"calculating opt scenario {start_index_opt} to catch up with ref scenarios.")
         opt_instance = OptInstance().create_instance()
-        scenario = OperationScenario(scenario_id=id_operation_scenario, config=config)
-        # run ref model
-        ref_model = RefOperationModel(scenario).solve()
-        RefDataCollector(ref_model, scenario.scenario_id, config, save_month_results=True).run()
-        # run opt model
+        scenario = OperationScenario(scenario_id=start_index_opt, config=cfg, tables=mother_operation)
         opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
         if solve_status:
-            OptDataCollector(opt_model, scenario.scenario_id, config, save_month_results=True).run()
+            OptDataCollector(opt_model, scenario.scenario_id, cfg, save_hour_results=True).run()
+        start_index = start_index_ref
+    else:
+        logger.critical("Ref and Opt Scenario result IDs do not match and neither is ref 1 scenario ahead! \n "
+                        f"last Ref scenario ID: {start_index_ref - 1} \n "
+                        f"last Opt scenario ID: {start_index_opt - 1}")
+        start_index = None
+    return start_index
+
+
+def check_for_infeasible_scenarios(cfg: "Config"):
+    logger = logging.getLogger(f"{cfg.project_name}")
+    infeasible_list = find_infeasible_scenarios(cfg)
+    if infeasible_list:
+        logger.warning(f"{cfg.project_name} has infeasible scenarios! \n"
+                       f"Infeasible Scenarios: {infeasible_list}.")
+    else:
+        logger.info(f"All scenarios for {cfg.project_name} went through!")
+    return infeasible_list
+
+
+def re_run_infeasible_scenarios(cfg: "Config", scenario_number: List[int], mother_operation: MotherOperationScenario):
+    """
+    Run to rerun the optimization for single scenarios specificed in scenario_number list.
+    """
+    mother_operation = MotherOperationScenario(cfg)
+    # read Infeasible scenario table
+    opt_instance = OptInstance().create_instance()
+    for id_operation_scenario in scenario_number:
+        scenario = OperationScenario(scenario_id=id_operation_scenario, config=cfg, tables=mother_operation)
+        # Reference model is not run because it is never infeasible and results are already saved!
+        # run opt model
+        print(f"running infeasible scenario {cfg.project_name}: {id_operation_scenario}")
+        opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
+        if solve_status:
+            OptDataCollector(opt_model, scenario.scenario_id, cfg, save_hour_results=True).run()
+
+
+def run_operation_model(cfg: "Config", operation_scenario_ids: List[int] = None):
+    """ operation_scenario_ids: None means that the scenario IDs are taken from the scenario table an are continued
+    if there are already results available. By defining the operation_scneario_ids, the model is forced to run the
+    defined IDs."""
+    logger = logging.getLogger(f"{cfg.project_name}")
+    # define mother operation before looping through scenarios:
+    mother_operation = MotherOperationScenario(cfg)
+    # define the scenario IDs that still have to be calculated
+    if operation_scenario_ids is None:
+        # check if the start index for opt and ref model are different (if calculation gets interrupted during optimization)
+        start_index = find_start_index(cfg, mother_operation)
+        logger.info(f"starting calculating scenario from ID {start_index}")
+        total_scenarios = determine_number_of_scenarios(cfg)
+        operation_scenario_ids = [id_scenario for id_scenario in
+                                  range(start_index, total_scenarios + 1)]
+        # check if total number of scenarios is already reached:
+        if start_index > total_scenarios:
+            infeasible_list = check_for_infeasible_scenarios(cfg)
+            # rerun the infeasible scenarios
+            re_run_infeasible_scenarios(cfg, infeasible_list, mother_operation)
+            logger.info(f"re-calculated scenarios {infeasible_list}")
+            new_infeasible_list = check_for_infeasible_scenarios(cfg)
+            if len(new_infeasible_list) > 0:
+                logger.warning(f"infeasible scenarios still exist! scenarios: {new_infeasible_list}")
+                print(f"infeasible scenarios still exist! scenarios: {new_infeasible_list}")
+
+            return
+
+    opt_instance = OptInstance().create_instance()
+    for id_operation_scenario in tqdm(operation_scenario_ids, desc=f"{cfg.project_name}"):
+        logger.info(f"FlexOperation Model --> Scenario = {id_operation_scenario}.")
+        scenario = OperationScenario(scenario_id=id_operation_scenario, config=cfg, tables=mother_operation)
+        # run ref model
+        ref_model = RefOperationModel(scenario).solve()
+        RefDataCollector(ref_model, scenario.scenario_id, cfg, save_hour_results=True).run()
+        # run opt model
+
+        opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
+        if solve_status:
+            OptDataCollector(opt_model, scenario.scenario_id, cfg, save_hour_results=True).run()
+
+    # check if there were any infeasible scenarios:
+    check_for_infeasible_scenarios(cfg)
+
+
+def run_and_replace_reference_scenario(scen: OperationScenario, db, cfg):
+    # run ref model
+    ref_model = RefOperationModel(scen).solve()
+    # delete the results from the sqlite database, the hourly results will be overwritten by default
+    db.delete_row_from_table(
+        table_name=OperationTable.ResultRefYear,
+        column_name_plus_value={
+            "ID_Scenario": scen.scenario_id
+        }
+    )
+    RefDataCollector(ref_model, scen.scenario_id, cfg, save_hour_results=True).run()
+
+
+def run_and_replace_optimization_scenario(scen: OperationScenario, db, cfg, opt_instance):
+    # run opt model
+    opt_model, solve_status = OptOperationModel(scen).solve(opt_instance)
+    # delete the results from the sqlite database, the hourly results will be overwritten by default
+    db.delete_row_from_table(
+        table_name=OperationTable.ResultOptYear,
+        column_name_plus_value={
+            "ID_Scenario": scen.scenario_id
+        }
+    )
+    if solve_status:
+        OptDataCollector(opt_model, scen.scenario_id, cfg, save_hour_results=True).run()
+
+
+def replace_scenario_runs(cfg: "Config", operation_scenario_ids: List[int] = None, mode: str = "both"):
+    """
+    If it turns out that a certain scenario did not run correctly either in the optimization or the reference
+    mode, running this function will recalculate this single scenario and replace the results of this single
+    scenario with existing ones.
+    operation_scenario_ids: list of ids which scenarios should be replaced, if None all scenarios are replaced
+    mode: both (optimization and reference runs are replaced), optimization, reference
+
+    """
+    logger = logging.getLogger(f"{cfg.project_name}")
+    db = create_db_conn(config=cfg)
+    # define mother operation before looping through scenarios:
+    mother_operation = MotherOperationScenario(cfg)
+    if mode == "optimization" or "both":
+        opt_instance = OptInstance().create_instance()
+
+    if operation_scenario_ids == None:
+        operation_scenario_ids = list(np.arange(1, determine_number_of_scenarios(cfg) + 1))
+    for id_operation_scenario in tqdm(operation_scenario_ids, desc=f"{cfg.project_name}"):
+        scenario = OperationScenario(scenario_id=id_operation_scenario, config=cfg, tables=mother_operation)
+        if mode == "reference":
+            logger.info(f"Rerunning Scenario {id_operation_scenario} for reference.")
+            run_and_replace_reference_scenario(scenario, db, cfg)
+        elif mode == "optimization":
+            logger.info(f"Rerunning Scenario {id_operation_scenario} for optimization.")
+            run_and_replace_optimization_scenario(scenario, db, cfg, opt_instance)
+        elif mode == "both":
+            logger.info(f"Rerunning Scenario {id_operation_scenario} for reference and optimization.")
+            run_and_replace_reference_scenario(scenario, db, cfg)
+            run_and_replace_optimization_scenario(scenario, db, cfg, opt_instance)
+        else:
+            ValueError("mode must be either 'both', 'optimization' or 'reference'")
+
 
 
 def run_operation_analyzer(
@@ -42,7 +207,7 @@ def run_operation_analyzer(
     ana.create_component_energy_cost_change_tables(component_changes)
     ana.plot_operation_energy_cost_change_curve(component_changes)
     ana.plot_scenario_electricity_balance(scenario_id=1)
-    # component interaction
+    # # component interaction
     component_change = ("ID_PV", 2, 1)
     other_components = list(filter(lambda item: item[0] != component_change[0], components))
     ana.plot_component_interaction_full(component_change, other_components)
@@ -55,11 +220,12 @@ def debug_operation_result(config: "Config"):
     ana.compare_opt_ref(scenario_id=1)
 
 
-def find_infeasible_scenarios(config: "Config"):
+def find_infeasible_scenarios(config: "Config") -> list:
     db = create_db_conn(config)
     opt = db.read_dataframe(OperationTable.ResultOptYear)
     ref = db.read_dataframe(OperationTable.ResultRefYear)
     opt_scenarios = list(opt["ID_Scenario"].unique())
     ref_scenarios = list(ref["ID_Scenario"].unique())
     infeasible_scenarios = set(ref_scenarios) - set(opt_scenarios)
-    print(f'{len(infeasible_scenarios)} infeasible scenarios: {infeasible_scenarios}.')
+
+    return list(infeasible_scenarios)

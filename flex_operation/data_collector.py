@@ -3,8 +3,11 @@ from abc import ABC, abstractmethod
 import pyomo.environ as pyo
 import pandas as pd
 import numpy as np
+import logging
+
+from matplotlib import pyplot as plt
+
 from flex.db import create_db_conn
-from flex.kit import get_logger
 from flex_operation.constants import OperationResultVar, OperationTable
 
 
@@ -12,7 +15,6 @@ if TYPE_CHECKING:
     from flex.config import Config
     from flex_operation.model_base import OperationModel
 
-logger = get_logger(__name__)
 
 
 class OperationDataCollector(ABC):
@@ -34,6 +36,7 @@ class OperationDataCollector(ABC):
         self.save_hour = save_hour_results
         self.save_month = save_month_results
         self.save_year = save_year_results
+        self.logger = logging.getLogger(f"{config.project_name}")
 
     @abstractmethod
     def get_var_values(self, variable_name: str) -> np.array:
@@ -80,10 +83,35 @@ class OperationDataCollector(ABC):
         for variable_name, variable_type in OperationResultVar.__dict__.items():
             if not variable_name.startswith("_"):
                 var_values = self.get_var_values(variable_name)
+                # check if the load in the reference model has outliers which would indicate a problem:
+                if variable_name == "Load" and self.get_hour_result_table_name() == OperationTable.ResultRefHour:
+                    self.check_hourly_results_for_outliers(var_values, variable_name)
                 self.hour_result[variable_name] = var_values
                 if variable_type == "hour&year":
                     self.month_result[variable_name] = self.convert_hour_to_month(var_values)
                     self.year_result[variable_name] = var_values.sum()
+
+    def check_hourly_results_for_outliers(self, profile: np.array, var_name: str):
+        """
+        check the result for extreme outliers which indicates that something went wrong in the calculation
+        using the IQR method
+        """
+        Q1 = np.percentile(profile, 25)
+        Q3 = np.percentile(profile, 75)
+        IQR = Q3 - Q1
+        lower_bound = Q1 - 5 * IQR
+        upper_bound = Q3 + 5 * IQR
+        outlier_indices = np.where((profile < lower_bound) | (profile > upper_bound))[0]
+        if len(outlier_indices) > 0:
+            print(f"Outlier detected in {var_name} for scenario {self.scenario_id} "
+                  f"in table {self.get_hour_result_table_name()}")
+            self.logger.warning(f"Outlier detected in profile: {var_name} for scenario {self.scenario_id} "
+                                f"in table {self.get_hour_result_table_name()}")
+            plt.plot(np.arange(8760), profile)
+            ax = plt.gca()
+            plt.vlines(x=outlier_indices, ymin=ax.get_ylim()[0], ymax=ax.get_ylim()[1], colors="red", linestyles="dotted")
+            plt.title(f"{var_name} in scenario {self.scenario_id}, \n table: {self.get_hour_result_table_name()}")
+            plt.show()
 
     def save_hour_result(self):
         result_hour_df = pd.DataFrame(self.hour_result)
@@ -92,9 +120,12 @@ class OperationDataCollector(ABC):
         result_hour_df.insert(
             loc=2, column="DayHour", value=np.tile(np.arange(1, 25), 365)
         )
-        self.db.write_dataframe(
-            table_name=self.get_hour_result_table_name(), data_frame=result_hour_df
-        )
+        # self.db.write_dataframe(
+        #     table_name=self.get_hour_result_table_name(), data_frame=result_hour_df
+        # )
+        self.db.write_to_parquet(table_name=self.get_hour_result_table_name(),
+                                 scenario_ID=self.scenario_id,
+                                 table=result_hour_df)
 
     def save_month_result(self):
         result_month_df = pd.DataFrame(self.month_result)

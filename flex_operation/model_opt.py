@@ -1,16 +1,14 @@
 import numpy as np
 import pyomo.environ as pyo
 from pyomo.opt import TerminationCondition
+import logging
 
-from flex.kit import performance_counter, get_logger
 from flex_operation.model_base import OperationModel
-
-logger = get_logger(__name__)
 
 
 class OptInstance:
 
-    @performance_counter
+    # @performance_counter
     def create_instance(self):
         model = self.setup_model()
         instance = model.create_instance()
@@ -470,8 +468,10 @@ class OptInstance:
 
 class OptOperationModel(OperationModel):
 
-    @performance_counter
+    # @performance_counter
     def solve(self, instance):
+        logger = logging.getLogger(f"{self.scenario.config.project_name}")
+        logger.info("starting solving Opt model.")
         instance = OptConfig(self).config_instance(instance)
         results = pyo.SolverFactory("gurobi").solve(instance, tee=False)
         if results.solver.termination_condition == TerminationCondition.optimal:
@@ -480,6 +480,7 @@ class OptOperationModel(OperationModel):
             solved = True
         else:
             print(f'Infeasible Scenario Warning!!!!!!!!!!!!!!!!!!!!!! --> ID_Scenario = {self.scenario.scenario_id}')
+            logger.warning(f'Infeasible Scenario Warning!!!!!!!!!!!!!!!!!!!!!! --> ID_Scenario = {self.scenario.scenario_id}')
             solved = False
         return instance, solved
 
@@ -490,14 +491,14 @@ class OptConfig:
         self.model = model
         self.scenario = model.scenario
 
-    @performance_counter
+    # @performance_counter
     def config_instance(self, instance):
         self.config_room_temperature(instance)
         self.config_vehicle(instance)
         self.config_static_params(instance)
         self.config_external_params(instance)
         self.config_prices(instance)
-        self.config_grid(instance)
+        # self.config_grid(instance)
         self.config_space_heating(instance)
         self.config_space_heating_tank(instance)
         self.config_hot_water_tank(instance)
@@ -540,14 +541,14 @@ class OptConfig:
         instance.M_WaterTank_heating = self.scenario.space_heating_tank.size
         instance.U_LossTank_heating = self.scenario.space_heating_tank.loss
         instance.T_TankSurrounding_heating = self.scenario.space_heating_tank.temperature_surrounding
-        instance.A_SurfaceTank_heating = self.scenario.space_heating_tank.surface_area
+        instance.A_SurfaceTank_heating = self.model.A_SurfaceTank_heating
 
         # Thermal storage DHW parameters
         instance.T_TankStart_DHW = self.scenario.hot_water_tank.temperature_start
         instance.M_WaterTank_DHW = self.scenario.hot_water_tank.size
         instance.U_LossTank_DHW = self.scenario.hot_water_tank.loss
         instance.T_TankSurrounding_DHW = self.scenario.hot_water_tank.temperature_surrounding
-        instance.A_SurfaceTank_DHW = self.scenario.hot_water_tank.surface_area
+        instance.A_SurfaceTank_DHW = self.model.A_SurfaceTank_DHW
 
         # HP
         instance.SpaceHeating_HeatPumpMaximalElectricPower = self.model.SpaceHeating_HeatPumpMaximalElectricPower
@@ -564,17 +565,17 @@ class OptConfig:
             instance.BaseLoadProfile[t] = self.model.BaseLoadProfile[t-1]
             instance.PhotovoltaicProfile[t] = self.model.PhotovoltaicProfile[t-1]
 
-        if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
+        if self.scenario.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
             for t in range(1, 8761):
                 # unfix heat pump parameters:
                 instance.E_Heating_HP_out[t].fixed = False
                 instance.E_DHW_HP_out[t].fixed = False
 
                 # update heat pump parameters
-                instance.SpaceHeatingHourlyCOP[t] = self.model.SpaceHeatingHourlyCOP[t-1]
-                instance.SpaceHeatingHourlyCOP_tank[t] = self.model.SpaceHeatingHourlyCOP_tank[t-1]
-                instance.HotWaterHourlyCOP[t] = self.model.HotWaterHourlyCOP[t-1]
-                instance.HotWaterHourlyCOP_tank[t] = self.model.HotWaterHourlyCOP_tank[t-1]
+                instance.SpaceHeatingHourlyCOP[t] = self.model.SpaceHeatingHourlyCOP[t - 1]
+                instance.SpaceHeatingHourlyCOP_tank[t] = self.model.SpaceHeatingHourlyCOP_tank[t - 1]
+                instance.HotWaterHourlyCOP[t] = self.model.HotWaterHourlyCOP[t - 1]
+                instance.HotWaterHourlyCOP_tank[t] = self.model.HotWaterHourlyCOP_tank[t - 1]
 
                 # set boiler specifics to zero
                 instance.Fuel[t].fix(0)
@@ -642,7 +643,7 @@ class OptConfig:
             if self.scenario.boiler.type not in ['Air_HP', 'Ground_HP']:
                 instance.FuelPrice[t] = self.scenario.energy_price.__dict__[self.scenario.boiler.type][t - 1]
             else:
-                instance.FuelPrice[t] = 0
+                instance.FuelPrice[t] = self.scenario.energy_price.gases[t - 1]
 
     def config_grid(self, instance):
         for t in range(1, 8761):
@@ -652,7 +653,7 @@ class OptConfig:
     def config_space_heating(self, instance):
         for t in range(1, 8761):
             instance.T_BuildingMass[t].setub(100)
-        if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
+        if self.scenario.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
             for t in range(1, 8761):
                 instance.E_Heating_HP_out[t].setub(self.model.SpaceHeating_HeatPumpMaximalElectricPower)
         else:
@@ -663,6 +664,8 @@ class OptConfig:
     def config_space_heating_tank(self, instance):
         if self.scenario.space_heating_tank.size == 0:
             for t in range(1, 8761):
+                instance.Q_HeatingTank[t].setlb(0)
+                instance.Q_HeatingTank[t].setub(0)
                 instance.Q_HeatingTank_out[t].fix(0)
                 instance.Q_HeatingTank_in[t].fix(0)
                 instance.Q_HeatingTank[t].fix(0)
@@ -689,6 +692,8 @@ class OptConfig:
             for t in range(1, 8761):
                 instance.Q_DHWTank_out[t].fix(0)
                 instance.Q_DHWTank_in[t].fix(0)
+                instance.Q_DHWTank[t].setlb(0)
+                instance.Q_DHWTank[t].setub(0)
                 instance.Q_DHWTank[t].fix(0)
 
                 instance.E_DHW_HP_out[t].setub(self.model.SpaceHeating_HeatPumpMaximalElectricPower)  # TODO
@@ -853,7 +858,7 @@ class OptConfig:
             for t in range(1, 8761):
                 instance.PV2Load[t].fixed = False
                 instance.PV2Grid[t].fixed = False
-                instance.PV2Load[t].setub(self.scenario.building.grid_power_max)
+                # instance.PV2Load[t].setub(self.scenario.building.grid_power_max)
             instance.UseOfPV_rule.activate()
 
 

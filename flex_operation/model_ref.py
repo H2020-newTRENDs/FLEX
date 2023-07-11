@@ -1,15 +1,15 @@
 import numpy as np
 import copy
+import logging
 from flex_operation.model_base import OperationModel
-from flex.kit import get_logger
-
-logger = get_logger(__name__)
 
 
 class RefOperationModel(OperationModel):
 
     def solve(self):
-        if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
+        logger = logging.getLogger(f"{self.scenario.config.project_name}")
+        logger.info(f"starting solving Ref model.")
+        if self.scenario.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
             model_ref = self.run_heatpump_ref()
         else:
             model_ref = self.run_fuel_boiler_ref()
@@ -17,6 +17,8 @@ class RefOperationModel(OperationModel):
         return model_ref
 
     def calc_space_heating_demand(self):
+        logger = logging.getLogger(f"{self.scenario.config.project_name}")
+
         hp_max = (
             self.SpaceHeating_HeatPumpMaximalElectricPower * self.SpaceHeatingHourlyCOP
         )
@@ -226,7 +228,7 @@ class RefOperationModel(OperationModel):
 
         Returns: grid_demand_after_DHW, electricity_surplus_after_DHW
         """
-
+        logger = logging.getLogger(f"{self.scenario.config.project_name}")
         self.Q_DHWTank = np.ones(pv_surplus.shape) * self.scenario.hot_water_tank.temperature_min
         self.Q_DHWTank_out = np.zeros(pv_surplus.shape)
         self.Q_DHWTank_in = np.zeros(pv_surplus.shape)
@@ -238,7 +240,7 @@ class RefOperationModel(OperationModel):
             temperature_min = self.scenario.hot_water_tank.temperature_min
             temperature_max = self.scenario.hot_water_tank.temperature_max
             size = self.scenario.hot_water_tank.size
-            surface_area = self.scenario.hot_water_tank.surface_area
+            surface_area = self.A_SurfaceTank_DHW
             loss = self.U_LossTank_DHW
             surrounding_temperature = self.T_TankSurrounding_DHW
             cop = self.HotWaterHourlyCOP
@@ -387,7 +389,6 @@ class RefOperationModel(OperationModel):
 
         Returns: grid_demand_after_DHW, electricity_surplus_after_DHW
         """
-
         self.Q_DHWTank = np.ones(pv_surplus.shape) * self.scenario.hot_water_tank.temperature_min
         self.Q_DHWTank_out = np.zeros(pv_surplus.shape)
         self.Q_DHWTank_in = np.zeros(pv_surplus.shape)
@@ -399,7 +400,7 @@ class RefOperationModel(OperationModel):
             temperature_min = self.scenario.hot_water_tank.temperature_min
             temperature_max = self.scenario.hot_water_tank.temperature_max
             size = self.scenario.hot_water_tank.size
-            surface_area = self.scenario.hot_water_tank.surface_area
+            surface_area = self.A_SurfaceTank_DHW
             loss = self.U_LossTank_DHW
             surrounding_temperature = self.T_TankSurrounding_DHW
             tank_capacity = size * self.CPWater
@@ -548,6 +549,7 @@ class RefOperationModel(OperationModel):
         return self
 
     def calc_space_heating_demand_fuel_boiler(self):
+        logger = logging.getLogger(f"{self.scenario.config.project_name}")
         boiler_max = self.scenario.boiler.power_max
 
         self.Q_HeatingElement = np.where(
@@ -568,13 +570,21 @@ class RefOperationModel(OperationModel):
         self.Q_DHWTank_bypass = copy.deepcopy(self.HotWaterProfile)
         self.Q_DHW_Boiler_out = self.Q_DHWTank_bypass
 
-    def calc_fuel_demand(self):
+    def calc_gas_demand(self):
         self.Fuel = (self.Q_DHW_Boiler_out + self.Q_Heating_Boiler_out) / self.fuel_boiler_efficiency
 
     def calc_load_fuel_boiler(self):
-        self.Load = (self.BaseLoadProfile + self.Q_HeatingElement + self.E_RoomCooling)
-        grid_demand = np.where(self.Load - self.PhotovoltaicProfile < 0, 0, self.Load - self.PhotovoltaicProfile)
-        pv_surplus = np.where(self.PhotovoltaicProfile - self.Load < 0, 0, self.PhotovoltaicProfile - self.Load)
+        self.Load = (
+            self.BaseLoadProfile
+            + self.Q_HeatingElement
+            + self.E_RoomCooling
+        )
+        grid_demand = np.where(
+            self.Load - self.PhotovoltaicProfile < 0, 0, self.Load - self.PhotovoltaicProfile,
+        )
+        pv_surplus = np.where(
+            self.PhotovoltaicProfile - self.Load < 0, 0, self.PhotovoltaicProfile - self.Load,
+        )
         self.PV2Load = self.PhotovoltaicProfile - pv_surplus
         return grid_demand, pv_surplus
 
@@ -583,8 +593,12 @@ class RefOperationModel(OperationModel):
         self.Grid2Load = grid_demand
         self.PV2Grid = pv_surplus
         self.Feed2Grid = pv_surplus
-        self.FuelPrice = self.scenario.energy_price.__dict__[self.scenario.boiler.type]
-        self.TotalCost = self.ElectricityPrice * grid_demand - pv_surplus * self.FiT + self.Fuel * self.FuelPrice
+        if self.scenario.boiler.type not in ['Air_HP', 'Ground_HP']:
+            self.FuelPrice = self.scenario.energy_price.__dict__[self.scenario.boiler.type]
+        else:
+            self.FuelPrice = self.scenario.energy_price.gases
+        self.TotalCost = self.ElectricityPrice * grid_demand - pv_surplus * self.FiT + \
+                         self.Fuel * self.FuelPrice
 
     def set_heat_pump_parameters_to_zero(self):
         self.E_Heating_HP_out = np.zeros(shape=self.Grid.shape)
@@ -594,13 +608,16 @@ class RefOperationModel(OperationModel):
         self.calc_space_heating_demand_fuel_boiler()
         self.calc_space_cooling_demand()
         self.calc_hot_water_demand_fuel_boiler()
-        self.calc_fuel_demand()
+        self.calc_gas_demand()
         grid_demand, pv_surplus = self.calc_load_fuel_boiler()
         grid_demand, pv_surplus = self.calc_battery_energy(grid_demand, pv_surplus)
         grid_demand, pv_surplus = self.calculate_ev_energy(grid_demand, pv_surplus)
-        self.Fuel, pv_surplus = self.calc_hot_water_tank_energy_fuel_boiler(self.Fuel, pv_surplus)
+        self.Fuel, pv_surplus = self.calc_hot_water_tank_energy_fuel_boiler(
+            self.Fuel, pv_surplus
+        )
         self.calc_grid_fuel_boiler(grid_demand, pv_surplus)
         self.set_heat_pump_parameters_to_zero()
+
         return self
 
 

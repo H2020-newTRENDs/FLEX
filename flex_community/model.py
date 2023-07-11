@@ -1,10 +1,7 @@
 import numpy as np
 import pyomo.environ as pyo
 
-from flex.kit import get_logger
 from flex_community.scenario import CommunityScenario
-
-logger = get_logger(__name__)
 
 
 class CommunityModel:

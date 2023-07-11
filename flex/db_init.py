@@ -1,4 +1,4 @@
-import os
+import logging
 from pathlib import Path
 import itertools
 from typing import Dict, List, TYPE_CHECKING
@@ -11,8 +11,6 @@ from flex import kit
 if TYPE_CHECKING:
     from flex.config import Config
 
-logger = kit.get_logger(__name__)
-
 
 class DatabaseInitializer:
     def __init__(self, config: "Config"):
@@ -20,14 +18,17 @@ class DatabaseInitializer:
         self.db = create_db_conn(config)
 
     def load_behavior_table(self, table_name: str):
+        logger = logging.getLogger(self.config.project_name)
         logger.info(f"Loading FLEX-Behavior table -> {table_name}")
         self.load_table(self.config.input_behavior, table_name=table_name)
 
     def load_operation_table(self, table_name: str):
+        logger = logging.getLogger(self.config.project_name)
         logger.info(f"Loading FLEX-Operation table -> {table_name}")
         self.load_table(self.config.input_operation, table_name=table_name)
 
     def load_community_table(self, table_name: str):
+        logger = logging.getLogger(self.config.project_name)
         logger.info(f"Loading FLEX-Community table -> {table_name}")
         self.load_table(self.config.input_community, table_name=table_name)
 
@@ -41,12 +42,13 @@ class DatabaseInitializer:
             if file.exists():
                 self.db.write_dataframe(
                     table_name=table_name,
-                    data_frame=pd_read_func(file),
+                    data_frame=pd_read_func(file).dropna(axis=1, how="all").dropna(axis=0, how="all"),
                     if_exists="replace"
                 )
 
     def generate_operation_scenario_table(self, scenario_table_name: str, component_table_names: Dict[str, str]):
         self.drop_table(scenario_table_name)
+        logger = logging.getLogger(self.config.project_name)
         logger.info(f"Generating FLEX-Operation scenario table -> {scenario_table_name}")
         scenario_df = self.generate_params_combination_df(self.get_component_scenario_ids(component_table_names))
         scenario_ids = np.array(range(1, 1 + len(scenario_df)))
@@ -74,6 +76,7 @@ class DatabaseInitializer:
         return pd.DataFrame(permutations_dicts)
 
     def drop_table(self, table_name: str):
+        logger = logging.getLogger(self.config.project_name)
         engine = self.db.get_engine().connect()
         if engine.dialect.has_table(engine, table_name):
             logger.info(f"Dropping table -> {table_name}")

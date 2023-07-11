@@ -21,6 +21,11 @@ class DB:
     def if_exists(self, table_name: str) -> bool:
         return self.connection.has_table(table_name)
 
+    def if_parquet_exists(self, table_name: str, scenario_ID: int) -> bool:
+        file_name = f"{table_name}_{scenario_ID}.parquet.gzip"
+        path_to_file = self.config.output / file_name
+        return path_to_file.exists()
+
     def get_engine(self):
         return self.connection
 
@@ -35,11 +40,11 @@ class DB:
         self.connection.execute(f"drop table if exists {table_name}")
 
     def write_dataframe(
-        self,
-        table_name: str,
-        data_frame: pd.DataFrame,
-        data_types: dict = None,
-        if_exists="append",
+            self,
+            table_name: str,
+            data_frame: pd.DataFrame,
+            data_types: dict = None,
+            if_exists="append",
     ):  # if_exists: {'replace', 'fail', 'append'}
         data_frame.to_sql(
             table_name,
@@ -80,7 +85,9 @@ class DB:
         return dataframe
 
     def delete_row_from_table(
-        self, table_name: str, column_name_plus_value: dict
+            self,
+            table_name: str,
+            column_name_plus_value: dict
     ) -> None:
         condition_temp = ""
         for key, value in column_name_plus_value.items():
@@ -93,6 +100,26 @@ class DB:
 
     def query(self, sql) -> pd.DataFrame:
         return pd.read_sql(sql, self.connection)
+
+    def write_to_parquet(self, table_name: str, scenario_ID: int, table: pd.DataFrame) -> None:
+        """
+        is used to save the results. Writes the dataframe into a parquet file with 'table_name_ID' as file name
+        """
+        file_name = f"{table_name}_{scenario_ID}.parquet.gzip"
+        saving_path = self.config.output / file_name
+        table.to_parquet(path=saving_path, engine="auto", compression='gzip', index=False)
+
+    def read_parquet(self, table_name: str, scenario_ID: int, column_names: List[str] = None) -> pd.DataFrame:
+        """
+        Returns: dataframe containing the results for the table name and specific scenario ID
+        """
+        file_name = f"{table_name}_{scenario_ID}.parquet.gzip"
+        path_to_file = self.config.output / file_name
+        if column_names:
+            df = pd.read_parquet(path=path_to_file, engine="auto", columns=column_names)
+        else:
+            df = pd.read_parquet(path=path_to_file, engine="auto")
+        return df
 
 
 def create_db_conn(config: "Config") -> DB:

@@ -17,8 +17,6 @@ if TYPE_CHECKING:
     from flex.config import Config
     from flex.plotter import Plotter
 
-logger = kit.get_logger(__name__)
-
 
 class OperationAnalyzer:
     def __init__(self, config: "Config", plotter_cls: Type["Plotter"] = OperationPlotter):
