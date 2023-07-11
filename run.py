@@ -21,7 +21,7 @@ def run_flex_behavior_analyzer(config):
 
 
 def run_flex_operation_model(config):
-    operation_scenario_ids = [id_scenario for id_scenario in range(1, 9)]
+    operation_scenario_ids = [id_scenario for id_scenario in range(1, 97)]
     run_operation_model(operation_scenario_ids, config)
 
 
@@ -46,8 +46,8 @@ def run_flex_operation_analyzer(config):
         ("ID_Battery", 2),
         ("ID_Building", 3),
     ]
-    # run_operation_analyzer(component_changes, components, config)
-    debug_operation_result(config)
+    run_operation_analyzer(component_changes, components, config)
+    # debug_operation_result(config)
 
 
 def run_flex_community_model(config):

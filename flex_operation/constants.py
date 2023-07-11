@@ -50,8 +50,10 @@ class OperationTable:
     EnergyPriceProfile = "OperationScenario_EnergyPrice"
     RegionWeatherProfile = "OperationScenario_RegionWeather"
     ResultOptHour = "OperationResult_OptimizationHour"
+    ResultOptMonth = "OperationResult_OptimizationMonth"
     ResultOptYear = "OperationResult_OptimizationYear"
     ResultRefHour = "OperationResult_ReferenceHour"
+    ResultRefMonth = "OperationResult_ReferenceMonth"
     ResultRefYear = "OperationResult_ReferenceYear"
     ResultEnergyCost = "OperationResult_OperationEnergyCost"
     ResultEnergyCostChange = "OperationResult_OperationEnergyCostChange"
@@ -122,8 +124,8 @@ class OperationResultVar:
     # energy price
     ElectricityPrice = "hour"
     FiT = "hour"
-    GasPrice = "hour"
-    Gas = "hour&year"
+    FuelPrice = "hour"
+    Fuel = "hour&year"
 
     # grid
     BaseLoadProfile = "hour&year"

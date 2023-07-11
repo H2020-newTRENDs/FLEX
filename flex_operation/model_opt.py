@@ -51,7 +51,7 @@ class OptInstance:
         # solar gains:
         m.Q_Solar = pyo.Param(m.t, mutable=True)
         m.ElectricityPrice = pyo.Param(m.t, mutable=True)
-        m.GasPrice = pyo.Param(m.t, mutable=True)
+        m.FuelPrice = pyo.Param(m.t, mutable=True)
         # Feed in Tariff of Photovoltaic
         m.FiT = pyo.Param(m.t, mutable=True)
 
@@ -136,7 +136,7 @@ class OptInstance:
         m.E_Heating_HP_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Q_Heating_Boiler_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
-        m.Gas = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.Fuel = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
         # heating element
         m.Q_HeatingElement = pyo.Var(m.t, within=pyo.NonNegativeReals)
@@ -359,7 +359,7 @@ class OptInstance:
 
         def calc_boiler_conversion(m, t):
             return (
-                m.Q_DHW_Boiler_out[t] + m.Q_Heating_Boiler_out[t] == m.Gas[t] * m.Boiler_COP
+                    m.Q_DHW_Boiler_out[t] + m.Q_Heating_Boiler_out[t] == m.Fuel[t] * m.Boiler_COP
             )
 
         m.boiler_conversion_rule = pyo.Constraint(m.t, rule=calc_boiler_conversion)
@@ -456,7 +456,7 @@ class OptInstance:
     @staticmethod
     def setup_objective(m):
         def minimize_cost(m):
-            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Gas[t] * m.GasPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t)
+            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t)
             return rule
         m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
 
@@ -577,7 +577,7 @@ class OptConfig:
                 instance.HotWaterHourlyCOP_tank[t] = self.model.HotWaterHourlyCOP_tank[t-1]
 
                 # set boiler specifics to zero
-                instance.Gas[t].fix(0)
+                instance.Fuel[t].fix(0)
                 instance.Q_DHW_Boiler_out[t].fix(0)
                 instance.Q_Heating_Boiler_out[t].fix(0)
 
@@ -594,7 +594,7 @@ class OptConfig:
         else:  # fuel based boiler instead of heat pump
             for t in range(1, 8761):
                 # unfix boiler parameters:
-                instance.Gas[t].fixed = False
+                instance.Fuel[t].fixed = False
                 instance.Q_DHW_Boiler_out[t].fixed = False
                 instance.Q_Heating_Boiler_out[t].fixed = False
 
@@ -639,7 +639,10 @@ class OptConfig:
         for t in range(1, 8761):
             instance.ElectricityPrice[t] = self.scenario.energy_price.electricity[t-1]
             instance.FiT[t] = self.scenario.energy_price.electricity_feed_in[t-1]
-            instance.GasPrice[t] = self.scenario.energy_price.gases[t-1]
+            if self.scenario.boiler.type not in ['Air_HP', 'Ground_HP']:
+                instance.FuelPrice[t] = self.scenario.energy_price.__dict__[self.scenario.boiler.type][t - 1]
+            else:
+                instance.FuelPrice[t] = 0
 
     def config_grid(self, instance):
         for t in range(1, 8761):

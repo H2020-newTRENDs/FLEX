@@ -15,7 +15,7 @@ class DB:
 
     def create_connection(self, database_name) -> sqlalchemy.engine.Engine:
         return sqlalchemy.create_engine(
-            f'sqlite:///{os.path.join(self.config.project_root.parent, self.config.output, database_name + ".sqlite")}'
+            f'sqlite:///{os.path.join(self.config.project_root, self.config.output, database_name + ".sqlite")}'
         )
 
     def if_exists(self, table_name: str) -> bool:
