@@ -1,4 +1,5 @@
-from typing import List, Union
+from typing import List, Union, Dict, Any
+import random
 import logging
 import sqlalchemy
 import numpy as np
@@ -58,6 +59,7 @@ def convert_datatype_py2sql(data_types: dict) -> dict:
 
 
 def filter_df(df: pd.DataFrame, filter_dict: dict) -> pd.DataFrame:
+    df = df.copy()
     df_filtered = df.loc[(df[list(filter_dict)] == pd.Series(filter_dict)).all(axis=1)]
     return df_filtered
 
@@ -66,3 +68,20 @@ def filter_df2s(df: pd.DataFrame, filter_dict: dict) -> pd.Series:
     df_filtered = filter_df(df, filter_dict)
     s = df_filtered.iloc[0]
     return s
+
+
+def dict_sample(options: Dict[Any, float]) -> Any:
+    value_sum = 0
+    for key in options.keys():
+        value_sum += options[key]
+    for key in options.keys():
+        options[key] = options[key] / value_sum
+    rand = random.uniform(0, 1)
+    prob_accumulated = 0
+    option_chosen_key = None
+    for key in options.keys():
+        prob_accumulated += options[key]
+        if prob_accumulated >= rand:
+            option_chosen_key = key
+            break
+    return option_chosen_key

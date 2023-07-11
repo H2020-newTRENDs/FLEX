@@ -20,6 +20,7 @@ def run_operation_model(operation_scenario_ids: List[int], config: "Config"):
 
     for id_operation_scenario in operation_scenario_ids:
         logger.info(f"FlexOperation Model --> Scenario = {id_operation_scenario}.")
+        opt_instance = OptInstance().create_instance()
         scenario = OperationScenario(scenario_id=id_operation_scenario, config=config)
         # run ref model
         ref_model = RefOperationModel(scenario).solve()

@@ -75,6 +75,19 @@ class OperationAnalyzer:
             df = df[df["Hour"].between(start_hour, end_hour)]
         return df
 
+    def get_day_hour_df(self, scenario_id: int, model: str, start_hour: int = None, end_hour: int = None):
+        if model == "opt":
+            df = kit.filter_df(
+                self.opt_hour, filter_dict={"ID_Scenario": scenario_id}
+            )
+        else:
+            df = kit.filter_df(
+                self.ref_hour, filter_dict={"ID_Scenario": scenario_id}
+            )
+        if start_hour is not None and end_hour is not None:
+            df = df.loc[df["DayHour"].between(start_hour, end_hour)]
+        return df
+
     def get_year_df(self, scenario_id: int, model: str):
         if model == "opt":
             df = kit.filter_df(
@@ -150,7 +163,8 @@ class OperationAnalyzer:
         winter_hours = (25, 192)
         summer_hours = (4153, 4320)
         hour_ranges = [winter_hours, summer_hours]
-        models = ["opt", "ref"]
+        # models = ["opt", "ref"]
+        models = ["ref"]  # for Kevan's work
         for model in models:
             for hour_range in hour_ranges:
                 self.plot_electricity_balance(
@@ -168,11 +182,11 @@ class OperationAnalyzer:
             "HotWater": np.array(df["E_DHW_HP_out"]) / 1000,
             "SpaceCooling": np.array(df["E_RoomCooling"]) / 1000,
             "BatteryCharge": np.array(df["BatCharge"]) / 1000,
-            "VehicleCharge": np.array(df["EVCharge"]) / 1000,
+            # "VehicleCharge": np.array(df["EVCharge"]) / 1000,
             "Grid": np.array(-df["Grid"]) / 1000,
             "PV": np.array(-(df["PV2Load"] + df["PV2Bat"] + df["PV2EV"])) / 1000,
             "BatteryDischarge": np.array(-df["BatDischarge"]) / 1000,
-            "VehicleDischarge": np.array(-df["EVDischarge"]) / 1000,
+            # "VehicleDischarge": np.array(-df["EVDischarge"]) / 1000,
             "PV2Grid": np.array(-df["PV2Grid"]) / 1000,
         }
         self.plotter.bar_figure(
@@ -183,6 +197,139 @@ class OperationAnalyzer:
             x_lim=None,
             y_lim=(-5, 5),
         )
+    def plot_scenario_energy_demand(self, scenario_id: int):
+        winter_hours = (25, 192)
+        summer_hours = (4153, 4320)
+        hour_ranges = [winter_hours, summer_hours]
+        # models = ["opt", "ref"]
+        models = ["ref"]  # for Kevan's work
+        for model in models:
+            for hour_range in hour_ranges:
+                self.plot_energy_demand(
+                    scenario_id=scenario_id,
+                    model=model,
+                    start_hour=hour_range[0],
+                    end_hour=hour_range[1],
+                )
+    def plot_energy_demand(self, scenario_id: int, model: str, start_hour: int = None, end_hour: int = None):
+        df = self.get_hour_df(scenario_id, model, start_hour, end_hour)
+        values_dict = {
+            "Appliance": np.array(df["BaseLoadProfile"]) / 1000,
+            "SpaceHeating": np.array(df["E_Heating_HP_out"] + df["Q_HeatingElement"] + df["Q_RoomHeating"]) / 1000,
+            "HotWater": np.array(df["E_DHW_HP_out"] + df["Q_DHWTank_bypass"]) / 1000,
+            "SpaceCooling": np.array(df["E_RoomCooling"] + df["Q_RoomCooling"]) / 1000,
+        }
+        self.plotter.bar_figure(
+            values_dict,
+            f"EnergyDemand_S{scenario_id}_H{start_hour}To{end_hour}_{model}",
+            x_label="Hour",
+            y_label="Energy Demand (kW)",
+            x_lim=None,
+            y_lim=(0, 12),
+        )
+    def plot_scenario_energy_demand_mean_yearly(self, scenario_id: int):
+        models = ["ref"]  # for Kevan's work
+        for model in models:
+            df = self.get_day_hour_df(scenario_id, model)
+            df_mean = df.groupby("DayHour").mean()
+            values_dict = {
+                "Appliance": np.array(df_mean["BaseLoadProfile"]) / 1000,
+                "SpaceHeating": np.array(
+                    df_mean["E_Heating_HP_out"] + df_mean["Q_HeatingElement"] + df_mean["Q_RoomHeating"]) / 1000,
+                "HotWater": np.array(df_mean["E_DHW_HP_out"] + df_mean["Q_DHWTank_bypass"]) / 1000,
+                "SpaceCooling": np.array(df_mean["E_RoomCooling"] + df_mean["Q_RoomCooling"]) / 1000,
+                # "BatteryCharge": np.array(df_mean["BatCharge"]) / 1000,
+                # # "VehicleCharge": np.array(df_mean["EVCharge"]) / 1000,
+                # "Grid": np.array(-df_mean["Grid"]) / 1000,
+                # "PV": np.array(-(df_mean["PV2Load"] + df_mean["PV2Bat"] + df_mean["PV2EV"])) / 1000,
+                # "BatteryDischarge": np.array(-df_mean["BatDischarge"]) / 1000,
+                # # "VehicleDischarge": np.array(-df_mean["EVDischarge"]) / 1000,
+                # "PV2Grid": np.array(-df_mean["PV2Grid"]) / 1000,
+            }
+            self.plotter.bar_figure(
+                values_dict,
+                f"EnergyDemandMean_S{scenario_id}_{model}_MeanDailyProfile",
+                x_label="Hour of the Day",
+                y_label="Mean Energy Demand (kW)",
+                x_tick_labels=np.arange(1, 25),
+                y_lim=(0, 5),
+            )
+
+    def plot_scenario_energy_demand_mean_seasonal_aggregated(self, scenario_id: int):
+        models = ["ref"]
+        seasons = {
+            "winter": [(0, 1416), (7296, 8760)],  # Nov - Feb
+            "summer": [(2880, 5832)]  # Mai - Aug
+        }
+        for model in models:
+            for season, hour_ranges in seasons.items():
+                for i, hour_range in enumerate(hour_ranges):
+                    df = self.get_hour_df(scenario_id, model, hour_range[0], hour_range[1])
+                    df_mean = df.groupby("DayHour").mean()
+                    values_dict = {
+                        "Energy demand": np.array(df_mean["BaseLoadProfile"] +
+                                               df_mean["E_Heating_HP_out"] +
+                                               df_mean["Q_HeatingElement"] +
+                                               df_mean["Q_RoomHeating"] +
+                                               df_mean["E_DHW_HP_out"] +
+                                               df_mean["Q_DHWTank_bypass"] +
+                                               df_mean["E_RoomCooling"] +
+                                               df_mean["Q_RoomCooling"]) / 1000,
+                    }
+                    if i == 0:
+                        season = "Summer"
+                    else:
+                        season = "Winter"
+                    self.plotter.line_figure(
+                        values_dict,
+                        f"EnergyDemand_S{scenario_id}_{model}_{season}_MeanDailyProfile_aggregated",
+                        x_label="Hour of the Day",
+                        y_label="Mean Energy Demand (kW)",
+                        x_tick_labels=np.arange(1, 25),
+                        y_lim=(0, 8),
+                    )
+
+    def plot_scenario_energy_demand_mean_seasonal_disaggregated(self, scenario_id: int):
+        models = ["ref"]
+        # hour_ranges = [(1000, 3000), (4000, 6000)]
+        seasons = {
+            "winter": [(0, 1416), (7296, 8760)],  # Nov - Feb
+            "summer": [(2880, 5832)]  # Mai - Aug
+            # "winter": [(0, 1416), (6552, 8760)],  # Oct, Nov, Dec, Jan, Feb
+            # "summer": [(2880, 6552)]  # Mai, Jun, Jul, Aug, Sept
+        }
+        for model in models:
+            for season, hour_ranges in seasons.items():
+        # for model in models:
+                for i, hour_range in enumerate(hour_ranges):
+                    df = self.get_hour_df(scenario_id, model, hour_range[0], hour_range[1])
+                    df_mean = df.groupby("DayHour").mean()
+                    values_dict = {
+                        "Appliance": np.array(df_mean["BaseLoadProfile"]) / 1000,
+                        "SpaceHeating": np.array(
+                            df_mean["E_Heating_HP_out"] + df_mean["Q_HeatingElement"] + df_mean["Q_RoomHeating"]) / 1000,
+                        "HotWater": np.array(df_mean["E_DHW_HP_out"] + df_mean["Q_DHWTank_bypass"]) / 1000,
+                        "SpaceCooling": np.array(df_mean["E_RoomCooling"] + df_mean["Q_RoomCooling"]) / 1000,
+                        # "BatteryCharge": np.array(df_mean["BatCharge"]) / 1000,
+                        # # "VehicleCharge": np.array(df_mean["EVCharge"]) / 1000,
+                        # "Grid": np.array(-df_mean["Grid"]) / 1000,
+                        # "PV": np.array(-(df_mean["PV2Load"] + df_mean["PV2Bat"] + df_mean["PV2EV"])) / 1000,
+                        # "BatteryDischarge": np.array(-df_mean["BatDischarge"]) / 1000,
+                        # # "VehicleDischarge": np.array(-df_mean["EVDischarge"]) / 1000,
+                        # "PV2Grid": np.array(-df_mean["PV2Grid"]) / 1000,
+                    }
+                    if i == 0:
+                        season = "Summer"
+                    else:
+                        season = "Winter"
+                    self.plotter.bar_figure(
+                        values_dict,
+                        f"EnergyDemand_S{scenario_id}_{model}_{season}_MeanDailyProfile",
+                        x_label="Hour of the Day",
+                        y_label="Mean Energy Demand (kW)",
+                        x_tick_labels=np.arange(1, 25),
+                        y_lim=(0, 8),
+                    )
 
     def create_operation_energy_cost_table(self):
 
