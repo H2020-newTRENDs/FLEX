@@ -48,6 +48,7 @@ class OperationScenario:
         self.setup_region_weather_and_pv_generation()
         self.setup_energy_price()
         self.setup_behavior()
+        self.setup_vehicle_profiles()
 
     def get_component_scenario_ids(self):
         scenario_df = self.db.read_dataframe(OperationTable.Scenarios, filter={"ID_Scenario": self.scenario_id})
@@ -139,21 +140,6 @@ class OperationScenario:
             profile[index] = annual_amount * hour_weight / weight_sum
         return profile
 
-    def setup_behavior_vehicle(self, behavior: pd.DataFrame):
-        column_at_home = (
-            f"vehicle_at_home_profile_{self.behavior.id_vehicle_at_home_profile}"
-        )
-        column_distance = (
-            f"vehicle_distance_profile_{self.behavior.id_vehicle_distance_profile}"
-        )
-        self.behavior.vehicle_at_home = (
-            behavior[column_at_home].to_numpy()
-        )  # pyomo Problem with 0
-        self.behavior.vehicle_distance = behavior[column_distance].to_numpy()
-        self.behavior.vehicle_demand = (
-            self.behavior.vehicle_distance * self.vehicle.consumption_rate
-        )
-
     def setup_behavior_hot_water_demand(self, behavior: pd.DataFrame):
         column = f"hot_water_demand_profile_{self.behavior.id_hot_water_demand_profile}"
         annual_demand = self.behavior.hot_water_demand_annual * self.building.person_num
@@ -174,6 +160,12 @@ class OperationScenario:
     def setup_behavior(self):
         behavior_df = self.db.read_dataframe(OperationTable.BehaviorProfile)
         self.setup_behavior_target_temperature(behavior_df)
-        self.setup_behavior_vehicle(behavior_df)
         self.setup_behavior_hot_water_demand(behavior_df)
         self.setup_behavior_appliance_electricity_demand(behavior_df)
+
+    def setup_vehicle_profiles(self):
+        parking_home = self.db.read_dataframe(OperationTable.DrivingProfile_ParkingHome)
+        self.behavior.vehicle_at_home = parking_home[str(self.vehicle.id_parking_at_home_profile)].to_numpy()
+        distance = self.db.read_dataframe(OperationTable.DrivingProfile_Distance)
+        self.behavior.vehicle_distance = distance[str(self.vehicle.id_distance_profile)].to_numpy()
+        self.behavior.vehicle_demand = self.behavior.vehicle_distance * self.vehicle.consumption_rate

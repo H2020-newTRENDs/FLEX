@@ -38,10 +38,12 @@ class OptInstance:
         self.setup_objective(m)
         return m
 
-    def setup_sets(self, m):
+    @staticmethod
+    def setup_sets(m):
         m.t = pyo.Set(initialize=np.arange(1, 8761))
 
-    def setup_params(self, m):
+    @staticmethod
+    def setup_params(m):
         # time dependent parameters:
         # external parameters:
         # outside temperature
@@ -106,6 +108,7 @@ class OptInstance:
         # electric vehicle
         m.EVChargeEfficiency = pyo.Param(mutable=True)
         m.EVDischargeEfficiency = pyo.Param(mutable=True)
+        m.EVCapacity = pyo.Param(mutable=True)
 
         # building parameters
         m.Am = pyo.Param(mutable=True)
@@ -123,7 +126,8 @@ class OptInstance:
         m.Cm = pyo.Param(mutable=True)
         m.BuildingMassTemperatureStartValue = pyo.Param(mutable=True)
 
-    def setup_variables(self, m):
+    @staticmethod
+    def setup_variables(m):
         # space heating
         m.Q_HeatingTank_in = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Q_HeatingTank_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
@@ -185,7 +189,8 @@ class OptInstance:
         m.Load = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Feed2Grid = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
-    def setup_constraint_space_heating_tank(self, m):
+    @staticmethod
+    def setup_constraint_space_heating_tank(m):
         def tank_energy_heating(m, t):
             if t == 1:
                 return m.Q_HeatingTank[t] == \
@@ -199,12 +204,14 @@ class OptInstance:
                         (m.T_TankSurrounding_heating + 273.15))
         m.tank_energy_rule_heating = pyo.Constraint(m.t, rule=tank_energy_heating)
 
-    def setup_constraint_space_heating_room(self, m):
+    @staticmethod
+    def setup_constraint_space_heating_room(m):
         def room_heating(m, t):
             return m.Q_RoomHeating[t] == m.Q_HeatingTank_out[t] + m.Q_HeatingTank_bypass[t]
         m.room_heating_rule = pyo.Constraint(m.t, rule=room_heating)
 
-    def setup_constraint_thermal_mass_temperature(self, m):
+    @staticmethod
+    def setup_constraint_thermal_mass_temperature(m):
         def thermal_mass_temperature_rc(m, t):
             if t == 1:
                 Tm_start = m.BuildingMassTemperatureStartValue
@@ -226,7 +233,8 @@ class OptInstance:
                    ((m.Cm / 3600) + 0.5 * (m.Htr_3 + m.Htr_em))
         m.thermal_mass_temperature_rule = pyo.Constraint(m.t, rule=thermal_mass_temperature_rc)
 
-    def setup_constraint_room_temperature(self, m):
+    @staticmethod
+    def setup_constraint_room_temperature(m):
 
         def room_temperature_rc(m, t):
             if t == 1:
@@ -263,7 +271,8 @@ class OptInstance:
 
         m.room_temperature_rule = pyo.Constraint(m.t, rule=room_temperature_rc)
 
-    def setup_constraint_hot_water(self, m):
+    @staticmethod
+    def setup_constraint_hot_water(m):
 
         def tank_energy_DHW(m, t):
             if t == 1:
@@ -290,7 +299,8 @@ class OptInstance:
 
         m.SupplyOfDHW_rule = pyo.Constraint(m.t, rule=calc_hot_water_profile)
 
-    def setup_constraint_heat_pump(self, m):
+    @staticmethod
+    def setup_constraint_heat_pump(m):
         def calc_supply_of_space_heating_HP(m, t):
             return (
                     m.Q_HeatingTank_bypass[t] * m.SpaceHeatingHourlyCOP_tank[t] +
@@ -321,7 +331,8 @@ class OptInstance:
 
         m.max_HP_power_rule = pyo.Constraint(m.t, rule=constrain_heating_max_power_HP)
 
-    def setup_constraint_boiler(self, m):
+    @staticmethod
+    def setup_constraint_boiler(m):
         def calc_supply_of_space_heating_fuel_boiler(m, t):
             return (m.Q_HeatingTank_bypass[t] + m.Q_HeatingTank_in[t] ==
                     m.Q_Heating_Boiler_out[t] + m.Q_HeatingElement_heat[t])
@@ -353,18 +364,20 @@ class OptInstance:
 
         m.boiler_conversion_rule = pyo.Constraint(m.t, rule=calc_boiler_conversion)
 
-
-    def setup_constraint_heating_element(self, m):
+    @staticmethod
+    def setup_constraint_heating_element(m):
         def calc_heating_element(m, t):
             return m.Q_HeatingElement_DHW[t] + m.Q_HeatingElement_heat[t] == m.Q_HeatingElement[t]
         m.heating_element_rule = pyo.Constraint(m.t, rule=calc_heating_element)
 
-    def setup_constraint_space_cooling(self, m):
+    @staticmethod
+    def setup_constraint_space_cooling(m):
         def calc_E_RoomCooling_with_cooling(m, t):
             return m.E_RoomCooling[t] == m.Q_RoomCooling[t] / m.CoolingHourlyCOP[t]
         m.E_RoomCooling_with_cooling_rule = pyo.Constraint(m.t, rule=calc_E_RoomCooling_with_cooling)
 
-    def setup_constraint_pv(self, m):
+    @staticmethod
+    def setup_constraint_pv(m):
 
         def calc_UseOfPV(m, t):
             return m.PhotovoltaicProfile[t] == \
@@ -375,7 +388,8 @@ class OptInstance:
             return m.Feed2Grid[t] == m.PV2Grid[t]
         m.SumOfFeedin_rule = pyo.Constraint(m.t, rule=calc_SumOfFeedin)
 
-    def setup_constraint_battery(self, m):
+    @staticmethod
+    def setup_constraint_battery(m):
 
         def calc_BatCharge(m, t):
             return m.BatCharge[t] == m.PV2Bat[t] + m.Grid2Bat[t] + m.EV2Bat[t]
@@ -394,7 +408,8 @@ class OptInstance:
                        m.BatDischarge[t] * (1 + (1 - m.BatteryDischargeEfficiency))
         m.BatSoC_rule = pyo.Constraint(m.t, rule=calc_BatSoC)
 
-    def setup_constraint_ev(self, m):
+    @staticmethod
+    def setup_constraint_ev(m):
 
         def calc_EVCharge(m, t):
             return m.EVCharge[t] == m.PV2EV[t] + m.Grid2EV[t] + m.Bat2EV[t]
@@ -406,15 +421,17 @@ class OptInstance:
 
         def calc_EVSoC(m, t):
             if t == 1:
-                return m.EVSoC[t] == 0 + m.EVCharge[t] * m.EVChargeEfficiency - \
-                       m.EVDischarge[t] * (1 + (1 - m.EVDischargeEfficiency))
+                return m.EVSoC[t] == m.EVCapacity + \
+                                     m.EVCharge[t] * m.EVChargeEfficiency - \
+                                     m.EVDischarge[t] / m.EVDischargeEfficiency
             else:
-                return m.EVSoC[t] == \
-                       m.EVSoC[t - 1] + m.EVCharge[t] * m.EVChargeEfficiency - \
-                       m.EVDischarge[t] * (1 + (1 - m.EVDischargeEfficiency))
+                return m.EVSoC[t] == m.EVSoC[t - 1] + \
+                                     m.EVCharge[t] * m.EVChargeEfficiency - \
+                                     m.EVDischarge[t] / m.EVDischargeEfficiency
         m.EVSoC_rule = pyo.Constraint(m.t, rule=calc_EVSoC)
 
-    def setup_constraint_electricity_demand(self, m):
+    @staticmethod
+    def setup_constraint_electricity_demand(m):
 
         def calc_SumOfLoads_with_cooling(m, t):
             return m.Load[t] == \
@@ -425,7 +442,8 @@ class OptInstance:
                    m.E_DHW_HP_out[t]
         m.SumOfLoads_with_cooling_rule = pyo.Constraint(m.t, rule=calc_SumOfLoads_with_cooling)
 
-    def setup_constraint_electricity_supply(self, m):
+    @staticmethod
+    def setup_constraint_electricity_supply(m):
 
         def calc_UseOfGrid(m, t):
             return m.Grid[t] == m.Grid2Load[t] + m.Grid2Bat[t] + m.Grid2EV[t]
@@ -435,7 +453,8 @@ class OptInstance:
             return m.Load[t] == m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] + m.EV2Load[t]
         m.SupplyOfLoads_rule = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
 
-    def setup_objective(self, m):
+    @staticmethod
+    def setup_objective(m):
         def minimize_cost(m):
             rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Gas[t] * m.GasPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t)
             return rule
@@ -514,7 +533,7 @@ class OptConfig:
         # EV parameters
         instance.EVChargeEfficiency = self.scenario.vehicle.charge_efficiency
         instance.EVDischargeEfficiency = self.scenario.vehicle.discharge_efficiency
-        instance.ev_capacity = self.scenario.vehicle.capacity
+        instance.EVCapacity = self.scenario.vehicle.capacity
 
         # Thermal storage heating parameters
         instance.T_TankStart_heating = self.scenario.space_heating_tank.temperature_start
@@ -791,7 +810,6 @@ class OptConfig:
                 instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
                 instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
                 instance.EVDischarge[t].setub(max_discharge_ev[t - 1])
-
                 instance.EVDemandProfile[t] = self.model.EVDemandProfile[t-1]
                 # fix variables when EV is not at home:
                 if self.model.EVAtHomeProfile[t-1] == 0:

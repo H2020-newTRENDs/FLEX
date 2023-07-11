@@ -25,7 +25,6 @@ def run_operation_model(operation_scenario_ids: List[int], config: "Config"):
         ref_model = RefOperationModel(scenario).solve()
         RefDataCollector(ref_model, scenario.scenario_id, config, save_hour_results=False).run()
         # run opt model
-
         opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
         if solve_status:
             OptDataCollector(opt_model, scenario.scenario_id, config, save_hour_results=False).run()
@@ -42,12 +41,17 @@ def run_operation_analyzer(
     ana.create_component_energy_cost_change_tables(component_changes)
     ana.plot_operation_energy_cost_change_curve(component_changes)
     ana.plot_scenario_electricity_balance(scenario_id=1)
-    # # component interaction
+    # component interaction
     component_change = ("ID_PV", 2, 1)
     other_components = list(filter(lambda item: item[0] != component_change[0], components))
     ana.plot_component_interaction_full(component_change, other_components)
     ana.plot_component_interaction_specific(component_change, ("ID_Battery", 2))
     ana.plot_component_interaction_heatmap(component_change, ("ID_Boiler", 2), ("ID_SpaceHeatingTank", 2), components)
+
+
+def debug_operation_result(config: "Config"):
+    ana = OperationAnalyzer(config)
+    ana.compare_opt_ref(scenario_id=1)
 
 
 def find_infeasible_scenarios(config: "Config"):
@@ -57,4 +61,4 @@ def find_infeasible_scenarios(config: "Config"):
     opt_scenarios = list(opt["ID_Scenario"].unique())
     ref_scenarios = list(ref["ID_Scenario"].unique())
     infeasible_scenarios = set(ref_scenarios) - set(opt_scenarios)
-    print(f'Infeasible Scenarios: {infeasible_scenarios}.')
+    print(f'{len(infeasible_scenarios)} infeasible scenarios: {infeasible_scenarios}.')

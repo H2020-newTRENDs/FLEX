@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import itertools
 from typing import Dict, List, TYPE_CHECKING
@@ -20,22 +21,29 @@ class DatabaseInitializer:
 
     def load_behavior_table(self, table_name: str):
         logger.info(f"Loading FLEX-Behavior table -> {table_name}")
-        file_name = self.config.input_behavior / Path(table_name + ".xlsx")
-        self.load_table(file_name=file_name, table_name=table_name)
+        self.load_table(self.config.input_behavior, table_name=table_name)
 
     def load_operation_table(self, table_name: str):
         logger.info(f"Loading FLEX-Operation table -> {table_name}")
-        file_name = self.config.input_operation / Path(table_name + ".xlsx")
-        self.load_table(file_name=file_name, table_name=table_name)
+        self.load_table(self.config.input_operation, table_name=table_name)
 
     def load_community_table(self, table_name: str):
         logger.info(f"Loading FLEX-Community table -> {table_name}")
-        file_name = self.config.input_community / Path(table_name + ".xlsx")
-        self.load_table(file_name=file_name, table_name=table_name)
+        self.load_table(self.config.input_community, table_name=table_name)
 
-    def load_table(self, file_name: "Path", table_name: str):
-        df = pd.read_excel(file_name, engine="openpyxl").dropna(axis=0)
-        self.db.write_dataframe(table_name, df, if_exists="replace")
+    def load_table(self, input_folder: "Path", table_name: str):
+        extensions = {
+            ".xlsx": pd.read_excel,
+            ".csv": pd.read_csv
+        }
+        for ext, pd_read_func in extensions.items():
+            file = input_folder.joinpath(table_name + ext)
+            if file.exists():
+                self.db.write_dataframe(
+                    table_name=table_name,
+                    data_frame=pd_read_func(file),
+                    if_exists="replace"
+                )
 
     def generate_operation_scenario_table(self, scenario_table_name: str, component_table_names: Dict[str, str]):
         self.drop_table(scenario_table_name)

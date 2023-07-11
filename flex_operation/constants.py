@@ -44,6 +44,9 @@ class OperationScenarioComponent:
 class OperationTable:
     Scenarios = "OperationScenario"
     BehaviorProfile = "OperationScenario_BehaviorProfile"
+    DrivingProfile_ParkingHome = "OperationScenario_DrivingProfile_ParkingHome"
+    DrivingProfile_Distance = "OperationScenario_DrivingProfile_Distance"
+    DrivingProfile_ChargingOutside = "OperationScenario_DrivingProfile_ChargingOutside"
     EnergyPriceProfile = "OperationScenario_EnergyPrice"
     RegionWeatherProfile = "OperationScenario_RegionWeather"
     ResultOptHour = "OperationResult_OptimizationHour"
