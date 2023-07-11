@@ -2,14 +2,12 @@ from typing import List
 
 from flex.config import Config
 from flex.db import create_db_conn
-from flex.kit import get_logger
 from flex_community.aggregator import Aggregator
 from flex_community.analyzer import CommunityAnalyzer
 from flex_community.data_collector import CommunityDataCollector
 from flex_community.model import CommunityModel
 from flex_community.scenario import CommunityScenario
 from flex_operation.constants import OperationTable
-logger = get_logger(__name__)
 
 
 def run_community_model(community_scenario_ids, operation_scenario_ids, config: "Config"):

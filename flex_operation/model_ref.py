@@ -1,15 +1,15 @@
 import numpy as np
 import copy
+import logging
 from flex_operation.model_base import OperationModel
-from flex.kit import get_logger
-
-logger = get_logger(__name__)
 
 
 class RefOperationModel(OperationModel):
 
     def solve(self):
-        if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
+        logger = logging.getLogger(f"{self.scenario.config.project_name}")
+        logger.info(f"starting solving Ref model.")
+        if self.scenario.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
             model_ref = self.run_heatpump_ref()
         else:
             model_ref = self.run_fuel_boiler_ref()
@@ -17,6 +17,8 @@ class RefOperationModel(OperationModel):
         return model_ref
 
     def calc_space_heating_demand(self):
+        logger = logging.getLogger(f"{self.scenario.config.project_name}")
+
         hp_max = (
             self.SpaceHeating_HeatPumpMaximalElectricPower * self.SpaceHeatingHourlyCOP
         )
@@ -166,12 +168,13 @@ class RefOperationModel(OperationModel):
         self.Bat2EV = np.zeros(pv_surplus.shape)
 
         if self.scenario.vehicle.capacity > 0:
-            self.EVDemandProfile = self.scenario.behavior.vehicle_demand
-            self.EVDischarge = self.EVDemandProfile
 
-            capacity = self.scenario.vehicle.capacity  # kWh
-            max_charge_power = self.scenario.vehicle.charge_power_max  # kW
-            charge_efficiency = self.scenario.vehicle.charge_efficiency
+            capacity = self.scenario.vehicle.capacity  # Wh
+            max_charge_power = self.scenario.vehicle.charge_power_max  # W
+            charge_efficiency = self.scenario.vehicle.charge_efficiency  # %
+            discharge_efficiency = self.scenario.vehicle.discharge_efficiency  # %
+            self.EVDemandProfile = self.scenario.behavior.vehicle_demand
+            self.EVDischarge = self.EVDemandProfile / discharge_efficiency
 
             grid_demand_after_ev = np.copy(grid_demand)
             pv_surplus_after_ev = np.copy(pv_surplus)
@@ -183,39 +186,28 @@ class RefOperationModel(OperationModel):
                 else:
                     ev_soc_start = self.EVSoC[i - 1]
 
-                if self.EVAtHomeProfile[i] == 1:
+                if self.EVAtHomeProfile[i] == 1 and ev_soc_start <= capacity:
 
-                    if ev_soc_start <= capacity:
-
-                        charge_necessary = capacity - ev_soc_start
-                        if charge_necessary <= max_charge_power:
-                            charge_amount = charge_necessary
-                        else:
-                            charge_amount = max_charge_power
-
-                        if pv_surplus[i] > 0:
-                            if pv_surplus[i] * charge_efficiency <= charge_amount:
-                                pv_surplus_after_ev[i] -= pv_surplus[i]
-                                grid_demand_after_ev[i] += (
-                                    charge_amount / charge_efficiency - pv_surplus[i]
-                                )
-                                self.Grid2EV[i] = (
-                                    charge_amount - pv_surplus[i] * charge_efficiency
-                                )
-                            else:
-                                pv_surplus_after_ev[i] -= (
-                                    charge_amount / charge_efficiency
-                                )
-
-                        else:
-                            grid_demand_after_ev[i] += charge_amount / charge_efficiency
-                            self.Grid2EV[i] = charge_amount
-
-                        self.EVCharge[i] = charge_amount
-                        self.EVSoC[i] = ev_soc_start + charge_amount
-
+                    charge_necessary = capacity - ev_soc_start
+                    if charge_necessary <= max_charge_power:
+                        charge_amount = charge_necessary
                     else:
-                        pass
+                        charge_amount = max_charge_power
+
+                    if pv_surplus[i] > 0:
+                        if pv_surplus[i] * charge_efficiency <= charge_amount:
+                            pv_surplus_after_ev[i] -= pv_surplus[i]
+                            grid_demand_after_ev[i] += (charge_amount / charge_efficiency - pv_surplus[i])
+                            self.Grid2EV[i] = charge_amount - pv_surplus[i] * charge_efficiency
+                        else:
+                            pv_surplus_after_ev[i] -= charge_amount / charge_efficiency
+                    else:
+                        grid_demand_after_ev[i] += charge_amount / charge_efficiency
+                        self.Grid2EV[i] = charge_amount
+
+                    self.EVCharge[i] = charge_amount
+                    # self.EVSoC[i] = ev_soc_start + charge_amount
+                    self.EVSoC[i] = ev_soc_start + charge_amount - self.EVDischarge[i]
 
                 else:
                     self.EVSoC[i] = ev_soc_start - self.EVDischarge[i]
@@ -236,7 +228,7 @@ class RefOperationModel(OperationModel):
 
         Returns: grid_demand_after_DHW, electricity_surplus_after_DHW
         """
-
+        logger = logging.getLogger(f"{self.scenario.config.project_name}")
         self.Q_DHWTank = np.ones(pv_surplus.shape) * self.scenario.hot_water_tank.temperature_min
         self.Q_DHWTank_out = np.zeros(pv_surplus.shape)
         self.Q_DHWTank_in = np.zeros(pv_surplus.shape)
@@ -248,7 +240,7 @@ class RefOperationModel(OperationModel):
             temperature_min = self.scenario.hot_water_tank.temperature_min
             temperature_max = self.scenario.hot_water_tank.temperature_max
             size = self.scenario.hot_water_tank.size
-            surface_area = self.scenario.hot_water_tank.surface_area
+            surface_area = self.A_SurfaceTank_DHW
             loss = self.U_LossTank_DHW
             surrounding_temperature = self.T_TankSurrounding_DHW
             cop = self.HotWaterHourlyCOP
@@ -397,7 +389,6 @@ class RefOperationModel(OperationModel):
 
         Returns: grid_demand_after_DHW, electricity_surplus_after_DHW
         """
-
         self.Q_DHWTank = np.ones(pv_surplus.shape) * self.scenario.hot_water_tank.temperature_min
         self.Q_DHWTank_out = np.zeros(pv_surplus.shape)
         self.Q_DHWTank_in = np.zeros(pv_surplus.shape)
@@ -409,7 +400,7 @@ class RefOperationModel(OperationModel):
             temperature_min = self.scenario.hot_water_tank.temperature_min
             temperature_max = self.scenario.hot_water_tank.temperature_max
             size = self.scenario.hot_water_tank.size
-            surface_area = self.scenario.hot_water_tank.surface_area
+            surface_area = self.A_SurfaceTank_DHW
             loss = self.U_LossTank_DHW
             surrounding_temperature = self.T_TankSurrounding_DHW
             tank_capacity = size * self.CPWater
@@ -533,8 +524,8 @@ class RefOperationModel(OperationModel):
         self.TotalCost = self.ElectricityPrice * grid_demand - pv_surplus * self.FiT
 
     def set_boiler_parameters_to_zero(self):
-        self.Gas = np.zeros(shape=self.Grid.shape)
-        self.GasPrice = np.zeros(shape=self.Grid.shape)
+        self.Fuel = np.zeros(shape=self.Grid.shape)
+        self.FuelPrice = np.zeros(shape=self.Grid.shape)
         self.Q_DHW_Boiler_out = np.zeros(shape=self.Grid.shape)
         self.Q_Heating_Boiler_out = np.zeros(shape=self.Grid.shape)
 
@@ -552,14 +543,13 @@ class RefOperationModel(OperationModel):
         grid_demand, pv_surplus = self.calc_load()
         grid_demand, pv_surplus = self.calc_battery_energy(grid_demand, pv_surplus)
         grid_demand, pv_surplus = self.calculate_ev_energy(grid_demand, pv_surplus)
-        grid_demand, pv_surplus = self.calc_hot_water_tank_energy(
-            grid_demand, pv_surplus
-        )
+        grid_demand, pv_surplus = self.calc_hot_water_tank_energy(grid_demand, pv_surplus)
         self.calc_grid(grid_demand, pv_surplus)
         self.set_boiler_parameters_to_zero()
         return self
 
     def calc_space_heating_demand_fuel_boiler(self):
+        logger = logging.getLogger(f"{self.scenario.config.project_name}")
         boiler_max = self.scenario.boiler.power_max
 
         self.Q_HeatingElement = np.where(
@@ -581,7 +571,7 @@ class RefOperationModel(OperationModel):
         self.Q_DHW_Boiler_out = self.Q_DHWTank_bypass
 
     def calc_gas_demand(self):
-        self.Gas = (self.Q_DHW_Boiler_out + self.Q_Heating_Boiler_out) / self.fuel_boiler_efficiency
+        self.Fuel = (self.Q_DHW_Boiler_out + self.Q_Heating_Boiler_out) / self.fuel_boiler_efficiency
 
     def calc_load_fuel_boiler(self):
         self.Load = (
@@ -603,9 +593,12 @@ class RefOperationModel(OperationModel):
         self.Grid2Load = grid_demand
         self.PV2Grid = pv_surplus
         self.Feed2Grid = pv_surplus
-        self.GasPrice = self.scenario.energy_price.gases
+        if self.scenario.boiler.type not in ['Air_HP', 'Ground_HP']:
+            self.FuelPrice = self.scenario.energy_price.__dict__[self.scenario.boiler.type]
+        else:
+            self.FuelPrice = self.scenario.energy_price.gases
         self.TotalCost = self.ElectricityPrice * grid_demand - pv_surplus * self.FiT + \
-                         self.Gas * self.GasPrice
+                         self.Fuel * self.FuelPrice
 
     def set_heat_pump_parameters_to_zero(self):
         self.E_Heating_HP_out = np.zeros(shape=self.Grid.shape)
@@ -619,8 +612,8 @@ class RefOperationModel(OperationModel):
         grid_demand, pv_surplus = self.calc_load_fuel_boiler()
         grid_demand, pv_surplus = self.calc_battery_energy(grid_demand, pv_surplus)
         grid_demand, pv_surplus = self.calculate_ev_energy(grid_demand, pv_surplus)
-        self.Gas, pv_surplus = self.calc_hot_water_tank_energy_fuel_boiler(
-            self.Gas, pv_surplus
+        self.Fuel, pv_surplus = self.calc_hot_water_tank_energy_fuel_boiler(
+            self.Fuel, pv_surplus
         )
         self.calc_grid_fuel_boiler(grid_demand, pv_surplus)
         self.set_heat_pump_parameters_to_zero()

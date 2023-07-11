@@ -17,7 +17,6 @@ class Region(OperationComponent):
     year: Optional[int] = None
     temperature: Optional[np.ndarray] = None
     temperature_unit: Optional[str] = None
-    norm_outside_temperature: Optional[float] = None
     radiation_north: Optional[np.ndarray] = None
     radiation_south: Optional[np.ndarray] = None
     radiation_east: Optional[np.ndarray] = None
@@ -133,6 +132,8 @@ class Vehicle(OperationComponent):
     discharge_power_max: Optional[float] = None
     discharge_power_max_unit: Optional[str] = None
     charge_bidirectional: Optional[float] = None
+    id_parking_at_home_profile: Optional[int] = None
+    id_distance_profile: Optional[int] = None
 
 
 @dataclass

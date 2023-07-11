@@ -1,5 +1,5 @@
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Optional
 
 import numpy as np
@@ -25,9 +25,36 @@ from flex_operation.constants import OperationScenarioComponent, OperationTable
 
 
 @dataclass
+class MotherOperationScenario:
+    config: "Config"
+
+    def __post_init__(self):
+        self.db = create_db_conn(self.config)
+        self.component_table_names = self.get_component_table_names()
+        self.get_component_tables()
+
+        setattr(self, OperationTable.BehaviorProfile, self.db.read_dataframe(OperationTable.BehaviorProfile))
+        setattr(self, OperationTable.EnergyPriceProfile, self.db.read_dataframe(OperationTable.EnergyPriceProfile))
+        setattr(self, OperationTable.RegionWeatherProfile, self.db.read_dataframe(OperationTable.RegionWeatherProfile))
+        setattr(self, OperationTable.Scenarios, self.db.read_dataframe(OperationTable.Scenarios))
+
+    def get_component_table_names(self) -> list:
+        scenario_df = self.db.read_dataframe(OperationTable.Scenarios)
+        component_table_names = scenario_df.columns.drop("ID_Scenario").to_list()
+        return component_table_names
+
+    def get_component_tables(self):
+        for table_name in self.component_table_names:
+            component_info = OperationScenarioComponent.__dict__[table_name.replace("ID_", "")]
+            df = self.db.read_dataframe(component_info.table_name)
+            setattr(self, component_info.table_name, df)
+
+
+@dataclass
 class OperationScenario:
     scenario_id: int
     config: "Config"
+    tables: "MotherOperationScenario"
     region: Optional["Region"] = None
     building: Optional["Building"] = None
     boiler: Optional["Boiler"] = None
@@ -42,16 +69,17 @@ class OperationScenario:
     heating_element: Optional["HeatingElement"] = None
 
     def __post_init__(self):
-        self.db = create_db_conn(self.config)
+        # self.db = create_db_conn(self.config)
         self.component_scenario_ids = self.get_component_scenario_ids()
         self.setup_components()
         self.setup_region_weather_and_pv_generation()
         self.setup_energy_price()
         self.setup_behavior()
+        self.setup_vehicle_profiles()
 
-    def get_component_scenario_ids(self):
-        scenario_df = self.db.read_dataframe(OperationTable.Scenarios, filter={"ID_Scenario": self.scenario_id})
-        component_scenario_ids: dict = scenario_df.iloc[0].to_dict()
+    def get_component_scenario_ids(self) -> dict:
+        scenario_df = self.tables.__getattribute__(OperationTable.Scenarios)
+        component_scenario_ids: dict = scenario_df.iloc[self.scenario_id - 1].to_dict()
         del component_scenario_ids["ID_Scenario"]
         return component_scenario_ids
 
@@ -59,19 +87,18 @@ class OperationScenario:
         for id_component, component_scenario_id in self.component_scenario_ids.items():
             component_info = OperationScenarioComponent.__dict__[id_component.replace("ID_", "")]
             if component_info.name in self.__dict__.keys():
-                df = self.db.read_dataframe(
-                    component_info.table_name,
-                    filter={component_info.id_name: component_scenario_id},
-                )
+                df = self.tables.__getattribute__(component_info.table_name)
+                row = df.loc[df.loc[:, component_info.id_name] == component_scenario_id, :].squeeze()
                 instance = getattr(sys.modules[__name__], component_info.camel_name)()
-                instance.set_params(df.iloc[0].to_dict())
+                instance.set_params(row.to_dict())
                 setattr(self, component_info.name, instance)
 
     def setup_region_weather_and_pv_generation(self):
-        df = self.db.read_dataframe(
-            OperationTable.RegionWeatherProfile,
-            filter={"region": self.region.code, "year": self.region.year},
-        )
+        # df = self.db.read_dataframe(
+        #     OperationTable.RegionWeatherProfile,
+        #     filter={"region": self.region.code, "year": self.region.year},
+        # )
+        df = self.db.read_dataframe(OperationTable.RegionWeatherProfile)
         self.region.temperature = df["temperature"].to_numpy()
         self.region.radiation_north = df["radiation_north"].to_numpy()
         self.region.radiation_south = df["radiation_south"].to_numpy()
@@ -80,19 +107,16 @@ class OperationScenario:
         self.pv.generation = df["pv_generation"].to_numpy() * self.pv.size
 
     def setup_energy_price(self):
-        df = self.db.read_dataframe(
-            OperationTable.EnergyPriceProfile,
-            filter={"region": self.region.code, "year": self.region.year},
-        )
+        # df = self.db.read_dataframe(
+        #     OperationTable.EnergyPriceProfile,
+        #     filter={"region": self.region.code, "year": self.region.year},
+        # )
+        df = self.db.read_dataframe(OperationTable.EnergyPriceProfile)
         for key, value in self.energy_price.__dict__.items():
             if key.startswith("id_") and value is not None:
                 energy_carrier = key.replace("id_", "")
                 energy_price_column = f"{energy_carrier}_{value}"
-                self.energy_price.__dict__[energy_carrier] = df[
-                    energy_price_column
-                ].to_numpy()
-            else:
-                pass
+                self.energy_price.__dict__[energy_carrier] = df[energy_price_column].to_numpy()
 
     @staticmethod
     def gen_target_temperature_range_array(
@@ -139,21 +163,6 @@ class OperationScenario:
             profile[index] = annual_amount * hour_weight / weight_sum
         return profile
 
-    def setup_behavior_vehicle(self, behavior: pd.DataFrame):
-        column_at_home = (
-            f"vehicle_at_home_profile_{self.behavior.id_vehicle_at_home_profile}"
-        )
-        column_distance = (
-            f"vehicle_distance_profile_{self.behavior.id_vehicle_distance_profile}"
-        )
-        self.behavior.vehicle_at_home = (
-            behavior[column_at_home].to_numpy()
-        )  # pyomo Problem with 0
-        self.behavior.vehicle_distance = behavior[column_distance].to_numpy()
-        self.behavior.vehicle_demand = (
-            self.behavior.vehicle_distance * self.vehicle.consumption_rate
-        )
-
     def setup_behavior_hot_water_demand(self, behavior: pd.DataFrame):
         column = f"hot_water_demand_profile_{self.behavior.id_hot_water_demand_profile}"
         annual_demand = self.behavior.hot_water_demand_annual * self.building.person_num
@@ -172,8 +181,14 @@ class OperationScenario:
         )
 
     def setup_behavior(self):
-        behavior_df = self.db.read_dataframe(OperationTable.BehaviorProfile)
+        behavior_df = self.tables.__getattribute__(OperationTable.BehaviorProfile)
         self.setup_behavior_target_temperature(behavior_df)
-        self.setup_behavior_vehicle(behavior_df)
         self.setup_behavior_hot_water_demand(behavior_df)
         self.setup_behavior_appliance_electricity_demand(behavior_df)
+
+    def setup_vehicle_profiles(self):
+        parking_home = self.db.read_dataframe(OperationTable.DrivingProfile_ParkingHome)
+        self.behavior.vehicle_at_home = parking_home[str(self.vehicle.id_parking_at_home_profile)].to_numpy()
+        distance = self.db.read_dataframe(OperationTable.DrivingProfile_Distance)
+        self.behavior.vehicle_distance = distance[str(self.vehicle.id_distance_profile)].to_numpy()
+        self.behavior.vehicle_demand = self.behavior.vehicle_distance * self.vehicle.consumption_rate
