@@ -77,10 +77,14 @@ class DatabaseInitializer:
         excluded_values = [params_values[k] for k in excluded_keys]
         if not all(len(element) == len(excluded_values[0]) for element in excluded_values):
             assert "values of excluded keys provided dont have the same length"
+        # create a tuple of the excluded lists to zip them
+        t = tuple(excluded_values[i] for i in range(len(excluded_values)))
+        # create a list of the excluded lists
+        excluded_lists = list(map(list, zip(*t)))
         # define the first key and its value which is used in the permutation:
         first_excluded_key = excluded_keys[0]
         # create new dictionary where the excluded list is the first element of the first excluded key
-        new_dict = {first_excluded_key: excluded_values}
+        new_dict = {first_excluded_key: excluded_lists}
         for key, values in params_values.items():
             if key not in excluded_keys:
                 new_dict[key] = values
@@ -110,6 +114,5 @@ if __name__ == "__main__":
     dictionary = {"a": [1, 1, 1],
                   "b": [2, 2, 2],
                   "c": [3, 3]}
-    # dbi.\
-    generate_params_combination_df(params_values=dictionary, excluded_keys=["a", "b"])
+    dbi.generate_params_combination_df(params_values=dictionary, excluded_keys=["a", "b"])
 
