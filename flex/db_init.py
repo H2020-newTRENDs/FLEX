@@ -70,10 +70,28 @@ class DatabaseInitializer:
         return component_scenario_ids
 
     @staticmethod
-    def generate_params_combination_df(params_values: dict) -> pd.DataFrame:
-        keys, values = zip(*params_values.items())
+    def generate_params_combination_df(params_values: dict,
+                                       excluded_keys: List[str]) -> pd.DataFrame:
+
+        # check if the exclude keys have the same length,
+        excluded_values = [params_values[k] for k in excluded_keys]
+        if not all(len(element) == len(excluded_values[0]) for element in excluded_values):
+            assert "values of excluded keys provided dont have the same length"
+        # define the first key and its value which is used in the permutation:
+        first_excluded_key = excluded_keys[0]
+        # create new dictionary where the excluded list is the first element of the first excluded key
+        new_dict = {first_excluded_key: excluded_values}
+        for key, values in params_values.items():
+            if key not in excluded_keys:
+                new_dict[key] = values
+
+        keys, values = zip(*new_dict.items())
         permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
-        return pd.DataFrame(permutations_dicts)
+
+        df = pd.DataFrame(permutations_dicts)
+        # expand the column with the excluded values with their key names:
+        df[excluded_keys] = df[first_excluded_key].apply(pd.Series)
+        return df
 
     def drop_table(self, table_name: str):
         logger = logging.getLogger(self.config.project_name)
@@ -81,3 +99,17 @@ class DatabaseInitializer:
         if engine.dialect.has_table(engine, table_name):
             logger.info(f"Dropping table -> {table_name}")
             self.db.drop_table(table_name)
+
+
+if __name__ == "__main__":
+    from config import cfg
+    test_df1 = pd.DataFrame(data=[1, 2, 3], columns=["A"])
+    test_df2 = pd.DataFrame(data=[1, 2, 3], columns=["B"])
+    test_df3 = pd.DataFrame(data=[1, 2, 3], columns=["C"])
+    dbi = DatabaseInitializer(config=cfg)
+    dictionary = {"a": [1, 1, 1],
+                  "b": [2, 2, 2],
+                  "c": [3, 3]}
+    # dbi.\
+    generate_params_combination_df(params_values=dictionary, excluded_keys=["a", "b"])
+
