@@ -593,7 +593,7 @@ class RefOperationModel(OperationModel):
         self.Grid2Load = grid_demand
         self.PV2Grid = pv_surplus
         self.Feed2Grid = pv_surplus
-        if self.scenario.boiler.type not in ['Air_HP', 'Ground_HP']:
+        if self.scenario.boiler.type not in ['Air_HP', 'Ground_HP', 'Electric']:
             self.FuelPrice = self.scenario.energy_price.__dict__[self.scenario.boiler.type]
         else:
             self.FuelPrice = self.scenario.energy_price.gases
