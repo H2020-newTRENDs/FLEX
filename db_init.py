@@ -1,6 +1,7 @@
 import logging
-
+from typing import List
 from config import cfg
+from flex.config import Config
 from flex.db_init import DatabaseInitializer
 from flex_behavior.constants import BehaviorTable
 from flex_community.constants import CommunityTable
@@ -10,6 +11,13 @@ from flex_operation.constants import OperationTable
 
 
 class ProjectDatabaseInit(DatabaseInitializer):
+
+    def __init__(self, config: "Config",
+                 exclude_from_permutation: List[str] = None,
+                 load_scenario_table: bool = True):
+        super().__init__(config)
+        self.exclude_from_permutation = exclude_from_permutation
+        self.load_scenario_table = load_scenario_table
 
     def load_behavior_tables(self):
         self.load_behavior_table(BehaviorTable.Scenarios)
@@ -27,7 +35,7 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.load_behavior_table(BehaviorTable.TechnologyDuration)
 
     def load_operation_component_tables(self):
-        self.load_operation_table(OperationScenarioComponent.Region.table_name)
+        # self.load_operation_table(OperationScenarioComponent.Region.table_name)
         self.load_operation_table(OperationScenarioComponent.Building.table_name)
         self.load_operation_table(OperationScenarioComponent.Boiler.table_name)
         self.load_operation_table(OperationScenarioComponent.HeatingElement.table_name)
@@ -41,15 +49,21 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.load_operation_table(OperationScenarioComponent.Behavior.table_name)
 
     def setup_operation_scenario_table(self):
-        def generate():
+        def generate(exclude_from_permutation: List[str] = None):
             component_table_names = {}
             for key, value in OperationScenarioComponent.__dict__.items():
                 if isinstance(value, OperationComponentInfo):
                     component_table_names[value.id_name] = value.table_name
-            self.generate_operation_scenario_table(OperationTable.Scenarios, component_table_names)
+            self.generate_operation_scenario_table(
+                scenario_table_name=OperationTable.Scenarios,
+                component_table_names=component_table_names,
+                exclude_from_permutation=exclude_from_permutation
+            )
 
-        # generate()
-        self.load_operation_table(OperationTable.Scenarios)
+        if self.load_scenario_table:
+            self.load_operation_table(OperationTable.Scenarios)
+        else:
+            generate(exclude_from_permutation=self.exclude_from_permutation)
 
     def load_operation_profile_tables(self):
         self.load_operation_table(OperationTable.BehaviorProfile)
@@ -81,5 +95,8 @@ class ProjectDatabaseInit(DatabaseInitializer):
 
 
 if __name__ == "__main__":
-    init = ProjectDatabaseInit(config=cfg)
+    init = ProjectDatabaseInit(
+        config=cfg,
+        exclude_from_permutation=None,
+        load_scenario_table=False)
     init.run()
