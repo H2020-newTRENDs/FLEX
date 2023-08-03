@@ -7,6 +7,7 @@ import shutil
 import multiprocessing
 from joblib import Parallel, delayed
 from flex.config import Config
+from config import cfg as project_config
 from flex.db import create_db_conn
 from flex_operation.analyzer import OperationAnalyzer
 from flex_operation.constants import OperationTable
@@ -144,17 +145,34 @@ def split_scenario(orig_project_name: str, n_cores: int) -> List[str]:
     return copy_names
 
 
-def main(project_name: str, use_multiprocessing: bool = True):
+def main(project_name: str,
+         use_multiprocessing: bool = True,
+         save_hourly_results: bool = True,
+         save_monthly_results: bool = False,
+         save_yearly_results: bool = True,
+         ):
     if use_multiprocessing:
         number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
         new_scenario_names = split_scenario(orig_project_name=project_name, n_cores=number_of_physical_cores)
-        input_list = [Config(project_name=name) for name in new_scenario_names]
-        Parallel(n_jobs=number_of_physical_cores)(delayed(run_operation_model)(inst) for inst in input_list)
+        input_list = [
+            (Config(project_name=name), save_hourly_results, save_monthly_results, save_yearly_results)
+            for name in new_scenario_names
+        ]
+        Parallel(n_jobs=number_of_physical_cores)(delayed(run_operation_model)(*inst) for inst in input_list)
     else:
-        run_operation_model(cfg=Config(project_name=project_name))
+        run_operation_model(
+            cfg=Config(project_name=project_name),
+            save_hourly_results=save_hourly_results,
+            save_monthly_results=save_monthly_results,
+            save_yearly_results=save_yearly_results
+        )
 
 
-def run_operation_model(cfg: "Config", operation_scenario_ids: List[int] = None):
+def run_operation_model(cfg: "Config",
+                        operation_scenario_ids: List[int] = None,
+                        save_hourly_results: bool = True,
+                        save_monthly_results: bool = False,
+                        save_yearly_results: bool = True):
     """ operation_scenario_ids: None means that the scenario IDs are taken from the scenario table an are continued
     if there are already results available. By defining the operation_scneario_ids, the model is forced to run the
     defined IDs."""
@@ -188,12 +206,22 @@ def run_operation_model(cfg: "Config", operation_scenario_ids: List[int] = None)
         scenario = OperationScenario(scenario_id=id_operation_scenario, config=cfg, tables=mother_operation)
         # run ref model
         ref_model = RefOperationModel(scenario).solve()
-        RefDataCollector(ref_model, scenario.scenario_id, cfg, save_hour_results=True).run()
+        RefDataCollector(model=ref_model,
+                         scenario_id=scenario.scenario_id,
+                         config=cfg,
+                         save_hour_results=save_hourly_results,
+                         save_month_results=save_monthly_results,
+                         save_year_results=save_yearly_results).run()
         # run opt model
 
         opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
         if solve_status:
-            OptDataCollector(opt_model, scenario.scenario_id, cfg, save_hour_results=True).run()
+            OptDataCollector(model=opt_model,
+                             scenario_id=scenario.scenario_id,
+                             config=cfg,
+                             save_hour_results=True,
+                             save_month_results=save_monthly_results,
+                             save_year_results=save_yearly_results).run()
 
     # check if there were any infeasible scenarios:
     check_for_infeasible_scenarios(cfg)
@@ -265,11 +293,10 @@ def replace_scenario_runs(cfg: "Config", operation_scenario_ids: List[int] = Non
             ValueError("mode must be either 'both', 'optimization' or 'reference'")
 
 
-
 def run_operation_analyzer(
-    component_changes: List[Tuple[str, int, int]],
-    components: List[Tuple[str, int]],
-    config: "Config"
+        component_changes: List[Tuple[str, int, int]],
+        components: List[Tuple[str, int]],
+        config: "Config"
 ):
     ana = OperationAnalyzer(config)
     ana.create_operation_energy_cost_table()
@@ -299,4 +326,13 @@ def find_infeasible_scenarios(config: "Config") -> list:
     infeasible_scenarios = set(ref_scenarios) - set(opt_scenarios)
 
     return list(infeasible_scenarios)
+
+
+if __name__ == "__main__":
+    main(project_name=project_config.project_name,
+         use_multiprocessing=True,
+         save_hourly_results=True,
+         save_monthly_results=False,
+         save_yearly_results=True,
+         )
 
