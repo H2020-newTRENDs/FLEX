@@ -98,16 +98,12 @@ def create_intermediate_folders(conf: "Config", folder_names: List[str]):
         output_folder_target = conf.output.parent / sub_project_name
         operation_folder_source = conf.input_operation
         operation_folder_target = conf.input_operation.parent / sub_project_name
-        if output_folder_target.exists():
-            shutil.rmtree(output_folder_target)
-        if operation_folder_target.exists():
-            shutil.rmtree(operation_folder_target)
-        shutil.copytree(src=output_folder_source, dst=output_folder_target)
+        shutil.copytree(src=output_folder_source, dst=output_folder_target, dirs_exist_ok=True)
         # rename the copied database so it will be used:
         path_to_sqlite = output_folder_target / f"{conf.project_name}.sqlite"
         path_to_sqlite.rename(output_folder_target / f"{sub_project_name}.sqlite")
         # copy operation folder
-        shutil.copytree(src=operation_folder_source, dst=operation_folder_target)
+        shutil.copytree(src=operation_folder_source, dst=operation_folder_target, dirs_exist_ok=True)
 
 
 def create_lists_of_subscenarios(conf: "Config", number: int) -> List[List[int]]:
@@ -203,7 +199,9 @@ def run_operation_model(cfg: "Config", operation_scenario_ids: List[int] = None)
     check_for_infeasible_scenarios(cfg)
 
 
-def run_and_replace_reference_scenario(scen: OperationScenario, db, cfg):
+def run_and_replace_reference_scenario(scen: OperationScenario,
+                                       db,
+                                       cfg):
     # run ref model
     ref_model = RefOperationModel(scen).solve()
     # delete the results from the sqlite database, the hourly results will be overwritten by default
@@ -216,7 +214,10 @@ def run_and_replace_reference_scenario(scen: OperationScenario, db, cfg):
     RefDataCollector(ref_model, scen.scenario_id, cfg, save_hour_results=True).run()
 
 
-def run_and_replace_optimization_scenario(scen: OperationScenario, db, cfg, opt_instance):
+def run_and_replace_optimization_scenario(scen: OperationScenario,
+                                          db,
+                                          cfg,
+                                          opt_instance):
     # run opt model
     opt_model, solve_status = OptOperationModel(scen).solve(opt_instance)
     # delete the results from the sqlite database, the hourly results will be overwritten by default
