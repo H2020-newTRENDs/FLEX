@@ -46,11 +46,24 @@ class DatabaseInitializer:
                     if_exists="replace"
                 )
 
-    def generate_operation_scenario_table(self, scenario_table_name: str, component_table_names: Dict[str, str]):
+    def generate_operation_scenario_table(self,
+                                          scenario_table_name: str,
+                                          component_table_names: Dict[str, str],
+                                          exclude_from_permutation: List[str] = None) -> None:
+        """
+        Creates the Scenario Table and saves it to the sqlite database.
+        :param exclude_from_permutation: a list of ID names (eg. ID_Boiler) that should be excluded from permutation
+        :param scenario_table_name: Name of the scenario table, default is OperationTable.Scenarios
+        :param component_table_names: dictionary containing the ID name (eg. ID_Boiler) and the Table name (eg.
+                OperationScenario_Component_Boiler)
+        """
         self.drop_table(scenario_table_name)
         logger = logging.getLogger(self.config.project_name)
         logger.info(f"Generating FLEX-Operation scenario table -> {scenario_table_name}")
-        scenario_df = self.generate_params_combination_df(self.get_component_scenario_ids(component_table_names))
+        scenario_df = self.generate_params_combination_df(
+            params_values=self.get_component_scenario_ids(component_table_names),
+            excluded_keys=exclude_from_permutation
+        )
         scenario_ids = np.array(range(1, 1 + len(scenario_df)))
         scenario_df.insert(loc=0, column="ID_Scenario", value=scenario_ids)
         data_types = {name: sqlalchemy.types.Integer for name in scenario_df.columns}
@@ -70,31 +83,44 @@ class DatabaseInitializer:
         return component_scenario_ids
 
     @staticmethod
-    def generate_params_combination_df(params_values: dict,
-                                       excluded_keys: List[str]) -> pd.DataFrame:
+    def generate_params_combination_df(params_values: Dict[str, List[int]],
+                                       excluded_keys: List[str] = None) -> pd.DataFrame:
+        """
+        The function creates a permutation of all the ID vectors in the params_values dictionary values. If excluded
+        keys are provided, these IDs will not be included in the permutation. For example if you have already pre-
+        defined the building parameters and you know which building IDs will have a battery storage you should exclude
+        building IDs and Battery IDs from the permutation.
+        :param params_values: a dictionary containing the ID name as key and the IDs as list as values.
+        :param excluded_keys: a list of ID names which should be excluded from the permutation. At least 2!
+        :return: pandas DataFrame as Scenario ID table which has the Component IDs as column names
+        """
+        if excluded_keys:
+            # check if at least 2 excluded keys were provided:
+            assert len(excluded_keys) > 1, "at least 2 ID names have to be provided in the excluded key list"
+            # check if the exclude keys have the same length,
+            excluded_values = [params_values[k] for k in excluded_keys]
+            if not all(len(element) == len(excluded_values[0]) for element in excluded_values):
+                assert "values of excluded keys provided dont have the same length"
+            # create a list of the excluded lists
+            excluded_lists = list(map(list, zip(*excluded_values)))
+            # define the first key and its value which is used in the permutation:
+            first_excluded_key = excluded_keys[0]
+            # create new dictionary where the excluded list is the first element of the first excluded key
+            new_dict = {first_excluded_key: excluded_lists}
+            for key, values in params_values.items():
+                if key not in excluded_keys:
+                    new_dict[key] = values
 
-        # check if the exclude keys have the same length,
-        excluded_values = [params_values[k] for k in excluded_keys]
-        if not all(len(element) == len(excluded_values[0]) for element in excluded_values):
-            assert "values of excluded keys provided dont have the same length"
-        # create a tuple of the excluded lists to zip them
-        t = tuple(excluded_values[i] for i in range(len(excluded_values)))
-        # create a list of the excluded lists
-        excluded_lists = list(map(list, zip(*t)))
-        # define the first key and its value which is used in the permutation:
-        first_excluded_key = excluded_keys[0]
-        # create new dictionary where the excluded list is the first element of the first excluded key
-        new_dict = {first_excluded_key: excluded_lists}
-        for key, values in params_values.items():
-            if key not in excluded_keys:
-                new_dict[key] = values
+            keys, values = zip(*new_dict.items())
+            permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
-        keys, values = zip(*new_dict.items())
-        permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
-
-        df = pd.DataFrame(permutations_dicts)
-        # expand the column with the excluded values with their key names:
-        df[excluded_keys] = df[first_excluded_key].apply(pd.Series)
+            df = pd.DataFrame(permutations_dicts)
+            # expand the column with the excluded values with their key names:
+            df[excluded_keys] = df[first_excluded_key].apply(pd.Series)
+        else:
+            keys, values = zip(*params_values.items())
+            permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
+            df = pd.DataFrame(permutations_dicts)
         return df
 
     def drop_table(self, table_name: str):
