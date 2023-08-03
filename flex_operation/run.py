@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import logging
+import shutil
+import multiprocessing
 
 from flex.config import Config
 from flex.db import create_db_conn
@@ -87,6 +89,68 @@ def re_run_infeasible_scenarios(cfg: "Config", scenario_number: List[int], mothe
         opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
         if solve_status:
             OptDataCollector(opt_model, scenario.scenario_id, cfg, save_hour_results=True).run()
+
+
+def create_intermediate_folders(conf: "Config", folder_names: List[str]):
+    # copy the output and input operation folders:
+    for sub_project_name in folder_names:
+        output_folder_source = conf.output
+        output_folder_target = conf.output.parent / sub_project_name
+        operation_folder_source = conf.input_operation
+        operation_folder_target = conf.input_operation.parent / sub_project_name
+        if output_folder_target.exists():
+            shutil.rmtree(output_folder_target)
+        if operation_folder_target.exists():
+            shutil.rmtree(operation_folder_target)
+        shutil.copytree(src=output_folder_source, dst=output_folder_target)
+        # rename the copied database so it will be used:
+        path_to_sqlite = output_folder_target / f"{conf.project_name}.sqlite"
+        path_to_sqlite.rename(output_folder_target / f"{sub_project_name}.sqlite")
+        # copy operation folder
+        shutil.copytree(src=operation_folder_source, dst=operation_folder_target)
+
+
+def create_lists_of_subscenarios(conf: "Config", number: int) -> List[List[int]]:
+    number_of_scenarios = determine_number_of_scenarios(conf)
+    scenarios_per_subfolder, rest = divmod(number_of_scenarios, number)
+    equal_parts = [scenarios_per_subfolder] * number  # determine the length of each list
+    # add the rest to the single list lengths
+    for i in range(rest):
+        equal_parts[i] += 1
+    # create lists out of the lengths which contain the IDs of the scenarios:
+    result = []
+    start = 1
+    for part in equal_parts:
+        end = start + part
+        result.append(list(range(start, end)))
+        start = end
+    return result
+
+
+def split_scenario(orig_project_name: str):
+    # scenario is split into even pieces based on the amount of multiprocessing that can be done:
+    number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
+    config = Config(project_name=orig_project_name)
+    copy_names = [f"{config.project_name}__{i}" for i in range(number_of_physical_cores)]
+    create_intermediate_folders(conf=config, folder_names=copy_names)
+    # now split the scenario table in each intermediate folder so each folder contains only part of the calculation
+    list_of_scenario_ids = create_lists_of_subscenarios(conf=config, number=number_of_physical_cores)
+    # go into each subfolder and trim the scenario table
+    for i, proj_name in enumerate(copy_names):
+        scenario_list = list_of_scenario_ids[i]
+        db = create_db_conn(config=Config(project_name=proj_name))
+        scenario_df = db.read_dataframe(OperationTable.Scenarios)
+        new_scenario_df = scenario_df.loc[scenario_df.loc[:, "ID_Scenario"].isin(scenario_list)]
+        db.write_dataframe(
+            table_name=OperationTable.Scenarios,
+            data_frame=new_scenario_df,
+            if_exists="replace"
+        )
+
+
+def main(project_name: str, use_multiprocessing: bool = True):
+    if use_multiprocessing:
+        split_scenario(orig_project_name=project_name)
 
 
 def run_operation_model(cfg: "Config", operation_scenario_ids: List[int] = None):
@@ -229,3 +293,4 @@ def find_infeasible_scenarios(config: "Config") -> list:
     infeasible_scenarios = set(ref_scenarios) - set(opt_scenarios)
 
     return list(infeasible_scenarios)
+
