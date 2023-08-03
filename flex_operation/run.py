@@ -5,7 +5,7 @@ from tqdm import tqdm
 import logging
 import shutil
 import multiprocessing
-
+from joblib import Parallel, delayed
 from flex.config import Config
 from flex.db import create_db_conn
 from flex_operation.analyzer import OperationAnalyzer
@@ -127,14 +127,13 @@ def create_lists_of_subscenarios(conf: "Config", number: int) -> List[List[int]]
     return result
 
 
-def split_scenario(orig_project_name: str):
+def split_scenario(orig_project_name: str, n_cores: int) -> List[str]:
     # scenario is split into even pieces based on the amount of multiprocessing that can be done:
-    number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
     config = Config(project_name=orig_project_name)
-    copy_names = [f"{config.project_name}__{i}" for i in range(number_of_physical_cores)]
+    copy_names = [f"{config.project_name}__{i}" for i in range(n_cores)]
     create_intermediate_folders(conf=config, folder_names=copy_names)
     # now split the scenario table in each intermediate folder so each folder contains only part of the calculation
-    list_of_scenario_ids = create_lists_of_subscenarios(conf=config, number=number_of_physical_cores)
+    list_of_scenario_ids = create_lists_of_subscenarios(conf=config, number=n_cores)
     # go into each subfolder and trim the scenario table
     for i, proj_name in enumerate(copy_names):
         scenario_list = list_of_scenario_ids[i]
@@ -146,11 +145,17 @@ def split_scenario(orig_project_name: str):
             data_frame=new_scenario_df,
             if_exists="replace"
         )
+    return copy_names
 
 
 def main(project_name: str, use_multiprocessing: bool = True):
     if use_multiprocessing:
-        split_scenario(orig_project_name=project_name)
+        number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
+        new_scenario_names = split_scenario(orig_project_name=project_name, n_cores=number_of_physical_cores)
+        input_list = [Config(project_name=name) for name in new_scenario_names]
+        Parallel(n_jobs=number_of_physical_cores)(delayed(run_operation_model)(inst) for inst in input_list)
+    else:
+        run_operation_model(cfg=Config(project_name=project_name))
 
 
 def run_operation_model(cfg: "Config", operation_scenario_ids: List[int] = None):
