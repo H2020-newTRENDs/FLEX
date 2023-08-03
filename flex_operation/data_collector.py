@@ -113,6 +113,17 @@ class OperationDataCollector(ABC):
             plt.title(f"{var_name} in scenario {self.scenario_id}, \n table: {self.get_hour_result_table_name()}")
             plt.show()
 
+    def reduce_df_size(self, frame: pd.DataFrame) -> pd.DataFrame:
+        """
+        reduce the size of a pd Dataframe by down casting the integer type (automatically) and float type (to float32).
+        :param frame: df that should be saved
+        :return: DataFrame with reduced size
+        """
+        float_cols = frame.select_dtypes(include='float').columns
+        frame[float_cols] = frame[float_cols].astype('float32')
+        frame = frame.apply(pd.to_numeric, downcast='integer')
+        return frame
+
     def save_hour_result(self):
         result_hour_df = pd.DataFrame(self.hour_result)
         result_hour_df.insert(loc=0, column="ID_Scenario", value=self.scenario_id)
@@ -120,27 +131,30 @@ class OperationDataCollector(ABC):
         result_hour_df.insert(
             loc=2, column="DayHour", value=np.tile(np.arange(1, 25), 365)
         )
-        # self.db.write_dataframe(
-        #     table_name=self.get_hour_result_table_name(), data_frame=result_hour_df
-        # )
+        df_to_save = self.reduce_df_size(result_hour_df)
         self.db.write_to_parquet(table_name=self.get_hour_result_table_name(),
                                  scenario_ID=self.scenario_id,
-                                 table=result_hour_df)
+                                 table=df_to_save)
 
     def save_month_result(self):
         result_month_df = pd.DataFrame(self.month_result)
         result_month_df.insert(loc=0, column="ID_Scenario", value=self.scenario_id)
         result_month_df.insert(loc=1, column="Month", value=list(range(1, 13)))
+        df_to_save = self.reduce_df_size(result_month_df)
         self.db.write_dataframe(
-            table_name=self.get_month_result_table_name(), data_frame=result_month_df
+            table_name=self.get_month_result_table_name(),
+            data_frame=df_to_save
         )
 
     def save_year_result(self):
         result_year_df = pd.DataFrame(self.year_result, index=[0])
         result_year_df.insert(loc=0, column="ID_Scenario", value=self.scenario_id)
         result_year_df.insert(loc=1, column="TotalCost", value=self.get_total_cost())
+        df_to_save = self.reduce_df_size(result_year_df)
+
         self.db.write_dataframe(
-            table_name=self.get_year_result_table_name(), data_frame=result_year_df
+            table_name=self.get_year_result_table_name(),
+            data_frame=df_to_save
         )
 
     def run(self):
