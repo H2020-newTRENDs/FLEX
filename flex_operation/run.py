@@ -172,7 +172,8 @@ def run_operation_model(cfg: "Config",
                         operation_scenario_ids: List[int] = None,
                         save_hourly_results: bool = True,
                         save_monthly_results: bool = False,
-                        save_yearly_results: bool = True):
+                        save_yearly_results: bool = True,
+                        hourly_save_list: List[str] = None):
     """ operation_scenario_ids: None means that the scenario IDs are taken from the scenario table an are continued
     if there are already results available. By defining the operation_scneario_ids, the model is forced to run the
     defined IDs."""
@@ -211,7 +212,8 @@ def run_operation_model(cfg: "Config",
                          config=cfg,
                          save_hour_results=save_hourly_results,
                          save_month_results=save_monthly_results,
-                         save_year_results=save_yearly_results).run()
+                         save_year_results=save_yearly_results,
+                         hourly_save_list=hourly_save_list).run()
         # run opt model
 
         opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
@@ -221,7 +223,8 @@ def run_operation_model(cfg: "Config",
                              config=cfg,
                              save_hour_results=True,
                              save_month_results=save_monthly_results,
-                             save_year_results=save_yearly_results).run()
+                             save_year_results=save_yearly_results,
+                             hourly_save_list=hourly_save_list).run()
 
     # check if there were any infeasible scenarios:
     check_for_infeasible_scenarios(cfg)

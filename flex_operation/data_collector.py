@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union, Optional
+from typing import TYPE_CHECKING, Union, Optional, List
 from abc import ABC, abstractmethod
 import pyomo.environ as pyo
 import pandas as pd
@@ -23,10 +23,21 @@ class OperationDataCollector(ABC):
         model: Union["OperationModel", "pyo.ConcreteModel"],
         scenario_id: int,
         config: "Config",
-        save_hour_results: Optional[bool] = False,
+        save_hour_results: Optional[bool] = True,
         save_month_results: Optional[bool] = False,
         save_year_results: Optional[bool] = True,
+        hourly_save_list: Optional[List[str]] = None
     ):
+        """
+        :param model: either the ref model or the opt model
+        :param scenario_id: id of the scenario that is being saved
+        :param config: configuration
+        :param save_hour_results: if True hourly results are saved (default = True)
+        :param save_month_results: if True monthly results are saved (default = False)
+        :param save_year_results: if True yearly results are saved (default = True)
+        :param hourly_save_list: if a list of variables is provided only these variables are being saved as hourly
+                results. save_hourly_results has to be True. This is to save disc space if only eg. the Load is needed.
+        """
         self.model = model
         self.scenario_id = scenario_id
         self.db = create_db_conn(config)
@@ -37,6 +48,7 @@ class OperationDataCollector(ABC):
         self.save_month = save_month_results
         self.save_year = save_year_results
         self.logger = logging.getLogger(f"{config.project_name}")
+        self.hourly_save_list = hourly_save_list
 
     @abstractmethod
     def get_var_values(self, variable_name: str) -> np.array:
@@ -131,6 +143,8 @@ class OperationDataCollector(ABC):
         result_hour_df.insert(
             loc=2, column="DayHour", value=np.tile(np.arange(1, 25), 365)
         )
+        if self.hourly_save_list:
+            result_hour_df = result_hour_df.loc[:, self.hourly_save_list]
         df_to_save = self.reduce_df_size(result_hour_df)
         self.db.write_to_parquet(table_name=self.get_hour_result_table_name(),
                                  scenario_ID=self.scenario_id,
