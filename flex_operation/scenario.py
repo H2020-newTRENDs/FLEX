@@ -69,7 +69,7 @@ class OperationScenario:
     heating_element: Optional["HeatingElement"] = None
 
     def __post_init__(self):
-        # self.db = create_db_conn(self.config)
+        self.db = create_db_conn(self.config)
         self.component_scenario_ids = self.get_component_scenario_ids()
         self.setup_components()
         self.setup_region_weather_and_pv_generation()
