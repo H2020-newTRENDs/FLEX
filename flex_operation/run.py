@@ -10,7 +10,7 @@ from flex.config import Config
 from config import cfg as project_config
 from flex.db import create_db_conn
 from flex_operation.analyzer import OperationAnalyzer
-from flex_operation.constants import OperationTable
+from flex_operation.constants import OperationTable, OperationResultVar
 from flex_operation.data_collector import OptDataCollector
 from flex_operation.data_collector import RefDataCollector
 from flex_operation.model_opt import OptInstance
@@ -150,12 +150,19 @@ def main(project_name: str,
          save_hourly_results: bool = True,
          save_monthly_results: bool = False,
          save_yearly_results: bool = True,
+         hourly_save_list: List[str] = None
          ):
     if use_multiprocessing:
         number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
         new_scenario_names = split_scenario(orig_project_name=project_name, n_cores=number_of_physical_cores)
         input_list = [
-            (Config(project_name=name), save_hourly_results, save_monthly_results, save_yearly_results)
+            (
+                Config(project_name=name),
+                save_hourly_results,
+                save_monthly_results,
+                save_yearly_results,
+                hourly_save_list
+            )
             for name in new_scenario_names
         ]
         Parallel(n_jobs=number_of_physical_cores)(delayed(run_operation_model)(*inst) for inst in input_list)
@@ -164,7 +171,8 @@ def main(project_name: str,
             cfg=Config(project_name=project_name),
             save_hourly_results=save_hourly_results,
             save_monthly_results=save_monthly_results,
-            save_yearly_results=save_yearly_results
+            save_yearly_results=save_yearly_results,
+            hourly_save_list=hourly_save_list
         )
 
 
@@ -337,5 +345,13 @@ if __name__ == "__main__":
          save_hourly_results=True,
          save_monthly_results=False,
          save_yearly_results=True,
+         hourly_save_list=[
+             OperationResultVar.Load,
+             OperationResultVar.Grid,
+             OperationResultVar.E_Heating_HP_out,
+             OperationResultVar.PhotovoltaicProfile,
+             OperationResultVar.E_RoomCooling,
+             OperationResultVar.T_Room
+         ]
          )
 
