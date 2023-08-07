@@ -35,7 +35,7 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.load_behavior_table(BehaviorTable.TechnologyDuration)
 
     def load_operation_component_tables(self):
-        # self.load_operation_table(OperationScenarioComponent.Region.table_name)
+        self.load_operation_table(OperationScenarioComponent.Region.table_name)
         self.load_operation_table(OperationScenarioComponent.Building.table_name)
         self.load_operation_table(OperationScenarioComponent.Boiler.table_name)
         self.load_operation_table(OperationScenarioComponent.HeatingElement.table_name)
