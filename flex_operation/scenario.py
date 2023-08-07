@@ -180,7 +180,13 @@ class OperationScenario:
 
     def setup_vehicle_profiles(self):
         parking_home = self.db.read_dataframe(OperationTable.DrivingProfile_ParkingHome)
-        self.behavior.vehicle_at_home = parking_home[str(self.vehicle.id_parking_at_home_profile)].to_numpy()
         distance = self.db.read_dataframe(OperationTable.DrivingProfile_Distance)
-        self.behavior.vehicle_distance = distance[str(self.vehicle.id_distance_profile)].to_numpy()
-        self.behavior.vehicle_demand = self.behavior.vehicle_distance * self.vehicle.consumption_rate
+
+        if self.vehicle.capacity == 0:
+            self.behavior.vehicle_at_home = np.zeros((8760,))
+            self.behavior.vehicle_distance = np.zeros((8760,))
+            self.behavior.vehicle_demand = np.zeros((8760,))
+        else:
+            self.behavior.vehicle_at_home = parking_home[str(self.vehicle.id_parking_at_home_profile)].to_numpy()
+            self.behavior.vehicle_distance = distance[str(self.vehicle.id_distance_profile)].to_numpy()
+            self.behavior.vehicle_demand = self.behavior.vehicle_distance * self.vehicle.consumption_rate
