@@ -153,6 +153,9 @@ def main(project_name: str,
          hourly_save_list: List[str] = None
          ):
     if use_multiprocessing:
+        # in case the sub folders have been deleted check first if the total scenario is already finished
+        determine_missing_scenarios(c=Config(project_name), mother_op=MotherOperationScenario(Config(project_name)))
+        # TODO check if total scenario is finished
         number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
         new_scenario_names = split_scenario(orig_project_name=project_name, n_cores=number_of_physical_cores)
         input_list = [
@@ -166,6 +169,7 @@ def main(project_name: str,
             for name in new_scenario_names
         ]
         Parallel(n_jobs=number_of_physical_cores)(delayed(run_operation_model)(*inst) for inst in input_list)
+
     else:
         run_operation_model(
             cfg=Config(project_name=project_name),
@@ -174,6 +178,14 @@ def main(project_name: str,
             save_yearly_results=save_yearly_results,
             hourly_save_list=hourly_save_list
         )
+
+
+def determine_missing_scenarios(c: "Config", mother_op: "MotherOperationScenario"):
+    # check if the start index for opt and ref model are different (if calculation gets interrupted during optimization)
+    start_index = find_start_index(c, mother_op)
+    total_scenarios = determine_number_of_scenarios(c)
+    operation_scenario_ids = [id_scenario for id_scenario in range(start_index, total_scenarios + 1)]
+    return operation_scenario_ids
 
 
 def run_operation_model(cfg: "Config",
@@ -341,7 +353,7 @@ def find_infeasible_scenarios(config: "Config") -> list:
 
 if __name__ == "__main__":
     main(project_name=project_config.project_name,
-         use_multiprocessing=True,
+         use_multiprocessing=False,
          save_hourly_results=True,
          save_monthly_results=False,
          save_yearly_results=True,
