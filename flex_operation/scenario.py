@@ -79,7 +79,7 @@ class OperationScenario:
 
     def get_component_scenario_ids(self) -> dict:
         scenario_df = self.tables.__getattribute__(OperationTable.Scenarios)
-        component_scenario_ids: dict = scenario_df.iloc[self.scenario_id - 1].to_dict()
+        component_scenario_ids: dict = scenario_df.loc[scenario_df.loc[:, "ID_Scenario"] == self.scenario_id, :].to_dict()
         del component_scenario_ids["ID_Scenario"]
         return component_scenario_ids
 
