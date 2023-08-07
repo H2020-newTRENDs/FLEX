@@ -79,8 +79,9 @@ class OperationScenario:
 
     def get_component_scenario_ids(self) -> dict:
         scenario_df = self.tables.__getattribute__(OperationTable.Scenarios)
-        component_scenario_ids: dict = scenario_df.loc[scenario_df.loc[:, "ID_Scenario"] == self.scenario_id, :].to_dict()
-        del component_scenario_ids["ID_Scenario"]
+        scenario_df = scenario_df.set_index("ID_Scenario", drop=True)
+        component_scenario_ids: dict = scenario_df.loc[
+                                       scenario_df.index == self.scenario_id, :].to_dict()
         return component_scenario_ids
 
     def setup_components(self):
@@ -88,7 +89,7 @@ class OperationScenario:
             component_info = OperationScenarioComponent.__dict__[id_component.replace("ID_", "")]
             if component_info.name in self.__dict__.keys():
                 df = self.tables.__getattribute__(component_info.table_name)
-                row = df.loc[df.loc[:, component_info.id_name] == component_scenario_id, :].squeeze()
+                row = df.loc[df.loc[:, component_info.id_name] == component_scenario_id[self.scenario_id], :].squeeze()
                 instance = getattr(sys.modules[__name__], component_info.camel_name)()
                 instance.set_params(row.to_dict())
                 setattr(self, component_info.name, instance)
