@@ -19,10 +19,16 @@ from flex_operation.model_ref import RefOperationModel
 from flex_operation.scenario import OperationScenario, MotherOperationScenario
 
 
-def determine_number_of_scenarios(cfg: "Config"):
-    scenario_df = create_db_conn(config=cfg).read_dataframe(OperationTable.Scenarios)
+def determine_number_of_scenarios(cfg: "Config") -> int:
+    scenario_df = create_db_conn(config=cfg).read_dataframe(OperationTable.Scenarios, column_names=["ID_Scenario"])
     number_scenarios = len(scenario_df)
     return number_scenarios
+
+
+def determine_last_scenario_id(cfg: "Config") -> int:
+    scenario_df = create_db_conn(config=cfg).read_dataframe(OperationTable.Scenarios, column_names=["ID_Scenario"])
+    # sort scenario IDs
+    return np.sort(scenario_df["ID_Scenario"].to_numpy())[-1]
 
 
 def check_if_results_exist(cfg: "Config", result_table_name: str) -> int:
@@ -35,8 +41,8 @@ def check_if_results_exist(cfg: "Config", result_table_name: str) -> int:
         # find the last index where results are still available
         indices = db.read_dataframe(result_table_name, column_names=["ID_Scenario"]).to_numpy()
         start_index = np.max(indices) + 1  # return the last/highest index + 1 for the next scenario
-    else:  # table does not exist
-        start_index = 1
+    else:  # table does not exist, take the first ID in from the scenario table
+        start_index = db.read_dataframe(OperationTable.Scenarios, column_names=["ID_Scenario"])["ID_Scenario"].to_numpy()[0]
     return start_index
 
 
@@ -97,13 +103,16 @@ def create_intermediate_folders(conf: "Config", folder_names: List[str]):
     for sub_project_name in folder_names:
         output_folder_source = conf.output
         output_folder_target = conf.output.parent / sub_project_name
+        if not output_folder_target.exists():
+            shutil.copytree(src=output_folder_source, dst=output_folder_target, dirs_exist_ok=True)
+            # of it already exists use the old folder where scenarios might already exist
+            # rename the copied database so it will be used:
+            path_to_sqlite = output_folder_target / f"{conf.project_name}.sqlite"
+            path_to_sqlite.rename(output_folder_target / f"{sub_project_name}.sqlite")
+            print(f"copied sqlite database to {path_to_sqlite}")
+        # copy operation folder
         operation_folder_source = conf.input_operation
         operation_folder_target = conf.input_operation.parent / sub_project_name
-        shutil.copytree(src=output_folder_source, dst=output_folder_target, dirs_exist_ok=True)
-        # rename the copied database so it will be used:
-        path_to_sqlite = output_folder_target / f"{conf.project_name}.sqlite"
-        path_to_sqlite.rename(output_folder_target / f"{sub_project_name}.sqlite")
-        # copy operation folder
         shutil.copytree(src=operation_folder_source, dst=operation_folder_target, dirs_exist_ok=True)
 
 
@@ -136,13 +145,67 @@ def split_scenario(orig_project_name: str, n_cores: int) -> List[str]:
         scenario_list = list_of_scenario_ids[i]
         db = create_db_conn(config=Config(project_name=proj_name))
         scenario_df = db.read_dataframe(OperationTable.Scenarios)
-        new_scenario_df = scenario_df.loc[scenario_df.loc[:, "ID_Scenario"].isin(scenario_list)]
-        db.write_dataframe(
-            table_name=OperationTable.Scenarios,
-            data_frame=new_scenario_df,
-            if_exists="replace"
-        )
+        if len(scenario_df) != len(scenario_list):  # scenarios need to be trimmed, otherwise they already exist
+            new_scenario_df = scenario_df.loc[scenario_df.loc[:, "ID_Scenario"].isin(scenario_list)]
+            db.write_dataframe(
+                table_name=OperationTable.Scenarios,
+                data_frame=new_scenario_df,
+                if_exists="replace"
+            )
+            print(f"created scenario df in db in {proj_name}")
     return copy_names
+
+
+def merge_scenarios(orig_project_name: str,
+                    n_cores: int,
+                    save_hourly_results: bool,
+                    save_monthly_results: bool,
+                    save_yearly_results: bool,
+                    ):
+    config = Config(project_name=orig_project_name)
+    copy_names = [f"{config.project_name}__{i}" for i in range(n_cores)]
+
+
+    yearly_ref_df = pd.DataFrame()
+    yearly_opt_df = pd.DataFrame()
+    monthly_ref_df = pd.DataFrame()
+    monthly_opt_df = pd.DataFrame()
+
+    for sub_project_name in copy_names:
+        # read the yearly results from sqlite:
+        sub_config = Config(project_name=sub_project_name)
+        sub_db = create_db_conn(sub_config)
+        if save_yearly_results:
+            yearly_ref, yearly_opt = sub_db.read_dataframe(OperationTable.ResultRefYear), \
+                                     sub_db.read_dataframe(OperationTable.ResultOptYear)
+            yearly_ref_df = pd.concat([yearly_ref_df, yearly_ref], axis=0)
+            yearly_opt_df = pd.concat([yearly_opt_df, yearly_opt], axis=0)
+
+        if save_monthly_results:
+            monthly_ref, monthly_opt = sub_db.read_dataframe(OperationTable.ResultRefMonth), \
+                                     sub_db.read_dataframe(OperationTable.ResultOptMonth)
+            monthly_ref_df = pd.concat([monthly_ref_df, monthly_ref], axis=0)
+            monthly_opt_df = pd.concat([monthly_opt_df, monthly_opt], axis=0)
+
+        if save_hourly_results:
+            # copy the parquet files:
+            output_folder_source = sub_config.output
+            output_folder_target = config.output
+
+            parquet_files = output_folder_source.glob("*.parquet.gzip")
+            for file in parquet_files:
+                target = output_folder_target / file.name
+                shutil.copy(file, target)
+
+    # write to sqlite db:
+    orig_db = create_db_conn(config)
+    if save_yearly_results:
+        orig_db.write_dataframe(data_frame=yearly_ref_df, table_name=OperationTable.ResultRefYear, if_exists="append")
+        orig_db.write_dataframe(data_frame=yearly_opt_df, table_name=OperationTable.ResultOptYear, if_exists="append")
+    if save_monthly_results:
+        orig_db.write_dataframe(data_frame=monthly_ref_df, table_name=OperationTable.ResultRefMonth, if_exists="append")
+        orig_db.write_dataframe(data_frame=monthly_opt_df, table_name=OperationTable.ResultOptMonth, if_exists="append")
+
 
 
 def main(project_name: str,
@@ -150,25 +213,54 @@ def main(project_name: str,
          save_hourly_results: bool = True,
          save_monthly_results: bool = False,
          save_yearly_results: bool = True,
-         hourly_save_list: List[str] = None
+         hourly_save_list: List[str] = None,
+         operation_scenario_ids: List[int] = None
          ):
-    if use_multiprocessing:
+    """
+
+    :param project_name:
+    :param use_multiprocessing:
+    :param save_hourly_results:
+    :param save_monthly_results:
+    :param save_yearly_results:
+    :param hourly_save_list:
+    :param operation_scenario_ids: does not work with multiprocessing
+    :return:
+    """
+    logger = logging.getLogger(f"{Config(project_name)}")
+    parallelized = False
+    if use_multiprocessing and operation_scenario_ids is None:
         # in case the sub folders have been deleted check first if the total scenario is already finished
-        determine_missing_scenarios(c=Config(project_name), mother_op=MotherOperationScenario(Config(project_name)))
-        # TODO check if total scenario is finished
-        number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
+        missing_scenarios = determine_missing_scenarios(c=Config(project_name),
+                                                        mother_op=MotherOperationScenario(Config(project_name)))
+        # if there are already scenarios in the original file saved, fall back to default without multiprocessing
+        if len(missing_scenarios) != determine_number_of_scenarios(Config(project_name)):
+            logger.warning(f"Results already exist. Can't use multiprocessing.")
+            run_operation_model(
+                cfg=Config(project_name=project_name),
+                save_hourly_results=save_hourly_results,
+                save_monthly_results=save_monthly_results,
+                save_yearly_results=save_yearly_results,
+                hourly_save_list=hourly_save_list,
+                operation_scenario_ids=missing_scenarios
+            )
+            return
+
+        number_of_physical_cores = min(int(multiprocessing.cpu_count() / 2), len(missing_scenarios))
         new_scenario_names = split_scenario(orig_project_name=project_name, n_cores=number_of_physical_cores)
         input_list = [
             (
-                Config(project_name=name),
-                save_hourly_results,
-                save_monthly_results,
-                save_yearly_results,
-                hourly_save_list
+                Config(project_name=name),  # cfg
+                None,                       # operation_scenario_ids
+                save_hourly_results,        # save_hourly_results
+                save_monthly_results,       # save_monthly_results
+                save_yearly_results,        # save_yearly_results
+                hourly_save_list            # hourly_save_list
             )
             for name in new_scenario_names
         ]
         Parallel(n_jobs=number_of_physical_cores)(delayed(run_operation_model)(*inst) for inst in input_list)
+        parallelized = True
 
     else:
         run_operation_model(
@@ -176,16 +268,52 @@ def main(project_name: str,
             save_hourly_results=save_hourly_results,
             save_monthly_results=save_monthly_results,
             save_yearly_results=save_yearly_results,
-            hourly_save_list=hourly_save_list
+            hourly_save_list=hourly_save_list,
+            operation_scenario_ids=operation_scenario_ids
         )
 
+    if parallelized:  # if the calculation was done in parallel the results have to be put together:
+        merge_scenarios(orig_project_name=Config(project_name=project_name).project_name,
+                        n_cores=number_of_physical_cores,
+                        save_hourly_results=save_hourly_results,
+                        save_monthly_results=save_monthly_results,
+                        save_yearly_results=save_yearly_results,
+                        )
+    logger.info(f"finished main script {project_name}. \n Results were parallel calculated: {parallelized} \n "
+                f"following results were saved: \n "
+                f"Hourly: {save_hourly_results} \n "
+                f"Monthly: {save_monthly_results} \n"
+                f"Yearly: {save_yearly_results}")
 
-def determine_missing_scenarios(c: "Config", mother_op: "MotherOperationScenario"):
-    # check if the start index for opt and ref model are different (if calculation gets interrupted during optimization)
-    start_index = find_start_index(c, mother_op)
-    total_scenarios = determine_number_of_scenarios(c)
-    operation_scenario_ids = [id_scenario for id_scenario in range(start_index, total_scenarios + 1)]
-    return operation_scenario_ids
+
+def determine_missing_scenarios(c: "Config",
+                                mother_op: "MotherOperationScenario",
+                                scens: List[int] = None) -> list:
+    logger = logging.getLogger(f"{c.project_name}")
+    # define the scenario IDs that still have to be calculated
+    if scens is None:
+        # check if the start index for opt and ref model are different (if calculation gets interrupted during optimization)
+        start_index = find_start_index(c, mother_op)
+        logger.info(f"starting calculating scenario from ID {start_index}")
+        last_scenario_id = determine_last_scenario_id(cfg=c)
+        operation_scenario_ids = [id_scenario for id_scenario in
+                                  range(start_index, last_scenario_id + 1)]
+        # check if total number of scenarios is already reached:
+        if start_index > last_scenario_id:
+            infeasible_list = check_for_infeasible_scenarios(c)
+            # rerun the infeasible scenarios
+            re_run_infeasible_scenarios(c, infeasible_list, mother_op)
+            logger.info(f"re-calculated scenarios {infeasible_list}")
+            new_infeasible_list = check_for_infeasible_scenarios(c)
+            if len(new_infeasible_list) > 0:
+                logger.warning(f"infeasible scenarios still exist! scenarios: {new_infeasible_list}")
+                print(f"infeasible scenarios still exist! scenarios: {new_infeasible_list}")
+
+            return []
+        else:
+            return operation_scenario_ids
+    else:
+        return scens
 
 
 def run_operation_model(cfg: "Config",
@@ -195,34 +323,21 @@ def run_operation_model(cfg: "Config",
                         save_yearly_results: bool = True,
                         hourly_save_list: List[str] = None):
     """ operation_scenario_ids: None means that the scenario IDs are taken from the scenario table an are continued
-    if there are already results available. By defining the operation_scneario_ids, the model is forced to run the
+    if there are already results available. By defining the operation_scenario_ids, the model is forced to run the
     defined IDs."""
     logger = logging.getLogger(f"{cfg.project_name}")
     # define mother operation before looping through scenarios:
     mother_operation = MotherOperationScenario(cfg)
-    # define the scenario IDs that still have to be calculated
-    if operation_scenario_ids is None:
-        # check if the start index for opt and ref model are different (if calculation gets interrupted during optimization)
-        start_index = find_start_index(cfg, mother_operation)
-        logger.info(f"starting calculating scenario from ID {start_index}")
-        total_scenarios = determine_number_of_scenarios(cfg)
-        operation_scenario_ids = [id_scenario for id_scenario in
-                                  range(start_index, total_scenarios + 1)]
-        # check if total number of scenarios is already reached:
-        if start_index > total_scenarios:
-            infeasible_list = check_for_infeasible_scenarios(cfg)
-            # rerun the infeasible scenarios
-            re_run_infeasible_scenarios(cfg, infeasible_list, mother_operation)
-            logger.info(f"re-calculated scenarios {infeasible_list}")
-            new_infeasible_list = check_for_infeasible_scenarios(cfg)
-            if len(new_infeasible_list) > 0:
-                logger.warning(f"infeasible scenarios still exist! scenarios: {new_infeasible_list}")
-                print(f"infeasible scenarios still exist! scenarios: {new_infeasible_list}")
-
-            return
+    scenario_ids = determine_missing_scenarios(
+        c=cfg,
+        mother_op=mother_operation,
+        scens=operation_scenario_ids
+    )
+    if len(scenario_ids) == 0:
+        return  # stop the code
 
     opt_instance = OptInstance().create_instance()
-    for id_operation_scenario in tqdm(operation_scenario_ids, desc=f"{cfg.project_name}"):
+    for id_operation_scenario in tqdm(scenario_ids, desc=f"{cfg.project_name}"):
         logger.info(f"FlexOperation Model --> Scenario = {id_operation_scenario}.")
         scenario = OperationScenario(scenario_id=id_operation_scenario, config=cfg, tables=mother_operation)
         # run ref model
@@ -353,17 +468,17 @@ def find_infeasible_scenarios(config: "Config") -> list:
 
 if __name__ == "__main__":
     main(project_name=project_config.project_name,
-         use_multiprocessing=False,
+         use_multiprocessing=True,
          save_hourly_results=True,
          save_monthly_results=False,
          save_yearly_results=True,
          hourly_save_list=[
-             OperationResultVar.Load,
-             OperationResultVar.Grid,
-             OperationResultVar.E_Heating_HP_out,
-             OperationResultVar.PhotovoltaicProfile,
-             OperationResultVar.E_RoomCooling,
-             OperationResultVar.T_Room
+             "Load",
+             "Grid",
+             "E_Heating_HP_out",
+             "PhotovoltaicProfile",
+             "E_RoomCooling",
+             "T_Room"
          ]
          )
 
