@@ -658,8 +658,8 @@ class OptConfig:
                 instance.E_Heating_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
         else:
             for t in range(1, 8761):
-                instance.Q_Heating_Boiler_out[t].setub(self.scenario.boiler.power_max)
-                instance.Q_DHW_Boiler_out[t].setub(self.scenario.boiler.power_max)
+                instance.Q_Heating_Boiler_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
+                instance.Q_DHW_Boiler_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
 
     def config_space_heating_tank(self, instance):
         if self.scenario.space_heating_tank.size == 0:
