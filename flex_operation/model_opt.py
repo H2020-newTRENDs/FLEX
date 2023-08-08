@@ -69,7 +69,7 @@ class OptInstance:
         m.HotWaterHourlyCOP_tank = pyo.Param(m.t, mutable=True)
 
         # time independent parameters:
-        m.SpaceHeating_HeatPumpMaximalElectricPower = pyo.Param(mutable=True)
+        m.SpaceHeating_MaxBoilerPower = pyo.Param(mutable=True)
         m.CPWater = pyo.Param(mutable=True)
 
         # electricity load profile
@@ -324,7 +324,7 @@ class OptInstance:
         def constrain_heating_max_power_HP(m, t):
             return (
                     m.E_DHW_HP_out[t] + m.E_Heating_HP_out[t]
-                    <= m.SpaceHeating_HeatPumpMaximalElectricPower
+                    <= m.SpaceHeating_MaxBoilerPower
             )
 
         m.max_HP_power_rule = pyo.Constraint(m.t, rule=constrain_heating_max_power_HP)
@@ -551,11 +551,11 @@ class OptConfig:
         instance.A_SurfaceTank_DHW = self.model.A_SurfaceTank_DHW
 
         # HP
-        instance.SpaceHeating_HeatPumpMaximalElectricPower = self.model.SpaceHeating_HeatPumpMaximalElectricPower
+        instance.SpaceHeating_MaxBoilerPower = self.model.SpaceHeating_MaxBoilerPower
 
         # Boiler
         instance.Boiler_COP = self.model.fuel_boiler_efficiency
-        instance.Boiler_MaximalThermalPower = self.scenario.boiler.power_max
+        instance.Boiler_MaximalThermalPower = self.model.SpaceHeating_MaxBoilerPower
 
     def config_external_params(self, instance):
         for t in range(1, 8761):
@@ -655,7 +655,7 @@ class OptConfig:
             instance.T_BuildingMass[t].setub(100)
         if self.scenario.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
             for t in range(1, 8761):
-                instance.E_Heating_HP_out[t].setub(self.model.SpaceHeating_HeatPumpMaximalElectricPower)
+                instance.E_Heating_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
         else:
             for t in range(1, 8761):
                 instance.Q_Heating_Boiler_out[t].setub(self.scenario.boiler.power_max)
@@ -696,7 +696,7 @@ class OptConfig:
                 instance.Q_DHWTank[t].setub(0)
                 instance.Q_DHWTank[t].fix(0)
 
-                instance.E_DHW_HP_out[t].setub(self.model.SpaceHeating_HeatPumpMaximalElectricPower)  # TODO
+                instance.E_DHW_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)  # TODO
             instance.tank_energy_rule_DHW.deactivate()
         else:
             for t in range(1, 8761):
@@ -711,7 +711,7 @@ class OptConfig:
                     self.model.CPWater * self.scenario.hot_water_tank.size *
                     (273.15 + self.scenario.hot_water_tank.temperature_max)
                 )
-                instance.E_DHW_HP_out[t].setub(self.model.SpaceHeating_HeatPumpMaximalElectricPower)
+                instance.E_DHW_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
             instance.tank_energy_rule_DHW.activate()
 
     def config_battery(self, instance):

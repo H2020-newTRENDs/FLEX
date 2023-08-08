@@ -20,7 +20,7 @@ class RefOperationModel(OperationModel):
         logger = logging.getLogger(f"{self.scenario.config.project_name}")
 
         hp_max = (
-            self.SpaceHeating_HeatPumpMaximalElectricPower * self.SpaceHeatingHourlyCOP
+                self.SpaceHeating_MaxBoilerPower * self.SpaceHeatingHourlyCOP
         )
 
         self.Q_HeatingElement = np.where(
@@ -68,7 +68,7 @@ class RefOperationModel(OperationModel):
     def check_hp_max_power(self, HP_power):
         """returns True if maximum power is exceeded"""
         # check if the maximal capacity of the heat pump is exceeded by charging the storage:
-        return HP_power > self.SpaceHeating_HeatPumpMaximalElectricPower
+        return HP_power > self.SpaceHeating_MaxBoilerPower
 
     def calc_battery_energy(self, grid_demand: np.array, pv_surplus: np.array):
 
@@ -360,7 +360,7 @@ class RefOperationModel(OperationModel):
                         if not self.check_hp_max_power(hp_power - self.E_DHW_HP_out[i]):
                             # the max HP power can be achieved by using the heating element for DHW
                             # hp DHW power is reduced by that amount:
-                            exceeded_power = hp_power - self.SpaceHeating_HeatPumpMaximalElectricPower
+                            exceeded_power = hp_power - self.SpaceHeating_MaxBoilerPower
                             self.E_DHW_HP_out[i] -= exceeded_power
                             # Heating element is used instead:
                             self.Q_HeatingElement[i] += exceeded_power * self.HeatingElement_efficiency
@@ -551,7 +551,7 @@ class RefOperationModel(OperationModel):
 
     def calc_space_heating_demand_fuel_boiler(self):
         logger = logging.getLogger(f"{self.scenario.config.project_name}")
-        boiler_max = self.scenario.boiler.power_max
+        boiler_max = self.SpaceHeating_MaxBoilerPower
 
         self.Q_HeatingElement = np.where(
             self.Q_RoomHeating - boiler_max < 0, 0, self.Q_RoomHeating - boiler_max
