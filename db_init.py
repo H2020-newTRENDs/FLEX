@@ -106,7 +106,12 @@ if __name__ == "__main__":
     df_start = pd.read_excel(r'C:\Users\mascherbauer\PycharmProjects\OSM\Scenario_start_Murcia.xlsx')
     init = ProjectDatabaseInit(
         config=cfg,
-        exclude_from_permutation=["ID_Building", "ID_PV"],
+        exclude_from_permutation=["ID_Building",
+                                  "ID_PV",
+                                  "ID_Battery",
+                                  "ID_HotWaterTank",
+                                  "ID_SpaceHeatingTank",
+                                  "ID_HeatingElement"],
         load_scenario_table=False,
         start_scenario_table=df_start)
     init.run()
