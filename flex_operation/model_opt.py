@@ -56,7 +56,7 @@ class OptInstance:
         # heating
         # Boiler
         m.Boiler_COP = pyo.Param(mutable=True)
-        m.Boiler_MaximalThermalPower = pyo.Param(mutable=True)
+        m.Boiler_MaximalThermalPower = pyo.Param(mutable=True, within=pyo.Any)
         # COP of heat pump
         m.SpaceHeatingHourlyCOP = pyo.Param(m.t, mutable=True)
         # COP of heatpump for charging buffer storage
