@@ -47,10 +47,6 @@ class Building(OperationComponent):
 @dataclass
 class Boiler(OperationComponent):
     type: Optional[str] = None
-    power_max: Optional[float] = None
-    power_max_unit: Optional[str] = None
-    heating_element_power: Optional[float] = None
-    heating_element_power_unit: Optional[str] = None
     carnot_efficiency_factor: Optional[float] = None
 
 
