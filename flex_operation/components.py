@@ -104,6 +104,7 @@ class PV(OperationComponent):
     size_unit: Optional[str] = None
     generation: Optional[np.ndarray] = None
     generation_unit: Optional[str] = None
+    orientation: Optional[str] = None
 
 
 @dataclass
