@@ -49,7 +49,8 @@ class DatabaseInitializer:
     def generate_operation_scenario_table(self,
                                           scenario_table_name: str,
                                           component_table_names: Dict[str, str],
-                                          exclude_from_permutation: List[str] = None) -> None:
+                                          exclude_from_permutation: List[str] = None,
+                                          start_scenario_table: pd.DataFrame = None) -> None:
         """
         Creates the Scenario Table and saves it to the sqlite database.
         :param exclude_from_permutation: a list of ID names (eg. ID_Boiler) that should be excluded from permutation
@@ -62,7 +63,8 @@ class DatabaseInitializer:
         logger.info(f"Generating FLEX-Operation scenario table -> {scenario_table_name}")
         scenario_df = self.generate_params_combination_df(
             params_values=self.get_component_scenario_ids(component_table_names),
-            excluded_keys=exclude_from_permutation
+            excluded_keys=exclude_from_permutation,
+            start_scenario_table=start_scenario_table,
         )
         scenario_ids = np.array(range(1, 1 + len(scenario_df)))
         scenario_df.insert(loc=0, column="ID_Scenario", value=scenario_ids)
@@ -84,12 +86,18 @@ class DatabaseInitializer:
 
     @staticmethod
     def generate_params_combination_df(params_values: Dict[str, List[int]],
-                                       excluded_keys: List[str] = None) -> pd.DataFrame:
+                                       excluded_keys: List[str] = None,
+                                       start_scenario_table: pd.DataFrame = None) -> pd.DataFrame:
         """
         The function creates a permutation of all the ID vectors in the params_values dictionary values. If excluded
         keys are provided, these IDs will not be included in the permutation. For example if you have already pre-
         defined the building parameters and you know which building IDs will have a battery storage you should exclude
         building IDs and Battery IDs from the permutation.
+        :param start_scenario_table: This table should contain the ID names as column names of the IDs that are
+                excluded from the permutation. The table is the starting point of the permutations. All columns
+                within the table will be treated as a single value. We need this for example when we try to
+                have different PV systems on different building types. Then the table should contain ID_Building and
+                the corresponding ID_PV.
         :param params_values: a dictionary containing the ID name as key and the IDs as list as values.
         :param excluded_keys: a list of ID names which should be excluded from the permutation. At least 2!
         :return: pandas DataFrame as Scenario ID table which has the Component IDs as column names
@@ -99,10 +107,14 @@ class DatabaseInitializer:
             assert len(excluded_keys) > 1, "at least 2 ID names have to be provided in the excluded key list"
             # check if the exclude keys have the same length,
             excluded_values = [params_values[k] for k in excluded_keys]
-            if not all(len(element) == len(excluded_values[0]) for element in excluded_values):
-                assert "values of excluded keys provided dont have the same length"
-            # create a list of the excluded lists
-            excluded_lists = list(map(list, zip(*excluded_values)))
+            if start_scenario_table is not None:
+                start_scenario_table = start_scenario_table[excluded_keys]  # sort
+                excluded_lists = start_scenario_table[excluded_keys].values.tolist()
+            else:
+                if not all(len(element) == len(excluded_values[0]) for element in excluded_values):
+                    assert "values of excluded keys provided dont have the same length"
+                # create a list of the excluded lists
+                excluded_lists = list(map(list, zip(*excluded_values)))
             # define the first key and its value which is used in the permutation:
             first_excluded_key = excluded_keys[0]
             # create new dictionary where the excluded list is the first element of the first excluded key

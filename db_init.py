@@ -1,5 +1,8 @@
 import logging
 from typing import List
+
+import pandas as pd
+
 from config import cfg
 from flex.config import Config
 from flex.db_init import DatabaseInitializer
@@ -14,10 +17,12 @@ class ProjectDatabaseInit(DatabaseInitializer):
 
     def __init__(self, config: "Config",
                  exclude_from_permutation: List[str] = None,
-                 load_scenario_table: bool = True):
+                 load_scenario_table: bool = True,
+                 start_scenario_table: pd.DataFrame = None):
         super().__init__(config)
         self.exclude_from_permutation = exclude_from_permutation
         self.load_scenario_table = load_scenario_table
+        self.start_scenario_table = start_scenario_table
 
     def load_behavior_tables(self):
         self.load_behavior_table(BehaviorTable.Scenarios)
@@ -48,8 +53,9 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.load_operation_table(OperationScenarioComponent.EnergyPrice.table_name)
         self.load_operation_table(OperationScenarioComponent.Behavior.table_name)
 
-    def setup_operation_scenario_table(self):
-        def generate(exclude_from_permutation: List[str] = None):
+    def setup_operation_scenario_table(self,):
+        def generate(exclude_from_permutation: List[str] = None,
+                     start_scenario_table: pd.DataFrame = None):
             component_table_names = {}
             for key, value in OperationScenarioComponent.__dict__.items():
                 if isinstance(value, OperationComponentInfo):
@@ -57,13 +63,15 @@ class ProjectDatabaseInit(DatabaseInitializer):
             self.generate_operation_scenario_table(
                 scenario_table_name=OperationTable.Scenarios,
                 component_table_names=component_table_names,
-                exclude_from_permutation=exclude_from_permutation
+                exclude_from_permutation=exclude_from_permutation,
+                start_scenario_table=start_scenario_table,
             )
 
         if self.load_scenario_table:
             self.load_operation_table(OperationTable.Scenarios)
         else:
-            generate(exclude_from_permutation=self.exclude_from_permutation)
+            generate(exclude_from_permutation=self.exclude_from_permutation,
+                     start_scenario_table=self.start_scenario_table)
 
     def load_operation_profile_tables(self):
         self.load_operation_table(OperationTable.BehaviorProfile)
@@ -95,8 +103,10 @@ class ProjectDatabaseInit(DatabaseInitializer):
 
 
 if __name__ == "__main__":
+    df_start = pd.read_excel(r'C:\Users\mascherbauer\PycharmProjects\OSM\Scenario_start_Murcia.xlsx')
     init = ProjectDatabaseInit(
         config=cfg,
-        exclude_from_permutation=None,
-        load_scenario_table=False)
+        exclude_from_permutation=["ID_Building", "ID_PV"],
+        load_scenario_table=False,
+        start_scenario_table=df_start)
     init.run()
