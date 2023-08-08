@@ -502,7 +502,7 @@ class OperationModel(ABC):
             # efficiency of the system itself:
             max_thermal_power_float = max_thermal_power / self.scenario.boiler.carnot_efficiency_factor
             # round the maximum electric power to the next 100 W:
-            max_thermal_power = np.ceil(max_thermal_power_float[0] / 100) * 100
+            max_thermal_power = np.ceil(max_thermal_power_float / 100) * 100
             return max_thermal_power
 
     def generate_solar_gain_rate(self):
