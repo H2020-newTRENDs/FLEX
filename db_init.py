@@ -103,7 +103,7 @@ class ProjectDatabaseInit(DatabaseInitializer):
 
 
 if __name__ == "__main__":
-    df_start = pd.read_excel(r'C:\Users\mascherbauer\PycharmProjects\OSM\Scenario_start_Murcia.xlsx')
+    df_start = pd.read_excel(cfg.project_folder / 'Scenario_start_Murcia.xlsx')
     init = ProjectDatabaseInit(
         config=cfg,
         exclude_from_permutation=["ID_Building",
