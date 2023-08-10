@@ -7,7 +7,7 @@ import plotly.express as px
 
 from flex.db import DB
 from flex.config import Config
-from flex_operation.constants import OperationTable, OperationScenarioComponent
+from flex_operation.constants import OperationTable, OperationScenarioComponent,
 
 
 class ECEMFDataPreparation:
@@ -25,12 +25,6 @@ class ECEMFDataPreparation:
     pass
 
 
-def find_net_peak_demand_day():
-    pass
-
-
-def find_net_peak_generation_day():
-    pass
 
 
 class ECEMFPostProcess:
@@ -90,15 +84,6 @@ class ECEMFPostProcess:
         """
 
     @staticmethod
-    def calculate_number_of_buildings_from_percentage(percentage: float, total_number: int) -> (int, int):
-        denominator = 1 / percentage
-        number_pro_tech, rest = divmod(total_number, denominator)
-        rest_pro_tech, rest_anti_tech = np.ceil(rest / 2), np.floor(rest / 2)
-        number_pro_tech += rest_pro_tech
-        number_anti_tech = total_number - number_pro_tech
-        return int(number_pro_tech), int(number_anti_tech)
-
-    @staticmethod
     def assign_id(list_of_percentages: List[float],) -> int:
         """
         if list of percentages is only containing one element, the decision is taken between 1 and 0.
@@ -114,6 +99,8 @@ class ECEMFPostProcess:
         elif len(list_of_percentages) > 1:
             choices = [i for i in range(len(list_of_percentages))]
             weights = list_of_percentages
+        else:
+            assert "list of percentages is empty"
         choice = random.choices(choices, weights=weights)[0]
         return choice
 
@@ -256,6 +243,51 @@ class ECEMFPostProcess:
             return_dict[scen_id] = list_of_scenarios.count(scen_id)
         return return_dict
 
+    def calculate_total_load_profiles(self,
+                                      scenario_dictionary: dict,
+                                      prosumager_probability: float) -> (np.array, np.array):
+        """
+
+        :param scenario_dictionary: dict that contains all scenarios
+        :param prosumager_probability: likelihood that a household is a prosumager (between 0 and 1)
+        :return: total grid demand and the total feed to grid
+        """
+        assert 0 <= prosumager_portion <= 1
+        total_grid_demand = np.zeros((8760,))
+        total_feed2grid = np.zeros((8760,))
+        for id_scenario, number_of_occurences in scenario_dictionary.items():
+            ref_loads = self.db.read_parquet(table_name=OperationTable.ResultRefHour,
+                                             scenario_ID=id_scenario,
+                                             column_names=["Load", "Feed2Grid"])
+            opt_loads = self.db.read_parquet(table_name=OperationTable.ResultOptHour,
+                                             scenario_ID=id_scenario,
+                                             column_names=["Load", "Feed2Grid"])
+            for _ in range(number_of_occurences):
+                prosumager = self.assign_id([prosumager_probability])
+                if prosumager == 0:
+                    total_grid_demand += ref_loads["Load"].to_numpy()
+                    total_feed2grid += ref_loads["Feed2Grid"].to_numpy()
+                else:
+                    total_grid_demand += opt_loads["Load"].to_numpy()
+                    total_feed2grid += opt_loads["Feed2Grid"].to_numpy()
+
+        return total_grid_demand, total_feed2grid
+
+    def find_net_peak_demand_day(self, scenarios: dict):
+        """
+        takes the scenario dict and calcualted the total load of all scenarios then
+        :param scenarios:
+        :return:
+        """
+        print("searching for net peak demand day...")
+        pass
+
+    def find_net_peak_generation_day(self):
+
+        print("searching for net peak generation day...")
+        pass
+
+
 
 
 if __name__ == "__main__":
@@ -276,6 +308,8 @@ if __name__ == "__main__":
     )
     scenario_dict = ecemf.shorten_scenario_list(scenario_list)
 
+    prosumager_portion = 0.5
+    ecemf.calculate_total_load_profiles(scenario_dict, prosumager_portion)
 
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
