@@ -111,7 +111,8 @@ if __name__ == "__main__":
                                   "ID_Battery",
                                   "ID_HotWaterTank",
                                   "ID_SpaceHeatingTank",
-                                  "ID_HeatingElement"],
+                                  "ID_HeatingElement",
+                                  "ID_Boiler"],
         load_scenario_table=False,
         start_scenario_table=df_start)
     init.run()
