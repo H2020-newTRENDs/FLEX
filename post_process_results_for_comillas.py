@@ -127,7 +127,7 @@ class ECEMFPostProcess:
                            direct_electric_heating_percentage: float,
                            ac_percentage: float,
                            battery_percentage: float,
-                           ):
+                           ) -> List[int]:
         """
         generates a scenario based on the percentage values that are provided for each installation. The values have
         to be between 0 and 1. 0 = no buildings are equipped with tech, 1 = all buildings are equipped.
@@ -140,7 +140,7 @@ class ECEMFPostProcess:
         :param ground_hp_percentage: percentage of buildings having a ground sourced heat pump
         :param direct_electric_heating_percentage: percentage of buildings having a direct electric heating system
         :param ac_percentage: percentage of buildings having an air conditioner for cooling (COP=4)
-        :return:
+        :return: returns a list of all the scenarios IDs for the whole building stock
         """
         assert 0 <= pv_installation_percentage <= 1
         assert 0 <= dhw_storage_percentage <= 1
@@ -157,8 +157,6 @@ class ECEMFPostProcess:
         dict_of_inputs = {
             "ID_PV": [1-pv_installation_percentage, pv_installation_percentage * 0.5, pv_installation_percentage * 0.25, pv_installation_percentage * 0.25],
             "ID_HotWaterTank": [dhw_storage_percentage],
-            "ID_SpaceHeatingTank": [buffer_storage_percentage],
-            "ID_HeatingElement": [heating_element_percentage],
             "ID_Boiler": [air_hp_percentage, ground_hp_percentage, direct_electric_heating_percentage, gases_percentage],
             "ID_SpaceCoolingTechnology": [ac_percentage]
 
@@ -190,7 +188,7 @@ class ECEMFPostProcess:
             number_buildings = row["number_of_buildings"]
             building_id = row["ID_Building"]
             building_scenario = self.scenario_table.query(f"ID_Building == {building_id}")
-            if building_id != 39:
+            if building_id != 41:
                 continue
             for n_building in range(number_buildings):
                 chosen_building_attributes = {}
@@ -199,7 +197,6 @@ class ECEMFPostProcess:
                     # translate the chosen ID to an ID in the scenario table:
                     # get unique labels for the specific building
                     possible_labels = building_scenario[attribute_name].unique().tolist()
-                    print(possible_labels, translation_2_id[attribute_name][chosen_id])
                     # grab the matching number within both lists:
                     ID = list(set(possible_labels).intersection(translation_2_id[attribute_name][chosen_id]))[0]
                     # add the ID and to chosen_building_attributes
@@ -219,21 +216,21 @@ class ECEMFPostProcess:
                 # If multiple exist, battery is an option otherwise there is no PV and thus no battery can be chosen.
                 if len(possible_bat_ids) > 1:
                     # decide if battery is used
-                    if self.assign_id([battery_percentage]) == 1:
-                        id_battery = list(set(possible_bat_ids).intersection([2, 3]))[0]
+                    if self.assign_id([battery_percentage]) == 1:  # battery is used
+                        id_battery = list(set(possible_bat_ids).intersection([2, 3]))[0]  # select ID based on building
                     else:
-                        id_battery = 1
+                        id_battery = 1  # battery is not used
                 else:
                     id_battery = 1
                 if len(possible_spacetank_ids) > 1:
-                    if self.assign_id(possible_spacetank_ids) > 1:
+                    if self.assign_id([buffer_storage_percentage]) > 1:
                         id_buffer = list(set(possible_spacetank_ids).intersection([2, 3]))[0]
                     else:
                         id_buffer = 1
                 else:
                     id_buffer = 1
                 if len(possible_heatelement_ids) > 1:
-                    if self.assign_id(possible_heatelement_ids) > 1:
+                    if self.assign_id([heating_element_percentage]) > 1:
                         id_heatelement = list(set(possible_heatelement_ids).intersection([2, 3]))[0]
                     else:
                         id_heatelement = 1
@@ -241,22 +238,32 @@ class ECEMFPostProcess:
                     id_heatelement = 1
                 full_query = f"{query} and ID_Battery == {id_battery} " \
                              f"and ID_SpaceHeatingTank == {id_buffer} " \
-                             f"and ID_HeatingELement == {id_heatelement}"
+                             f"and ID_HeatingElement == {id_heatelement}"
 
-                scenario = building_scenario.query(full_query)["ID_Scenario"].values.tolist()
+                scenario = building_scenario.query(full_query)["ID_Scenario"].values.tolist()[0]
                 total_scenarios.append(scenario)
 
+        return total_scenarios
 
-
-
-
-
-
+    @staticmethod
+    def shorten_scenario_list(list_of_scenarios: List[int]):
+        """
+        find out the doubles in the list
+        :return: dictionary containing the scenario ID as key and the amounts of occurrences as value
+        """
+        return_dict = {}
+        for scen_id in set(list_of_scenarios):
+            return_dict[scen_id] = list_of_scenarios.count(scen_id)
+        return return_dict
 
 
 
 if __name__ == "__main__":
-    ECEMFPostProcess(region="Murcia").scenario_generator(
+    # Battery is only installed in buildings with PV so the probability only refers to buildings with PV.
+    # Heating element is only installed in buildings with PV so the probability only refers to buildings with PV.
+    # Heating buffer storage is only installed in buildings with HPs. Probability only refers to buildings with HP
+    ecemf = ECEMFPostProcess(region="Murcia")
+    scenario_list = ecemf.scenario_generator(
         pv_installation_percentage=0.5,
         dhw_storage_percentage=0.5,
         buffer_storage_percentage=0.5,
@@ -267,6 +274,9 @@ if __name__ == "__main__":
         ac_percentage=0.5,
         battery_percentage=0.5
     )
+    scenario_dict = ecemf.shorten_scenario_list(scenario_list)
+
+
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
 #  heat demand vergeleichen, Außerdem die Abweichung in Floor area plotten! (wegen clustering)
