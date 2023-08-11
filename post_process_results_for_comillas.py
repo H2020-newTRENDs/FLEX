@@ -4,6 +4,9 @@ import numpy as np
 import random
 from typing import List
 import plotly.express as px
+from tqdm import tqdm
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 from flex.db import DB
 from flex.config import Config
@@ -57,7 +60,6 @@ class ECEMFBuildingComparison:
         real_building_ids = self.original_building_ids.loc[:, cluster_id].dropna().astype(int).tolist()
         return self.original_building_df.query(f"ID_Building in {real_building_ids}")
 
-
     def show_variance_within_clusters(self):
         columns_to_plot = [
             "Cluster ID",
@@ -77,7 +79,7 @@ class ECEMFBuildingComparison:
         value_counts = self.original_building_df['Cluster ID'].value_counts()
         values_to_drop = value_counts[value_counts == 1].index
         filtered_df = self.original_building_df[~self.original_building_df['Cluster ID'].isin(values_to_drop)]
-        plot_df = filtered_df[columns_to_plot].sort_values("Cluster ID").melt(id_vars="Cluster ID",)
+        plot_df = filtered_df[columns_to_plot].sort_values("Cluster ID").melt(id_vars="Cluster ID", )
 
         number_columns = len(columns_to_plot) - 1
         fig = px.box(data_frame=plot_df,
@@ -87,13 +89,12 @@ class ECEMFBuildingComparison:
                      facet_col_spacing=0.01,
                      facet_row_spacing=0.02,
                      width=800,
-                     height=350 * number_columns,)
+                     height=350 * number_columns, )
         fig.update_yaxes(matches=None)
         fig.show()
 
     def main(self):
         self.show_variance_within_clusters()
-
 
 
 class ECEMFPostProcess:
@@ -108,7 +109,6 @@ class ECEMFPostProcess:
     def load_clustered_building_df(self):
         return pd.read_excel(self.path_to_project / f"OperationScenario_Component_Building_small_{self.region}.xlsx")
 
-
     def percentage_of_total_buildings(self):
         """
         Percentage of total buildings that belong to this type at the studied location in this scenario
@@ -116,7 +116,7 @@ class ECEMFPostProcess:
         """
 
     @staticmethod
-    def assign_id(list_of_percentages: List[float],) -> int:
+    def assign_id(list_of_percentages: List[float], ) -> int:
         """
         if list of percentages is only containing one element, the decision is taken between 1 and 0.
         :param total_buildings: number of buildings for the specific cluster
@@ -146,7 +146,7 @@ class ECEMFPostProcess:
                            direct_electric_heating_percentage: float,
                            ac_percentage: float,
                            battery_percentage: float,
-                           ) -> List[int]:
+                           ) -> pd.DataFrame:
         """
         generates a scenario based on the percentage values that are provided for each installation. The values have
         to be between 0 and 1. 0 = no buildings are equipped with tech, 1 = all buildings are equipped.
@@ -172,11 +172,12 @@ class ECEMFPostProcess:
         assert 0 <= battery_percentage <= 1
         assert air_hp_percentage + ground_hp_percentage + direct_electric_heating_percentage <= 1
         gases_percentage = 1 - (air_hp_percentage + ground_hp_percentage + direct_electric_heating_percentage)
-        print("creating scenario based on the probabilities...")
         dict_of_inputs = {
-            "ID_PV": [1-pv_installation_percentage, pv_installation_percentage * 0.5, pv_installation_percentage * 0.25, pv_installation_percentage * 0.25],
+            "ID_PV": [1 - pv_installation_percentage, pv_installation_percentage * 0.5,
+                      pv_installation_percentage * 0.25, pv_installation_percentage * 0.25],
             "ID_HotWaterTank": [dhw_storage_percentage],
-            "ID_Boiler": [air_hp_percentage, ground_hp_percentage, direct_electric_heating_percentage, gases_percentage],
+            "ID_Boiler": [air_hp_percentage, ground_hp_percentage, direct_electric_heating_percentage,
+                          gases_percentage],
             "ID_SpaceCoolingTechnology": [ac_percentage]
 
         }
@@ -202,8 +203,8 @@ class ECEMFPostProcess:
                 1: [1]  # with AC
             },
         }
-        total_scenarios = []
-        for _, row in self.clustered_building_df.iterrows():
+        total_scenarios = pd.DataFrame()
+        for _, row in tqdm(self.clustered_building_df.iterrows(), desc=f"creating scenario based on the probabilities"):
             number_buildings = row["number_of_buildings"]
             building_id = row["ID_Building"]
             building_scenario = self.scenario_table.query(f"ID_Building == {building_id}")
@@ -259,8 +260,8 @@ class ECEMFPostProcess:
                              f"and ID_SpaceHeatingTank == {id_buffer} " \
                              f"and ID_HeatingElement == {id_heatelement}"
 
-                scenario = building_scenario.query(full_query)["ID_Scenario"].values.tolist()[0]
-                total_scenarios.append(scenario)
+                scenario = building_scenario.query(full_query)
+                total_scenarios = pd.concat([total_scenarios, scenario], axis=0)
 
         return total_scenarios
 
@@ -286,10 +287,10 @@ class ECEMFPostProcess:
         :return: total grid demand and the total feed to grid
         """
         assert 0 <= prosumager_portion <= 1
-        print("calculating the total load profiles...")
         total_grid_demand = np.zeros((8760,))
         total_feed2grid = np.zeros((8760,))
-        for id_scenario, number_of_occurences in scenario_dictionary.items():
+        for id_scenario, number_of_occurences in tqdm(scenario_dictionary.items(),
+                                                      desc="calculating the total load profiles"):
             ref_loads = self.db.read_parquet(table_name=OperationTable.ResultRefHour,
                                              scenario_ID=id_scenario,
                                              column_names=["Load", "Feed2Grid"])
@@ -314,7 +315,7 @@ class ECEMFPostProcess:
         :param profile: numpy array with shape (8760,)
         :return: numpy array with shape (24,)
         """
-        print("searching for net peak demand day...")
+        print("searching for net peak demand day")
         reshaped_array = profile.reshape(365, 24)
         average_demand_per_day = np.mean(reshaped_array, axis=1)
         # Find the index of the day with the highest average demand
@@ -323,40 +324,56 @@ class ECEMFPostProcess:
         highest_demand_day_values = reshaped_array[max_average_demand_index]
         return highest_demand_day_values
 
+    def show_chosen_dist(self, df: pd.DataFrame):
+        # Create a subplot with shared x-axis
+        n_cols = 3
+        n_rows = int(np.ceil(len(df.columns) / n_cols))
+        fig = make_subplots(rows=n_rows, cols=n_cols)
 
+        # Add histograms to the subplot
+        for idx, column in enumerate(df.columns, start=1):
+            row = (idx - 1) // n_cols + 1
+            col = (idx - 1) % n_cols + 1
+            histogram = go.Histogram(x=df[column], name=column)
+            fig.add_trace(histogram, row=row, col=col)
 
-
+        # Update subplot layout
+        fig.update_layout(title="Distribution of Values in Each Column",
+                          height=200 * len(df.columns),
+                          width=900
+                          )
+        fig.show()
 
 
 
 if __name__ == "__main__":
-    ECEMFBuildingComparison(region="Murcia").main()
+    # ECEMFBuildingComparison(region="Murcia").main()
 
     # Battery is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating element is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating buffer storage is only installed in buildings with HPs. Probability only refers to buildings with HP
     ecemf = ECEMFPostProcess(region="Murcia")
-    scenario_list = ecemf.scenario_generator(
-        pv_installation_percentage=0.5,
+    scenarios = ecemf.scenario_generator(
+        pv_installation_percentage=1,
         dhw_storage_percentage=0.5,
         buffer_storage_percentage=0.5,
         heating_element_percentage=0.5,
         air_hp_percentage=0.3,
         ground_hp_percentage=0.3,
         direct_electric_heating_percentage=0.2,
-        ac_percentage=0.5,
+        ac_percentage=1,
         battery_percentage=0.5
     )
+    ecemf.show_chosen_dist(scenarios.drop(columns=["ID_Scenario", "ID_Building", "ID_Region", "ID_Vehicle",
+                                                   "ID_EnergyPrice", "ID_Behavior"]))
+    scenario_list = scenarios["ID_Scenario"].values.tolist()
     scenario_dict = ecemf.shorten_scenario_list(scenario_list)
 
-    prosumager_portion = 0.5
+    prosumager_portion = 0
     total_grid_demand, total_grid_feed = ecemf.calculate_total_load_profiles(scenario_dictionary=scenario_dict,
                                                                              prosumager_probability=prosumager_portion)
     max_grid_day = ecemf.find_net_peak_demand_day(total_grid_demand)
     max_feed_day = ecemf.find_net_peak_demand_day(total_grid_feed)
-
-
-
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
 #  heat demand vergeleichen, Außerdem die Abweichung in Floor area plotten! (wegen clustering)
