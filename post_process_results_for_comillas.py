@@ -7,27 +7,10 @@ import plotly.express as px
 
 from flex.db import DB
 from flex.config import Config
-from flex_operation.constants import OperationTable, OperationScenarioComponent,
+from flex_operation.constants import OperationTable
 
 
-class ECEMFDataPreparation:
-    def __init__(self):
-        self.project_folder = Path(r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects\ECEMF_T4.3_Murcia")
-
-    def calculate_peak_demand_for_all_scenarios(self, force_new_file: bool = False):
-        """
-        If the csv exists this function will be jumped except if force_new_file = True
-        :return: csv file where the peak demand is saved for each scenario
-        """
-        file_name = self.project_folder / ""
-        # check if file exists:
-
-    pass
-
-
-
-
-class ECEMFPostProcess:
+class ECEMFBuildingComparison:
     def __init__(self, region: str):
         self.region = region
         self.path_to_osm = Path(r"C:\Users\mascherbauer\PycharmProjects\OSM")
@@ -35,10 +18,10 @@ class ECEMFPostProcess:
         self.original_building_ids = self.load_original_building_ids()
         self.clustered_building_df = self.load_clustered_building_df()
         self.original_building_df = self.load_original_building_df()
+        self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}"))
+        self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
         # add the cluster ID to the original building df
         self.add_cluster_id_to_original_building_df()
-        self.db = DB(config=Config(project_name="ECEMF_T4.3_Murcia"))
-        self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
 
     def load_original_building_ids(self):
         return pd.read_excel(self.path_to_project / f"Original_Building_IDs_to_clusters_{self.region}.xlsx")
@@ -55,6 +38,7 @@ class ECEMFPostProcess:
             "hwb",
             "numero_viv",
             "height",
+            "demanda_ca"
         ]
         df_combined = pd.read_excel(self.path_to_osm / f"combined_building_df_{self.region}.xlsx",
                                     usecols=column_names).rename(columns={"numero_viv": "number of persons"})
@@ -73,9 +57,57 @@ class ECEMFPostProcess:
         real_building_ids = self.original_building_ids.loc[:, cluster_id].dropna().astype(int).tolist()
         return self.original_building_df.query(f"ID_Building in {real_building_ids}")
 
-    def show_variance_within_clusters(self):
 
-        pass
+    def show_variance_within_clusters(self):
+        columns_to_plot = [
+            "Cluster ID",
+            "Af",
+            "Hop",
+            "Htr_w",
+            "Hve",
+            "CM_factor",
+            "effective_window_area_south",
+            "construction_period_start",
+            "hwb",
+            "demanda_ca",
+            "number of persons",
+        ]
+
+        # drop buildings that are alone in a cluster as they obviously align with the original data:
+        value_counts = self.original_building_df['Cluster ID'].value_counts()
+        values_to_drop = value_counts[value_counts == 1].index
+        filtered_df = self.original_building_df[~self.original_building_df['Cluster ID'].isin(values_to_drop)]
+        plot_df = filtered_df[columns_to_plot].sort_values("Cluster ID").melt(id_vars="Cluster ID",)
+
+        number_columns = len(columns_to_plot) - 1
+        fig = px.box(data_frame=plot_df,
+                     color="Cluster ID",
+                     facet_col="variable",
+                     facet_col_wrap=1,
+                     facet_col_spacing=0.01,
+                     facet_row_spacing=0.02,
+                     width=800,
+                     height=350 * number_columns,)
+        fig.update_yaxes(matches=None)
+        fig.show()
+
+    def main(self):
+        self.show_variance_within_clusters()
+
+
+
+class ECEMFPostProcess:
+    def __init__(self, region: str):
+        self.region = region
+        self.path_to_osm = Path(r"C:\Users\mascherbauer\PycharmProjects\OSM")
+        self.path_to_project = Path(r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects") / f"ECEMF_T4.3_{region}"
+        self.clustered_building_df = self.load_clustered_building_df()
+        self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}"))
+        self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
+
+    def load_clustered_building_df(self):
+        return pd.read_excel(self.path_to_project / f"OperationScenario_Component_Building_small_{self.region}.xlsx")
+
 
     def percentage_of_total_buildings(self):
         """
@@ -140,7 +172,7 @@ class ECEMFPostProcess:
         assert 0 <= battery_percentage <= 1
         assert air_hp_percentage + ground_hp_percentage + direct_electric_heating_percentage <= 1
         gases_percentage = 1 - (air_hp_percentage + ground_hp_percentage + direct_electric_heating_percentage)
-
+        print("creating scenario based on the probabilities...")
         dict_of_inputs = {
             "ID_PV": [1-pv_installation_percentage, pv_installation_percentage * 0.5, pv_installation_percentage * 0.25, pv_installation_percentage * 0.25],
             "ID_HotWaterTank": [dhw_storage_percentage],
@@ -238,6 +270,7 @@ class ECEMFPostProcess:
         find out the doubles in the list
         :return: dictionary containing the scenario ID as key and the amounts of occurrences as value
         """
+        print("shortening the scenario list and creating dict...")
         return_dict = {}
         for scen_id in set(list_of_scenarios):
             return_dict[scen_id] = list_of_scenarios.count(scen_id)
@@ -253,6 +286,7 @@ class ECEMFPostProcess:
         :return: total grid demand and the total feed to grid
         """
         assert 0 <= prosumager_portion <= 1
+        print("calculating the total load profiles...")
         total_grid_demand = np.zeros((8760,))
         total_feed2grid = np.zeros((8760,))
         for id_scenario, number_of_occurences in scenario_dictionary.items():
@@ -273,24 +307,31 @@ class ECEMFPostProcess:
 
         return total_grid_demand, total_feed2grid
 
-    def find_net_peak_demand_day(self, scenarios: dict):
+    @staticmethod
+    def find_net_peak_demand_day(profile: np.array) -> np.array:
         """
-        takes the scenario dict and calcualted the total load of all scenarios then
-        :param scenarios:
-        :return:
+        takes the scenario dict and calculated the total load of all scenarios then
+        :param profile: numpy array with shape (8760,)
+        :return: numpy array with shape (24,)
         """
         print("searching for net peak demand day...")
-        pass
+        reshaped_array = profile.reshape(365, 24)
+        average_demand_per_day = np.mean(reshaped_array, axis=1)
+        # Find the index of the day with the highest average demand
+        max_average_demand_index = np.argmax(average_demand_per_day)
+        # Get the hourly demand values for the day with the highest average demand
+        highest_demand_day_values = reshaped_array[max_average_demand_index]
+        return highest_demand_day_values
 
-    def find_net_peak_generation_day(self):
 
-        print("searching for net peak generation day...")
-        pass
+
 
 
 
 
 if __name__ == "__main__":
+    ECEMFBuildingComparison(region="Murcia").main()
+
     # Battery is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating element is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating buffer storage is only installed in buildings with HPs. Probability only refers to buildings with HP
@@ -309,7 +350,12 @@ if __name__ == "__main__":
     scenario_dict = ecemf.shorten_scenario_list(scenario_list)
 
     prosumager_portion = 0.5
-    ecemf.calculate_total_load_profiles(scenario_dict, prosumager_portion)
+    total_grid_demand, total_grid_feed = ecemf.calculate_total_load_profiles(scenario_dictionary=scenario_dict,
+                                                                             prosumager_probability=prosumager_portion)
+    max_grid_day = ecemf.find_net_peak_demand_day(total_grid_demand)
+    max_feed_day = ecemf.find_net_peak_demand_day(total_grid_feed)
+
+
 
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
