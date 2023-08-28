@@ -98,13 +98,84 @@ class ECEMFBuildingComparison:
 
 
 class ECEMFPostProcess:
-    def __init__(self, region: str):
+    def __init__(self,
+                 region: str,
+                 pv_installation_percentage: float,
+                 dhw_storage_percentage: float,
+                 buffer_storage_percentage: float,
+                 heating_element_percentage: float,
+                 air_hp_percentage: float,
+                 ground_hp_percentage: float,
+                 direct_electric_heating_percentage: float,
+                 ac_percentage: float,
+                 battery_percentage: float,
+                 prosumager_portion: float,
+                 ):
+        """
+
+        :param region: name of the region (str)
+        :param pv_installation_percentage: percentage of buildings having a PV installed (SFH = 5kWp, MFH = 15kWp)
+        :param dhw_storage_percentage: percentage of buildings having a domestic hot water storage (SFH=300l, MFH=700l)
+        :param buffer_storage_percentage: percentage of buildings having a heating buffer storage (SFH=700l, MFH=1500)
+        :param heating_element_percentage: percentage of buildings having a heating element (max power 5kWh SFH with
+                PV or 15kWh MFH with PV)
+        :param air_hp_percentage: percentage of buildings having an air sourced heat pump
+        :param ground_hp_percentage: percentage of buildings having a ground sourced heat pump
+        :param direct_electric_heating_percentage: percentage of buildings having a direct electric heating system
+        :param ac_percentage: percentage of buildings having an air conditioner for cooling (COP=4)
+        """
         self.region = region
         self.path_to_osm = Path(r"C:\Users\mascherbauer\PycharmProjects\OSM")
         self.path_to_project = Path(r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects") / f"ECEMF_T4.3_{region}"
         self.clustered_building_df = self.load_clustered_building_df()
         self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}"))
         self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
+        self.pv_sizes = {
+            1: 0,  # kWp
+            2: 5,
+            3: 15,
+            4: 5,
+            5: 15,
+            6: 5,
+            7: 15
+        }
+        self.battery_sizes = {
+            1: 0,
+            2: 7,  # kWh
+            3: 15
+        }
+        self.buffer_sizes = {
+            1: 0,
+            2: 700,
+            3: 1500,  # l
+        }
+        self.DHW_sizes = {
+            1: 0,
+            2: 300,
+            3: 700,  # l
+            }
+
+        self.pv_installation_percentage = pv_installation_percentage
+        self.dhw_storage_percentage = dhw_storage_percentage
+        self.buffer_storage_percentage = buffer_storage_percentage
+        self.heating_element_percentage = heating_element_percentage
+        self.air_hp_percentage = air_hp_percentage
+        self.ground_hp_percentage = ground_hp_percentage
+        self.direct_electric_heating_percentage = direct_electric_heating_percentage
+        self.ac_percentage = ac_percentage
+        self.battery_percentage = battery_percentage
+        self.prosumager_percentage = prosumager_portion
+        assert 0 <= self.pv_installation_percentage <= 1
+        assert 0 <= self.dhw_storage_percentage <= 1
+        assert 0 <= self.buffer_storage_percentage <= 1
+        assert 0 <= self.heating_element_percentage <= 1
+        assert 0 <= self.air_hp_percentage <= 1
+        assert 0 <= self.ground_hp_percentage <= 1
+        assert 0 <= self.direct_electric_heating_percentage <= 1
+        assert 0 <= self.ac_percentage <= 1
+        assert 0 <= self.battery_percentage <= 1
+        assert 0 <= self.prosumager_percentage <= 1
+        assert self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage <= 1
 
     def load_clustered_building_df(self):
         return pd.read_excel(self.path_to_project / f"OperationScenario_Component_Building_small_{self.region}.xlsx")
@@ -136,49 +207,23 @@ class ECEMFPostProcess:
         choice = random.choices(choices, weights=weights)[0]
         return choice
 
-    def scenario_generator(self,
-                           pv_installation_percentage: float,
-                           dhw_storage_percentage: float,
-                           buffer_storage_percentage: float,
-                           heating_element_percentage: float,
-                           air_hp_percentage: float,
-                           ground_hp_percentage: float,
-                           direct_electric_heating_percentage: float,
-                           ac_percentage: float,
-                           battery_percentage: float,
-                           ) -> pd.DataFrame:
+    def scenario_generator(self) -> pd.DataFrame:
         """
         generates a scenario based on the percentage values that are provided for each installation. The values have
         to be between 0 and 1. 0 = no buildings are equipped with tech, 1 = all buildings are equipped.
-        :param pv_installation_percentage: percentage of buildings having a PV installed (SFH = 5kWp, MFH = 15kWp)
-        :param dhw_storage_percentage: percentage of buildings having a domestic hot water storage (SFH=300l, MFH=700l)
-        :param buffer_storage_percentage: percentage of buildings having a heating buffer storage (SFH=700l, MFH=1500)
-        :param heating_element_percentage: percentage of buildings having a heating element (max power 5kWh SFH with
-                PV or 15kWh MFH with PV)
-        :param air_hp_percentage: percentage of buildings having an air sourced heat pump
-        :param ground_hp_percentage: percentage of buildings having a ground sourced heat pump
-        :param direct_electric_heating_percentage: percentage of buildings having a direct electric heating system
-        :param ac_percentage: percentage of buildings having an air conditioner for cooling (COP=4)
+
         :return: returns a list of all the scenarios IDs for the whole building stock
         """
-        assert 0 <= pv_installation_percentage <= 1
-        assert 0 <= dhw_storage_percentage <= 1
-        assert 0 <= buffer_storage_percentage <= 1
-        assert 0 <= heating_element_percentage <= 1
-        assert 0 <= air_hp_percentage <= 1
-        assert 0 <= ground_hp_percentage <= 1
-        assert 0 <= direct_electric_heating_percentage <= 1
-        assert 0 <= ac_percentage <= 1
-        assert 0 <= battery_percentage <= 1
-        assert air_hp_percentage + ground_hp_percentage + direct_electric_heating_percentage <= 1
-        gases_percentage = 1 - (air_hp_percentage + ground_hp_percentage + direct_electric_heating_percentage)
+
+        gases_percentage = 1 - (
+                    self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage)
         dict_of_inputs = {
-            "ID_PV": [1 - pv_installation_percentage, pv_installation_percentage * 0.5,
-                      pv_installation_percentage * 0.25, pv_installation_percentage * 0.25],
-            "ID_HotWaterTank": [dhw_storage_percentage],
-            "ID_Boiler": [air_hp_percentage, ground_hp_percentage, direct_electric_heating_percentage,
+            "ID_PV": [1 - self.pv_installation_percentage, self.pv_installation_percentage * 0.5,
+                      self.pv_installation_percentage * 0.25, self.pv_installation_percentage * 0.25],
+            "ID_HotWaterTank": [self.dhw_storage_percentage],
+            "ID_Boiler": [self.air_hp_percentage, self.ground_hp_percentage, self.direct_electric_heating_percentage,
                           gases_percentage],
-            "ID_SpaceCoolingTechnology": [ac_percentage]
+            "ID_SpaceCoolingTechnology": [self.ac_percentage]
 
         }
         translation_2_id = {
@@ -236,21 +281,21 @@ class ECEMFPostProcess:
                 # If multiple exist, battery is an option otherwise there is no PV and thus no battery can be chosen.
                 if len(possible_bat_ids) > 1:
                     # decide if battery is used
-                    if self.assign_id([battery_percentage]) == 1:  # battery is used
+                    if self.assign_id([self.battery_percentage]) == 1:  # battery is used
                         id_battery = list(set(possible_bat_ids).intersection([2, 3]))[0]  # select ID based on building
                     else:
                         id_battery = 1  # battery is not used
                 else:
                     id_battery = 1
                 if len(possible_spacetank_ids) > 1:
-                    if self.assign_id([buffer_storage_percentage]) > 1:
+                    if self.assign_id([self.buffer_storage_percentage]) > 1:
                         id_buffer = list(set(possible_spacetank_ids).intersection([2, 3]))[0]
                     else:
                         id_buffer = 1
                 else:
                     id_buffer = 1
                 if len(possible_heatelement_ids) > 1:
-                    if self.assign_id([heating_element_percentage]) > 1:
+                    if self.assign_id([self.heating_element_percentage]) > 1:
                         id_heatelement = list(set(possible_heatelement_ids).intersection([2, 3]))[0]
                     else:
                         id_heatelement = 1
@@ -277,18 +322,22 @@ class ECEMFPostProcess:
             return_dict[scen_id] = list_of_scenarios.count(scen_id)
         return return_dict
 
+    def load_all_load_profiles(self,
+                               ):
+        pass
+
     def calculate_total_load_profiles(self,
                                       scenario_dictionary: dict,
-                                      prosumager_probability: float) -> (np.array, np.array):
+                                      number_of_buildings: int) -> (np.array, np.array):
         """
 
         :param scenario_dictionary: dict that contains all scenarios
         :param prosumager_probability: likelihood that a household is a prosumager (between 0 and 1)
         :return: total grid demand and the total feed to grid
         """
-        assert 0 <= prosumager_portion <= 1
-        total_grid_demand = np.zeros((8760,))
-        total_feed2grid = np.zeros((8760,))
+        result_matrix_demand = np.empty(shape=(8760, number_of_buildings))
+        result_matrix_feed2grid = np.empty(shape=(8760, number_of_buildings))
+        i = 0  # iterate through all buildings and save the profiles in numpy array:
         for id_scenario, number_of_occurences in tqdm(scenario_dictionary.items(),
                                                       desc="calculating the total load profiles"):
             ref_loads = self.db.read_parquet(table_name=OperationTable.ResultRefHour,
@@ -298,31 +347,31 @@ class ECEMFPostProcess:
                                              scenario_ID=id_scenario,
                                              column_names=["Load", "Feed2Grid"])
             for _ in range(number_of_occurences):
-                prosumager = self.assign_id([prosumager_probability])
+                prosumager = self.assign_id([self.prosumager_percentage])
                 if prosumager == 0:
-                    total_grid_demand += ref_loads["Load"].to_numpy()
-                    total_feed2grid += ref_loads["Feed2Grid"].to_numpy()
+                    result_matrix_demand[:, i] = ref_loads["Load"].to_numpy()
+                    result_matrix_feed2grid[:, i] = ref_loads["Feed2Grid"].to_numpy()
                 else:
-                    total_grid_demand += opt_loads["Load"].to_numpy()
-                    total_feed2grid += opt_loads["Feed2Grid"].to_numpy()
+                    result_matrix_demand[:, i] = opt_loads["Load"].to_numpy()
+                    result_matrix_feed2grid[:, i] = opt_loads["Feed2Grid"].to_numpy()
+                i += 1
 
-        return total_grid_demand, total_feed2grid
+        return result_matrix_demand, result_matrix_feed2grid
 
     @staticmethod
-    def find_net_peak_demand_day(profile: np.array) -> np.array:
+    def find_net_peak_demand_day(np_matrix: np.array) -> int:
         """
-        takes the scenario dict and calculated the total load of all scenarios then
+        finds the index of the day with the highest average demand
         :param profile: numpy array with shape (8760,)
         :return: numpy array with shape (24,)
         """
         print("searching for net peak demand day")
+        profile = np_matrix.sum(axis=1)
         reshaped_array = profile.reshape(365, 24)
         average_demand_per_day = np.mean(reshaped_array, axis=1)
         # Find the index of the day with the highest average demand
         max_average_demand_index = np.argmax(average_demand_per_day)
-        # Get the hourly demand values for the day with the highest average demand
-        highest_demand_day_values = reshaped_array[max_average_demand_index]
-        return highest_demand_day_values
+        return max_average_demand_index
 
     def show_chosen_dist(self, df: pd.DataFrame):
         # Create a subplot with shared x-axis
@@ -334,7 +383,7 @@ class ECEMFPostProcess:
         for idx, column in enumerate(df.columns, start=1):
             row = (idx - 1) // n_cols + 1
             col = (idx - 1) % n_cols + 1
-            histogram = go.Histogram(x=df[column], name=column)
+            histogram = go.Histogram(x=df[column], name=column, hovertext="number buildings")
             fig.add_trace(histogram, row=row, col=col)
 
         # Update subplot layout
@@ -344,6 +393,89 @@ class ECEMFPostProcess:
                           )
         fig.show()
 
+    def select_max_days(self, demand: np.array) -> np.array:
+        max_grid_day_index = ecemf.find_net_peak_demand_day(demand)
+        start_hour = (max_grid_day_index - 1) * 24
+        end_hour = max_grid_day_index * 24
+        selected_day_demand = demand[start_hour: end_hour, :]
+        return selected_day_demand
+
+    def calculate_contracted_power(self, array: np.array):
+        """ contracted power is the maximum demand """
+        return max(array.sum(axis=1))
+
+    def calculate_installed_capacity(self, scenario_series: pd.Series, translation_dict: dict) -> float:
+        capacity = np.vectorize(translation_dict.get)(scenario_series.to_numpy())
+        return capacity.sum()
+
+    def save_hourly_csv(self, demand, feed2grid, file_name: str):
+        # check if feed2grid is empty and if its is create a zero array:
+        if len(feed2grid) == 0:
+            feed2grid = np.zeros(shape=demand.shape)
+        total_data = np.concatenate([demand, feed2grid * -1], axis=0)
+        total_df = pd.DataFrame(total_data)
+        total_df.insert(loc=0,
+                        column="unit",
+                        value="Wh")
+        total_df.insert(loc=0,
+                        column="type",
+                        value=np.concatenate((np.full(shape=(24,), fill_value="grid demand"),
+                                              np.full(shape=(24,), fill_value="feed to grid")))
+                        )
+        total_df.insert(loc=0,
+                        column="hours",
+                        value=np.concatenate((np.arange(1, 25), np.arange(1, 25))))
+        total_df.to_csv(self.path_to_project / f"{file_name}.csv", sep=";", index=False)
+
+    def create_output_csv(self):
+        scenarios = self.scenario_generator()
+        scenario_list = scenarios["ID_Scenario"].values.tolist()
+        number_of_buildings = len(scenario_list)
+        scenario_dict = self.shorten_scenario_list(scenario_list)
+
+        total_grid_demand, total_grid_feed = ecemf.calculate_total_load_profiles(
+            scenario_dictionary=scenario_dict,
+            number_of_buildings=number_of_buildings
+        )
+
+        # define filename:
+        file_name = f"{self.region}_" \
+                    f"PV-{round(self.pv_installation_percentage*100)}%_" \
+                    f"DHW-{round(self.dhw_storage_percentage*100)}%_" \
+                    f"Buffer-{round(self.buffer_storage_percentage*100)}%_" \
+                    f"HE-{round(self.heating_element_percentage * 100)}%_" \
+                    f"AirHP-{round(self.air_hp_percentage * 100)}%_" \
+                    f"GroundHP-{round(self.ground_hp_percentage * 100)}%_" \
+                    f"directE-{round(self.direct_electric_heating_percentage * 100)}%_" \
+                    f"AC-{round(self.ac_percentage * 100)}%_" \
+                    f"Battery-{round(self.battery_percentage * 100)}%_" \
+                    f"Prosumager-{round(self.prosumager_percentage * 100)}%"
+
+        # save the profiles to csv
+        max_day_demand = self.select_max_days(total_grid_demand)
+        max_day_feed2grid = self.select_max_days(total_grid_feed)
+        self.save_hourly_csv(demand=max_day_demand, feed2grid=max_day_feed2grid, file_name=file_name)
+
+        # create the corresponding overall information csv:
+        contracted_power = self.calculate_contracted_power(total_grid_demand)
+        total_pv = self.calculate_installed_capacity(scenario_series=scenarios["ID_PV"],
+                                                     translation_dict=self.pv_sizes)
+        total_battery = self.calculate_installed_capacity(scenario_series=scenarios["ID_Battery"],
+                                                          translation_dict=self.battery_sizes)
+        total_buffer = self.calculate_installed_capacity(scenario_series=scenarios["ID_SpaceHeatingTank"],
+                                                         translation_dict=self.buffer_sizes)
+        total_dhw = self.calculate_installed_capacity(scenario_series=scenarios["ID_HotWaterTank"],
+                                                      translation_dict=self.DHW_sizes)
+        add_info_df = pd.DataFrame.from_dict(data={
+            "Region": self.region,
+            "Peak Demand (kWh)": round(contracted_power / 1_000),
+            "Installed PV (kWp)": total_pv,
+            "Installed Battery (kWh)": total_battery,
+            "Installed Buffer (l)": total_buffer,
+            "Installed DHW storage (l)": total_dhw
+        }, orient="index")
+        add_info_df.to_csv(self.path_to_project / f"INFO_{file_name}.csv", sep=";")
+
 
 
 if __name__ == "__main__":
@@ -352,28 +484,21 @@ if __name__ == "__main__":
     # Battery is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating element is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating buffer storage is only installed in buildings with HPs. Probability only refers to buildings with HP
-    ecemf = ECEMFPostProcess(region="Murcia")
-    scenarios = ecemf.scenario_generator(
-        pv_installation_percentage=1,
-        dhw_storage_percentage=0.5,
-        buffer_storage_percentage=0.5,
-        heating_element_percentage=0.5,
-        air_hp_percentage=0.3,
-        ground_hp_percentage=0.3,
-        direct_electric_heating_percentage=0.2,
-        ac_percentage=1,
-        battery_percentage=0.5
-    )
-    ecemf.show_chosen_dist(scenarios.drop(columns=["ID_Scenario", "ID_Building", "ID_Region", "ID_Vehicle",
-                                                   "ID_EnergyPrice", "ID_Behavior"]))
-    scenario_list = scenarios["ID_Scenario"].values.tolist()
-    scenario_dict = ecemf.shorten_scenario_list(scenario_list)
+    ecemf = ECEMFPostProcess(region="Murcia",
+                             pv_installation_percentage=1,
+                             dhw_storage_percentage=0,
+                             buffer_storage_percentage=0,
+                             heating_element_percentage=0,
+                             air_hp_percentage=0.3,
+                             ground_hp_percentage=0.3,
+                             direct_electric_heating_percentage=0.2,
+                             ac_percentage=0,
+                             battery_percentage=0.5,
+                             prosumager_portion=0
+                             )
 
-    prosumager_portion = 0
-    total_grid_demand, total_grid_feed = ecemf.calculate_total_load_profiles(scenario_dictionary=scenario_dict,
-                                                                             prosumager_probability=prosumager_portion)
-    max_grid_day = ecemf.find_net_peak_demand_day(total_grid_demand)
-    max_feed_day = ecemf.find_net_peak_demand_day(total_grid_feed)
+    ecemf.create_output_csv()
+
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
 #  heat demand vergeleichen, Außerdem die Abweichung in Floor area plotten! (wegen clustering)
