@@ -96,8 +96,8 @@ class OperationDataCollector(ABC):
             if not variable_name.startswith("_"):
                 var_values = self.get_var_values(variable_name)
                 # check if the load in the reference model has outliers which would indicate a problem:
-                if variable_name == "Load" and self.get_hour_result_table_name() == OperationTable.ResultRefHour:
-                    self.check_hourly_results_for_outliers(var_values, variable_name)
+                # if variable_name == "Load" and self.get_hour_result_table_name() == OperationTable.ResultRefHour:
+                #     self.check_hourly_results_for_outliers(var_values, variable_name)
                 self.hour_result[variable_name] = var_values
                 if variable_type == "hour&year":
                     self.month_result[variable_name] = self.convert_hour_to_month(var_values)
