@@ -7,6 +7,8 @@ import plotly.express as px
 from tqdm import tqdm
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 
 from flex.db import DB
 from flex.config import Config
@@ -326,35 +328,42 @@ class ECEMFPostProcess:
                                ):
         pass
 
-    def calculate_total_load_profiles(self,
-                                      scenario_dictionary: dict,
-                                      number_of_buildings: int) -> (np.array, np.array):
-        """
+    def worker(self, id_scenario, number_of_occurences):
+        ref_loads = self.db.read_parquet(table_name=OperationTable.ResultRefHour,
+                                         scenario_ID=id_scenario,
+                                         column_names=["Load", "Feed2Grid"])
+        opt_loads = self.db.read_parquet(table_name=OperationTable.ResultOptHour,
+                                         scenario_ID=id_scenario,
+                                         column_names=["Load", "Feed2Grid"])
 
-        :param scenario_dictionary: dict that contains all scenarios
-        :param prosumager_probability: likelihood that a household is a prosumager (between 0 and 1)
-        :return: total grid demand and the total feed to grid
-        """
-        result_matrix_demand = np.empty(shape=(8760, number_of_buildings))
-        result_matrix_feed2grid = np.empty(shape=(8760, number_of_buildings))
-        i = 0  # iterate through all buildings and save the profiles in numpy array:
-        for id_scenario, number_of_occurences in tqdm(scenario_dictionary.items(),
-                                                      desc="calculating the total load profiles"):
-            ref_loads = self.db.read_parquet(table_name=OperationTable.ResultRefHour,
-                                             scenario_ID=id_scenario,
-                                             column_names=["Load", "Feed2Grid"])
-            opt_loads = self.db.read_parquet(table_name=OperationTable.ResultOptHour,
-                                             scenario_ID=id_scenario,
-                                             column_names=["Load", "Feed2Grid"])
-            for _ in range(number_of_occurences):
-                prosumager = self.assign_id([self.prosumager_percentage])
-                if prosumager == 0:
-                    result_matrix_demand[:, i] = ref_loads["Load"].to_numpy()
-                    result_matrix_feed2grid[:, i] = ref_loads["Feed2Grid"].to_numpy()
-                else:
-                    result_matrix_demand[:, i] = opt_loads["Load"].to_numpy()
-                    result_matrix_feed2grid[:, i] = opt_loads["Feed2Grid"].to_numpy()
-                i += 1
+        result_matrix_demand = np.empty(shape=(8760, number_of_occurences))
+        result_matrix_feed2grid = np.empty(shape=(8760, number_of_occurences))
+        for i in range(number_of_occurences):
+            prosumager = self.assign_id([self.prosumager_percentage])
+            if prosumager == 0:
+                result_matrix_demand[:, i] = ref_loads["Load"].to_numpy()
+                result_matrix_feed2grid[:, i] = ref_loads["Feed2Grid"].to_numpy()
+            else:
+                result_matrix_demand[:, i] = opt_loads["Load"].to_numpy()
+                result_matrix_feed2grid[:, i] = opt_loads["Feed2Grid"].to_numpy()
+
+        return result_matrix_demand, result_matrix_feed2grid
+
+    def calculate_total_load_profiles(self, scenario_dictionary: dict):
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(self.worker, id_scenario, number_of_occurences)
+                       for id_scenario, number_of_occurences in scenario_dictionary.items()]
+
+            results_demand = []
+            results_feed2grid = []
+
+            for future in tqdm(as_completed(futures), total=len(futures), desc="calculating total load profiles"):
+                demand, feed2grid = future.result()
+                results_demand.append(demand)
+                results_feed2grid.append(feed2grid)
+
+        result_matrix_demand = np.concatenate(results_demand, axis=1)
+        result_matrix_feed2grid = np.concatenate(results_feed2grid, axis=1)
 
         return result_matrix_demand, result_matrix_feed2grid
 
@@ -430,13 +439,9 @@ class ECEMFPostProcess:
     def create_output_csv(self):
         scenarios = self.scenario_generator()
         scenario_list = scenarios["ID_Scenario"].values.tolist()
-        number_of_buildings = len(scenario_list)
         scenario_dict = self.shorten_scenario_list(scenario_list)
 
-        total_grid_demand, total_grid_feed = ecemf.calculate_total_load_profiles(
-            scenario_dictionary=scenario_dict,
-            number_of_buildings=number_of_buildings
-        )
+        total_grid_demand, total_grid_feed = ecemf.calculate_total_load_profiles(scenario_dictionary=scenario_dict)
 
         # define filename:
         file_name = f"{self.region}_" \
