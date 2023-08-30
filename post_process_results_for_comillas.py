@@ -127,11 +127,11 @@ class ECEMFPostProcess:
         :param ac_percentage: percentage of buildings having an air conditioner for cooling (COP=4)
         """
         self.region = region
-        self.path_to_osm = Path(r"C:\Users\mascherbauer\PycharmProjects\OSM")
-        self.path_to_project = Path(r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects") / f"ECEMF_T4.3_{region}"
-        self.clustered_building_df = self.load_clustered_building_df()
+        self.path_to_project = Path(r"/home/users/pmascherbauer/projects/Philipp/PycharmProjects/projects/") / f"ECEMF_T4.3_{region}"
         self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}"))
         self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
+        self.clustered_building_df = self.db.read_dataframe("OperationScenario_Component_Building")
+
         self.pv_sizes = {
             1: 0,  # kWp
             2: 5,
@@ -255,8 +255,6 @@ class ECEMFPostProcess:
             number_buildings = row["number_of_buildings"]
             building_id = row["ID_Building"]
             building_scenario = self.scenario_table.query(f"ID_Building == {building_id}")
-            if building_id != 41:
-                continue
             for n_building in range(number_buildings):
                 chosen_building_attributes = {}
                 for attribute_name, perc_list in dict_of_inputs.items():
@@ -460,6 +458,7 @@ class ECEMFPostProcess:
         max_day_demand = self.select_max_days(total_grid_demand)
         max_day_feed2grid = self.select_max_days(total_grid_feed)
         self.save_hourly_csv(demand=max_day_demand, feed2grid=max_day_feed2grid, file_name=file_name)
+        print("saved hourly csv")
 
         # create the corresponding overall information csv:
         contracted_power = self.calculate_contracted_power(total_grid_demand)
@@ -480,6 +479,7 @@ class ECEMFPostProcess:
             "Installed DHW storage (l)": total_dhw
         }, orient="index")
         add_info_df.to_csv(self.path_to_project / f"INFO_{file_name}.csv", sep=";")
+        print("saved Info csv")
 
 
 
@@ -495,11 +495,11 @@ if __name__ == "__main__":
                              buffer_storage_percentage=0,
                              heating_element_percentage=0,
                              air_hp_percentage=0.3,
-                             ground_hp_percentage=0.3,
+                             ground_hp_percentage=0.1,
                              direct_electric_heating_percentage=0.2,
                              ac_percentage=0,
-                             battery_percentage=0.5,
-                             prosumager_portion=0
+                             battery_percentage=0.2,
+                             prosumager_portion=0.2
                              )
 
     ecemf.create_output_csv()
