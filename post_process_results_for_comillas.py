@@ -368,19 +368,27 @@ class ECEMFPostProcess:
         return result_matrix_demand, result_matrix_feed2grid
 
     @staticmethod
-    def find_net_peak_demand_day(np_matrix: np.array) -> int:
+    def find_net_peak_demand_day(data: pd.DataFrame) -> int:
         """
         finds the index of the day with the highest average demand
         :param profile: numpy array with shape (8760,)
-        :return: numpy array with shape (24,)
+        :return: integer which day has highest demand out of 364 (starting at 0)
         """
         print("searching for net peak demand day")
-        profile = np_matrix.sum(axis=1)
-        reshaped_array = profile.reshape(365, 24)
-        average_demand_per_day = np.mean(reshaped_array, axis=1)
-        # Find the index of the day with the highest average demand
-        max_average_demand_index = np.argmax(average_demand_per_day)
-        return max_average_demand_index
+        # Sum up all columns to get the net demand for each hour
+        profile = data.sum(axis=1)
+        # Resample the data to get average daily demand
+        daily_average = profile.groupby(profile.index // 24).mean()
+        # Find the day with the highest average demand
+        max_average_demand_day = daily_average.idxmax()
+        return max_average_demand_day
+
+
+
+
+
+        # Return the day number (0-based, so January 1st is day 0, January 2nd is day 1, etc.)
+        return (max_average_demand_day - daily_average.index[0]).days
 
     def show_chosen_dist(self, df: pd.DataFrame):
         # Create a subplot with shared x-axis
@@ -402,11 +410,11 @@ class ECEMFPostProcess:
                           )
         fig.show()
 
-    def select_max_days(self, demand: np.array) -> np.array:
+    def select_max_days(self, demand: pd.DataFrame) -> pd.DataFrame:
         max_grid_day_index = ecemf.find_net_peak_demand_day(demand)
-        start_hour = (max_grid_day_index - 1) * 24
-        end_hour = max_grid_day_index * 24
-        selected_day_demand = demand[start_hour: end_hour, :]
+        start_hour = max_grid_day_index * 24
+        end_hour = (max_grid_day_index + 1) * 24 - 1
+        selected_day_demand = demand.loc[start_hour: end_hour, :]
         return selected_day_demand
 
     def calculate_contracted_power(self, array: np.array):
@@ -417,24 +425,26 @@ class ECEMFPostProcess:
         capacity = np.vectorize(translation_dict.get)(scenario_series.to_numpy())
         return capacity.sum()
 
-    def save_hourly_csv(self, demand, feed2grid, file_name: str):
+    def save_hourly_csv(self,
+                        demand: pd.DataFrame,
+                        feed2grid: pd.DataFrame,
+                        file_name: str):
         # check if feed2grid is empty and if its is create a zero array:
         if len(feed2grid) == 0:
-            feed2grid = np.zeros(shape=demand.shape)
-        total_data = np.concatenate([demand, feed2grid * -1], axis=0)
-        total_df = pd.DataFrame(total_data)
-        total_df.insert(loc=0,
+            feed2grid = pd.DataFrame(np.zeros(shape=demand.shape))
+        total_data = pd.concat([demand, feed2grid * -1], axis=0)
+        total_data.insert(loc=0,
                         column="unit",
                         value="Wh")
-        total_df.insert(loc=0,
+        total_data.insert(loc=0,
                         column="type",
                         value=np.concatenate((np.full(shape=(24,), fill_value="grid demand"),
                                               np.full(shape=(24,), fill_value="feed to grid")))
                         )
-        total_df.insert(loc=0,
+        total_data.insert(loc=0,
                         column="hours",
                         value=np.concatenate((np.arange(1, 25), np.arange(1, 25))))
-        total_df.to_csv(self.path_to_project / f"{file_name}.csv", sep=";", index=False)
+        total_data.to_csv(self.path_to_project / f"{file_name}.csv", sep=";", index=False)
 
     def add_real_building_ids(self,
                               scenario_df: pd.DataFrame,
@@ -449,34 +459,49 @@ class ECEMFPostProcess:
         # remove nan from the dict
         for key in match_dict.keys():
             match_dict[key] = [int(x) for x in match_dict[key] if not pd.isna(x)]
-        # create a second match dict for the feed, as we are using pop later the lists in the dict will empty themselves
-        match_dict_feed = match_dict.copy()
         # create a dict that contains the building ID for each scenario ID
         clustered_ids = scenario_df[["ID_Building", "ID_Scenario"]].set_index("ID_Scenario", drop=True).to_dict()[
             "ID_Building"]
-        # for each clustered Building ID draw a real building ID from match. To avoid drawing the same building twice, pop
-        demand_columns = list(total_grid_demand.columns)
-        for j, (scenario_id, i) in enumerate(demand_columns):
+
+        # for each clustered Building ID draw a real building ID from match.
+        # To avoid drawing the same building twice use pop
+        column_names = list(total_grid_demand.columns)
+        for j, (scenario_id, i) in enumerate(column_names):
             # get the building ID for the scenario ID
             cluster_id = clustered_ids[scenario_id]
             # with the building ID (which is the ID of the clustered buildings) select a real building ID
             real_id = int(match_dict[cluster_id].pop())
             # change the column name with the real ID:
-            demand_columns[j] = real_id
+            column_names[j] = real_id
 
-        feed_columns = list(total_grid_feed.columns)
-        for j, (scenario_id, i) in enumerate(feed_columns):
-            # get the building ID for the scenario ID
-            cluster_id = clustered_ids[scenario_id]
-            # with the building ID (which is the ID of the clustered buildings) select a real building ID
-            real_id = int(match_dict_feed[cluster_id].pop())
-            # change the column name with the real ID:
-            feed_columns[j] = real_id
-
-        # reset the column ids to the real building IDs:
-        total_grid_demand.columns = demand_columns
-        total_grid_feed.columns = feed_columns
+        # reset the column ids to the real building IDs: column names are the same in both dataframes
+        total_grid_demand.columns = column_names
+        total_grid_feed.columns = column_names
         return total_grid_demand, total_grid_feed
+
+    def create_overall_information_csv(self,
+                                       scenario_df: pd.DataFrame,
+                                       total_grid_demand: pd.DataFrame,
+                                       file_name: str):
+        # create the corresponding overall information csv:
+        contracted_power = self.calculate_contracted_power(total_grid_demand)
+        total_pv = self.calculate_installed_capacity(scenario_series=scenario_df["ID_PV"],
+                                                     translation_dict=self.pv_sizes)
+        total_battery = self.calculate_installed_capacity(scenario_series=scenario_df["ID_Battery"],
+                                                          translation_dict=self.battery_sizes)
+        total_buffer = self.calculate_installed_capacity(scenario_series=scenario_df["ID_SpaceHeatingTank"],
+                                                         translation_dict=self.buffer_sizes)
+        total_dhw = self.calculate_installed_capacity(scenario_series=scenario_df["ID_HotWaterTank"],
+                                                      translation_dict=self.DHW_sizes)
+        add_info_df = pd.DataFrame.from_dict(data={
+            "Region": self.region,
+            "Peak Demand (kWh)": round(contracted_power / 1_000),
+            "Installed PV (kWp)": total_pv,
+            "Installed Battery (kWh)": total_battery,
+            "Installed Buffer (l)": total_buffer,
+            "Installed DHW storage (l)": total_dhw
+        }, orient="index")
+        add_info_df.to_csv(self.path_to_project / f"INFO_{file_name}.csv", sep=";")
 
     def create_output_csv(self):
         scenarios = self.scenario_generator()
@@ -484,14 +509,9 @@ class ECEMFPostProcess:
         scenario_dict = self.shorten_scenario_list(scenario_list)
 
         total_grid_demand, total_grid_feed = ecemf.calculate_total_load_profiles(scenario_dictionary=scenario_dict)
-        total_grid_demand, total_grid_feed = self.add_real_building_ids(scenario_df=scenarios,
-                                                                        total_grid_demand=total_grid_demand,
-                                                                        total_grid_feed=total_grid_feed)
-
-        # load ID Building + coordinate
-        coordinates = pd.read_csv(self.path_to_project / f"Building_coordinates_{self.region}.csv").set_index(
-            "ID_Building", drop=True)
-        coordinates_dict = coordinates.to_dict()
+        total_grid_demand_real, total_grid_feed_real = self.add_real_building_ids(scenario_df=scenarios,
+                                                                                  total_grid_demand=total_grid_demand,
+                                                                                  total_grid_feed=total_grid_feed)
 
         # define filename:
         file_name = f"{self.region}_" \
@@ -507,29 +527,15 @@ class ECEMFPostProcess:
                     f"Prosumager-{round(self.prosumager_percentage * 100)}%"
 
         # save the profiles to csv
-        max_day_demand = self.select_max_days(total_grid_demand)
-        max_day_feed2grid = self.select_max_days(total_grid_feed)
+        max_day_demand = self.select_max_days(total_grid_demand_real)
+        max_day_feed2grid = self.select_max_days(total_grid_feed_real)
         self.save_hourly_csv(demand=max_day_demand, feed2grid=max_day_feed2grid, file_name=file_name)
 
-        # create the corresponding overall information csv:
-        contracted_power = self.calculate_contracted_power(total_grid_demand)
-        total_pv = self.calculate_installed_capacity(scenario_series=scenarios["ID_PV"],
-                                                     translation_dict=self.pv_sizes)
-        total_battery = self.calculate_installed_capacity(scenario_series=scenarios["ID_Battery"],
-                                                          translation_dict=self.battery_sizes)
-        total_buffer = self.calculate_installed_capacity(scenario_series=scenarios["ID_SpaceHeatingTank"],
-                                                         translation_dict=self.buffer_sizes)
-        total_dhw = self.calculate_installed_capacity(scenario_series=scenarios["ID_HotWaterTank"],
-                                                      translation_dict=self.DHW_sizes)
-        add_info_df = pd.DataFrame.from_dict(data={
-            "Region": self.region,
-            "Peak Demand (kWh)": round(contracted_power / 1_000),
-            "Installed PV (kWp)": total_pv,
-            "Installed Battery (kWh)": total_battery,
-            "Installed Buffer (l)": total_buffer,
-            "Installed DHW storage (l)": total_dhw
-        }, orient="index")
-        add_info_df.to_csv(self.path_to_project / f"INFO_{file_name}.csv", sep=";")
+        self.create_overall_information_csv(scenario_df=scenarios,
+                                            total_grid_demand=total_grid_demand_real,
+                                            file_name=file_name)
+
+
 
 
 if __name__ == "__main__":
