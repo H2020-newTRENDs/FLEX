@@ -9,7 +9,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-
 from flex.db import DB
 from flex.config import Config
 from flex_operation.constants import OperationTable
@@ -155,7 +154,7 @@ class ECEMFPostProcess:
             1: 0,
             2: 300,
             3: 700,  # l
-            }
+        }
 
         self.pv_installation_percentage = pv_installation_percentage
         self.dhw_storage_percentage = dhw_storage_percentage
@@ -180,7 +179,7 @@ class ECEMFPostProcess:
         assert self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage <= 1
 
     def load_clustered_building_df(self):
-        return pd.read_excel(self.path_to_project / f"OperationScenario_Component_Building_small_{self.region}.xlsx")
+        return pd.read_excel(self.path_to_project / f"OperationScenario_Component_Building.xlsx")
 
     def percentage_of_total_buildings(self):
         """
@@ -218,7 +217,7 @@ class ECEMFPostProcess:
         """
 
         gases_percentage = 1 - (
-                    self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage)
+                self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage)
         dict_of_inputs = {
             "ID_PV": [1 - self.pv_installation_percentage, self.pv_installation_percentage * 0.5,
                       self.pv_installation_percentage * 0.25, self.pv_installation_percentage * 0.25],
@@ -328,7 +327,7 @@ class ECEMFPostProcess:
                                ):
         pass
 
-    def worker(self, id_scenario, number_of_occurences):
+    def worker(self, id_scenario, number_of_occurences) -> (pd.DataFrame, pd.DataFrame):
         ref_loads = self.db.read_parquet(table_name=OperationTable.ResultRefHour,
                                          scenario_ID=id_scenario,
                                          column_names=["Load", "Feed2Grid"])
@@ -336,16 +335,17 @@ class ECEMFPostProcess:
                                          scenario_ID=id_scenario,
                                          column_names=["Load", "Feed2Grid"])
 
-        result_matrix_demand = np.empty(shape=(8760, number_of_occurences))
-        result_matrix_feed2grid = np.empty(shape=(8760, number_of_occurences))
+        multi_index = pd.MultiIndex.from_tuples([(id_scenario, i) for i in range(number_of_occurences)])
+        result_matrix_demand = pd.DataFrame(index=range(8760), columns=multi_index)
+        result_matrix_feed2grid = pd.DataFrame(index=range(8760), columns=multi_index)
         for i in range(number_of_occurences):
             prosumager = self.assign_id([self.prosumager_percentage])
             if prosumager == 0:
-                result_matrix_demand[:, i] = ref_loads["Load"].to_numpy()
-                result_matrix_feed2grid[:, i] = ref_loads["Feed2Grid"].to_numpy()
+                result_matrix_demand.loc[:, (id_scenario, i)] = ref_loads["Load"].to_numpy()
+                result_matrix_feed2grid.loc[:, (id_scenario, i)] = ref_loads["Feed2Grid"].to_numpy()
             else:
-                result_matrix_demand[:, i] = opt_loads["Load"].to_numpy()
-                result_matrix_feed2grid[:, i] = opt_loads["Feed2Grid"].to_numpy()
+                result_matrix_demand.loc[:, (id_scenario, i)] = opt_loads["Load"].to_numpy()
+                result_matrix_feed2grid.loc[:, (id_scenario, i)] = opt_loads["Feed2Grid"].to_numpy()
 
         return result_matrix_demand, result_matrix_feed2grid
 
@@ -362,8 +362,8 @@ class ECEMFPostProcess:
                 results_demand.append(demand)
                 results_feed2grid.append(feed2grid)
 
-        result_matrix_demand = np.concatenate(results_demand, axis=1)
-        result_matrix_feed2grid = np.concatenate(results_feed2grid, axis=1)
+        result_matrix_demand = pd.concat(results_demand, axis=1)
+        result_matrix_feed2grid = pd.concat(results_feed2grid, axis=1)
 
         return result_matrix_demand, result_matrix_feed2grid
 
@@ -436,18 +436,68 @@ class ECEMFPostProcess:
                         value=np.concatenate((np.arange(1, 25), np.arange(1, 25))))
         total_df.to_csv(self.path_to_project / f"{file_name}.csv", sep=";", index=False)
 
+    def add_real_building_ids(self,
+                              scenario_df: pd.DataFrame,
+                              total_grid_demand,
+                              total_grid_feed):
+
+        # load the table where real IDs are matched to the clustered IDs:
+        match = pd.read_excel(self.path_to_project / f"Original_Building_IDs_to_clusters_{self.region}.xlsx",
+                              engine="openpyxl")
+        # create a dict of the matches:
+        match_dict = match.to_dict(orient="list")
+        # remove nan from the dict
+        for key in match_dict.keys():
+            match_dict[key] = [int(x) for x in match_dict[key] if not pd.isna(x)]
+        # create a second match dict for the feed, as we are using pop later the lists in the dict will empty themselves
+        match_dict_feed = match_dict.copy()
+        # create a dict that contains the building ID for each scenario ID
+        clustered_ids = scenario_df[["ID_Building", "ID_Scenario"]].set_index("ID_Scenario", drop=True).to_dict()[
+            "ID_Building"]
+        # for each clustered Building ID draw a real building ID from match. To avoid drawing the same building twice, pop
+        demand_columns = list(total_grid_demand.columns)
+        for j, (scenario_id, i) in enumerate(demand_columns):
+            # get the building ID for the scenario ID
+            cluster_id = clustered_ids[scenario_id]
+            # with the building ID (which is the ID of the clustered buildings) select a real building ID
+            real_id = int(match_dict[cluster_id].pop())
+            # change the column name with the real ID:
+            demand_columns[j] = real_id
+
+        feed_columns = list(total_grid_feed.columns)
+        for j, (scenario_id, i) in enumerate(feed_columns):
+            # get the building ID for the scenario ID
+            cluster_id = clustered_ids[scenario_id]
+            # with the building ID (which is the ID of the clustered buildings) select a real building ID
+            real_id = int(match_dict_feed[cluster_id].pop())
+            # change the column name with the real ID:
+            feed_columns[j] = real_id
+
+        # reset the column ids to the real building IDs:
+        total_grid_demand.columns = demand_columns
+        total_grid_feed.columns = feed_columns
+        return total_grid_demand, total_grid_feed
+
     def create_output_csv(self):
         scenarios = self.scenario_generator()
         scenario_list = scenarios["ID_Scenario"].values.tolist()
         scenario_dict = self.shorten_scenario_list(scenario_list)
 
         total_grid_demand, total_grid_feed = ecemf.calculate_total_load_profiles(scenario_dictionary=scenario_dict)
+        total_grid_demand, total_grid_feed = self.add_real_building_ids(scenario_df=scenarios,
+                                                                        total_grid_demand=total_grid_demand,
+                                                                        total_grid_feed=total_grid_feed)
+
+        # load ID Building + coordinate
+        coordinates = pd.read_csv(self.path_to_project / f"Building_coordinates_{self.region}.csv").set_index(
+            "ID_Building", drop=True)
+        coordinates_dict = coordinates.to_dict()
 
         # define filename:
         file_name = f"{self.region}_" \
-                    f"PV-{round(self.pv_installation_percentage*100)}%_" \
-                    f"DHW-{round(self.dhw_storage_percentage*100)}%_" \
-                    f"Buffer-{round(self.buffer_storage_percentage*100)}%_" \
+                    f"PV-{round(self.pv_installation_percentage * 100)}%_" \
+                    f"DHW-{round(self.dhw_storage_percentage * 100)}%_" \
+                    f"Buffer-{round(self.buffer_storage_percentage * 100)}%_" \
                     f"HE-{round(self.heating_element_percentage * 100)}%_" \
                     f"AirHP-{round(self.air_hp_percentage * 100)}%_" \
                     f"GroundHP-{round(self.ground_hp_percentage * 100)}%_" \
@@ -482,7 +532,6 @@ class ECEMFPostProcess:
         add_info_df.to_csv(self.path_to_project / f"INFO_{file_name}.csv", sep=";")
 
 
-
 if __name__ == "__main__":
     # ECEMFBuildingComparison(region="Murcia").main()
 
@@ -503,7 +552,6 @@ if __name__ == "__main__":
                              )
 
     ecemf.create_output_csv()
-
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
 #  heat demand vergeleichen, Außerdem die Abweichung in Floor area plotten! (wegen clustering)
