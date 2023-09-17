@@ -9,7 +9,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-
 from flex.db import DB
 from flex.config import Config
 from flex_operation.constants import OperationTable
@@ -127,11 +126,11 @@ class ECEMFPostProcess:
         :param ac_percentage: percentage of buildings having an air conditioner for cooling (COP=4)
         """
         self.region = region
-        self.path_to_project = Path(r"/home/users/pmascherbauer/projects/Philipp/PycharmProjects/projects/") / f"ECEMF_T4.3_{region}"
+        self.path_to_osm = Path(r"C:\Users\mascherbauer\PycharmProjects\OSM")
+        self.path_to_project = Path(r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects") / f"ECEMF_T4.3_{region}"
+        self.clustered_building_df = self.load_clustered_building_df()
         self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}"))
         self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
-        self.clustered_building_df = self.db.read_dataframe("OperationScenario_Component_Building")
-
         self.pv_sizes = {
             1: 0,  # kWp
             2: 5,
@@ -155,7 +154,7 @@ class ECEMFPostProcess:
             1: 0,
             2: 300,
             3: 700,  # l
-            }
+        }
 
         self.pv_installation_percentage = pv_installation_percentage
         self.dhw_storage_percentage = dhw_storage_percentage
@@ -180,7 +179,7 @@ class ECEMFPostProcess:
         assert self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage <= 1
 
     def load_clustered_building_df(self):
-        return pd.read_excel(self.path_to_project / f"OperationScenario_Component_Building_small_{self.region}.xlsx")
+        return pd.read_excel(self.path_to_project / f"OperationScenario_Component_Building.xlsx")
 
     def percentage_of_total_buildings(self):
         """
@@ -218,7 +217,7 @@ class ECEMFPostProcess:
         """
 
         gases_percentage = 1 - (
-                    self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage)
+                self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage)
         dict_of_inputs = {
             "ID_PV": [1 - self.pv_installation_percentage, self.pv_installation_percentage * 0.5,
                       self.pv_installation_percentage * 0.25, self.pv_installation_percentage * 0.25],
@@ -255,6 +254,8 @@ class ECEMFPostProcess:
             number_buildings = row["number_of_buildings"]
             building_id = row["ID_Building"]
             building_scenario = self.scenario_table.query(f"ID_Building == {building_id}")
+            if building_id != 41:
+                continue
             for n_building in range(number_buildings):
                 chosen_building_attributes = {}
                 for attribute_name, perc_list in dict_of_inputs.items():
@@ -326,7 +327,7 @@ class ECEMFPostProcess:
                                ):
         pass
 
-    def worker(self, id_scenario, number_of_occurences):
+    def worker(self, id_scenario, number_of_occurences) -> (pd.DataFrame, pd.DataFrame):
         ref_loads = self.db.read_parquet(table_name=OperationTable.ResultRefHour,
                                          scenario_ID=id_scenario,
                                          column_names=["Load", "Feed2Grid"])
@@ -334,16 +335,17 @@ class ECEMFPostProcess:
                                          scenario_ID=id_scenario,
                                          column_names=["Load", "Feed2Grid"])
 
-        result_matrix_demand = np.empty(shape=(8760, number_of_occurences))
-        result_matrix_feed2grid = np.empty(shape=(8760, number_of_occurences))
+        multi_index = pd.MultiIndex.from_tuples([(id_scenario, i) for i in range(number_of_occurences)])
+        result_matrix_demand = pd.DataFrame(index=range(8760), columns=multi_index)
+        result_matrix_feed2grid = pd.DataFrame(index=range(8760), columns=multi_index)
         for i in range(number_of_occurences):
             prosumager = self.assign_id([self.prosumager_percentage])
             if prosumager == 0:
-                result_matrix_demand[:, i] = ref_loads["Load"].to_numpy()
-                result_matrix_feed2grid[:, i] = ref_loads["Feed2Grid"].to_numpy()
+                result_matrix_demand.loc[:, (id_scenario, i)] = ref_loads["Load"].to_numpy()
+                result_matrix_feed2grid.loc[:, (id_scenario, i)] = ref_loads["Feed2Grid"].to_numpy()
             else:
-                result_matrix_demand[:, i] = opt_loads["Load"].to_numpy()
-                result_matrix_feed2grid[:, i] = opt_loads["Feed2Grid"].to_numpy()
+                result_matrix_demand.loc[:, (id_scenario, i)] = opt_loads["Load"].to_numpy()
+                result_matrix_feed2grid.loc[:, (id_scenario, i)] = opt_loads["Feed2Grid"].to_numpy()
 
         return result_matrix_demand, result_matrix_feed2grid
 
@@ -360,25 +362,33 @@ class ECEMFPostProcess:
                 results_demand.append(demand)
                 results_feed2grid.append(feed2grid)
 
-        result_matrix_demand = np.concatenate(results_demand, axis=1)
-        result_matrix_feed2grid = np.concatenate(results_feed2grid, axis=1)
+        result_matrix_demand = pd.concat(results_demand, axis=1)
+        result_matrix_feed2grid = pd.concat(results_feed2grid, axis=1)
 
         return result_matrix_demand, result_matrix_feed2grid
 
     @staticmethod
-    def find_net_peak_demand_day(np_matrix: np.array) -> int:
+    def find_net_peak_demand_day(data: pd.DataFrame) -> int:
         """
         finds the index of the day with the highest average demand
         :param profile: numpy array with shape (8760,)
-        :return: numpy array with shape (24,)
+        :return: integer which day has highest demand out of 364 (starting at 0)
         """
         print("searching for net peak demand day")
-        profile = np_matrix.sum(axis=1)
-        reshaped_array = profile.reshape(365, 24)
-        average_demand_per_day = np.mean(reshaped_array, axis=1)
-        # Find the index of the day with the highest average demand
-        max_average_demand_index = np.argmax(average_demand_per_day)
-        return max_average_demand_index
+        # Sum up all columns to get the net demand for each hour
+        profile = data.sum(axis=1)
+        # Resample the data to get average daily demand
+        daily_average = profile.groupby(profile.index // 24).mean()
+        # Find the day with the highest average demand
+        max_average_demand_day = daily_average.idxmax()
+        return max_average_demand_day
+
+
+
+
+
+        # Return the day number (0-based, so January 1st is day 0, January 2nd is day 1, etc.)
+        return (max_average_demand_day - daily_average.index[0]).days
 
     def show_chosen_dist(self, df: pd.DataFrame):
         # Create a subplot with shared x-axis
@@ -400,11 +410,11 @@ class ECEMFPostProcess:
                           )
         fig.show()
 
-    def select_max_days(self, demand: np.array) -> np.array:
+    def select_max_days(self, demand: pd.DataFrame) -> pd.DataFrame:
         max_grid_day_index = ecemf.find_net_peak_demand_day(demand)
-        start_hour = (max_grid_day_index - 1) * 24
-        end_hour = max_grid_day_index * 24
-        selected_day_demand = demand[start_hour: end_hour, :]
+        start_hour = max_grid_day_index * 24
+        end_hour = (max_grid_day_index + 1) * 24 - 1
+        selected_day_demand = demand.loc[start_hour: end_hour, :]
         return selected_day_demand
 
     def calculate_contracted_power(self, array: np.array):
@@ -415,60 +425,73 @@ class ECEMFPostProcess:
         capacity = np.vectorize(translation_dict.get)(scenario_series.to_numpy())
         return capacity.sum()
 
-    def save_hourly_csv(self, demand, feed2grid, file_name: str):
+    def save_hourly_csv(self,
+                        demand: pd.DataFrame,
+                        feed2grid: pd.DataFrame,
+                        file_name: str):
         # check if feed2grid is empty and if its is create a zero array:
         if len(feed2grid) == 0:
-            feed2grid = np.zeros(shape=demand.shape)
-        total_data = np.concatenate([demand, feed2grid * -1], axis=0)
-        total_df = pd.DataFrame(total_data)
-        total_df.insert(loc=0,
+            feed2grid = pd.DataFrame(np.zeros(shape=demand.shape))
+        total_data = pd.concat([demand, feed2grid * -1], axis=0)
+        total_data.insert(loc=0,
                         column="unit",
                         value="Wh")
-        total_df.insert(loc=0,
+        total_data.insert(loc=0,
                         column="type",
                         value=np.concatenate((np.full(shape=(24,), fill_value="grid demand"),
                                               np.full(shape=(24,), fill_value="feed to grid")))
                         )
-        total_df.insert(loc=0,
+        total_data.insert(loc=0,
                         column="hours",
                         value=np.concatenate((np.arange(1, 25), np.arange(1, 25))))
-        total_df.to_csv(self.path_to_project / f"{file_name}.csv", sep=";", index=False)
+        total_data.to_csv(self.path_to_project / f"{file_name}.csv", sep=";", index=False)
 
-    def create_output_csv(self):
-        scenarios = self.scenario_generator()
-        scenario_list = scenarios["ID_Scenario"].values.tolist()
-        scenario_dict = self.shorten_scenario_list(scenario_list)
+    def add_real_building_ids(self,
+                              scenario_df: pd.DataFrame,
+                              total_grid_demand,
+                              total_grid_feed):
 
-        total_grid_demand, total_grid_feed = ecemf.calculate_total_load_profiles(scenario_dictionary=scenario_dict)
+        # load the table where real IDs are matched to the clustered IDs:
+        match = pd.read_excel(self.path_to_project / f"Original_Building_IDs_to_clusters_{self.region}.xlsx",
+                              engine="openpyxl")
+        # create a dict of the matches:
+        match_dict = match.to_dict(orient="list")
+        # remove nan from the dict
+        for key in match_dict.keys():
+            match_dict[key] = [int(x) for x in match_dict[key] if not pd.isna(x)]
+        # create a dict that contains the building ID for each scenario ID
+        clustered_ids = scenario_df[["ID_Building", "ID_Scenario"]].set_index("ID_Scenario", drop=True).to_dict()[
+            "ID_Building"]
 
-        # define filename:
-        file_name = f"{self.region}_" \
-                    f"PV-{round(self.pv_installation_percentage*100)}%_" \
-                    f"DHW-{round(self.dhw_storage_percentage*100)}%_" \
-                    f"Buffer-{round(self.buffer_storage_percentage*100)}%_" \
-                    f"HE-{round(self.heating_element_percentage * 100)}%_" \
-                    f"AirHP-{round(self.air_hp_percentage * 100)}%_" \
-                    f"GroundHP-{round(self.ground_hp_percentage * 100)}%_" \
-                    f"directE-{round(self.direct_electric_heating_percentage * 100)}%_" \
-                    f"AC-{round(self.ac_percentage * 100)}%_" \
-                    f"Battery-{round(self.battery_percentage * 100)}%_" \
-                    f"Prosumager-{round(self.prosumager_percentage * 100)}%"
+        # for each clustered Building ID draw a real building ID from match.
+        # To avoid drawing the same building twice use pop
+        column_names = list(total_grid_demand.columns)
+        for j, (scenario_id, i) in enumerate(column_names):
+            # get the building ID for the scenario ID
+            cluster_id = clustered_ids[scenario_id]
+            # with the building ID (which is the ID of the clustered buildings) select a real building ID
+            real_id = int(match_dict[cluster_id].pop())
+            # change the column name with the real ID:
+            column_names[j] = real_id
 
-        # save the profiles to csv
-        max_day_demand = self.select_max_days(total_grid_demand)
-        max_day_feed2grid = self.select_max_days(total_grid_feed)
-        self.save_hourly_csv(demand=max_day_demand, feed2grid=max_day_feed2grid, file_name=file_name)
-        print("saved hourly csv")
+        # reset the column ids to the real building IDs: column names are the same in both dataframes
+        total_grid_demand.columns = column_names
+        total_grid_feed.columns = column_names
+        return total_grid_demand, total_grid_feed
 
+    def create_overall_information_csv(self,
+                                       scenario_df: pd.DataFrame,
+                                       total_grid_demand: pd.DataFrame,
+                                       file_name: str):
         # create the corresponding overall information csv:
         contracted_power = self.calculate_contracted_power(total_grid_demand)
-        total_pv = self.calculate_installed_capacity(scenario_series=scenarios["ID_PV"],
+        total_pv = self.calculate_installed_capacity(scenario_series=scenario_df["ID_PV"],
                                                      translation_dict=self.pv_sizes)
-        total_battery = self.calculate_installed_capacity(scenario_series=scenarios["ID_Battery"],
+        total_battery = self.calculate_installed_capacity(scenario_series=scenario_df["ID_Battery"],
                                                           translation_dict=self.battery_sizes)
-        total_buffer = self.calculate_installed_capacity(scenario_series=scenarios["ID_SpaceHeatingTank"],
+        total_buffer = self.calculate_installed_capacity(scenario_series=scenario_df["ID_SpaceHeatingTank"],
                                                          translation_dict=self.buffer_sizes)
-        total_dhw = self.calculate_installed_capacity(scenario_series=scenarios["ID_HotWaterTank"],
+        total_dhw = self.calculate_installed_capacity(scenario_series=scenario_df["ID_HotWaterTank"],
                                                       translation_dict=self.DHW_sizes)
         add_info_df = pd.DataFrame.from_dict(data={
             "Region": self.region,
@@ -479,7 +502,39 @@ class ECEMFPostProcess:
             "Installed DHW storage (l)": total_dhw
         }, orient="index")
         add_info_df.to_csv(self.path_to_project / f"INFO_{file_name}.csv", sep=";")
-        print("saved Info csv")
+
+    def create_output_csv(self):
+        scenarios = self.scenario_generator()
+        scenario_list = scenarios["ID_Scenario"].values.tolist()
+        scenario_dict = self.shorten_scenario_list(scenario_list)
+
+        total_grid_demand, total_grid_feed = ecemf.calculate_total_load_profiles(scenario_dictionary=scenario_dict)
+        total_grid_demand_real, total_grid_feed_real = self.add_real_building_ids(scenario_df=scenarios,
+                                                                                  total_grid_demand=total_grid_demand,
+                                                                                  total_grid_feed=total_grid_feed)
+
+        # define filename:
+        file_name = f"{self.region}_" \
+                    f"PV-{round(self.pv_installation_percentage * 100)}%_" \
+                    f"DHW-{round(self.dhw_storage_percentage * 100)}%_" \
+                    f"Buffer-{round(self.buffer_storage_percentage * 100)}%_" \
+                    f"HE-{round(self.heating_element_percentage * 100)}%_" \
+                    f"AirHP-{round(self.air_hp_percentage * 100)}%_" \
+                    f"GroundHP-{round(self.ground_hp_percentage * 100)}%_" \
+                    f"directE-{round(self.direct_electric_heating_percentage * 100)}%_" \
+                    f"AC-{round(self.ac_percentage * 100)}%_" \
+                    f"Battery-{round(self.battery_percentage * 100)}%_" \
+                    f"Prosumager-{round(self.prosumager_percentage * 100)}%"
+
+        # save the profiles to csv
+        max_day_demand = self.select_max_days(total_grid_demand_real)
+        max_day_feed2grid = self.select_max_days(total_grid_feed_real)
+        self.save_hourly_csv(demand=max_day_demand, feed2grid=max_day_feed2grid, file_name=file_name)
+
+        self.create_overall_information_csv(scenario_df=scenarios,
+                                            total_grid_demand=total_grid_demand_real,
+                                            file_name=file_name)
+
 
 
 
