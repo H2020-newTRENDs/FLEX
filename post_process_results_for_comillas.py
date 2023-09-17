@@ -126,8 +126,7 @@ class ECEMFPostProcess:
         :param ac_percentage: percentage of buildings having an air conditioner for cooling (COP=4)
         """
         self.region = region
-        self.path_to_osm = Path(r"C:\Users\mascherbauer\PycharmProjects\OSM")
-        self.path_to_project = Path(r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects") / f"ECEMF_T4.3_{region}"
+        self.path_to_project = Path(r"/home/users/pmascherbauer/projects/Philipp/PycharmProjects/projects/") / f"ECEMF_T4.3_{region}"
         self.clustered_building_df = self.load_clustered_building_df()
         self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}"))
         self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
@@ -254,8 +253,6 @@ class ECEMFPostProcess:
             number_buildings = row["number_of_buildings"]
             building_id = row["ID_Building"]
             building_scenario = self.scenario_table.query(f"ID_Building == {building_id}")
-            if building_id != 41:
-                continue
             for n_building in range(number_buildings):
                 chosen_building_attributes = {}
                 for attribute_name, perc_list in dict_of_inputs.items():
@@ -382,13 +379,6 @@ class ECEMFPostProcess:
         # Find the day with the highest average demand
         max_average_demand_day = daily_average.idxmax()
         return max_average_demand_day
-
-
-
-
-
-        # Return the day number (0-based, so January 1st is day 0, January 2nd is day 1, etc.)
-        return (max_average_demand_day - daily_average.index[0]).days
 
     def show_chosen_dist(self, df: pd.DataFrame):
         # Create a subplot with shared x-axis
