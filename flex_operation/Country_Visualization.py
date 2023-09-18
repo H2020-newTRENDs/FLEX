@@ -579,11 +579,10 @@ class CountryResultPlots:
         for project in self.projects:
                 try:
                     LPA = LoadProfileAnalyser(project_name=project['name'], year=project['year'], country=project['country'])
-                    pv_share_optimization = LPA.calc_pv_share_building_stock_optimization()
-                    new_df = pd.DataFrame(
-                        pv_share_optimization,
-                        columns=["PV share (%)"]
-                    ).reset_index(drop=False).rename(columns={"ID_EnergyPrice": "price_id"})
+                    pv_share_optimization = LPA.calc_pv_share_building_stock_optimization().reset_index(drop=False).rename(columns={"ID_EnergyPrice": "price_id"})
+                    pv_share_ref = LPA.calc_pv_share_building_stock_reference().reset_index(drop=False).rename(columns={"ID_EnergyPrice": "price_id"})
+                    pv_share_ref["price_id"] = pv_share_ref["price_id"].apply(lambda x: f"reference_{x}")
+                    new_df = pd.concat([pv_share_optimization, pv_share_ref], axis=0).rename(columns={0: "PV share (%)"})
                     new_df["country"] = project['country']
                     new_df["year"] = project['year']
                     big_df = pd.concat([big_df, new_df])
@@ -626,5 +625,5 @@ class CountryResultPlots:
 if __name__ == "__main__":
     years = [2020, 2030]
     countries = ["DEU", "AUT"]
-    CountryResultPlots(countries=countries, years=years).grab_EU27_self_consumption()
-    CountryResultPlots(countries=countries, years=[2050]).main()
+    CountryResultPlots(countries=countries, years=years, project_prefix="D5.4").grab_EU27_pv_share()
+    CountryResultPlots(countries=countries, years=[2050], project_prefix="D5.4").main()

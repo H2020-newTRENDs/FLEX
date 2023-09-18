@@ -289,12 +289,29 @@ class LoadProfileAnalyser:
         the optimization results.
         """
         # read the yearly values
-        results_df = self.db.read_dataframe(table_name=OperationTable.ResultOptYear,
+        results_df_opt = self.db.read_dataframe(table_name=OperationTable.ResultOptYear,
                                             column_names=["ID_Scenario", "PhotovoltaicProfile", "Load"])
         # add energy price ID
         id_df = self.db.read_dataframe(table_name=OperationTable.Scenarios,
                                        column_names=["ID_Scenario", "ID_EnergyPrice"])
-        df_merged = pd.merge(left=results_df, right=id_df, on="ID_Scenario")
+        df_merged = pd.merge(left=results_df_opt, right=id_df, on="ID_Scenario")
+        total_pv_generation = df_merged.groupby("ID_EnergyPrice")["PhotovoltaicProfile"].sum()
+        total_demand = df_merged.groupby("ID_EnergyPrice")["Load"].sum()
+        return total_pv_generation / total_demand * 100  # %
+
+    def calc_pv_share_building_stock_reference(self) -> pd.Series:
+        """
+        the pv share is calculated by summing up the produced PV over the whole year of all buildings within the stock
+        and dividing it by the total amount of electricity used by the building stock. The PV share is calculated for
+        the reference results.
+        """
+        # read the yearly values
+        results_df_ref = self.db.read_dataframe(table_name=OperationTable.ResultRefYear,
+                                                column_names=["ID_Scenario", "PhotovoltaicProfile", "Load"])
+        # add energy price ID
+        id_df = self.db.read_dataframe(table_name=OperationTable.Scenarios,
+                                       column_names=["ID_Scenario", "ID_EnergyPrice"])
+        df_merged = pd.merge(left=results_df_ref, right=id_df, on="ID_Scenario")
         total_pv_generation = df_merged.groupby("ID_EnergyPrice")["PhotovoltaicProfile"].sum()
         total_demand = df_merged.groupby("ID_EnergyPrice")["Load"].sum()
         return total_pv_generation / total_demand * 100  # %
@@ -798,4 +815,4 @@ if __name__ == "__main__":
 
     country = "AUT"
     year = 2020
-    LoadProfileAnalyser(project_name=f"D5.4_{country}_{year}", country=country, year=year).calc_total_shifted_electricity_building_stock()
+    LoadProfileAnalyser(project_name=f"D5.4_{country}_{year}", country=country, year=year).calc_pv_share_building_stock_optimization()

@@ -240,7 +240,7 @@ def europe_map(app: Dash) -> html.Div:
         if n_clicks and n_clicks > int(prev_state):
             df = select_dataframe(kpi)
             path = pathlib.Path(
-                r"/home/users/pmascherbauer/projects/Philipp/PycharmProjects/projects/NewTrends_D5.4/")
+                r"/home/users/pmascherbauer/projects/Philipp/PycharmProjects/projects")/f"NewTrends_{main.PROJECT_PREFIX}"
             df.to_csv(path / f"{kpi.replace(r'/', 'per')}.csv", sep=";", index=False)
             print(f"{kpi} saved as CSV")
             return n_clicks
