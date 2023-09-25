@@ -127,6 +127,7 @@ class ECEMFPostProcess:
         """
         self.region = region
         self.path_to_project = Path(r"/home/users/pmascherbauer/projects/Philipp/PycharmProjects/projects/") / f"ECEMF_T4.3_{region}"
+        self.data_output = Path(r"/home/users/pmascherbauer/projects/Philipp/PycharmProjects/projects/ECEMF_T4.3_Murcia/data_output/")
         self.clustered_building_df = self.load_clustered_building_df()
         self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}"))
         self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
@@ -434,7 +435,8 @@ class ECEMFPostProcess:
         total_data.insert(loc=0,
                         column="hours",
                         value=np.concatenate((np.arange(1, 25), np.arange(1, 25))))
-        total_data.to_csv(self.path_to_project / f"{file_name}.csv", sep=";", index=False)
+        total_data.to_csv(self.data_output / f"{file_name}.csv", sep=";", index=False)
+        print("saved hourly csv file")
 
     def add_real_building_ids(self,
                               scenario_df: pd.DataFrame,
@@ -491,7 +493,8 @@ class ECEMFPostProcess:
             "Installed Buffer (l)": total_buffer,
             "Installed DHW storage (l)": total_dhw
         }, orient="index")
-        add_info_df.to_csv(self.path_to_project / f"INFO_{file_name}.csv", sep=";")
+        add_info_df.to_csv(self.data_output / f"INFO_{file_name}.csv", sep=";")
+        print("saved add information csv")
 
     def create_output_csv(self):
         scenarios = self.scenario_generator()
@@ -535,16 +538,16 @@ if __name__ == "__main__":
     # Heating element is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating buffer storage is only installed in buildings with HPs. Probability only refers to buildings with HP
     ecemf = ECEMFPostProcess(region="Murcia",
-                             pv_installation_percentage=1,
-                             dhw_storage_percentage=0,
+                             pv_installation_percentage=0.05,
+                             dhw_storage_percentage=0.5,
                              buffer_storage_percentage=0,
                              heating_element_percentage=0,
-                             air_hp_percentage=0.3,
-                             ground_hp_percentage=0.1,
-                             direct_electric_heating_percentage=0.2,
-                             ac_percentage=0,
-                             battery_percentage=0.2,
-                             prosumager_portion=0.2
+                             air_hp_percentage=0.08,
+                             ground_hp_percentage=0,
+                             direct_electric_heating_percentage=0.5,
+                             ac_percentage=0.1,
+                             battery_percentage=0.1,
+                             prosumager_portion=0
                              )
 
     ecemf.create_output_csv()
