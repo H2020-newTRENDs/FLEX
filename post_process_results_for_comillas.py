@@ -8,6 +8,7 @@ from tqdm import tqdm
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import matplotlib.pyplot as plt
 
 from flex.db import DB
 from flex.config import Config
@@ -537,7 +538,7 @@ class ECEMFFigures:
         self.baseline = baseline_scenario
         self.scenario = scenario
         self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{baseline_scenario['region']}/data_output/"
-        self.path_2_figure = Path(__file__).parent / r"data/figure"
+        self.path_2_figure = Path(__file__).parent / r"data/figure" / f"ECEMF_T4.3_{baseline_scenario['region']}"
 
     @staticmethod
     def __file_name__(dictionary: dict):
@@ -577,54 +578,79 @@ class ECEMFFigures:
             base_demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}"), engine="pyarrow")
             base_feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}"), engine="pyarrow")
 
+            self.plot_seasonal_daily_means(df_baseline=base_demand, df_scenario=demand, demand_or_feed="Demand")
+
+    @staticmethod
+    def get_season(date):
+        seasons = {'spring': pd.date_range(start='2023-03-21 00:00:00', end='2023-06-20 23:00:00', freq="H"),
+                   'summer': pd.date_range(start='2023-06-21 00:00:00', end='2023-09-22 23:00:00', freq="H"),
+                   'autumn': pd.date_range(start='2023-09-23 00:00:00', end='2023-12-20 23:00:00', freq="H")}
+
+        if date in seasons['spring']:
+            return 'spring'
+        elif date in seasons['summer']:
+            return 'summer'
+        elif date in seasons['autumn']:
+            return 'autumn'
+        else:
+            return 'winter'
+
+    def get_season_and_datetime(self, df: pd.DataFrame) -> pd.DataFrame:
+        datetime_index = pd.date_range(start='2023-01-01 00:00:00', periods=8760, freq='H')
+        df.index = datetime_index
+        df['season'] = df.index.map(self.get_season)
+        df["hour"] = df.index.hour
+        return df.reset_index(drop=True)
+
     def plot_seasonal_daily_means(self,
                                   df_baseline: pd.DataFrame,
                                   df_scenario: pd.DataFrame,
+                                  demand_or_feed: str
                                   ):
-        numeric_cols = [col for col in df_real.columns if is_number(col)]
         # add seasons to df:
-        season_groups_real = df_real.groupby("meteorological season")
-        season_groups_synthetic = df_synthetic.groupby("meteorological season")
+        season_groups_baseline = self.get_season_and_datetime(df_baseline).groupby("season")
+        season_groups_scenario = self.get_season_and_datetime(df_scenario).groupby("season")
+
         # Separate plots for each season
-        seasons = df_real["meteorological season"].unique()
+        seasons = ["spring", "summer", "autumn", "winter"]
         fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(14, 6), sharey=True)
         axes = axes.flatten()
         for i, season in enumerate(seasons):
             ax = axes[i]
-            season_real = season_groups_real.get_group(season)[["hour of the day"] + numeric_cols]
-            season_synthetic = season_groups_synthetic.get_group(season)[["hour of the day"] + numeric_cols]
+            season_baseline = season_groups_baseline.get_group(season)
+            season_scenario = season_groups_scenario.get_group(season)
             # Filter the dataframe for the season and aggregate data by hour
-            seasonal_hourly_means_real = season_real.groupby("hour of the day").mean()
-            seasonal_hourly_std_real = season_real.groupby("hour of the day").std()
+            seasonal_hourly_means_baseline = season_baseline.groupby("hour").mean().mean(axis=1)
+            seasonal_hourly_std_baseline = season_baseline.groupby("hour").std().mean(axis=1)
 
-            seasonal_hourly_means_synthetic = season_synthetic.groupby("hour of the day").mean()
-            seasonal_hourly_std_synthetic = season_synthetic.groupby("hour of the day").std()
+            seasonal_hourly_means_scenario = season_scenario.groupby("hour").mean().mean(axis=1)
+            seasonal_hourly_std_scenario = season_scenario.groupby("hour").std().mean(axis=1)
 
             # Plot seasonal mean and standard deviation
             ax.plot(np.arange(24),
-                    seasonal_hourly_means_real.mean(axis=1),
+                    seasonal_hourly_means_baseline,
                     color="blue",
                     linewidth=2,
-                    label=f'{season.capitalize()} Mean Real',
+                    label=f'{season.capitalize()} Mean baseline',
                     )
             ax.fill_between(np.arange(24),
-                            seasonal_hourly_means_real.mean(axis=1) - seasonal_hourly_std_real.mean(axis=1),
-                            seasonal_hourly_means_real.mean(axis=1) + seasonal_hourly_std_real.mean(axis=1),
+                            seasonal_hourly_means_baseline - seasonal_hourly_std_baseline,
+                            seasonal_hourly_means_baseline + seasonal_hourly_std_baseline,
                             alpha=0.3,
-                            label=f'{season.capitalize()} Std Dev Real',
+                            label=f'{season.capitalize()} Std Dev baseline',
                             color="cyan")
 
             ax.plot(np.arange(24),
-                    seasonal_hourly_means_synthetic.mean(axis=1),
+                    seasonal_hourly_means_scenario,
                     color="red",
                     linewidth=2,
-                    label=f'{season.capitalize()} Mean Synthetic',
+                    label=f'{season.capitalize()} Mean scenario',
                     )
             ax.fill_between(np.arange(24),
-                            seasonal_hourly_means_synthetic.mean(axis=1) - seasonal_hourly_std_synthetic.mean(axis=1),
-                            seasonal_hourly_means_synthetic.mean(axis=1) + seasonal_hourly_std_synthetic.mean(axis=1),
+                            seasonal_hourly_means_scenario - seasonal_hourly_std_scenario,
+                            seasonal_hourly_means_scenario + seasonal_hourly_std_scenario,
                             alpha=0.3,
-                            label=f'{season.capitalize()} Std Dev Synthetic',
+                            label=f'{season.capitalize()} Std Dev scenario',
                             color="lightcoral")
 
             # Formatting the seasonal plot
@@ -635,7 +661,11 @@ class ECEMFFigures:
             # plt.xticks(range(0, 24))
             # ax.grid(True)
         plt.tight_layout()
-        fig.savefig(output_path / f"Daily_Mean_Comparison.png")
+        folder = self.path_2_figure / self.__file_name__(self.scenario)
+        if not folder.exists():
+            # Create the folder
+            folder.mkdir(parents=True, exist_ok=True)
+        fig.savefig(folder / f"Daily_Mean_{demand_or_feed}_Comparison.png")
         plt.close(fig)
 
 
