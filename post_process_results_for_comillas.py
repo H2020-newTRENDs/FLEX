@@ -111,7 +111,6 @@ class ECEMFPostProcess:
                  ac_percentage: float,
                  battery_percentage: float,
                  prosumager_portion: float,
-                 baseline: dict
                  ):
         """
 
@@ -128,8 +127,7 @@ class ECEMFPostProcess:
         """
         self.region = region
         self.path_to_project = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}"
-        self.data_output = Path(
-            f"/home/users/pmascherbauer/projects/Philipp/PycharmProjects/projects/ECEMF_T4.3_{region}/data_output/")
+        self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}/data_output/"
         self.clustered_building_df = self.load_clustered_building_df()
         self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}"))
         self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
@@ -500,16 +498,16 @@ class ECEMFPostProcess:
 
     def __file_name__(self):
         return f"{self.region}_" \
-                    f"PV-{round(self.pv_installation_percentage * 100)}%_" \
-                    f"DHW-{round(self.dhw_storage_percentage * 100)}%_" \
-                    f"Buffer-{round(self.buffer_storage_percentage * 100)}%_" \
-                    f"HE-{round(self.heating_element_percentage * 100)}%_" \
-                    f"AirHP-{round(self.air_hp_percentage * 100)}%_" \
-                    f"GroundHP-{round(self.ground_hp_percentage * 100)}%_" \
-                    f"directE-{round(self.direct_electric_heating_percentage * 100)}%_" \
-                    f"AC-{round(self.ac_percentage * 100)}%_" \
-                    f"Battery-{round(self.battery_percentage * 100)}%_" \
-                    f"Prosumager-{round(self.prosumager_percentage * 100)}%"
+               f"PV-{round(self.pv_installation_percentage * 100)}%_" \
+               f"DHW-{round(self.dhw_storage_percentage * 100)}%_" \
+               f"Buffer-{round(self.buffer_storage_percentage * 100)}%_" \
+               f"HE-{round(self.heating_element_percentage * 100)}%_" \
+               f"AirHP-{round(self.air_hp_percentage * 100)}%_" \
+               f"GroundHP-{round(self.ground_hp_percentage * 100)}%_" \
+               f"directE-{round(self.direct_electric_heating_percentage * 100)}%_" \
+               f"AC-{round(self.ac_percentage * 100)}%_" \
+               f"Battery-{round(self.battery_percentage * 100)}%_" \
+               f"Prosumager-{round(self.prosumager_percentage * 100)}%"
 
     def create_output_csv(self):
         scenarios = self.scenario_generator()
@@ -533,14 +531,52 @@ class ECEMFPostProcess:
                                             total_grid_demand=total_grid_demand_real,
                                             file_name=file_name)
 
+
+class ECEMFFigures:
+    def __init__(self, baseline_scenario: dict, scenario: dict):
+        self.baseline = baseline_scenario
+        self.scenario = scenario
+        self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{baseline_scenario['region']}/data_output/"
+
+    @staticmethod
+    def __file_name__(dictionary: dict):
+        return f"{dictionary['region']}_" \
+               f"PV-{round(dictionary['pv_installation_percentage'] * 100)}%_" \
+               f"DHW-{round(dictionary['dhw_storage_percentage'] * 100)}%_" \
+               f"Buffer-{round(dictionary['buffer_storage_percentage'] * 100)}%_" \
+               f"HE-{round(dictionary['heating_element_percentage'] * 100)}%_" \
+               f"AirHP-{round(dictionary['air_hp_percentage'] * 100)}%_" \
+               f"GroundHP-{round(dictionary['ground_hp_percentage'] * 100)}%_" \
+               f"directE-{round(dictionary['direct_electric_heating_percentage'] * 100)}%_" \
+               f"AC-{round(dictionary['ac_percentage'] * 100)}%_" \
+               f"Battery-{round(dictionary['battery_percentage'] * 100)}%_" \
+               f"Prosumager-{round(dictionary['prosumager_percentage'] * 100)}%"
+
     def show_peak_to_peak_demand(self):
+        def path_to_gzip(filename):
+            return Path(self.data_output) / f"{filename}.parquet.gzip"
+
         # check if baseline csv exists and check if the scenario csv exists. If not, create it:
-        file = self.__file_name__()
-        base_file = ECEMFPostProcess(**self.baseline).__file_name__()
-        if file == base_file:
+        assert path_to_gzip(f"Demand_{self.__file_name__(self.scenario)}").exists() or \
+               path_to_gzip(f"Feed_{self.__file_name__(self.scenario)}").exists(), \
+            f"{self.__file_name__(self.scenario)} \n parquet files do not exist. create_output_csv need to be run on " \
+            f"the server again."
+
+        assert path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}").exists() or \
+               path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}").exists(), \
+            f"{self.__file_name__(self.baseline)} \n parquet files do not exist. create_output_csv need to be run on " \
+            f"the server again. "
+
+        if self.__file_name__(self.scenario) == self.__file_name__(self.baseline):
             # plot only baseline scenario
             pass
         else:
+            demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.scenario)}"), engine="pyarrow")
+            feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.scenario)}"), engine="pyarrow")
+            base_demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}"), engine="pyarrow")
+            base_feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}"), engine="pyarrow")
+
+            path_2_figure = Path(__file__).parent / r"data/figure"
 
 
 
@@ -562,24 +598,25 @@ if __name__ == "__main__":
         "ac_percentage": 0.1,
         "battery_percentage": 0.1,
         "prosumager_portion": 0,
-        "baseline": ""
     }
-    ecemf = ECEMFPostProcess(region="Murcia",
-                             pv_installation_percentage=0.05,
-                             dhw_storage_percentage=0.5,
-                             buffer_storage_percentage=0,
-                             heating_element_percentage=0,
-                             air_hp_percentage=0.08,
-                             ground_hp_percentage=0,
-                             direct_electric_heating_percentage=0.5,
-                             ac_percentage=0.1,
-                             battery_percentage=0.1,
-                             prosumager_portion=0,
-                             baseline=baseline
-                             )
-    ecemf.show_peak_to_peak_demand()
-    ecemf.create_output_csv()
+    scenario = {
+        "region": "Murcia",
+        "pv_installation_percentage": 0.5,
+        "dhw_storage_percentage": 0.5,
+        "buffer_storage_percentage": 0.1,
+        "heating_element_percentage": 0,
+        "air_hp_percentage": 0.7,
+        "ground_hp_percentage": 0.05,
+        "direct_electric_heating_percentage": 0.1,
+        "ac_percentage": 0.3,
+        "battery_percentage": 0.3,
+        "prosumager_portion": 0.2,
+    }
+
+    ecemf = ECEMFPostProcess(**scenario)
+    # ecemf.create_output_csv()
+
+    ECEMFFigures(baseline_scenario=baseline, scenario=scenario).show_peak_to_peak_demand()
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
 #  heat demand vergeleichen, Außerdem die Abweichung in Floor area plotten! (wegen clustering)
-#  ein shapefile erstellen bei dem die Gebäude zugeordnet sind
