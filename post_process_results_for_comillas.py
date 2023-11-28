@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from flex.db import DB
 from flex.config import Config
@@ -554,6 +555,50 @@ class ECEMFFigures:
                f"Battery-{round(dictionary['battery_percentage'] * 100)}%_" \
                f"Prosumager-{round(dictionary['prosumager_percentage'] * 100)}%"
 
+    def create_boxplot_p_to_p_difference(self,
+                                         baseline: pd.DataFrame,
+                                         scenario: pd.DataFrame,
+                                         demand_or_feed: str
+                                         ):
+
+        # create a plot df in longformat:
+        base_p2p = pd.DataFrame(self.peak_to_peak_difference(baseline.sum(axis=1).to_numpy() / 1_000 / 1_000)).rename(columns={0: "peak to peak MW"})
+        scenario_p2p = pd.DataFrame(self.peak_to_peak_difference(scenario.sum(axis=1).to_numpy() / 1_000 / 1_000)).rename(columns={0: "peak to peak MW"})
+
+        base_p2p["name"] = "baseline"
+        scenario_p2p["name"] = "scenario"
+        plot_df = pd.concat([self.get_season_and_datetime(base_p2p), self.get_season_and_datetime(scenario_p2p)], axis=0)
+
+        sns.boxplot(data=plot_df,
+                    x="season",
+                    y="peak to peak MW",
+                    hue="name",
+                    palette=sns.color_palette("hls", 5)
+                    )
+        plt.title("daily peak to peak demand")
+        plt.tight_layout()
+        folder = self.path_2_figure / self.__file_name__(self.scenario)
+        if not folder.exists():
+            # Create the folder
+            folder.mkdir(parents=True, exist_ok=True)
+        plt.savefig(folder / Path(f"Peak_to_peak_{demand_or_feed}.png"))
+
+    def peak_to_peak_difference(self, load_profile: np.array) -> np.array:
+        """
+
+        Args:
+            load_profile: load profile of 8760 values
+
+        return: array of 365 values which correspond to the difference of the highest and lowest load each day
+        """
+        peak_to_peak_difference = []
+        for start_hour in np.arange(0, 8760, 24):
+            end_hour = start_hour + 24
+            day_load = load_profile[start_hour:end_hour]
+            peak_to_peak_difference.append(day_load.max() - day_load.min())
+
+        return peak_to_peak_difference
+
     def show_peak_to_peak_demand(self):
         def path_to_gzip(filename):
             return Path(self.data_output) / f"{filename}.parquet.gzip"
@@ -578,6 +623,7 @@ class ECEMFFigures:
             base_demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}"), engine="pyarrow")
             base_feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}"), engine="pyarrow")
 
+            self.create_boxplot_p_to_p_difference(baseline=base_demand, scenario=demand, demand_or_feed="Demand")
             self.plot_seasonal_daily_means(df_baseline=base_demand, df_scenario=demand, demand_or_feed="Demand")
             self.plot_seasonal_daily_means(df_baseline=base_feed, df_scenario=feed, demand_or_feed="Feed")
 
@@ -599,7 +645,10 @@ class ECEMFFigures:
             return 'winter'
 
     def get_season_and_datetime(self, df: pd.DataFrame) -> pd.DataFrame:
-        datetime_index = pd.date_range(start='2023-01-01 00:00:00', periods=8760, freq='H')
+        if len(df) > 365:
+            datetime_index = pd.date_range(start='2023-01-01 00:00:00', periods=8760, freq='H')
+        else:
+            datetime_index = pd.date_range(start='2023-01-01 ', periods=365, freq='D')
         df.index = datetime_index
         df['season'] = df.index.map(self.get_season)
         df["hour"] = df.index.hour
