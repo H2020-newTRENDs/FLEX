@@ -110,7 +110,7 @@ class ECEMFPostProcess:
                  direct_electric_heating_percentage: float,
                  ac_percentage: float,
                  battery_percentage: float,
-                 prosumager_portion: float,
+                 prosumager_percentage: float,
                  ):
         """
 
@@ -165,7 +165,7 @@ class ECEMFPostProcess:
         self.direct_electric_heating_percentage = direct_electric_heating_percentage
         self.ac_percentage = ac_percentage
         self.battery_percentage = battery_percentage
-        self.prosumager_percentage = prosumager_portion
+        self.prosumager_percentage = prosumager_percentage
         assert 0 <= self.pv_installation_percentage <= 1
         assert 0 <= self.dhw_storage_percentage <= 1
         assert 0 <= self.buffer_storage_percentage <= 1
@@ -577,7 +577,66 @@ class ECEMFFigures:
             base_demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}"), engine="pyarrow")
             base_feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}"), engine="pyarrow")
 
+    def plot_seasonal_daily_means(self,
+                                  df_baseline: pd.DataFrame,
+                                  df_scenario: pd.DataFrame,
+                                  ):
+        numeric_cols = [col for col in df_real.columns if is_number(col)]
+        # add seasons to df:
+        season_groups_real = df_real.groupby("meteorological season")
+        season_groups_synthetic = df_synthetic.groupby("meteorological season")
+        # Separate plots for each season
+        seasons = df_real["meteorological season"].unique()
+        fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(14, 6), sharey=True)
+        axes = axes.flatten()
+        for i, season in enumerate(seasons):
+            ax = axes[i]
+            season_real = season_groups_real.get_group(season)[["hour of the day"] + numeric_cols]
+            season_synthetic = season_groups_synthetic.get_group(season)[["hour of the day"] + numeric_cols]
+            # Filter the dataframe for the season and aggregate data by hour
+            seasonal_hourly_means_real = season_real.groupby("hour of the day").mean()
+            seasonal_hourly_std_real = season_real.groupby("hour of the day").std()
 
+            seasonal_hourly_means_synthetic = season_synthetic.groupby("hour of the day").mean()
+            seasonal_hourly_std_synthetic = season_synthetic.groupby("hour of the day").std()
+
+            # Plot seasonal mean and standard deviation
+            ax.plot(np.arange(24),
+                    seasonal_hourly_means_real.mean(axis=1),
+                    color="blue",
+                    linewidth=2,
+                    label=f'{season.capitalize()} Mean Real',
+                    )
+            ax.fill_between(np.arange(24),
+                            seasonal_hourly_means_real.mean(axis=1) - seasonal_hourly_std_real.mean(axis=1),
+                            seasonal_hourly_means_real.mean(axis=1) + seasonal_hourly_std_real.mean(axis=1),
+                            alpha=0.3,
+                            label=f'{season.capitalize()} Std Dev Real',
+                            color="cyan")
+
+            ax.plot(np.arange(24),
+                    seasonal_hourly_means_synthetic.mean(axis=1),
+                    color="red",
+                    linewidth=2,
+                    label=f'{season.capitalize()} Mean Synthetic',
+                    )
+            ax.fill_between(np.arange(24),
+                            seasonal_hourly_means_synthetic.mean(axis=1) - seasonal_hourly_std_synthetic.mean(axis=1),
+                            seasonal_hourly_means_synthetic.mean(axis=1) + seasonal_hourly_std_synthetic.mean(axis=1),
+                            alpha=0.3,
+                            label=f'{season.capitalize()} Std Dev Synthetic',
+                            color="lightcoral")
+
+            # Formatting the seasonal plot
+            ax.set_xlabel('Hour of Day')
+            ax.set_ylabel('Mean Profile Value')
+            ax.set_title(f'Mean Hourly Profile for {season.capitalize()}')
+            ax.legend()
+            # plt.xticks(range(0, 24))
+            # ax.grid(True)
+        plt.tight_layout()
+        fig.savefig(output_path / f"Daily_Mean_Comparison.png")
+        plt.close(fig)
 
 
 
@@ -598,7 +657,7 @@ if __name__ == "__main__":
         "direct_electric_heating_percentage": 0.5,
         "ac_percentage": 0.1,
         "battery_percentage": 0.1,
-        "prosumager_portion": 0,
+        "prosumager_percentage": 0,
     }
     scenario = {
         "region": "Murcia",
@@ -611,7 +670,7 @@ if __name__ == "__main__":
         "direct_electric_heating_percentage": 0.1,
         "ac_percentage": 0.3,
         "battery_percentage": 0.3,
-        "prosumager_portion": 0.2,
+        "prosumager_percentage": 0.2,
     }
 
     ecemf = ECEMFPostProcess(**scenario)
