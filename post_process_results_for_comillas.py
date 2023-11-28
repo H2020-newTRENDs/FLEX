@@ -599,7 +599,7 @@ class ECEMFFigures:
 
         return peak_to_peak_difference
 
-    def show_peak_to_peak_demand(self):
+    def create_figures(self):
         def path_to_gzip(filename):
             return Path(self.data_output) / f"{filename}.parquet.gzip"
 
@@ -755,7 +755,7 @@ if __name__ == "__main__":
     ecemf = ECEMFPostProcess(**scenario)
     # ecemf.create_output_csv()
 
-    ECEMFFigures(baseline_scenario=baseline, scenario=scenario).show_peak_to_peak_demand()
+    ECEMFFigures(baseline_scenario=baseline, scenario=scenario).create_figures()
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
 #  heat demand vergeleichen, Außerdem die Abweichung in Floor area plotten! (wegen clustering)
