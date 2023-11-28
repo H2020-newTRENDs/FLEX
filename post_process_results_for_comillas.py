@@ -519,6 +519,11 @@ class ECEMFPostProcess:
                     f"Battery-{round(self.battery_percentage * 100)}%_" \
                     f"Prosumager-{round(self.prosumager_percentage * 100)}%"
 
+        # save the total profiles to parquet
+        total_grid_demand_real.columns = total_grid_demand_real.columns.astype(str)
+        total_grid_feed_real.columns = total_grid_feed_real.columns.astype(str)
+        total_grid_demand_real.to_parquet(self.data_output / f"Demand_{file_name}.parquet.gzip")
+        total_grid_feed_real.to_parquet(self.data_output / f"Feed_{file_name}.parquet.gzip")
         # save the profiles to csv
         max_day_demand = self.select_max_days(total_grid_demand_real)
         max_day_feed2grid = self.select_max_days(total_grid_feed_real)
