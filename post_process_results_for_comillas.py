@@ -627,8 +627,6 @@ class ECEMFFigures:
             self.plot_seasonal_daily_means(df_baseline=base_demand, df_scenario=demand, demand_or_feed="Demand")
             self.plot_seasonal_daily_means(df_baseline=base_feed, df_scenario=feed, demand_or_feed="Feed")
 
-
-
     @staticmethod
     def get_season(date):
         seasons = {'spring': pd.date_range(start='2023-03-21 00:00:00', end='2023-06-20 23:00:00', freq="H"),
@@ -719,7 +717,6 @@ class ECEMFFigures:
             folder.mkdir(parents=True, exist_ok=True)
         fig.savefig(folder / f"Daily_Mean_{demand_or_feed}_Comparison.png")
         plt.close(fig)
-
 
 
 if __name__ == "__main__":
