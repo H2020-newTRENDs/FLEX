@@ -537,6 +537,7 @@ class ECEMFFigures:
         self.baseline = baseline_scenario
         self.scenario = scenario
         self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{baseline_scenario['region']}/data_output/"
+        self.path_2_figure = Path(__file__).parent / r"data/figure"
 
     @staticmethod
     def __file_name__(dictionary: dict):
@@ -576,7 +577,7 @@ class ECEMFFigures:
             base_demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}"), engine="pyarrow")
             base_feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}"), engine="pyarrow")
 
-            path_2_figure = Path(__file__).parent / r"data/figure"
+
 
 
 
