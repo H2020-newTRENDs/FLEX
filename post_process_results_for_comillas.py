@@ -111,6 +111,7 @@ class ECEMFPostProcess:
                  ac_percentage: float,
                  battery_percentage: float,
                  prosumager_portion: float,
+                 baseline: dict
                  ):
         """
 
@@ -126,8 +127,9 @@ class ECEMFPostProcess:
         :param ac_percentage: percentage of buildings having an air conditioner for cooling (COP=4)
         """
         self.region = region
-        self.path_to_project = Path(r"/home/users/pmascherbauer/projects/Philipp/PycharmProjects/projects/") / f"ECEMF_T4.3_{region}"
-        self.data_output = Path(r"/home/users/pmascherbauer/projects/Philipp/PycharmProjects/projects/ECEMF_T4.3_Murcia/data_output/")
+        self.path_to_project = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}"
+        self.data_output = Path(
+            f"/home/users/pmascherbauer/projects/Philipp/PycharmProjects/projects/ECEMF_T4.3_{region}/data_output/")
         self.clustered_building_df = self.load_clustered_building_df()
         self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}"))
         self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
@@ -155,7 +157,7 @@ class ECEMFPostProcess:
             2: 300,
             3: 700,  # l
         }
-
+        self.baseline = baseline
         self.pv_installation_percentage = pv_installation_percentage
         self.dhw_storage_percentage = dhw_storage_percentage
         self.buffer_storage_percentage = buffer_storage_percentage
@@ -425,16 +427,16 @@ class ECEMFPostProcess:
             feed2grid = pd.DataFrame(np.zeros(shape=demand.shape))
         total_data = pd.concat([demand, feed2grid * -1], axis=0)
         total_data.insert(loc=0,
-                        column="unit",
-                        value="Wh")
+                          column="unit",
+                          value="Wh")
         total_data.insert(loc=0,
-                        column="type",
-                        value=np.concatenate((np.full(shape=(24,), fill_value="grid demand"),
-                                              np.full(shape=(24,), fill_value="feed to grid")))
-                        )
+                          column="type",
+                          value=np.concatenate((np.full(shape=(24,), fill_value="grid demand"),
+                                                np.full(shape=(24,), fill_value="feed to grid")))
+                          )
         total_data.insert(loc=0,
-                        column="hours",
-                        value=np.concatenate((np.arange(1, 25), np.arange(1, 25))))
+                          column="hours",
+                          value=np.concatenate((np.arange(1, 25), np.arange(1, 25))))
         total_data.to_csv(self.data_output / f"{file_name}.csv", sep=";", index=False)
         print("saved hourly csv file")
 
@@ -496,6 +498,19 @@ class ECEMFPostProcess:
         add_info_df.to_csv(self.data_output / f"INFO_{file_name}.csv", sep=";")
         print("saved add information csv")
 
+    def __file_name__(self):
+        return f"{self.region}_" \
+                    f"PV-{round(self.pv_installation_percentage * 100)}%_" \
+                    f"DHW-{round(self.dhw_storage_percentage * 100)}%_" \
+                    f"Buffer-{round(self.buffer_storage_percentage * 100)}%_" \
+                    f"HE-{round(self.heating_element_percentage * 100)}%_" \
+                    f"AirHP-{round(self.air_hp_percentage * 100)}%_" \
+                    f"GroundHP-{round(self.ground_hp_percentage * 100)}%_" \
+                    f"directE-{round(self.direct_electric_heating_percentage * 100)}%_" \
+                    f"AC-{round(self.ac_percentage * 100)}%_" \
+                    f"Battery-{round(self.battery_percentage * 100)}%_" \
+                    f"Prosumager-{round(self.prosumager_percentage * 100)}%"
+
     def create_output_csv(self):
         scenarios = self.scenario_generator()
         scenario_list = scenarios["ID_Scenario"].values.tolist()
@@ -507,17 +522,7 @@ class ECEMFPostProcess:
                                                                                   total_grid_feed=total_grid_feed)
 
         # define filename:
-        file_name = f"{self.region}_" \
-                    f"PV-{round(self.pv_installation_percentage * 100)}%_" \
-                    f"DHW-{round(self.dhw_storage_percentage * 100)}%_" \
-                    f"Buffer-{round(self.buffer_storage_percentage * 100)}%_" \
-                    f"HE-{round(self.heating_element_percentage * 100)}%_" \
-                    f"AirHP-{round(self.air_hp_percentage * 100)}%_" \
-                    f"GroundHP-{round(self.ground_hp_percentage * 100)}%_" \
-                    f"directE-{round(self.direct_electric_heating_percentage * 100)}%_" \
-                    f"AC-{round(self.ac_percentage * 100)}%_" \
-                    f"Battery-{round(self.battery_percentage * 100)}%_" \
-                    f"Prosumager-{round(self.prosumager_percentage * 100)}%"
+        file_name = self.__file_name__()
 
         # save the total profiles to parquet
         total_grid_demand_real.columns = total_grid_demand_real.columns.astype(str)
@@ -533,6 +538,14 @@ class ECEMFPostProcess:
                                             total_grid_demand=total_grid_demand_real,
                                             file_name=file_name)
 
+    def show_peak_to_peak_demand(self):
+        # check if baseline csv exists and check if the scenario csv exists. If not, create it:
+        file = self.__file_name__()
+        base_file = ECEMFPostProcess(**self.baseline).__file_name__()
+        if file == base_file:
+            # plot only baseline scenario
+            pass
+        else:
 
 
 
@@ -542,6 +555,20 @@ if __name__ == "__main__":
     # Battery is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating element is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating buffer storage is only installed in buildings with HPs. Probability only refers to buildings with HP
+    baseline = {
+        "region": "Murcia",
+        "pv_installation_percentage": 0.05,
+        "dhw_storage_percentage": 0.5,
+        "buffer_storage_percentage": 0,
+        "heating_element_percentage": 0,
+        "air_hp_percentage": 0.08,
+        "ground_hp_percentage": 0,
+        "direct_electric_heating_percentage": 0.5,
+        "ac_percentage": 0.1,
+        "battery_percentage": 0.1,
+        "prosumager_portion": 0,
+        "baseline": ""
+    }
     ecemf = ECEMFPostProcess(region="Murcia",
                              pv_installation_percentage=0.05,
                              dhw_storage_percentage=0.5,
@@ -552,11 +579,11 @@ if __name__ == "__main__":
                              direct_electric_heating_percentage=0.5,
                              ac_percentage=0.1,
                              battery_percentage=0.1,
-                             prosumager_portion=0
+                             prosumager_portion=0,
+                             baseline=baseline
                              )
-
+    ecemf.show_peak_to_peak_demand()
     ecemf.create_output_csv()
-
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
 #  heat demand vergeleichen, Außerdem die Abweichung in Floor area plotten! (wegen clustering)
