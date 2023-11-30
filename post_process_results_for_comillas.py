@@ -546,7 +546,7 @@ class ECEMFPostProcess:
             # plot only baseline scenario
             pass
         else:
-
+            pass
 
 
 if __name__ == "__main__":
@@ -570,16 +570,16 @@ if __name__ == "__main__":
         "baseline": ""
     }
     ecemf = ECEMFPostProcess(region="Murcia",
-                             pv_installation_percentage=0.05,
+                             pv_installation_percentage=0.5,
                              dhw_storage_percentage=0.5,
-                             buffer_storage_percentage=0,
+                             buffer_storage_percentage=0.1,
                              heating_element_percentage=0,
-                             air_hp_percentage=0.08,
-                             ground_hp_percentage=0,
-                             direct_electric_heating_percentage=0.5,
-                             ac_percentage=0.1,
-                             battery_percentage=0.1,
-                             prosumager_portion=0,
+                             air_hp_percentage=0.7,
+                             ground_hp_percentage=0.05,
+                             direct_electric_heating_percentage=0.1,
+                             ac_percentage=0.3,
+                             battery_percentage=0.3,
+                             prosumager_portion=0.2,
                              baseline=baseline
                              )
     ecemf.show_peak_to_peak_demand()
