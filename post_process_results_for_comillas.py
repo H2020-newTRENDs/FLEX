@@ -8,6 +8,8 @@ from tqdm import tqdm
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from flex.db import DB
 from flex.config import Config
@@ -110,8 +112,7 @@ class ECEMFPostProcess:
                  direct_electric_heating_percentage: float,
                  ac_percentage: float,
                  battery_percentage: float,
-                 prosumager_portion: float,
-                 baseline: dict
+                 prosumager_percentage: float,
                  ):
         """
 
@@ -128,8 +129,7 @@ class ECEMFPostProcess:
         """
         self.region = region
         self.path_to_project = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}"
-        self.data_output = Path(
-            f"/home/users/pmascherbauer/projects/Philipp/PycharmProjects/projects/ECEMF_T4.3_{region}/data_output/")
+        self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}/data_output/"
         self.clustered_building_df = self.load_clustered_building_df()
         self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}"))
         self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
@@ -167,7 +167,7 @@ class ECEMFPostProcess:
         self.direct_electric_heating_percentage = direct_electric_heating_percentage
         self.ac_percentage = ac_percentage
         self.battery_percentage = battery_percentage
-        self.prosumager_percentage = prosumager_portion
+        self.prosumager_percentage = prosumager_percentage
         assert 0 <= self.pv_installation_percentage <= 1
         assert 0 <= self.dhw_storage_percentage <= 1
         assert 0 <= self.buffer_storage_percentage <= 1
@@ -500,16 +500,16 @@ class ECEMFPostProcess:
 
     def __file_name__(self):
         return f"{self.region}_" \
-                    f"PV-{round(self.pv_installation_percentage * 100)}%_" \
-                    f"DHW-{round(self.dhw_storage_percentage * 100)}%_" \
-                    f"Buffer-{round(self.buffer_storage_percentage * 100)}%_" \
-                    f"HE-{round(self.heating_element_percentage * 100)}%_" \
-                    f"AirHP-{round(self.air_hp_percentage * 100)}%_" \
-                    f"GroundHP-{round(self.ground_hp_percentage * 100)}%_" \
-                    f"directE-{round(self.direct_electric_heating_percentage * 100)}%_" \
-                    f"AC-{round(self.ac_percentage * 100)}%_" \
-                    f"Battery-{round(self.battery_percentage * 100)}%_" \
-                    f"Prosumager-{round(self.prosumager_percentage * 100)}%"
+               f"PV-{round(self.pv_installation_percentage * 100)}%_" \
+               f"DHW-{round(self.dhw_storage_percentage * 100)}%_" \
+               f"Buffer-{round(self.buffer_storage_percentage * 100)}%_" \
+               f"HE-{round(self.heating_element_percentage * 100)}%_" \
+               f"AirHP-{round(self.air_hp_percentage * 100)}%_" \
+               f"GroundHP-{round(self.ground_hp_percentage * 100)}%_" \
+               f"directE-{round(self.direct_electric_heating_percentage * 100)}%_" \
+               f"AC-{round(self.ac_percentage * 100)}%_" \
+               f"Battery-{round(self.battery_percentage * 100)}%_" \
+               f"Prosumager-{round(self.prosumager_percentage * 100)}%"
 
     def create_output_csv(self):
         scenarios = self.scenario_generator()
@@ -538,15 +538,190 @@ class ECEMFPostProcess:
                                             total_grid_demand=total_grid_demand_real,
                                             file_name=file_name)
 
-    def show_peak_to_peak_demand(self):
+
+class ECEMFFigures:
+    def __init__(self, baseline_scenario: dict, scenario: dict):
+        self.baseline = baseline_scenario
+        self.scenario = scenario
+        self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{baseline_scenario['region']}/data_output/"
+        self.path_2_figure = Path(__file__).parent / r"data/figure" / f"ECEMF_T4.3_{baseline_scenario['region']}"
+
+    @staticmethod
+    def __file_name__(dictionary: dict):
+        return f"{dictionary['region']}_" \
+               f"PV-{round(dictionary['pv_installation_percentage'] * 100)}%_" \
+               f"DHW-{round(dictionary['dhw_storage_percentage'] * 100)}%_" \
+               f"Buffer-{round(dictionary['buffer_storage_percentage'] * 100)}%_" \
+               f"HE-{round(dictionary['heating_element_percentage'] * 100)}%_" \
+               f"AirHP-{round(dictionary['air_hp_percentage'] * 100)}%_" \
+               f"GroundHP-{round(dictionary['ground_hp_percentage'] * 100)}%_" \
+               f"directE-{round(dictionary['direct_electric_heating_percentage'] * 100)}%_" \
+               f"AC-{round(dictionary['ac_percentage'] * 100)}%_" \
+               f"Battery-{round(dictionary['battery_percentage'] * 100)}%_" \
+               f"Prosumager-{round(dictionary['prosumager_percentage'] * 100)}%"
+
+    def create_boxplot_p_to_p_difference(self,
+                                         baseline: pd.DataFrame,
+                                         scenario: pd.DataFrame,
+                                         demand_or_feed: str
+                                         ):
+
+        # create a plot df in longformat:
+        base_p2p = pd.DataFrame(self.peak_to_peak_difference(baseline.sum(axis=1).to_numpy() / 1_000 / 1_000)).rename(columns={0: "peak to peak MW"})
+        scenario_p2p = pd.DataFrame(self.peak_to_peak_difference(scenario.sum(axis=1).to_numpy() / 1_000 / 1_000)).rename(columns={0: "peak to peak MW"})
+
+        base_p2p["name"] = "baseline"
+        scenario_p2p["name"] = "scenario"
+        plot_df = pd.concat([self.get_season_and_datetime(base_p2p), self.get_season_and_datetime(scenario_p2p)], axis=0)
+
+        sns.boxplot(data=plot_df,
+                    x="season",
+                    y="peak to peak MW",
+                    hue="name",
+                    palette=sns.color_palette("hls", 5)
+                    )
+        plt.title("daily peak to peak demand")
+        plt.tight_layout()
+        folder = self.path_2_figure / self.__file_name__(self.scenario)
+        if not folder.exists():
+            # Create the folder
+            folder.mkdir(parents=True, exist_ok=True)
+        plt.savefig(folder / Path(f"Peak_to_peak_{demand_or_feed}.png"))
+
+    def peak_to_peak_difference(self, load_profile: np.array) -> np.array:
+        """
+
+        Args:
+            load_profile: load profile of 8760 values
+
+        return: array of 365 values which correspond to the difference of the highest and lowest load each day
+        """
+        peak_to_peak_difference = []
+        for start_hour in np.arange(0, 8760, 24):
+            end_hour = start_hour + 24
+            day_load = load_profile[start_hour:end_hour]
+            peak_to_peak_difference.append(day_load.max() - day_load.min())
+
+        return peak_to_peak_difference
+
+    def create_figures(self):
+        def path_to_gzip(filename):
+            return Path(self.data_output) / f"{filename}.parquet.gzip"
+
         # check if baseline csv exists and check if the scenario csv exists. If not, create it:
-        file = self.__file_name__()
-        base_file = ECEMFPostProcess(**self.baseline).__file_name__()
-        if file == base_file:
+        assert path_to_gzip(f"Demand_{self.__file_name__(self.scenario)}").exists() or \
+               path_to_gzip(f"Feed_{self.__file_name__(self.scenario)}").exists(), \
+            f"{self.__file_name__(self.scenario)} \n parquet files do not exist. create_output_csv need to be run on " \
+            f"the server again."
+
+        assert path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}").exists() or \
+               path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}").exists(), \
+            f"{self.__file_name__(self.baseline)} \n parquet files do not exist. create_output_csv need to be run on " \
+            f"the server again. "
+
+        if self.__file_name__(self.scenario) == self.__file_name__(self.baseline):
             # plot only baseline scenario
             pass
         else:
-            pass
+            demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.scenario)}"), engine="pyarrow")
+            feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.scenario)}"), engine="pyarrow")
+            base_demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}"), engine="pyarrow")
+            base_feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}"), engine="pyarrow")
+
+            self.create_boxplot_p_to_p_difference(baseline=base_demand, scenario=demand, demand_or_feed="Demand")
+            self.plot_seasonal_daily_means(df_baseline=base_demand, df_scenario=demand, demand_or_feed="Demand")
+            self.plot_seasonal_daily_means(df_baseline=base_feed, df_scenario=feed, demand_or_feed="Feed")
+
+    @staticmethod
+    def get_season(date):
+        seasons = {'spring': pd.date_range(start='2023-03-21 00:00:00', end='2023-06-20 23:00:00', freq="H"),
+                   'summer': pd.date_range(start='2023-06-21 00:00:00', end='2023-09-22 23:00:00', freq="H"),
+                   'autumn': pd.date_range(start='2023-09-23 00:00:00', end='2023-12-20 23:00:00', freq="H")}
+
+        if date in seasons['spring']:
+            return 'spring'
+        elif date in seasons['summer']:
+            return 'summer'
+        elif date in seasons['autumn']:
+            return 'autumn'
+        else:
+            return 'winter'
+
+    def get_season_and_datetime(self, df: pd.DataFrame) -> pd.DataFrame:
+        if len(df) > 365:
+            datetime_index = pd.date_range(start='2023-01-01 00:00:00', periods=8760, freq='H')
+        else:
+            datetime_index = pd.date_range(start='2023-01-01 ', periods=365, freq='D')
+        df.index = datetime_index
+        df['season'] = df.index.map(self.get_season)
+        df["hour"] = df.index.hour
+        return df.reset_index(drop=True)
+
+    def plot_seasonal_daily_means(self,
+                                  df_baseline: pd.DataFrame,
+                                  df_scenario: pd.DataFrame,
+                                  demand_or_feed: str
+                                  ):
+        # add seasons to df:
+        season_groups_baseline = self.get_season_and_datetime(df_baseline).groupby("season")
+        season_groups_scenario = self.get_season_and_datetime(df_scenario).groupby("season")
+
+        # Separate plots for each season
+        seasons = ["spring", "summer", "autumn", "winter"]
+        fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(14, 6), sharey=True)
+        axes = axes.flatten()
+        for i, season in enumerate(seasons):
+            ax = axes[i]
+            season_baseline = season_groups_baseline.get_group(season)
+            season_scenario = season_groups_scenario.get_group(season)
+            # Filter the dataframe for the season and aggregate data by hour
+            seasonal_hourly_means_baseline = season_baseline.groupby("hour").mean().mean(axis=1)
+            seasonal_hourly_std_baseline = season_baseline.groupby("hour").std().mean(axis=1)
+
+            seasonal_hourly_means_scenario = season_scenario.groupby("hour").mean().mean(axis=1)
+            seasonal_hourly_std_scenario = season_scenario.groupby("hour").std().mean(axis=1)
+
+            # Plot seasonal mean and standard deviation
+            ax.plot(np.arange(24),
+                    seasonal_hourly_means_baseline,
+                    color="blue",
+                    linewidth=2,
+                    label=f'{season.capitalize()} Mean baseline',
+                    )
+            ax.fill_between(np.arange(24),
+                            seasonal_hourly_means_baseline - seasonal_hourly_std_baseline,
+                            seasonal_hourly_means_baseline + seasonal_hourly_std_baseline,
+                            alpha=0.3,
+                            label=f'{season.capitalize()} Std Dev baseline',
+                            color="cyan")
+
+            ax.plot(np.arange(24),
+                    seasonal_hourly_means_scenario,
+                    color="red",
+                    linewidth=2,
+                    label=f'{season.capitalize()} Mean scenario',
+                    )
+            ax.fill_between(np.arange(24),
+                            seasonal_hourly_means_scenario - seasonal_hourly_std_scenario,
+                            seasonal_hourly_means_scenario + seasonal_hourly_std_scenario,
+                            alpha=0.3,
+                            label=f'{season.capitalize()} Std Dev scenario',
+                            color="lightcoral")
+
+            # Formatting the seasonal plot
+            ax.set_xlabel('Hour of Day')
+            ax.set_ylabel('Mean Profile Value')
+            ax.set_title(f'Mean Hourly Profile for {season.capitalize()}')
+            ax.legend()
+            # plt.xticks(range(0, 24))
+            # ax.grid(True)
+        plt.tight_layout()
+        folder = self.path_2_figure / self.__file_name__(self.scenario)
+        if not folder.exists():
+            # Create the folder
+            folder.mkdir(parents=True, exist_ok=True)
+        fig.savefig(folder / f"Daily_Mean_{demand_or_feed}_Comparison.png")
+        plt.close(fig)
 
 
 if __name__ == "__main__":
@@ -566,25 +741,26 @@ if __name__ == "__main__":
         "direct_electric_heating_percentage": 0.5,
         "ac_percentage": 0.1,
         "battery_percentage": 0.1,
-        "prosumager_portion": 0,
-        "baseline": ""
+        "prosumager_percentage": 0,
     }
-    ecemf = ECEMFPostProcess(region="Murcia",
-                             pv_installation_percentage=0.5,
-                             dhw_storage_percentage=0.5,
-                             buffer_storage_percentage=0.1,
-                             heating_element_percentage=0,
-                             air_hp_percentage=0.7,
-                             ground_hp_percentage=0.05,
-                             direct_electric_heating_percentage=0.1,
-                             ac_percentage=0.3,
-                             battery_percentage=0.3,
-                             prosumager_portion=0.2,
-                             baseline=baseline
-                             )
-    ecemf.show_peak_to_peak_demand()
-    ecemf.create_output_csv()
+    scenario = {
+        "region": "Murcia",
+        "pv_installation_percentage": 0.5,
+        "dhw_storage_percentage": 0.5,
+        "buffer_storage_percentage": 0.1,
+        "heating_element_percentage": 0,
+        "air_hp_percentage": 0.7,
+        "ground_hp_percentage": 0.05,
+        "direct_electric_heating_percentage": 0.1,
+        "ac_percentage": 0.3,
+        "battery_percentage": 0.3,
+        "prosumager_percentage": 0.2,
+    }
+
+    ecemf = ECEMFPostProcess(**scenario)
+    # ecemf.create_output_csv()
+
+    ECEMFFigures(baseline_scenario=baseline, scenario=scenario).create_figures()
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
 #  heat demand vergeleichen, Außerdem die Abweichung in Floor area plotten! (wegen clustering)
-#  ein shapefile erstellen bei dem die Gebäude zugeordnet sind
