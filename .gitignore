@@ -162,3 +162,6 @@ cython_debug/
 *.sqlite
 *.png
 output/
+projects/*
+!projects/main.py
+!projects/analysis
