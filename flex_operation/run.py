@@ -349,20 +349,21 @@ def run_operation_model(cfg: "Config",
                          save_month_results=save_monthly_results,
                          save_year_results=save_yearly_results,
                          hourly_save_list=hourly_save_list).run()
-        # run opt model
 
-        opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
-        if solve_status:
-            OptDataCollector(model=opt_model,
-                             scenario_id=scenario.scenario_id,
-                             config=cfg,
-                             save_hour_results=True,
-                             save_month_results=save_monthly_results,
-                             save_year_results=save_yearly_results,
-                             hourly_save_list=hourly_save_list).run()
+        # run opt model (if heating system is direct electric or no heating system, skip)
+        if scenario.boiler.type != "Electric" or scenario.boiler.type != "no heating":
+            opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
+            if solve_status:
+                OptDataCollector(model=opt_model,
+                                 scenario_id=scenario.scenario_id,
+                                 config=cfg,
+                                 save_hour_results=True,
+                                 save_month_results=save_monthly_results,
+                                 save_year_results=save_yearly_results,
+                                 hourly_save_list=hourly_save_list).run()
 
     # check if there were any infeasible scenarios:
-    check_for_infeasible_scenarios(cfg)
+    # check_for_infeasible_scenarios(cfg)  skip for now because I am skipping scenarios where the heating system is electric or not there
 
 
 def run_and_replace_reference_scenario(scen: OperationScenario,
@@ -467,8 +468,9 @@ def find_infeasible_scenarios(config: "Config") -> list:
 
 
 if __name__ == "__main__":
+    # run db_init before starting!
     main(project_name=project_config.project_name,
-         use_multiprocessing=True,
+         use_multiprocessing=False,
          save_hourly_results=True,
          save_monthly_results=False,
          save_yearly_results=True,
@@ -481,4 +483,11 @@ if __name__ == "__main__":
              "T_Room"
          ]
          )
+
+    # TODO: direct electric heating is excluded from optim, the indoor set temperature for direct electricity
+    #  is changed based on random distribution. 33% of houses keep set temp, other 67% have min of 10°C and increase
+    #  the indoor set temp between 5-9 in the night randomly for 3 hours to 18°C.
+    #  22% of buildings have no heating, simulate these buildings by setting minimum temp to 10°C and no optimization as
+    #  well.
+
 

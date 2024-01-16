@@ -758,7 +758,7 @@ if __name__ == "__main__":
     }
 
     ecemf = ECEMFPostProcess(**scenario)
-    # ecemf.create_output_csv()
+    ecemf.create_output_csv()
 
     ECEMFFigures(baseline_scenario=baseline, scenario=scenario).create_figures()
 
