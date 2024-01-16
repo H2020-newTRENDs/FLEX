@@ -4,6 +4,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+import random
 
 from flex.config import Config
 from flex.db import create_db_conn
@@ -132,7 +133,16 @@ class OperationScenario:
         return max_array, min_array
 
     def setup_behavior_target_temperature(self, behavior: pd.DataFrame):
-        column = f"people_at_home_profile_{self.behavior.id_people_at_home_profile}"
+        if self.boiler.type == "Electric":
+            profile_columns = [column for column in behavior.columns if "people_at_home" in column and
+                               column != "people_at_home_profile_2" and
+                               column != "people_at_home_profile_1"]
+            column = f"{random.choice(profile_columns)}"
+        elif self.boiler.type == "no heating":
+            column = f"people_at_home_profile_2"
+        else:
+            column = "people_at_home_profile_1"
+
         (
             self.behavior.target_temperature_array_max,
             self.behavior.target_temperature_array_min,
