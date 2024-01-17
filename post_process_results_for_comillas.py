@@ -110,6 +110,7 @@ class ECEMFPostProcess:
                  air_hp_percentage: float,
                  ground_hp_percentage: float,
                  direct_electric_heating_percentage: float,
+                 no_heating_percentage: float,
                  ac_percentage: float,
                  battery_percentage: float,
                  prosumager_percentage: float,
@@ -165,6 +166,7 @@ class ECEMFPostProcess:
         self.air_hp_percentage = air_hp_percentage
         self.ground_hp_percentage = ground_hp_percentage
         self.direct_electric_heating_percentage = direct_electric_heating_percentage
+        self.no_heating_percentage = no_heating_percentage
         self.ac_percentage = ac_percentage
         self.battery_percentage = battery_percentage
         self.prosumager_percentage = prosumager_percentage
@@ -178,7 +180,8 @@ class ECEMFPostProcess:
         assert 0 <= self.ac_percentage <= 1
         assert 0 <= self.battery_percentage <= 1
         assert 0 <= self.prosumager_percentage <= 1
-        assert self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage <= 1
+        assert 0 <= self.no_heating_percentage <= 1
+        assert self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage + no_heating_percentage <= 1
 
     def load_clustered_building_df(self):
         return pd.read_excel(self.path_to_project / f"OperationScenario_Component_Building.xlsx")
@@ -219,7 +222,7 @@ class ECEMFPostProcess:
         """
 
         gases_percentage = 1 - (
-                self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage)
+                self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage + self.no_heating_percentage)
         dict_of_inputs = {
             "ID_PV": [1 - self.pv_installation_percentage, self.pv_installation_percentage * 0.5,
                       self.pv_installation_percentage * 0.25, self.pv_installation_percentage * 0.25],
@@ -244,7 +247,8 @@ class ECEMFPostProcess:
                 0: [2],  # Air HP
                 1: [3],  # Ground HP
                 2: [1],  # Electric
-                3: [4]  # gases
+                3: [5],  # gases
+                4: [4],  # no_heating
             },
             "ID_SpaceCoolingTechnology": {
                 0: [2],  # without AC
@@ -739,6 +743,7 @@ if __name__ == "__main__":
         "air_hp_percentage": 0.08,
         "ground_hp_percentage": 0,
         "direct_electric_heating_percentage": 0.5,
+        "no_heating_percentage": 0.2,
         "ac_percentage": 0.1,
         "battery_percentage": 0.1,
         "prosumager_percentage": 0,
@@ -752,6 +757,7 @@ if __name__ == "__main__":
         "air_hp_percentage": 0.7,
         "ground_hp_percentage": 0.05,
         "direct_electric_heating_percentage": 0.1,
+        "no_heating_percentage": 0.2,
         "ac_percentage": 0.3,
         "battery_percentage": 0.3,
         "prosumager_percentage": 0.2,
