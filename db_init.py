@@ -99,7 +99,7 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.setup_operation_scenario_table()
         self.load_operation_profile_tables()
         self.load_community_tables()
-        # self.drop_tables()
+        self.drop_tables()
 
 
 if __name__ == "__main__":
@@ -112,7 +112,9 @@ if __name__ == "__main__":
                                   "ID_HotWaterTank",
                                   "ID_SpaceHeatingTank",
                                   "ID_HeatingElement",
-                                  "ID_Boiler"],
+                                  "ID_Boiler",
+                                  "ID_Behavior",
+                                  ],
         load_scenario_table=False,
         start_scenario_table=df_start)
     init.run()

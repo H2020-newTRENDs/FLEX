@@ -351,7 +351,7 @@ def run_operation_model(cfg: "Config",
                          hourly_save_list=hourly_save_list).run()
 
         # run opt model (if heating system is direct electric or no heating system, skip)
-        if scenario.boiler.type != "Electric" or scenario.boiler.type != "no heating":
+        if scenario.boiler.type == "Air_HP" or scenario.boiler.type == "Ground_HP":
             opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
             if solve_status:
                 OptDataCollector(model=opt_model,
@@ -470,7 +470,7 @@ def find_infeasible_scenarios(config: "Config") -> list:
 if __name__ == "__main__":
     # run db_init before starting!
     main(project_name=project_config.project_name,
-         use_multiprocessing=False,
+         use_multiprocessing=True,
          save_hourly_results=True,
          save_monthly_results=False,
          save_yearly_results=True,
