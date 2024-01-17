@@ -335,15 +335,22 @@ class ECEMFPostProcess:
         ref_loads = self.db.read_parquet(table_name=OperationTable.ResultRefHour,
                                          scenario_ID=id_scenario,
                                          column_names=["Load", "Feed2Grid"])
-        opt_loads = self.db.read_parquet(table_name=OperationTable.ResultOptHour,
-                                         scenario_ID=id_scenario,
-                                         column_names=["Load", "Feed2Grid"])
+        # check if optimisation exists for this scenario (dependent on the heating system)
+        heating_system = self.scenario_table.loc[self.scenario_table["ID_Scenario"] == id_scenario, "ID_Boiler"].values[0]
+        # air hp = 2 and ground hp = 3
+        if heating_system == 2 or heating_system == 3:
+            prosumager_possibility = self.prosumager_percentage
+            opt_loads = self.db.read_parquet(table_name=OperationTable.ResultOptHour,
+                                             scenario_ID=id_scenario,
+                                             column_names=["Load", "Feed2Grid"])
+        else:
+            prosumager_possibility = 0
 
         multi_index = pd.MultiIndex.from_tuples([(id_scenario, i) for i in range(number_of_occurences)])
         result_matrix_demand = pd.DataFrame(index=range(8760), columns=multi_index)
         result_matrix_feed2grid = pd.DataFrame(index=range(8760), columns=multi_index)
         for i in range(number_of_occurences):
-            prosumager = self.assign_id([self.prosumager_percentage])
+            prosumager = self.assign_id([prosumager_possibility])
             if prosumager == 0:
                 result_matrix_demand.loc[:, (id_scenario, i)] = ref_loads["Load"].to_numpy()
                 result_matrix_feed2grid.loc[:, (id_scenario, i)] = ref_loads["Feed2Grid"].to_numpy()
@@ -384,7 +391,7 @@ class ECEMFPostProcess:
         # Resample the data to get average daily demand
         daily_average = profile.groupby(profile.index // 24).mean()
         # Find the day with the highest average demand
-        max_average_demand_day = daily_average.idxmax()
+        max_average_demand_day = pd.to_numeric(daily_average, errors="coerce").idxmax()
         return max_average_demand_day
 
     def show_chosen_dist(self, df: pd.DataFrame):
@@ -511,6 +518,7 @@ class ECEMFPostProcess:
                f"AirHP-{round(self.air_hp_percentage * 100)}%_" \
                f"GroundHP-{round(self.ground_hp_percentage * 100)}%_" \
                f"directE-{round(self.direct_electric_heating_percentage * 100)}%_" \
+               f"NoHeating-{round(self.no_heating_percentage * 100)}%_" \
                f"AC-{round(self.ac_percentage * 100)}%_" \
                f"Battery-{round(self.battery_percentage * 100)}%_" \
                f"Prosumager-{round(self.prosumager_percentage * 100)}%"
@@ -560,6 +568,7 @@ class ECEMFFigures:
                f"AirHP-{round(dictionary['air_hp_percentage'] * 100)}%_" \
                f"GroundHP-{round(dictionary['ground_hp_percentage'] * 100)}%_" \
                f"directE-{round(dictionary['direct_electric_heating_percentage'] * 100)}%_" \
+               f"NoHeating-{round(dictionary['no_heating_percentage']* 100)}%_" \
                f"AC-{round(dictionary['ac_percentage'] * 100)}%_" \
                f"Battery-{round(dictionary['battery_percentage'] * 100)}%_" \
                f"Prosumager-{round(dictionary['prosumager_percentage'] * 100)}%"
@@ -679,11 +688,11 @@ class ECEMFFigures:
             season_baseline = season_groups_baseline.get_group(season)
             season_scenario = season_groups_scenario.get_group(season)
             # Filter the dataframe for the season and aggregate data by hour
-            seasonal_hourly_means_baseline = season_baseline.groupby("hour").mean().mean(axis=1)
-            seasonal_hourly_std_baseline = season_baseline.groupby("hour").std().mean(axis=1)
+            seasonal_hourly_means_baseline = season_baseline.drop(columns=["season"]).groupby("hour").mean().mean(axis=1)
+            seasonal_hourly_std_baseline = season_baseline.drop(columns=["season"]).groupby("hour").std().mean(axis=1)
 
-            seasonal_hourly_means_scenario = season_scenario.groupby("hour").mean().mean(axis=1)
-            seasonal_hourly_std_scenario = season_scenario.groupby("hour").std().mean(axis=1)
+            seasonal_hourly_means_scenario = season_scenario.drop(columns=["season"]).groupby("hour").mean().mean(axis=1)
+            seasonal_hourly_std_scenario = season_scenario.drop(columns=["season"]).groupby("hour").std().mean(axis=1)
 
             # Plot seasonal mean and standard deviation
             ax.plot(np.arange(24),
@@ -736,15 +745,15 @@ if __name__ == "__main__":
     # Heating buffer storage is only installed in buildings with HPs. Probability only refers to buildings with HP
     baseline = {
         "region": "Murcia",
-        "pv_installation_percentage": 0.05,
+        "pv_installation_percentage": 0.015,
         "dhw_storage_percentage": 0.5,
         "buffer_storage_percentage": 0,
         "heating_element_percentage": 0,
-        "air_hp_percentage": 0.08,
+        "air_hp_percentage": 0.2,
         "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0.5,
-        "no_heating_percentage": 0.2,
-        "ac_percentage": 0.1,
+        "direct_electric_heating_percentage": 0.39,
+        "no_heating_percentage": 0.22,
+        "ac_percentage": 0.8,
         "battery_percentage": 0.1,
         "prosumager_percentage": 0,
     }
@@ -764,7 +773,7 @@ if __name__ == "__main__":
     }
 
     ecemf = ECEMFPostProcess(**scenario)
-    ecemf.create_output_csv()
+    # ecemf.create_output_csv()
 
     ECEMFFigures(baseline_scenario=baseline, scenario=scenario).create_figures()
 
