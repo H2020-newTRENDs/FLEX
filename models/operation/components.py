@@ -50,6 +50,7 @@ class Building(OperationComponent):
 @dataclass
 class Boiler(OperationComponent):
     type: Optional[str] = None
+    power_max: Optional[float] = None
     carnot_efficiency_factor: Optional[float] = None
 
 

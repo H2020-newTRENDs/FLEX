@@ -1,7 +1,7 @@
 import os
 import random
-from models.operation.main import run_operation_model
-from models.operation.main import run_operation_model_parallel
+from projects.analysis.main_operation import run_operation_model
+from projects.analysis.main_operation import run_operation_model_parallel
 from plotters.operation import household_load_balance
 from utils.config import Config
 from utils.db import init_project_db
@@ -28,7 +28,7 @@ def run_flex_operation_plotter(config: "Config"):
 if __name__ == "__main__":
 
     cfg = get_config("DEU_2020")
-    run_flex_operation_model(cfg)
+    # run_flex_operation_model(cfg)
     # run_flex_operation_plotter(cfg)
-    calc.merge_scenario(cfg)
+    # calc.merge_scenario(cfg)
     calc.calc_electricity_profiles(cfg)
