@@ -90,7 +90,7 @@ def calc_electricity_profiles(config: "Config"):
     conn = create_db_conn(config)
     scenarios = conn.read_dataframe(InputTables.OperationScenario.name).set_index("ID_Scenario")
     electricity_price = conn.read_dataframe(InputTables.OperationScenario_EnergyPrice.name)["electricity_1"]
-    summary = pd.read_excel(os.path.join(config.output, f"{PROJECT_SUMMARY_YEAR}.xlsx"))
+    summary = pd.read_csv(os.path.join(config.output, f"{PROJECT_SUMMARY_YEAR}.csv"))
     l = []
     for id_sems in [1, 2]:
         for id_teleworking in [1, 2]:
@@ -111,6 +111,7 @@ def calc_electricity_profiles(config: "Config"):
                             var_profiles[var_name] = np.zeros(8760, )
 
                         for id_scenario in scenario_ids:
+                            id_scenario = int(id_scenario)
                             building_num = scenarios.at[id_scenario, "building_num"]
                             if id_sems == 1:
                                 file_name = f'OperationResult_RefHour_S{id_scenario}'
@@ -119,6 +120,7 @@ def calc_electricity_profiles(config: "Config"):
                                     file_name = f'OperationResult_OptHour_S{id_scenario}'
                                 else:
                                     file_name = f'OperationResult_RefHour_S{id_scenario}'
+
                             scenario_result = read_parquet(file_name, config.output)
                             for var_name in vars_to_collect:
                                 var_profiles[var_name] += building_num * scenario_result[var_name].to_numpy()

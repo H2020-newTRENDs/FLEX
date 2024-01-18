@@ -27,7 +27,7 @@ def run_flex_operation_plotter(config: "Config"):
 
 if __name__ == "__main__":
 
-    cfg = get_config("DEU_2020")
+    cfg = get_config("DEU_2020_Skip")
     # run_flex_operation_model(cfg)
     # run_flex_operation_plotter(cfg)
     # calc.merge_scenario(cfg)
