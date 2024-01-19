@@ -778,7 +778,6 @@ if __name__ == "__main__":
     # ecemf.create_output_csv()
 
     ECEMFFigures(baseline_scenario=baseline, scenario=scenario).create_figures()
-    # todo make this a one click solution
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
 #  heat demand vergeleichen, Außerdem die Abweichung in Floor area plotten! (wegen clustering)
