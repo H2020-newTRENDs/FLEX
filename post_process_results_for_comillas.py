@@ -10,6 +10,8 @@ from plotly.subplots import make_subplots
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib
+matplotlib.use('TkAgg')
 
 from flex.db import DB
 from flex.config import Config
@@ -753,29 +755,30 @@ if __name__ == "__main__":
         "ground_hp_percentage": 0,
         "direct_electric_heating_percentage": 0.39,
         "no_heating_percentage": 0.22,
-        "ac_percentage": 0.8,
+        "ac_percentage": 0.5,
         "battery_percentage": 0.1,
         "prosumager_percentage": 0,
     }
     scenario = {
         "region": "Murcia",
-        "pv_installation_percentage": 0.5,
+        "pv_installation_percentage": 0.015,
         "dhw_storage_percentage": 0.5,
-        "buffer_storage_percentage": 0.1,
+        "buffer_storage_percentage": 0,
         "heating_element_percentage": 0,
         "air_hp_percentage": 0.2,
-        "ground_hp_percentage": 0.05,
-        "direct_electric_heating_percentage": 0.1,
-        "no_heating_percentage": 0.2,
-        "ac_percentage": 0.3,
-        "battery_percentage": 0.3,
-        "prosumager_percentage": 0.2,
+        "ground_hp_percentage": 0,
+        "direct_electric_heating_percentage": 0.39,
+        "no_heating_percentage": 0.22,
+        "ac_percentage": 0.5,
+        "battery_percentage": 0.1,
+        "prosumager_percentage": 0,
     }
 
     ecemf = ECEMFPostProcess(**scenario)
     # ecemf.create_output_csv()
 
     ECEMFFigures(baseline_scenario=baseline, scenario=scenario).create_figures()
+    # todo make this a one click solution
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
 #  heat demand vergeleichen, Außerdem die Abweichung in Floor area plotten! (wegen clustering)
