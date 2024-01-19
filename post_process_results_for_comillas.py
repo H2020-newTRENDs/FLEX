@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 
 from flex.db import DB
 from flex.config import Config
@@ -417,7 +417,7 @@ class ECEMFPostProcess:
         fig.show()
 
     def select_max_days(self, demand: pd.DataFrame) -> pd.DataFrame:
-        max_grid_day_index = ecemf.find_net_peak_demand_day(demand)
+        max_grid_day_index = self.find_net_peak_demand_day(demand)
         start_hour = max_grid_day_index * 24
         end_hour = (max_grid_day_index + 1) * 24 - 1
         selected_day_demand = demand.loc[start_hour: end_hour, :]
@@ -530,7 +530,7 @@ class ECEMFPostProcess:
         scenario_list = scenarios["ID_Scenario"].values.tolist()
         scenario_dict = self.shorten_scenario_list(scenario_list)
 
-        total_grid_demand, total_grid_feed = ecemf.calculate_total_load_profiles(scenario_dictionary=scenario_dict)
+        total_grid_demand, total_grid_feed = self.calculate_total_load_profiles(scenario_dictionary=scenario_dict)
         total_grid_demand_real, total_grid_feed_real = self.add_real_building_ids(scenario_df=scenarios,
                                                                                   total_grid_demand=total_grid_demand,
                                                                                   total_grid_feed=total_grid_feed)
@@ -602,6 +602,7 @@ class ECEMFFigures:
             # Create the folder
             folder.mkdir(parents=True, exist_ok=True)
         plt.savefig(folder / Path(f"Peak_to_peak_{demand_or_feed}.png"))
+        print("created Peak_to_peak boxplot")
 
     def peak_to_peak_difference(self, load_profile: np.array) -> np.array:
         """
@@ -624,28 +625,30 @@ class ECEMFFigures:
             return Path(self.data_output) / f"{filename}.parquet.gzip"
 
         # check if baseline csv exists and check if the scenario csv exists. If not, create it:
-        assert path_to_gzip(f"Demand_{self.__file_name__(self.scenario)}").exists() or \
-               path_to_gzip(f"Feed_{self.__file_name__(self.scenario)}").exists(), \
-            f"{self.__file_name__(self.scenario)} \n parquet files do not exist. create_output_csv need to be run on " \
-            f"the server again."
+        if not path_to_gzip(f"Demand_{self.__file_name__(self.scenario)}").exists() or not \
+               path_to_gzip(f"Feed_{self.__file_name__(self.scenario)}").exists():
+            print(
+                f"{self.__file_name__(self.scenario)} \n parquet files do not exist. create_output_csv"
+            )
+            ECEMFPostProcess(**self.scenario).create_output_csv()
 
-        assert path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}").exists() or \
-               path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}").exists(), \
-            f"{self.__file_name__(self.baseline)} \n parquet files do not exist. create_output_csv need to be run on " \
-            f"the server again. "
+        if not path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}").exists() or not \
+               path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}").exists():
+            print(
+                f"{self.__file_name__(self.baseline)} \n parquet files do not exist. create_output_csv"
+            )
+            ECEMFPostProcess(**self.baseline).create_output_csv()
 
-        if self.__file_name__(self.scenario) == self.__file_name__(self.baseline):
-            # plot only baseline scenario
-            pass
-        else:
-            demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.scenario)}"), engine="pyarrow")
-            feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.scenario)}"), engine="pyarrow")
-            base_demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}"), engine="pyarrow")
-            base_feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}"), engine="pyarrow")
+        # load the data from gzip files
+        demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.scenario)}"), engine="pyarrow")
+        feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.scenario)}"), engine="pyarrow")
+        base_demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}"), engine="pyarrow")
+        base_feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}"), engine="pyarrow")
 
-            self.create_boxplot_p_to_p_difference(baseline=base_demand, scenario=demand, demand_or_feed="Demand")
-            self.plot_seasonal_daily_means(df_baseline=base_demand, df_scenario=demand, demand_or_feed="Demand")
-            self.plot_seasonal_daily_means(df_baseline=base_feed, df_scenario=feed, demand_or_feed="Feed")
+        # create the figures
+        self.create_boxplot_p_to_p_difference(baseline=base_demand, scenario=demand, demand_or_feed="Demand")
+        self.plot_seasonal_daily_means(df_baseline=base_demand, df_scenario=demand, demand_or_feed="Demand")
+        self.plot_seasonal_daily_means(df_baseline=base_feed, df_scenario=feed, demand_or_feed="Feed")
 
     @staticmethod
     def get_season(date):
@@ -737,6 +740,7 @@ class ECEMFFigures:
             folder.mkdir(parents=True, exist_ok=True)
         fig.savefig(folder / f"Daily_Mean_{demand_or_feed}_Comparison.png")
         plt.close(fig)
+        print(f"create Daily Mean {demand_or_feed} plot")
 
 
 if __name__ == "__main__":
@@ -769,15 +773,13 @@ if __name__ == "__main__":
         "ground_hp_percentage": 0,
         "direct_electric_heating_percentage": 0.39,
         "no_heating_percentage": 0.22,
-        "ac_percentage": 0.5,
+        "ac_percentage": 1,
         "battery_percentage": 0.1,
         "prosumager_percentage": 0,
     }
 
-    ecemf = ECEMFPostProcess(**scenario)
-    # ecemf.create_output_csv()
-
     ECEMFFigures(baseline_scenario=baseline, scenario=scenario).create_figures()
+
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
 #  heat demand vergeleichen, Außerdem die Abweichung in Floor area plotten! (wegen clustering)
