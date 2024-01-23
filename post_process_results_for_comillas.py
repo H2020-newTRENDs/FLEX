@@ -11,6 +11,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib
+from matplotlib.cm import get_cmap
+import joblib
+
 matplotlib.use('Agg')
 
 from flex.db import DB
@@ -338,7 +341,8 @@ class ECEMFPostProcess:
                                          scenario_ID=id_scenario,
                                          column_names=["Load", "Feed2Grid"])
         # check if optimisation exists for this scenario (dependent on the heating system)
-        heating_system = self.scenario_table.loc[self.scenario_table["ID_Scenario"] == id_scenario, "ID_Boiler"].values[0]
+        heating_system = self.scenario_table.loc[self.scenario_table["ID_Scenario"] == id_scenario, "ID_Boiler"].values[
+            0]
         # air hp = 2 and ground hp = 3
         if heating_system == 2 or heating_system == 3:
             prosumager_possibility = self.prosumager_percentage
@@ -553,27 +557,133 @@ class ECEMFPostProcess:
                                             file_name=file_name)
 
 
+def create_figure_worker(scenario_list: list,
+                         demand_feed: str,
+                         file_loc: Path,
+                         Season: str,
+                         changed_parameter: str,
+                         output_folder: Path
+                         ):
+    fig = plt.figure(figsize=(16, 14))
+    ax = plt.gca()
+    cmap = get_cmap('viridis')
+    colors = [cmap(i) for i in np.linspace(0, 1, len(scenario_list))]
+
+    for i, scen in enumerate(scenario_list):
+        data = pd.read_parquet(file_loc / f"{demand_feed}_{get_file_name(scen)}.parquet.gzip", engine="pyarrow")
+        data_enhanced = get_season_and_datetime(data)
+        means = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").mean().mean(axis=1)
+        stds = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").std().mean(axis=1)
+        ax.plot(np.arange(24),
+                means,
+                color=colors[i],
+                linewidth=2,
+                label=f'{changed_parameter}: {round(scen[changed_parameter] * 100)}% Mean',
+                )
+
+        ax.fill_between(np.arange(24),
+                        means - stds,
+                        means + stds,
+                        alpha=0.3,
+                        label=f'{changed_parameter}: {round(scen[changed_parameter] * 100)}% Std',
+                        color=colors[i])
+    # Formatting the seasonal plot
+    ax.set_xlabel('Hour of Day')
+    ax.set_ylabel('Mean Profile Value')
+    ax.set_title(f'Mean Hourly Profile for {Season.capitalize()}')
+    ax.legend()
+    matplotlib.rcParams({"font.size": 16})
+    plt.tight_layout()
+    if not output_folder.exists():
+        # Create the folder
+        output_folder.mkdir(parents=True, exist_ok=True)
+    fig.savefig(
+        output_folder / f"{Season.capitalize()}_Daily_Mean_{demand_feed}_{changed_parameter}_Comparison.png")
+    plt.close(fig)
+    print(
+        f"created {Season.capitalize()}_Daily_Mean_{demand_feed}_{changed_parameter}_Comparison.png plot")
+
+
+def get_file_name(dictionary: dict):
+    return f"{dictionary['region']}_" \
+           f"PV-{round(dictionary['pv_installation_percentage'] * 100)}%_" \
+           f"DHW-{round(dictionary['dhw_storage_percentage'] * 100)}%_" \
+           f"Buffer-{round(dictionary['buffer_storage_percentage'] * 100)}%_" \
+           f"HE-{round(dictionary['heating_element_percentage'] * 100)}%_" \
+           f"AirHP-{round(dictionary['air_hp_percentage'] * 100)}%_" \
+           f"GroundHP-{round(dictionary['ground_hp_percentage'] * 100)}%_" \
+           f"directE-{round(dictionary['direct_electric_heating_percentage'] * 100)}%_" \
+           f"NoHeating-{round(dictionary['no_heating_percentage'] * 100)}%_" \
+           f"AC-{round(dictionary['ac_percentage'] * 100)}%_" \
+           f"Battery-{round(dictionary['battery_percentage'] * 100)}%_" \
+           f"Prosumager-{round(dictionary['prosumager_percentage'] * 100)}%"
+
+
+def get_season(date):
+    seasons = {'spring': pd.date_range(start='2023-03-21 00:00:00', end='2023-06-20 23:00:00', freq="H"),
+               'summer': pd.date_range(start='2023-06-21 00:00:00', end='2023-09-22 23:00:00', freq="H"),
+               'autumn': pd.date_range(start='2023-09-23 00:00:00', end='2023-12-20 23:00:00', freq="H")}
+
+    if date in seasons['spring']:
+        return 'spring'
+    elif date in seasons['summer']:
+        return 'summer'
+    elif date in seasons['autumn']:
+        return 'autumn'
+    else:
+        return 'winter'
+
+
+def get_season_and_datetime(df: pd.DataFrame) -> pd.DataFrame:
+    if len(df) > 365:
+        datetime_index = pd.date_range(start='2023-01-01 00:00:00', periods=8760, freq='H')
+    else:
+        datetime_index = pd.date_range(start='2023-01-01 ', periods=365, freq='D')
+    df.index = datetime_index
+    df['season'] = df.index.map(get_season)
+    df["hour"] = df.index.hour
+    return df.reset_index(drop=True)
+
+
 class ECEMFFigures:
     def __init__(self, baseline_scenario: dict, scenario: dict):
         self.baseline = baseline_scenario
-        self.scenario = scenario
         self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{baseline_scenario['region']}/data_output/"
         self.path_2_figure = Path(__file__).parent / r"data/figure" / f"ECEMF_T4.3_{baseline_scenario['region']}"
+        if any(isinstance(value, list) for value in scenario.values()):
+            # we have multiple scenarios
+            changing_parameter, values = [(key, value) for key, value in scenario.items() if isinstance(value, list)][0]
+            self.changing_parameter = changing_parameter
+            scenarios = []
+            for parameter in values:
+                # copy the scenario multiple times:
+                new_scen = scenario.copy()
+                new_scen[changing_parameter] = parameter
+                scenarios.append(new_scen)
+            self.check_if_scenarios_exist(scenarios)
+            self.scenario = scenarios
+        else:
+            self.scenario = scenario
 
-    @staticmethod
-    def __file_name__(dictionary: dict):
-        return f"{dictionary['region']}_" \
-               f"PV-{round(dictionary['pv_installation_percentage'] * 100)}%_" \
-               f"DHW-{round(dictionary['dhw_storage_percentage'] * 100)}%_" \
-               f"Buffer-{round(dictionary['buffer_storage_percentage'] * 100)}%_" \
-               f"HE-{round(dictionary['heating_element_percentage'] * 100)}%_" \
-               f"AirHP-{round(dictionary['air_hp_percentage'] * 100)}%_" \
-               f"GroundHP-{round(dictionary['ground_hp_percentage'] * 100)}%_" \
-               f"directE-{round(dictionary['direct_electric_heating_percentage'] * 100)}%_" \
-               f"NoHeating-{round(dictionary['no_heating_percentage']* 100)}%_" \
-               f"AC-{round(dictionary['ac_percentage'] * 100)}%_" \
-               f"Battery-{round(dictionary['battery_percentage'] * 100)}%_" \
-               f"Prosumager-{round(dictionary['prosumager_percentage'] * 100)}%"
+    def path_to_gzip(self, filename):
+        return Path(self.data_output) / f"{filename}.parquet.gzip"
+
+    def check_if_scenarios_exist(self, scenarios: list):
+        for scen in scenarios:
+            # check if baseline csv exists and check if the scenario csv exists. If not, create it:
+            if not self.path_to_gzip(f"Demand_{get_file_name(scen)}").exists() or not \
+                    self.path_to_gzip(f"Feed_{get_file_name(scen)}").exists():
+                print(
+                    f"{get_file_name(scen)} \n parquet files do not exist. create_output_csv"
+                )
+                ECEMFPostProcess(**scen).create_output_csv()
+
+            if not self.path_to_gzip(f"Demand_{get_file_name(self.baseline)}").exists() or not \
+                    self.path_to_gzip(f"Feed_{get_file_name(self.baseline)}").exists():
+                print(
+                    f"{get_file_name(self.baseline)} \n parquet files do not exist. create_output_csv"
+                )
+                ECEMFPostProcess(**self.baseline).create_output_csv()
 
     def create_boxplot_p_to_p_difference(self,
                                          baseline: pd.DataFrame,
@@ -582,12 +692,15 @@ class ECEMFFigures:
                                          ):
 
         # create a plot df in longformat:
-        base_p2p = pd.DataFrame(self.peak_to_peak_difference(baseline.sum(axis=1).to_numpy() / 1_000 / 1_000)).rename(columns={0: "peak to peak MW"})
-        scenario_p2p = pd.DataFrame(self.peak_to_peak_difference(scenario.sum(axis=1).to_numpy() / 1_000 / 1_000)).rename(columns={0: "peak to peak MW"})
+        base_p2p = pd.DataFrame(self.peak_to_peak_difference(baseline.sum(axis=1).to_numpy() / 1_000 / 1_000)).rename(
+            columns={0: "peak to peak MW"})
+        scenario_p2p = pd.DataFrame(
+            self.peak_to_peak_difference(scenario.sum(axis=1).to_numpy() / 1_000 / 1_000)).rename(
+            columns={0: "peak to peak MW"})
 
         base_p2p["name"] = "baseline"
         scenario_p2p["name"] = "scenario"
-        plot_df = pd.concat([self.get_season_and_datetime(base_p2p), self.get_season_and_datetime(scenario_p2p)], axis=0)
+        plot_df = pd.concat([get_season_and_datetime(base_p2p), get_season_and_datetime(scenario_p2p)], axis=0)
 
         sns.boxplot(data=plot_df,
                     x="season",
@@ -597,7 +710,7 @@ class ECEMFFigures:
                     )
         plt.title("daily peak to peak demand")
         plt.tight_layout()
-        folder = self.path_2_figure / self.__file_name__(self.scenario)
+        folder = self.path_2_figure / get_file_name(self.scenario)
         if not folder.exists():
             # Create the folder
             folder.mkdir(parents=True, exist_ok=True)
@@ -620,60 +733,48 @@ class ECEMFFigures:
 
         return peak_to_peak_difference
 
+    def create_scenario_comparison_daily_mean_plot_for_each_season(self):
+        seasons = ["spring", "summer", "autumn", "winter"]
+        for demand_or_feed in ["Demand", "Feed"]:
+            for season in seasons:
+                # create_figure_worker(
+                #      scenario_list=self.scenario,
+                #      demand_feed=demand_or_feed,
+                #      Season=season,
+                #      file_loc=self.data_output,
+                #      changed_parameter=self.changing_parameter,
+                #      output_folder=self.path_2_figure / "scenario_comparisons"
+                # )
+                pass
+
+        arguments = [
+            (
+                self.scenario,
+                demand_or_feed,
+                self.data_output,
+                season,
+                self.changing_parameter,
+                self.path_2_figure / f"scenario_comparisons_{self.changing_parameter}_{get_file_name(self.scenario[0])}"
+            ) for season in seasons for demand_or_feed in ["Demand", "Feed"]
+        ]
+        joblib.Parallel(n_jobs=8)(joblib.delayed(create_figure_worker)(*args) for args in arguments)
+
     def create_figures(self):
-        def path_to_gzip(filename):
-            return Path(self.data_output) / f"{filename}.parquet.gzip"
+        if isinstance(self.scenario, dict):
+            # load the data from gzip files
+            demand = pd.read_parquet(self.path_to_gzip(f"Demand_{get_file_name(self.scenario)}"), engine="pyarrow")
+            feed = pd.read_parquet(self.path_to_gzip(f"Feed_{get_file_name(self.scenario)}"), engine="pyarrow")
+            base_demand = pd.read_parquet(self.path_to_gzip(f"Demand_{get_file_name(self.baseline)}"), engine="pyarrow")
+            base_feed = pd.read_parquet(self.path_to_gzip(f"Feed_{get_file_name(self.baseline)}"), engine="pyarrow")
 
-        # check if baseline csv exists and check if the scenario csv exists. If not, create it:
-        if not path_to_gzip(f"Demand_{self.__file_name__(self.scenario)}").exists() or not \
-               path_to_gzip(f"Feed_{self.__file_name__(self.scenario)}").exists():
-            print(
-                f"{self.__file_name__(self.scenario)} \n parquet files do not exist. create_output_csv"
-            )
-            ECEMFPostProcess(**self.scenario).create_output_csv()
-
-        if not path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}").exists() or not \
-               path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}").exists():
-            print(
-                f"{self.__file_name__(self.baseline)} \n parquet files do not exist. create_output_csv"
-            )
-            ECEMFPostProcess(**self.baseline).create_output_csv()
-
-        # load the data from gzip files
-        demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.scenario)}"), engine="pyarrow")
-        feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.scenario)}"), engine="pyarrow")
-        base_demand = pd.read_parquet(path_to_gzip(f"Demand_{self.__file_name__(self.baseline)}"), engine="pyarrow")
-        base_feed = pd.read_parquet(path_to_gzip(f"Feed_{self.__file_name__(self.baseline)}"), engine="pyarrow")
-
-        # create the figures
-        self.create_boxplot_p_to_p_difference(baseline=base_demand, scenario=demand, demand_or_feed="Demand")
-        self.plot_seasonal_daily_means(df_baseline=base_demand, df_scenario=demand, demand_or_feed="Demand")
-        self.plot_seasonal_daily_means(df_baseline=base_feed, df_scenario=feed, demand_or_feed="Feed")
-
-    @staticmethod
-    def get_season(date):
-        seasons = {'spring': pd.date_range(start='2023-03-21 00:00:00', end='2023-06-20 23:00:00', freq="H"),
-                   'summer': pd.date_range(start='2023-06-21 00:00:00', end='2023-09-22 23:00:00', freq="H"),
-                   'autumn': pd.date_range(start='2023-09-23 00:00:00', end='2023-12-20 23:00:00', freq="H")}
-
-        if date in seasons['spring']:
-            return 'spring'
-        elif date in seasons['summer']:
-            return 'summer'
-        elif date in seasons['autumn']:
-            return 'autumn'
-        else:
-            return 'winter'
-
-    def get_season_and_datetime(self, df: pd.DataFrame) -> pd.DataFrame:
-        if len(df) > 365:
-            datetime_index = pd.date_range(start='2023-01-01 00:00:00', periods=8760, freq='H')
-        else:
-            datetime_index = pd.date_range(start='2023-01-01 ', periods=365, freq='D')
-        df.index = datetime_index
-        df['season'] = df.index.map(self.get_season)
-        df["hour"] = df.index.hour
-        return df.reset_index(drop=True)
+            # create the figures
+            self.create_boxplot_p_to_p_difference(baseline=base_demand, scenario=demand, demand_or_feed="Demand")
+            self.plot_seasonal_daily_means(df_baseline=base_demand, df_scenario=demand, demand_or_feed="Demand")
+            self.plot_seasonal_daily_means(df_baseline=base_feed, df_scenario=feed, demand_or_feed="Feed")
+        else:  # self.scenario is a list of scenarios:
+            # create a graph that shows the difference between the scenarios:
+            # load data
+            self.create_scenario_comparison_daily_mean_plot_for_each_season()
 
     def plot_seasonal_daily_means(self,
                                   df_baseline: pd.DataFrame,
@@ -681,8 +782,9 @@ class ECEMFFigures:
                                   demand_or_feed: str
                                   ):
         # add seasons to df:
-        season_groups_baseline = self.get_season_and_datetime(df_baseline).groupby("season")
-        season_groups_scenario = self.get_season_and_datetime(df_scenario).groupby("season")
+        season_groups_baseline = get_season_and_datetime(df_baseline).groupby("season")
+        season_groups_scenario = get_season_and_datetime(df_scenario).groupby("season")
+        folder = self.path_2_figure / get_file_name(self.scenario)
 
         # Separate plots for each season
         seasons = ["spring", "summer", "autumn", "winter"]
@@ -693,10 +795,12 @@ class ECEMFFigures:
             season_baseline = season_groups_baseline.get_group(season)
             season_scenario = season_groups_scenario.get_group(season)
             # Filter the dataframe for the season and aggregate data by hour
-            seasonal_hourly_means_baseline = season_baseline.drop(columns=["season"]).groupby("hour").mean().mean(axis=1)
+            seasonal_hourly_means_baseline = season_baseline.drop(columns=["season"]).groupby("hour").mean().mean(
+                axis=1)
             seasonal_hourly_std_baseline = season_baseline.drop(columns=["season"]).groupby("hour").std().mean(axis=1)
 
-            seasonal_hourly_means_scenario = season_scenario.drop(columns=["season"]).groupby("hour").mean().mean(axis=1)
+            seasonal_hourly_means_scenario = season_scenario.drop(columns=["season"]).groupby("hour").mean().mean(
+                axis=1)
             seasonal_hourly_std_scenario = season_scenario.drop(columns=["season"]).groupby("hour").std().mean(axis=1)
 
             # Plot seasonal mean and standard deviation
@@ -734,13 +838,12 @@ class ECEMFFigures:
             # plt.xticks(range(0, 24))
             # ax.grid(True)
         plt.tight_layout()
-        folder = self.path_2_figure / self.__file_name__(self.scenario)
         if not folder.exists():
             # Create the folder
             folder.mkdir(parents=True, exist_ok=True)
-        fig.savefig(folder / f"Daily_Mean_{demand_or_feed}_Comparison.png")
+        fig.savefig(folder / f"TEST_Daily_Mean_{demand_or_feed}_Comparison.png")
         plt.close(fig)
-        print(f"create Daily Mean {demand_or_feed} plot")
+        print(f"created Daily Mean {demand_or_feed} plot")
 
 
 if __name__ == "__main__":
@@ -763,23 +866,24 @@ if __name__ == "__main__":
         "battery_percentage": 0.1,
         "prosumager_percentage": 0,
     }
+    pv_increase = np.arange(0.015, 0.5, 0.1).tolist()
+    prosumager_increase = np.arange(0, 0.5, 0.1).tolist()
     scenario = {
         "region": "Murcia",
-        "pv_installation_percentage": 0.015,
+        "pv_installation_percentage": 0.35,
         "dhw_storage_percentage": 0.5,
-        "buffer_storage_percentage": 0,
+        "buffer_storage_percentage": 0.2,
         "heating_element_percentage": 0,
-        "air_hp_percentage": 0.2,
-        "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0.39,
-        "no_heating_percentage": 0.22,
-        "ac_percentage": 1,
-        "battery_percentage": 0.1,
-        "prosumager_percentage": 0,
+        "air_hp_percentage": 0.4,
+        "ground_hp_percentage": 0.1,
+        "direct_electric_heating_percentage": 0.1,
+        "no_heating_percentage": 0.1,
+        "ac_percentage": 0.7,
+        "battery_percentage": 0.2,
+        "prosumager_percentage": prosumager_increase,
     }
 
     ECEMFFigures(baseline_scenario=baseline, scenario=scenario).create_figures()
-
 
 # TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
 #  heat demand vergeleichen, Außerdem die Abweichung in Floor area plotten! (wegen clustering)
