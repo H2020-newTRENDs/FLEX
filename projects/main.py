@@ -5,7 +5,8 @@ from projects.analysis.main_operation import run_operation_model_parallel
 from plotters.operation import household_load_balance
 from utils.config import Config
 from utils.db import init_project_db
-from projects.analysis import calculator as calc
+from projects.analysis import generate_summary
+from projects.analysis import process_summary
 
 
 def get_config(project_name: str):
@@ -27,8 +28,11 @@ def run_flex_operation_plotter(config: "Config"):
 
 if __name__ == "__main__":
 
-    cfg = get_config("DEU_2020_Skip")
+    cfg = get_config("DEU_2030")
     # run_flex_operation_model(cfg)
     # run_flex_operation_plotter(cfg)
-    # calc.merge_scenario(cfg)
-    calc.calc_electricity_profiles(cfg)
+    # generate_summary.gen_summary_year(cfg)
+    # generate_summary.gen_summary_hour(cfg)
+    # process_summary.concat_summary()
+    # process_summary.process_summary_year()
+    process_summary.process_summary_hour()

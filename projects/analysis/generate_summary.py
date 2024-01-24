@@ -1,5 +1,5 @@
 import os.path
-
+import glob
 import numpy as np
 import pandas as pd
 from utils.parquet import read_parquet
@@ -12,7 +12,7 @@ PROJECT_SUMMARY_YEAR = "SummaryYear"
 PROJECT_SUMMARY_HOUR = "SummaryHour"
 
 
-def merge_scenario(config: "Config"):
+def gen_summary_year(config: "Config"):
 
     def get_scenario_result(id_scenario, id_sems, id_boiler, id_battery, var_name: str):
         if id_sems == 1:
@@ -62,10 +62,10 @@ def merge_scenario(config: "Config"):
             d["Total_Final_HeatingSystem"] = d["Total_Final_Fuel"] + d["Total_Final_Electricity"] - d["Total_Useful_Appliance"]
             l.append(d)
             id_merged_scenario += 1
-    pd.DataFrame(l).to_csv(os.path.join(config.output, f"{PROJECT_SUMMARY_YEAR}.csv"), index=False)
+    pd.DataFrame(l).to_csv(os.path.join(config.output, f"{config.project_name}_{PROJECT_SUMMARY_YEAR}.csv"), index=False)
 
 
-def calc_electricity_profiles(config: "Config"):
+def gen_summary_hour(config: "Config"):
     vars_to_collect = [
         "Q_RoomHeating",
         "E_Heating_HP_out",
@@ -90,7 +90,7 @@ def calc_electricity_profiles(config: "Config"):
     conn = create_db_conn(config)
     scenarios = conn.read_dataframe(InputTables.OperationScenario.name).set_index("ID_Scenario")
     electricity_price = conn.read_dataframe(InputTables.OperationScenario_EnergyPrice.name)["electricity_1"]
-    summary = pd.read_csv(os.path.join(config.output, f"{PROJECT_SUMMARY_YEAR}.csv"))
+    summary = pd.read_csv(os.path.join(config.output, f"{config.project_name}_{PROJECT_SUMMARY_YEAR}.csv"))
     l = []
     for id_sems in [1, 2]:
         for id_teleworking in [1, 2]:
@@ -143,7 +143,7 @@ def calc_electricity_profiles(config: "Config"):
                             d["price_unit"] = "Euro/kWh"
                             d["ElectricityPrice"] = electricity_price[hour - 1] * 10
                             l.append(d)
-    pd.DataFrame(l).to_csv(os.path.join(config.output, f"{PROJECT_SUMMARY_HOUR}.csv"), index=False)
+    pd.DataFrame(l).to_csv(os.path.join(config.output, f"{config.project_name}_{PROJECT_SUMMARY_HOUR}.csv"), index=False)
 
 
 def get_building_hour_profile(config: "Config", id_scenario: int, model_name: str, var_name: str):
