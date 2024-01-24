@@ -332,10 +332,6 @@ class ECEMFPostProcess:
             return_dict[scen_id] = list_of_scenarios.count(scen_id)
         return return_dict
 
-    def load_all_load_profiles(self,
-                               ):
-        pass
-
     def worker(self, id_scenario, number_of_occurences) -> (pd.DataFrame, pd.DataFrame):
         ref_loads = self.db.read_parquet(table_name=OperationTable.ResultRefHour,
                                          scenario_ID=id_scenario,
@@ -564,35 +560,38 @@ def create_figure_worker(scenario_list: list,
                          changed_parameter: str,
                          output_folder: Path
                          ):
-    fig = plt.figure(figsize=(16, 14))
+    matplotlib.rc("font", **{"size": 22})
+    fig = plt.figure(figsize=(18, 16))
     ax = plt.gca()
-    cmap = get_cmap('viridis')
+    cmap = get_cmap('Set1')
     colors = [cmap(i) for i in np.linspace(0, 1, len(scenario_list))]
 
     for i, scen in enumerate(scenario_list):
         data = pd.read_parquet(file_loc / f"{demand_feed}_{get_file_name(scen)}.parquet.gzip", engine="pyarrow")
         data_enhanced = get_season_and_datetime(data)
-        means = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").mean().mean(axis=1)
-        stds = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").std().mean(axis=1)
+        median = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").median().mean(axis=1)
+        # stds = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").std().mean(axis=1)
+        percentile_75 = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").quantile(0.75).mean(axis=1)
+        percentile_25 = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").quantile(0.25).mean(axis=1)
+
         ax.plot(np.arange(24),
-                means,
+                median,
                 color=colors[i],
                 linewidth=2,
-                label=f'{changed_parameter}: {round(scen[changed_parameter] * 100)}% Mean',
+                label=f'{changed_parameter}: {round(scen[changed_parameter] * 100)}% Median'.replace("_", " "),
                 )
 
         ax.fill_between(np.arange(24),
-                        means - stds,
-                        means + stds,
+                        percentile_75,
+                        percentile_25,
                         alpha=0.3,
-                        label=f'{changed_parameter}: {round(scen[changed_parameter] * 100)}% Std',
+                        label=f'{changed_parameter}: {round(scen[changed_parameter] * 100)}% 25 & 75 percentile'.replace("_", " "),
                         color=colors[i])
     # Formatting the seasonal plot
     ax.set_xlabel('Hour of Day')
-    ax.set_ylabel('Mean Profile Value')
-    ax.set_title(f'Mean Hourly Profile for {Season.capitalize()}')
+    ax.set_ylabel(f'Grid {demand_feed} (Wh)')
+    ax.set_title(f'Median Hourly {demand_feed} for {Season.capitalize()}')
     ax.legend()
-    matplotlib.rcParams({"font.size": 16})
     plt.tight_layout()
     if not output_folder.exists():
         # Create the folder
@@ -601,7 +600,7 @@ def create_figure_worker(scenario_list: list,
         output_folder / f"{Season.capitalize()}_Daily_Mean_{demand_feed}_{changed_parameter}_Comparison.png")
     plt.close(fig)
     print(
-        f"created {Season.capitalize()}_Daily_Mean_{demand_feed}_{changed_parameter}_Comparison.png plot")
+        f"created {Season.capitalize()}_Daily_Median_{demand_feed}_{changed_parameter}_Comparison.png plot")
 
 
 def get_file_name(dictionary: dict):
@@ -660,30 +659,40 @@ class ECEMFFigures:
                 new_scen = scenario.copy()
                 new_scen[changing_parameter] = parameter
                 scenarios.append(new_scen)
-            self.check_if_scenarios_exist(scenarios)
             self.scenario = scenarios
         else:
             self.scenario = scenario
 
+        self.check_if_scenarios_exist(self.scenario)
+
     def path_to_gzip(self, filename):
         return Path(self.data_output) / f"{filename}.parquet.gzip"
 
-    def check_if_scenarios_exist(self, scenarios: list):
-        for scen in scenarios:
-            # check if baseline csv exists and check if the scenario csv exists. If not, create it:
-            if not self.path_to_gzip(f"Demand_{get_file_name(scen)}").exists() or not \
-                    self.path_to_gzip(f"Feed_{get_file_name(scen)}").exists():
+    def check_if_scenarios_exist(self, scenarios):
+        if isinstance(scenarios, list):
+            for scen in scenarios:
+                # check if baseline csv exists and check if the scenario csv exists. If not, create it:
+                if not self.path_to_gzip(f"Demand_{get_file_name(scen)}").exists() or not \
+                        self.path_to_gzip(f"Feed_{get_file_name(scen)}").exists():
+                    print(
+                        f"{get_file_name(scen)} \n parquet files do not exist. create_output_csv"
+                    )
+                    ECEMFPostProcess(**scen).create_output_csv()
+        else:
+            if not self.path_to_gzip(f"Demand_{get_file_name(scenarios)}").exists() or not \
+                    self.path_to_gzip(f"Feed_{get_file_name(scenarios)}").exists():
                 print(
-                    f"{get_file_name(scen)} \n parquet files do not exist. create_output_csv"
+                    f"{get_file_name(scenarios)} \n parquet files do not exist. create_output_csv"
                 )
-                ECEMFPostProcess(**scen).create_output_csv()
+                ECEMFPostProcess(**scenarios).create_output_csv()
 
-            if not self.path_to_gzip(f"Demand_{get_file_name(self.baseline)}").exists() or not \
-                    self.path_to_gzip(f"Feed_{get_file_name(self.baseline)}").exists():
-                print(
-                    f"{get_file_name(self.baseline)} \n parquet files do not exist. create_output_csv"
-                )
-                ECEMFPostProcess(**self.baseline).create_output_csv()
+        # check if baseline exists
+        if not self.path_to_gzip(f"Demand_{get_file_name(self.baseline)}").exists() or not \
+                self.path_to_gzip(f"Feed_{get_file_name(self.baseline)}").exists():
+            print(
+                f"{get_file_name(self.baseline)} \n parquet files do not exist. create_output_csv"
+            )
+            ECEMFPostProcess(**self.baseline).create_output_csv()
 
     def create_boxplot_p_to_p_difference(self,
                                          baseline: pd.DataFrame,
@@ -700,13 +709,14 @@ class ECEMFFigures:
 
         base_p2p["name"] = "baseline"
         scenario_p2p["name"] = "scenario"
+        fig = plt.figure(figsize=(18, 16))
         plot_df = pd.concat([get_season_and_datetime(base_p2p), get_season_and_datetime(scenario_p2p)], axis=0)
-
         sns.boxplot(data=plot_df,
                     x="season",
                     y="peak to peak MW",
                     hue="name",
-                    palette=sns.color_palette("hls", 5)
+                    palette=sns.color_palette("hls", 5),
+
                     )
         plt.title("daily peak to peak demand")
         plt.tight_layout()
@@ -714,7 +724,8 @@ class ECEMFFigures:
         if not folder.exists():
             # Create the folder
             folder.mkdir(parents=True, exist_ok=True)
-        plt.savefig(folder / Path(f"Peak_to_peak_{demand_or_feed}.png"))
+        fig.savefig(folder / Path(f"Peak_to_peak_{demand_or_feed}.png"))
+        plt.close(fig)
         print("created Peak_to_peak boxplot")
 
     def peak_to_peak_difference(self, load_profile: np.array) -> np.array:
@@ -735,17 +746,17 @@ class ECEMFFigures:
 
     def create_scenario_comparison_daily_mean_plot_for_each_season(self):
         seasons = ["spring", "summer", "autumn", "winter"]
-        for demand_or_feed in ["Demand", "Feed"]:
-            for season in seasons:
-                # create_figure_worker(
-                #      scenario_list=self.scenario,
-                #      demand_feed=demand_or_feed,
-                #      Season=season,
-                #      file_loc=self.data_output,
-                #      changed_parameter=self.changing_parameter,
-                #      output_folder=self.path_2_figure / "scenario_comparisons"
-                # )
-                pass
+        # for demand_or_feed in ["Demand", "Feed"]:
+        #     for season in seasons:
+        #         create_figure_worker(
+        #              scenario_list=self.scenario,
+        #              demand_feed=demand_or_feed,
+        #              Season=season,
+        #              file_loc=self.data_output,
+        #              changed_parameter=self.changing_parameter,
+        #              output_folder=self.path_2_figure / "scenario_comparisons"
+        #         )
+        #         pass
 
         arguments = [
             (
@@ -759,7 +770,74 @@ class ECEMFFigures:
         ]
         joblib.Parallel(n_jobs=8)(joblib.delayed(create_figure_worker)(*args) for args in arguments)
 
+    def get_max_day_feed_and_demand_sum(self) -> (dict, dict):
+        """
+        loads the dataframes for the max day demand data, and returns two dicts with the baseline, and
+        all scenarios that are included in self.scenario. one dict is the grid demand and the other the feed to grid.
+        :return:
+        """
+        demand_dict = {}
+        feed_dict = {}
+        if isinstance(self.scenario, dict):
+            data = pd.read_csv(self.data_output / f"{get_file_name(self.scenario)}.csv", sep=";")
+            demand_dict["scenario"] = data.iloc[:24, 3:]
+            feed_dict["scenario"] = data.iloc[24:, 3:]
+        else:
+            for scen in self.scenario:
+                data = pd.read_csv(self.data_output / f"{get_file_name(scen)}.csv", sep=";")
+                demand_dict[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.iloc[:24, 3:]
+                feed_dict[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.iloc[24:, 3:]
+
+        baseline = pd.read_csv(self.data_output / f"{get_file_name(self.baseline)}.csv", sep=";")
+        demand_dict["baseline"] = baseline.iloc[:24, 3:]
+        feed_dict["baseline"] = baseline.iloc[24:, 3:]
+
+        return demand_dict, feed_dict
+
+    def visualize_peak_day(self):
+        """
+        creates plot of grid demand and feed of baseline and all scenarios
+        :return:
+        """
+        if isinstance(self.scenario, dict):
+            folder = self.path_2_figure / get_file_name(self.scenario)
+            region = ECEMFPostProcess(**self.scenario).region
+        else:
+            folder = self.path_2_figure / f"scenario_comparisons_{self.changing_parameter}_{get_file_name(self.scenario[0])}"
+            region = ECEMFPostProcess(**self.scenario[0]).region
+        if not folder.exists():
+            # Create the folder
+            folder.mkdir(parents=True, exist_ok=True)
+
+        demand_dict, feed_dict = self.get_max_day_feed_and_demand_sum()
+        matplotlib.rc("font", **{"size": 30})
+        for key, scen_dict in {"Demand": demand_dict, "Feed": feed_dict}.items():
+            fig = plt.figure(figsize=(18, 16))
+            ax = plt.gca()
+            cmap = get_cmap('Set1')
+            colors = [cmap(i) for i in np.linspace(0, 1, len(scen_dict))]
+            for i, (scen_name, df) in enumerate(scen_dict.items()):
+                plt.plot(
+                    np.arange(1, 25),
+                    df.sum(axis=1) / 1_000 / 1_000,  # GWh
+                    color=colors[i],
+                    linewidth=2,
+                    label=f'{scen_name.replace("_", " ")}',
+                )
+
+            ax.set_xlabel('Hour of Day')
+            ax.set_ylabel(f'Grid {key} (GWh)')
+            ax.set_title(f'Hourly Profile for {region}')
+            ax.legend(loc="upper left")
+            # plt.xticks(range(0, 24))
+            # ax.grid(True)
+            plt.tight_layout()
+
+            fig.savefig(folder / f"Max_Day_{key}_Comparison.png")
+            plt.close(fig)
+
     def create_figures(self):
+        self.visualize_peak_day()
         if isinstance(self.scenario, dict):
             # load the data from gzip files
             demand = pd.read_parquet(self.path_to_gzip(f"Demand_{get_file_name(self.scenario)}"), engine="pyarrow")
@@ -788,62 +866,66 @@ class ECEMFFigures:
 
         # Separate plots for each season
         seasons = ["spring", "summer", "autumn", "winter"]
-        fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(14, 6), sharey=True)
+        fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(26, 22), sharey=True)
         axes = axes.flatten()
         for i, season in enumerate(seasons):
             ax = axes[i]
             season_baseline = season_groups_baseline.get_group(season)
             season_scenario = season_groups_scenario.get_group(season)
             # Filter the dataframe for the season and aggregate data by hour
-            seasonal_hourly_means_baseline = season_baseline.drop(columns=["season"]).groupby("hour").mean().mean(
-                axis=1)
-            seasonal_hourly_std_baseline = season_baseline.drop(columns=["season"]).groupby("hour").std().mean(axis=1)
+            # seasonal_hourly_means_baseline = season_baseline.drop(columns=["season"]).groupby("hour").mean().mean(axis=1)
+            seasonal_hourly_median_baseline = season_baseline.drop(columns=["season"]).groupby("hour").median().mean(axis=1)
+            seasonal_hourly_pec_75_baseline = season_baseline.drop(columns=["season"]).groupby("hour").quantile(0.75).mean(axis=1)
+            seasonal_hourly_pec_25_baseline = season_baseline.drop(columns=["season"]).groupby("hour").quantile(0.25).mean(axis=1)
 
-            seasonal_hourly_means_scenario = season_scenario.drop(columns=["season"]).groupby("hour").mean().mean(
-                axis=1)
-            seasonal_hourly_std_scenario = season_scenario.drop(columns=["season"]).groupby("hour").std().mean(axis=1)
+
+            # seasonal_hourly_means_scenario = season_scenario.drop(columns=["season"]).groupby("hour").mean().mean(axis=1)
+            seasonal_hourly_median_scenario = season_scenario.drop(columns=["season"]).groupby("hour").median().mean(axis=1)
+            seasonal_hourly_pec_75_scenario = season_scenario.drop(columns=["season"]).groupby("hour").quantile(0.75).mean(axis=1)
+            seasonal_hourly_pec_25_scenario = season_scenario.drop(columns=["season"]).groupby("hour").quantile(0.25).mean(axis=1)
+
 
             # Plot seasonal mean and standard deviation
             ax.plot(np.arange(24),
-                    seasonal_hourly_means_baseline,
+                    seasonal_hourly_median_baseline,
                     color="blue",
                     linewidth=2,
-                    label=f'{season.capitalize()} Mean baseline',
+                    label=f'{season.capitalize()} Median baseline',
                     )
             ax.fill_between(np.arange(24),
-                            seasonal_hourly_means_baseline - seasonal_hourly_std_baseline,
-                            seasonal_hourly_means_baseline + seasonal_hourly_std_baseline,
+                            seasonal_hourly_pec_75_baseline,
+                            seasonal_hourly_pec_25_baseline,
                             alpha=0.3,
-                            label=f'{season.capitalize()} Std Dev baseline',
+                            label=f'{season.capitalize()} 25 & 75 percentile',
                             color="cyan")
 
             ax.plot(np.arange(24),
-                    seasonal_hourly_means_scenario,
+                    seasonal_hourly_median_scenario,
                     color="red",
                     linewidth=2,
-                    label=f'{season.capitalize()} Mean scenario',
+                    label=f'{season.capitalize()} Median scenario',
                     )
             ax.fill_between(np.arange(24),
-                            seasonal_hourly_means_scenario - seasonal_hourly_std_scenario,
-                            seasonal_hourly_means_scenario + seasonal_hourly_std_scenario,
+                            seasonal_hourly_pec_75_scenario,
+                            seasonal_hourly_pec_25_scenario,
                             alpha=0.3,
-                            label=f'{season.capitalize()} Std Dev scenario',
+                            label=f'{season.capitalize()} 25 & 75 percentile',
                             color="lightcoral")
 
             # Formatting the seasonal plot
             ax.set_xlabel('Hour of Day')
-            ax.set_ylabel('Mean Profile Value')
-            ax.set_title(f'Mean Hourly Profile for {season.capitalize()}')
-            ax.legend()
+            ax.set_ylabel(f'Grid {demand_or_feed} (Wh)')
+            ax.set_title(f'Median grid {demand_or_feed} for {season.capitalize()}')
+            ax.legend(loc="upper left")
             # plt.xticks(range(0, 24))
             # ax.grid(True)
         plt.tight_layout()
         if not folder.exists():
             # Create the folder
             folder.mkdir(parents=True, exist_ok=True)
-        fig.savefig(folder / f"TEST_Daily_Mean_{demand_or_feed}_Comparison.png")
+        fig.savefig(folder / f"Daily_Median_{demand_or_feed}_Comparison.png")
         plt.close(fig)
-        print(f"created Daily Mean {demand_or_feed} plot")
+        print(f"created Daily Median {demand_or_feed} plot")
 
 
 if __name__ == "__main__":
@@ -870,16 +952,16 @@ if __name__ == "__main__":
     prosumager_increase = np.arange(0, 0.5, 0.1).tolist()
     scenario = {
         "region": "Murcia",
-        "pv_installation_percentage": 0.35,
+        "pv_installation_percentage": 0.015,
         "dhw_storage_percentage": 0.5,
-        "buffer_storage_percentage": 0.2,
+        "buffer_storage_percentage": 0,
         "heating_element_percentage": 0,
-        "air_hp_percentage": 0.4,
-        "ground_hp_percentage": 0.1,
-        "direct_electric_heating_percentage": 0.1,
-        "no_heating_percentage": 0.1,
-        "ac_percentage": 0.7,
-        "battery_percentage": 0.2,
+        "air_hp_percentage": 0.2,
+        "ground_hp_percentage": 0,
+        "direct_electric_heating_percentage": 0.39,
+        "no_heating_percentage": 0.22,
+        "ac_percentage": 0.5,
+        "battery_percentage": 0.1,
         "prosumager_percentage": prosumager_increase,
     }
 
