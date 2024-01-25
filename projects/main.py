@@ -33,6 +33,6 @@ if __name__ == "__main__":
     # run_flex_operation_plotter(cfg)
     # generate_summary.gen_summary_year(cfg)
     # generate_summary.gen_summary_hour(cfg)
-    # process_summary.concat_summary()
-    # process_summary.process_summary_year()
+    process_summary.concat_summary()
+    process_summary.process_summary_year()
     process_summary.process_summary_hour()

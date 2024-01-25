@@ -164,6 +164,6 @@ def process_summary_hour():
                                     (df["ID_Boiler"] == id_boiler)
                                 ]
                                 l_aggregated.append(df_filtered.groupby(indices_aggregated, as_index=False)[vars].mean())
-    pd.concat(l_aggregated, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, "SummaryHour_aggregated.csv"), index=False)
-    pd.concat(l_further_aggregated, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, "SummaryHour_further_aggregated.csv"), index=False)
+    pd.concat(l_aggregated, axis=0, ignore_index=True).to_excel(os.path.join(OUTPUT_FOLDER, "SummaryHour_aggregated.xlsx"), index=False)
+    pd.concat(l_further_aggregated, axis=0, ignore_index=True).to_excel(os.path.join(OUTPUT_FOLDER, "SummaryHour_further_aggregated.xlsx"), index=False)
 
