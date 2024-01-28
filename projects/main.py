@@ -29,10 +29,17 @@ def run_flex_operation_plotter(config: "Config"):
 if __name__ == "__main__":
 
     cfg = get_config("DEU_2030")
+
+    # run model and plotter
     # run_flex_operation_model(cfg)
     # run_flex_operation_plotter(cfg)
+
+    # generate summary
     # generate_summary.gen_summary_year(cfg)
     # generate_summary.gen_summary_hour(cfg)
-    process_summary.concat_summary()
-    process_summary.process_summary_year()
-    process_summary.process_summary_hour()
+
+    # process summary
+    # process_summary.concat_summary()
+    # process_summary.process_summary_year()
+    # process_summary.process_summary_hour()
+

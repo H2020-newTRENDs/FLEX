@@ -14,6 +14,13 @@ OUTPUT_FOLDER = os.path.join(
     "output_summary"
 )
 
+SUMMARY_YEAR = "SummaryYear.csv"
+SUMMARY_YEAR_AGG = "SummaryYear_aggregated.xlsx"
+SUMMARY_HOUR = "SummaryHour.csv"
+SUMMARY_HOUR_AGG = "SummaryHour_aggregated.xlsx"
+SUMMARY_HOUR_AGG2 = "SummaryHour_further_aggregated.xlsx"
+INVERT_SUMMARY = "INVERT_Summary.xlsx"
+
 
 def concat_summary():
     summary_year_l = []
@@ -26,8 +33,8 @@ def concat_summary():
             summary_year_l.append(pd.read_csv(csv_file_path))
         else:
             pass
-    pd.concat(summary_year_l, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, "SummaryYear.csv"), index=False)
-    pd.concat(summary_hour_l, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, "SummaryHour.csv"), index=False)
+    pd.concat(summary_year_l, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_YEAR), index=False)
+    pd.concat(summary_hour_l, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_HOUR), index=False)
 
 
 def process_summary_year():
@@ -54,7 +61,7 @@ def process_summary_year():
         "Total_Final_Fuel",
         "Total_Final_HeatingSystem"
     ]
-    df = pd.read_csv(os.path.join(OUTPUT_FOLDER, "SummaryYear.csv"))
+    df = pd.read_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_YEAR))
     countries = list(df["Country"].unique())
     years = list(df["Year"].unique())
     l = []
@@ -87,7 +94,7 @@ def process_summary_year():
                                 d["value"] = (df_filtered["Total_Final_Electricity"].sum() - df_filtered["Total_Useful_Appliance"].sum())/10**6
                                 l.append(d)
 
-    pd.DataFrame(l).to_excel(os.path.join(OUTPUT_FOLDER, "SummaryYear_aggregated.xlsx"), index=False)
+    pd.DataFrame(l).to_excel(os.path.join(OUTPUT_FOLDER, SUMMARY_YEAR_AGG), index=False)
 
 
 def process_summary_hour():
@@ -135,7 +142,7 @@ def process_summary_hour():
         "Fuel",
         "ElectricityPrice"
     ]
-    df = pd.read_csv(os.path.join(OUTPUT_FOLDER, "SummaryHour.csv"))
+    df = pd.read_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_HOUR))
     countries = list(df["Country"].unique())
     years = list(df["Year"].unique())
     l_aggregated = []
@@ -164,6 +171,26 @@ def process_summary_hour():
                                     (df["ID_Boiler"] == id_boiler)
                                 ]
                                 l_aggregated.append(df_filtered.groupby(indices_aggregated, as_index=False)[vars].mean())
-    pd.concat(l_aggregated, axis=0, ignore_index=True).to_excel(os.path.join(OUTPUT_FOLDER, "SummaryHour_aggregated.xlsx"), index=False)
-    pd.concat(l_further_aggregated, axis=0, ignore_index=True).to_excel(os.path.join(OUTPUT_FOLDER, "SummaryHour_further_aggregated.xlsx"), index=False)
+    pd.concat(l_aggregated, axis=0, ignore_index=True).to_excel(os.path.join(OUTPUT_FOLDER, SUMMARY_HOUR_AGG), index=False)
+    pd.concat(l_further_aggregated, axis=0, ignore_index=True).to_excel(os.path.join(OUTPUT_FOLDER, SUMMARY_HOUR_AGG2), index=False)
+
+
+def get_invert_summary():
+    df = pd.read_excel(os.path.join(OUTPUT_FOLDER, INVERT_SUMMARY))
+    countries = df["country"].unique().tolist()
+    years = df["year"].unique().tolist()
+    invert_summary = {}
+    for country in countries:
+        for year in years:
+            df_filter = df.loc[(df["country"] == country) & (df["year"] == year)]
+            invert_summary[(country, year)] = {}
+            for _, row in df_filter.iterrows():
+                invert_summary[(country, year)][row["energy_carrier"]] = row["value"]
+    return invert_summary
+
+
+def update_invert_indicator():
+    invert = get_invert_summary()
+
+
 
