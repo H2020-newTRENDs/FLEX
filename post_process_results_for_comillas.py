@@ -585,13 +585,13 @@ def create_figure_worker(scenario_list: list,
                         percentile_75,
                         percentile_25,
                         alpha=0.3,
-                        label=f'{changed_parameter}: {round(scen[changed_parameter] * 100)}% 25 & 75 percentile'.replace("_", " "),
+                        # label=f'{changed_parameter}: {round(scen[changed_parameter] * 100)}% 25 & 75 percentile'.replace("_", " "),
                         color=colors[i])
     # Formatting the seasonal plot
     ax.set_xlabel('Hour of Day')
     ax.set_ylabel(f'Grid {demand_feed} (Wh)')
     ax.set_title(f'Median Hourly {demand_feed} for {Season.capitalize()}')
-    ax.legend()
+    ax.legend(loc="upper left")
     plt.tight_layout()
     if not output_folder.exists():
         # Create the folder
@@ -827,7 +827,7 @@ class ECEMFFigures:
 
             ax.set_xlabel('Hour of Day')
             ax.set_ylabel(f'Grid {key} (GWh)')
-            ax.set_title(f'Hourly Profile for {region}')
+            ax.set_title(f'Total {key} for {region} on peak day')
             ax.legend(loc="upper left")
             # plt.xticks(range(0, 24))
             # ax.grid(True)
@@ -896,7 +896,7 @@ class ECEMFFigures:
                             seasonal_hourly_pec_75_baseline,
                             seasonal_hourly_pec_25_baseline,
                             alpha=0.3,
-                            label=f'{season.capitalize()} 25 & 75 percentile',
+                            # label=f'{season.capitalize()} 25 & 75 percentile',
                             color="cyan")
 
             ax.plot(np.arange(24),
@@ -909,7 +909,7 @@ class ECEMFFigures:
                             seasonal_hourly_pec_75_scenario,
                             seasonal_hourly_pec_25_scenario,
                             alpha=0.3,
-                            label=f'{season.capitalize()} 25 & 75 percentile',
+                            # label=f'{season.capitalize()} 25 & 75 percentile',
                             color="lightcoral")
 
             # Formatting the seasonal plot
@@ -958,11 +958,11 @@ if __name__ == "__main__":
         "heating_element_percentage": 0,
         "air_hp_percentage": 0.2,
         "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0.39,
+        "direct_electric_heating_percentage": 0,
         "no_heating_percentage": 0.22,
         "ac_percentage": 0.5,
         "battery_percentage": 0.1,
-        "prosumager_percentage": prosumager_increase,
+        "prosumager_percentage": 0,
     }
 
     ECEMFFigures(baseline_scenario=baseline, scenario=scenario).create_figures()
