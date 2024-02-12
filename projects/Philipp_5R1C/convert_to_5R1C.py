@@ -237,13 +237,13 @@ class Create5R1CParameters:
         self.fill_params()
 
         self.fill_building_df()
-        output_dir = Path(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\5R1C_validation\output")
+        output_dir = Path(r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects\5R1C_validation\output")
         self.building_df.to_excel(output_dir / Path("5R1C_buildings.xlsx"), index=False)
 
 
 if __name__ == "__main__":
     import_directory = Path(
-        r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\5R1C_validation\input"
+        r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects\5R1C_validation\input"
     )
     filename = "Gebäudedaten_daniel.csv"
     frame = pd.read_csv(import_directory / Path(filename), sep=";")
