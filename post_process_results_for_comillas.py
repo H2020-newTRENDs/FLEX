@@ -416,12 +416,11 @@ class ECEMFPostProcess:
                           )
         fig.show()
 
-    def select_max_days(self, demand: pd.DataFrame) -> pd.DataFrame:
+    def select_max_days(self, demand: pd.DataFrame) -> (int, int):
         max_grid_day_index = self.find_net_peak_demand_day(demand)
         start_hour = max_grid_day_index * 24
         end_hour = (max_grid_day_index + 1) * 24 - 1
-        selected_day_demand = demand.loc[start_hour: end_hour, :]
-        return selected_day_demand
+        return start_hour, end_hour
 
     def calculate_contracted_power(self, array: np.array):
         """ contracted power is the maximum demand """
@@ -432,24 +431,49 @@ class ECEMFPostProcess:
         return capacity.sum()
 
     def save_hourly_csv(self,
-                        demand: pd.DataFrame,
-                        feed2grid: pd.DataFrame,
+                        demand_d_day: pd.DataFrame,
+                        demand_f_day: pd.DataFrame,
+                        feed2grid_d_day: pd.DataFrame,
+                        feed2grid_f_day: pd.DataFrame,
                         file_name: str):
+        """
+
+        :param demand_d_day: demand on max demand day
+        :param demand_f_day: demand on max feed2grid day
+        :param feed2grid_d_day:  feed on max demand day
+        :param feed2grid_f_day: feed on max feed2grid day
+        :param file_name: str
+        :return:
+        """
         # check if feed2grid is empty and if its is create a zero array:
-        if len(feed2grid) == 0:
-            feed2grid = pd.DataFrame(np.zeros(shape=demand.shape))
-        total_data = pd.concat([demand, feed2grid * -1], axis=0)
+        if len(feed2grid_d_day) == 0:
+            feed2grid_d_day = pd.DataFrame(np.zeros(shape=demand_d_day.shape))
+        if len(feed2grid_f_day) == 0:
+            feed2grid_f_day = pd.DataFrame(np.zeros(shape=demand_d_day.shape))
+
+        total_data = pd.concat([
+            demand_d_day,
+            feed2grid_d_day * -1,
+            demand_f_day,
+            feed2grid_f_day * -1
+        ], axis=0)
+
         total_data.insert(loc=0,
                           column="unit",
                           value="Wh")
         total_data.insert(loc=0,
                           column="type",
-                          value=np.concatenate((np.full(shape=(24,), fill_value="grid demand"),
-                                                np.full(shape=(24,), fill_value="feed to grid")))
+                          value=np.concatenate((np.full(shape=(24,), fill_value="grid demand on max demand day"),
+                                                np.full(shape=(24,), fill_value="feed to grid on max demand day"),
+                                                np.full(shape=(24,), fill_value="grid demand on max feed day"),
+                                                np.full(shape=(24,), fill_value="feed to grid on max feed day"),
+                                                )
+                                               )
                           )
         total_data.insert(loc=0,
                           column="hours",
-                          value=np.concatenate((np.arange(1, 25), np.arange(1, 25))))
+                          value=np.concatenate(
+                              (np.arange(1, 25), np.arange(1, 25), np.arange(1, 25), np.arange(1, 25))))
         total_data.to_csv(self.data_output / f"{file_name}.csv", sep=";", index=False)
         print("saved hourly csv file")
 
@@ -489,6 +513,8 @@ class ECEMFPostProcess:
     def create_overall_information_csv(self,
                                        scenario_df: pd.DataFrame,
                                        total_grid_demand: pd.DataFrame,
+                                       max_demand_day: int,
+                                       max_feed_day: int,
                                        file_name: str):
         # create the corresponding overall information csv:
         contracted_power = self.calculate_contracted_power(total_grid_demand)
@@ -506,7 +532,9 @@ class ECEMFPostProcess:
             "Installed PV (kWp)": total_pv,
             "Installed Battery (kWh)": total_battery,
             "Installed Buffer (l)": total_buffer,
-            "Installed DHW storage (l)": total_dhw
+            "Installed DHW storage (l)": total_dhw,
+            "Day of max demand": max_demand_day,
+            "Day of max feed to grid": max_feed_day,
         }, orient="index")
         add_info_df.to_csv(self.data_output / f"INFO_{file_name}.csv", sep=";")
         print("saved add information csv")
@@ -544,12 +572,27 @@ class ECEMFPostProcess:
         total_grid_demand_real.to_parquet(self.data_output / f"Demand_{file_name}.parquet.gzip")
         total_grid_feed_real.to_parquet(self.data_output / f"Feed_{file_name}.parquet.gzip")
         # save the profiles to csv
-        max_day_demand = self.select_max_days(total_grid_demand_real)
-        max_day_feed2grid = self.select_max_days(total_grid_feed_real)
-        self.save_hourly_csv(demand=max_day_demand, feed2grid=max_day_feed2grid, file_name=file_name)
+        demand_start_hour, demand_end_hour = self.select_max_days(total_grid_demand_real)
+        demand_max_demand_day = total_grid_demand_real.loc[demand_start_hour: demand_end_hour, :]
+        feed_max_demand_day = total_grid_feed_real.loc[demand_start_hour: demand_end_hour, :]
+
+        feed_start_hour, feed_end_hour = self.select_max_days(total_grid_feed_real)
+        demand_max_feed_day = total_grid_demand_real.loc[feed_start_hour: feed_end_hour, :]
+        feed_max_feed_day = total_grid_feed_real.loc[feed_start_hour: feed_end_hour, :]
+
+
+        self.save_hourly_csv(
+            demand_d_day=demand_max_demand_day,
+            demand_f_day=demand_max_feed_day,
+            feed2grid_d_day=feed_max_demand_day,
+            feed2grid_f_day=feed_max_feed_day,
+            file_name=file_name
+        )
 
         self.create_overall_information_csv(scenario_df=scenarios,
                                             total_grid_demand=total_grid_demand_real,
+                                            max_demand_day=int(demand_start_hour / 24),
+                                            max_feed_day=int(feed_start_hour / 24),
                                             file_name=file_name)
 
 
@@ -571,8 +614,10 @@ def create_figure_worker(scenario_list: list,
         data_enhanced = get_season_and_datetime(data)
         median = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").median().mean(axis=1)
         # stds = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").std().mean(axis=1)
-        percentile_75 = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").quantile(0.75).mean(axis=1)
-        percentile_25 = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").quantile(0.25).mean(axis=1)
+        percentile_75 = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").quantile(
+            0.75).mean(axis=1)
+        percentile_25 = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").quantile(
+            0.25).mean(axis=1)
 
         ax.plot(np.arange(24),
                 median,
@@ -785,8 +830,10 @@ class ECEMFFigures:
         else:
             for scen in self.scenario:
                 data = pd.read_csv(self.data_output / f"{get_file_name(scen)}.csv", sep=";")
-                demand_dict[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.iloc[:24, 3:]
-                feed_dict[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.iloc[24:, 3:]
+                demand_dict[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.iloc[
+                                                                                                           :24, 3:]
+                feed_dict[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.iloc[24:,
+                                                                                                         3:]
 
         baseline = pd.read_csv(self.data_output / f"{get_file_name(self.baseline)}.csv", sep=";")
         demand_dict["baseline"] = baseline.iloc[:24, 3:]
@@ -874,16 +921,20 @@ class ECEMFFigures:
             season_scenario = season_groups_scenario.get_group(season)
             # Filter the dataframe for the season and aggregate data by hour
             # seasonal_hourly_means_baseline = season_baseline.drop(columns=["season"]).groupby("hour").mean().mean(axis=1)
-            seasonal_hourly_median_baseline = season_baseline.drop(columns=["season"]).groupby("hour").median().mean(axis=1)
-            seasonal_hourly_pec_75_baseline = season_baseline.drop(columns=["season"]).groupby("hour").quantile(0.75).mean(axis=1)
-            seasonal_hourly_pec_25_baseline = season_baseline.drop(columns=["season"]).groupby("hour").quantile(0.25).mean(axis=1)
-
+            seasonal_hourly_median_baseline = season_baseline.drop(columns=["season"]).groupby("hour").median().mean(
+                axis=1)
+            seasonal_hourly_pec_75_baseline = season_baseline.drop(columns=["season"]).groupby("hour").quantile(
+                0.75).mean(axis=1)
+            seasonal_hourly_pec_25_baseline = season_baseline.drop(columns=["season"]).groupby("hour").quantile(
+                0.25).mean(axis=1)
 
             # seasonal_hourly_means_scenario = season_scenario.drop(columns=["season"]).groupby("hour").mean().mean(axis=1)
-            seasonal_hourly_median_scenario = season_scenario.drop(columns=["season"]).groupby("hour").median().mean(axis=1)
-            seasonal_hourly_pec_75_scenario = season_scenario.drop(columns=["season"]).groupby("hour").quantile(0.75).mean(axis=1)
-            seasonal_hourly_pec_25_scenario = season_scenario.drop(columns=["season"]).groupby("hour").quantile(0.25).mean(axis=1)
-
+            seasonal_hourly_median_scenario = season_scenario.drop(columns=["season"]).groupby("hour").median().mean(
+                axis=1)
+            seasonal_hourly_pec_75_scenario = season_scenario.drop(columns=["season"]).groupby("hour").quantile(
+                0.75).mean(axis=1)
+            seasonal_hourly_pec_25_scenario = season_scenario.drop(columns=["season"]).groupby("hour").quantile(
+                0.25).mean(axis=1)
 
             # Plot seasonal mean and standard deviation
             ax.plot(np.arange(24),
@@ -948,11 +999,11 @@ if __name__ == "__main__":
         "battery_percentage": 0.1,
         "prosumager_percentage": 0,
     }
-    pv_increase = np.arange(0.015, 0.5, 0.1).tolist()
+    pv_increase = np.arange(0, 1, 0.1).tolist()
     prosumager_increase = np.arange(0, 0.5, 0.1).tolist()
     scenario = {
         "region": "Murcia",
-        "pv_installation_percentage": 0.015,
+        "pv_installation_percentage": pv_increase,
         "dhw_storage_percentage": 0.5,
         "buffer_storage_percentage": 0,
         "heating_element_percentage": 0,
