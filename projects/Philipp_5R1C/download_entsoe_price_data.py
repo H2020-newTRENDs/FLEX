@@ -46,8 +46,10 @@ def get_entsoe_prices(api_key: str,
 
     # Get day-ahead prices from ENTSO-E Transparency
     print('Prices in zone ' + country)
-    DA_prices = client.query_day_ahead_prices(country, start=start, end=end)
-    prices = pd.DataFrame(DA_prices).reset_index(drop=True).to_numpy() / 10 / 1_000  # €/MWh in ct/kWh & ct/kWh in ct/Wh
+    DA_prices = client.query_day_ahead_prices(country, start=start, end=end, resolution="60T")
+    # drop last hour
+    da_prices = DA_prices.iloc[:-1]
+    prices = pd.DataFrame(da_prices).reset_index(drop=True).to_numpy() / 10 / 1_000  # €/MWh in ct/kWh & ct/kWh in ct/Wh
     # add grid fees:
     prices_total = prices + grid_fee / 1_000  # also in ct/Wh
     return prices_total
@@ -57,7 +59,7 @@ year = 2019
 country = "AT"
 electricity_price_config = {
     # variable price
-    "api_key": 'c06ee579-f827-486d-bc1f-8fa0d7ccd3da',
+    "api_key": 'b16a316d-4e35-4223-a3ac-5e02d5fa89ef',
     "start": f"{year}0101",
     "end": f"{year+1}0101",
     "country_code": country,
@@ -86,4 +88,4 @@ variable_price_to_db = np.column_stack(
 
 price_table = pd.DataFrame(variable_price_to_db, columns=["region", "year",	"id_hour", "ID_Electricity", "electricity_1", "electricity_feed_in_1", "gases_1"])
 
-price_table.to_excel(r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\data\input_operation\OperationScenario_EnergyPrice_var_real.xlsx", engine="openpyxl")
+price_table.to_excel(r"C:\Users\mascherbauer\PycharmProjects\FLEX\data\input_operation\5R1C_validation\OperationScenario_EnergyPrice_var_real.xlsx", engine="openpyxl")

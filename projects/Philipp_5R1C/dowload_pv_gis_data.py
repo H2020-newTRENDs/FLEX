@@ -131,7 +131,6 @@ class PVGIS:
         # write to csv:
         temperature_table.to_csv(self.output_path / Path("temperature_pvgis.csv"), sep=";")
 
-
     def run(self,
             latitude: float,
             longitude: float,
@@ -146,5 +145,5 @@ class PVGIS:
 
 
 if __name__ == "__main__":
-    output_path = r"C:\Users\mascherbauer\PycharmProjects\NewTrends\Prosumager\projects\Philipp_5R1C\ouput_data"
+    output_path = r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects\5R1C_Validation\input"
     PVGIS(output_path).run(latitude=47.841, longitude=13.023, start_year=2018, end_year=2018)
