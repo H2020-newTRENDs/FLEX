@@ -2,6 +2,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import random
+random.seed(42)
 from typing import List
 import plotly.express as px
 from tqdm import tqdm
@@ -119,6 +120,7 @@ class ECEMFPostProcess:
                  ac_percentage: float,
                  battery_percentage: float,
                  prosumager_percentage: float,
+                 baseline: dict
                  ):
         """
 
@@ -133,6 +135,7 @@ class ECEMFPostProcess:
         :param direct_electric_heating_percentage: percentage of buildings having a direct electric heating system
         :param ac_percentage: percentage of buildings having an air conditioner for cooling (COP=4)
         """
+        self.baseline = baseline
         self.region = region
         self.path_to_project = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}"
         self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}/data_output/"
@@ -163,7 +166,6 @@ class ECEMFPostProcess:
             2: 300,
             3: 700,  # l
         }
-        self.baseline = baseline
         self.pv_installation_percentage = pv_installation_percentage
         self.dhw_storage_percentage = dhw_storage_percentage
         self.buffer_storage_percentage = buffer_storage_percentage
@@ -475,7 +477,6 @@ class ECEMFPostProcess:
                           value=np.concatenate(
                               (np.arange(1, 25), np.arange(1, 25), np.arange(1, 25), np.arange(1, 25))))
         total_data.to_csv(self.data_output / f"{file_name}.csv", sep=";", index=False)
-        print("saved hourly csv file")
 
     def add_real_building_ids(self,
                               scenario_df: pd.DataFrame,
@@ -588,12 +589,32 @@ class ECEMFPostProcess:
             feed2grid_f_day=feed_max_feed_day,
             file_name=file_name
         )
+        self.add_baseline_data_to_hourly_csv()
+        print("saved hourly csv file")
 
         self.create_overall_information_csv(scenario_df=scenarios,
                                             total_grid_demand=total_grid_demand_real,
                                             max_demand_day=int(demand_start_hour / 24),
                                             max_feed_day=int(feed_start_hour / 24),
                                             file_name=file_name)
+
+    def get_hourly_csv(self) -> pd.DataFrame:
+        file_name = self.__file_name__()
+        path_2_file = self.data_output / f"{file_name}.csv"
+        return pd.read_csv(path_2_file, sep=";")
+
+    def get_info_csv(self) -> pd.DataFrame:
+        file_name = self.__file_name__()
+        path_2_file = self.data_output / f"INFO_{file_name}.csv"
+        return pd.read_csv(path_2_file, sep=";")
+
+    def add_baseline_data_to_hourly_csv(self):
+        base = ECEMFPostProcess(**self.baseline, baseline=self.baseline)
+        hourly_csv_base = base.get_hourly_csv()
+        hourly_csv_base["type"] = hourly_csv_base["type"] + " baseline"
+        hourly_csv_scen = self.get_hourly_csv()
+        df = pd.concat([hourly_csv_scen, hourly_csv_base], axis=0)
+        df.to_csv(self.data_output / f"{self.__file_name__()}.csv", sep=";", index=False)
 
 
 def create_figure_worker(scenario_list: list,
@@ -690,10 +711,10 @@ def get_season_and_datetime(df: pd.DataFrame) -> pd.DataFrame:
 
 
 class ECEMFFigures:
-    def __init__(self, baseline_scenario: dict, scenario: dict):
-        self.baseline = baseline_scenario
-        self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{baseline_scenario['region']}/data_output/"
-        self.path_2_figure = Path(__file__).parent / r"data/figure" / f"ECEMF_T4.3_{baseline_scenario['region']}"
+    def __init__(self, scenario: dict):
+        self.baseline = scenario["baseline"]
+        self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{self.baseline['region']}/data_output/"
+        self.path_2_figure = Path(__file__).parent / r"data/figure" / f"ECEMF_T4.3_{self.baseline['region']}"
         if any(isinstance(value, list) for value in scenario.values()):
             # we have multiple scenarios
             changing_parameter, values = [(key, value) for key, value in scenario.items() if isinstance(value, list)][0]
@@ -737,7 +758,7 @@ class ECEMFFigures:
             print(
                 f"{get_file_name(self.baseline)} \n parquet files do not exist. create_output_csv"
             )
-            ECEMFPostProcess(**self.baseline).create_output_csv()
+            ECEMFPostProcess(**self.baseline, baseline=self.baseline).create_output_csv()
 
     def create_boxplot_p_to_p_difference(self,
                                          baseline: pd.DataFrame,
@@ -815,31 +836,45 @@ class ECEMFFigures:
         ]
         joblib.Parallel(n_jobs=8)(joblib.delayed(create_figure_worker)(*args) for args in arguments)
 
-    def get_max_day_feed_and_demand_sum(self) -> (dict, dict):
+    def get_max_day_feed_and_demand_sum(self) -> (dict, dict, dict, dict):
         """
         loads the dataframes for the max day demand data, and returns two dicts with the baseline, and
         all scenarios that are included in self.scenario. one dict is the grid demand and the other the feed to grid.
         :return:
         """
-        demand_dict = {}
-        feed_dict = {}
+        demand_dict_d = {}
+        feed_dict_d = {}
+        demand_dict_f = {}
+        feed_dict_f = {}
         if isinstance(self.scenario, dict):
             data = pd.read_csv(self.data_output / f"{get_file_name(self.scenario)}.csv", sep=";")
-            demand_dict["scenario"] = data.iloc[:24, 3:]
-            feed_dict["scenario"] = data.iloc[24:, 3:]
+            demand_dict_d["scenario"] = data.query("type=='grid demand on max demand day'").iloc[:, 3:]
+            feed_dict_d["scenario"] = data.query("type=='feed to grid on max demand day'").iloc[:, 3:]
+            demand_dict_f["scenario"] = data.query("type=='grid demand on max feed day'").iloc[:, 3:]
+            feed_dict_f["scenario"] = data.query("type=='feed to grid on max feed day'").iloc[:, 3:]
         else:
             for scen in self.scenario:
                 data = pd.read_csv(self.data_output / f"{get_file_name(scen)}.csv", sep=";")
-                demand_dict[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.iloc[
-                                                                                                           :24, 3:]
-                feed_dict[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.iloc[24:,
-                                                                                                         3:]
+                demand_dict_d[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.query(
+                    "type=='grid demand on max demand day'"
+                ).iloc[:, 3:]
+                feed_dict_d[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.query(
+                    "type=='feed to grid on max demand day'"
+                ).iloc[:, 3:]
+                demand_dict_f[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.query(
+                    "type=='grid demand on max feed day'"
+                ).iloc[:, 3:]
+                feed_dict_f[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.query(
+                    "type=='feed to grid on max feed day'"
+                ).iloc[:, 3:]
 
         baseline = pd.read_csv(self.data_output / f"{get_file_name(self.baseline)}.csv", sep=";")
-        demand_dict["baseline"] = baseline.iloc[:24, 3:]
-        feed_dict["baseline"] = baseline.iloc[24:, 3:]
+        demand_dict_d["baseline"] = baseline.query("type=='grid demand on max demand day'").iloc[:, 3:]
+        feed_dict_d["baseline"] = baseline.query("type=='feed to grid on max demand day'").iloc[:, 3:]
+        demand_dict_f["baseline"] = baseline.query("type=='grid demand on max feed day'").iloc[:, 3:]
+        feed_dict_f["baseline"] = baseline.query("type=='feed to grid on max feed day'").iloc[:, 3:]
 
-        return demand_dict, feed_dict
+        return demand_dict_d, feed_dict_d, demand_dict_f, feed_dict_f
 
     def visualize_peak_day(self):
         """
@@ -856,15 +891,18 @@ class ECEMFFigures:
             # Create the folder
             folder.mkdir(parents=True, exist_ok=True)
 
-        demand_dict, feed_dict = self.get_max_day_feed_and_demand_sum()
+        demand_dict_max_demand, feed_dict_max_demand, demand_dict_max_feed, feed_dict_max_feed = self.get_max_day_feed_and_demand_sum()
         matplotlib.rc("font", **{"size": 30})
-        for key, scen_dict in {"Demand": demand_dict, "Feed": feed_dict}.items():
-            fig = plt.figure(figsize=(18, 16))
-            ax = plt.gca()
+        for key, scen_dict in {"Demand": {"demand": demand_dict_max_demand,
+                                          "feed": feed_dict_max_demand},
+                               "Feed": {"demand": demand_dict_max_feed,
+                                        "feed": feed_dict_max_feed}
+                               }.items():
+            fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(36, 18))
             cmap = get_cmap('Set1')
-            colors = [cmap(i) for i in np.linspace(0, 1, len(scen_dict))]
-            for i, (scen_name, df) in enumerate(scen_dict.items()):
-                plt.plot(
+            colors = [cmap(i) for i in np.linspace(0, 1, len(scen_dict["demand"]))]
+            for i, (scen_name, df) in enumerate(scen_dict["demand"].items()):
+                ax1.plot(
                     np.arange(1, 25),
                     df.sum(axis=1) / 1_000 / 1_000,  # GWh
                     color=colors[i],
@@ -872,15 +910,29 @@ class ECEMFFigures:
                     label=f'{scen_name.replace("_", " ")}',
                 )
 
-            ax.set_xlabel('Hour of Day')
-            ax.set_ylabel(f'Grid {key} (GWh)')
-            ax.set_title(f'Total {key} for {region} on peak day')
-            ax.legend(loc="upper left")
+            for i, (scen_name, df) in enumerate(scen_dict["feed"].items()):
+                ax2.plot(
+                    np.arange(1, 25),
+                    df.sum(axis=1) / 1_000 / 1_000,  # GWh
+                    color=colors[i],
+                    linewidth=2,
+                    label=f'{scen_name.replace("_", " ")}',
+                )
+
+            ax1.set_xlabel('Hour of Day')
+            ax2.set_xlabel('Hour of Day')
+            ax1.set_ylabel(f'Grid demand (GWh)')
+            ax2.set_ylabel(f'Feed to grid (GWh)')
+            ax1.set_title(f'Total demand for {region} on peak {key} day')
+            ax2.set_title(f'Total feed to grid for {region} on peak {key} day')
+            ax1.legend(loc="upper left")
+            ax2.legend(loc="lower left")
+
             # plt.xticks(range(0, 24))
             # ax.grid(True)
             plt.tight_layout()
 
-            fig.savefig(folder / f"Max_Day_{key}_Comparison.png")
+            fig.savefig(folder / f"Max_Day_{key}_Comparison.svg")
             plt.close(fig)
 
     def create_figures(self):
@@ -999,24 +1051,27 @@ if __name__ == "__main__":
         "battery_percentage": 0.1,
         "prosumager_percentage": 0,
     }
-    pv_increase = np.arange(0, 1, 0.1).tolist()
+    pv_increase = np.arange(0.1, 1.1, 0.1).tolist()
     prosumager_increase = np.arange(0, 0.5, 0.1).tolist()
+    direct_electric_heating_increase = np.arange(0, 0.45, 0.05).tolist()
+    AC_increase = np.arange(0, 1.1, 0.1).tolist()
+
     scenario = {
         "region": "Murcia",
-        "pv_installation_percentage": pv_increase,
+        "pv_installation_percentage": 0.015,
         "dhw_storage_percentage": 0.5,
         "buffer_storage_percentage": 0,
         "heating_element_percentage": 0,
         "air_hp_percentage": 0.2,
         "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0,
+        "direct_electric_heating_percentage": 0.39,
         "no_heating_percentage": 0.22,
-        "ac_percentage": 0.5,
+        "ac_percentage": AC_increase,
         "battery_percentage": 0.1,
         "prosumager_percentage": 0,
+        "baseline": baseline
     }
 
-    ECEMFFigures(baseline_scenario=baseline, scenario=scenario).create_figures()
+    ECEMFFigures(scenario=scenario).create_figures()
 
-# TODO zu jedem einzelnen Gebäude im original df die geclusterten dazufügen + Ergebnis und dann den
-#  heat demand vergeleichen, Außerdem die Abweichung in Floor area plotten! (wegen clustering)
+# TODO random seed
