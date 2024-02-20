@@ -311,6 +311,7 @@ class ECEMFPostProcess:
                     else:
                         id_battery = 1  # battery is not used
                 else:
+                    _ = self.assign_id([self.battery_percentage])  # call it to have the same amount of calls for random choice
                     id_battery = 1
                 if len(possible_spacetank_ids) > 1:
                     if self.assign_id([self.buffer_storage_percentage]) > 1:
@@ -318,6 +319,7 @@ class ECEMFPostProcess:
                     else:
                         id_buffer = 1
                 else:
+                    _ = self.assign_id([self.buffer_storage_percentage])  # call it to have the same amount of calls in every run
                     id_buffer = 1
                 if len(possible_heatelement_ids) > 1:
                     if self.assign_id([self.heating_element_percentage]) > 1:
@@ -325,6 +327,7 @@ class ECEMFPostProcess:
                     else:
                         id_heatelement = 1
                 else:
+                    _ = self.assign_id([self.heating_element_percentage])  # call it to have the same amount of calls for random choice
                     id_heatelement = 1
                 full_query = f"{query} and ID_Battery == {id_battery} " \
                              f"and ID_SpaceHeatingTank == {id_buffer} " \
@@ -1033,7 +1036,34 @@ class ECEMFFigures:
         else:  # self.scenario is a list of scenarios:
             # create a graph that shows the difference between the scenarios:
             # load data
+            self.visualize_heating_and_cooling_load()
             self.create_scenario_comparison_daily_mean_plot_for_each_season()
+
+    def visualize_heating_and_cooling_load(self):
+        fig_path = self.path_2_figure / f"scenario_comparisons_{self.changing_parameter}_{get_file_name(self.scenario[0])}"
+        heating_dict = {}
+        cooling_dict = {}
+        for i, scen in enumerate(self.scenario):
+            heating = pd.read_parquet(self.data_output / f"Heating_{get_file_name(scen)}.parquet.gzip", engine="pyarrow")
+            cooling = pd.read_parquet(self.data_output / f"Cooling_{get_file_name(scen)}.parquet.gzip", engine="pyarrow")
+            heating_dict[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = heating.sum().sum() / 1000 / 1000  #MWh
+            cooling_dict[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = cooling.sum().sum() / 1000 / 1000  #MWh
+
+        x_heating, y_heating = list(heating_dict.keys()), list(heating_dict.values())
+        x_cooling, y_cooling = list(cooling_dict.keys()), list(cooling_dict.values())
+
+        fig = plt.figure(figsize=(16, 20))
+        ax = plt.gca()
+        ax.plot(x_heating, y_heating, label="heating", color="firebrick")
+        ax.plot(x_cooling, y_cooling, label="cooling", color="blue")
+        plt.legend()
+        ax.set_xlabel("scenario")
+        ax.set_ylabel("demand in MWh")
+        plt.xticks(rotation=90)
+        plt.tight_layout()
+        fig.savefig(fig_path / "Total_Heating_Cooling.png")
+
+
 
     def plot_seasonal_daily_means(self,
                                   df_baseline: pd.DataFrame,
