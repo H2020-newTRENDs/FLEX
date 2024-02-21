@@ -52,6 +52,7 @@ class Boiler(OperationComponent):
     type: Optional[str] = None
     power_max: Optional[float] = None
     carnot_efficiency_factor: Optional[float] = None
+    fuel_boiler_efficiency: Optional[float] = None
 
 
 @dataclass
