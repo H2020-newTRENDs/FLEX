@@ -215,6 +215,6 @@ def run_operation_model_parallel(
         split_scenarios()
     run_tasks()
     merge_task_results()
-    remove_task_folders()
+    # remove_task_folders()
 
 
