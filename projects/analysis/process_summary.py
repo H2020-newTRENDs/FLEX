@@ -63,6 +63,7 @@ def process_summary_year():
         "Total_Final_Grid",
         "Total_Final_Load",
         "Total_Final_HP",
+        "Total_HeatingElement",
         "Total_Final_Fuel",
         "Total_Final_HeatingSystem"
     ]

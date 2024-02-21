@@ -40,12 +40,9 @@ class RefOperationModel(OperationModel):
 
     def calc_space_heating_demand(self):
         hp_max = (self.SpaceHeating_MaxBoilerPower * self.SpaceHeatingHourlyCOP)
-        self.Q_HeatingElement_heat = np.where(
-            self.Q_RoomHeating - hp_max < 0, 0, self.Q_RoomHeating - hp_max
-        )
+        self.Q_HeatingElement_heat = np.where(self.Q_RoomHeating - hp_max < 0, 0, self.Q_RoomHeating - hp_max)
         self.Q_HeatingTank_bypass = self.Q_RoomHeating - self.Q_HeatingElement_heat
         self.E_Heating_HP_out = self.Q_HeatingTank_bypass / self.SpaceHeatingHourlyCOP
-
         self.Q_HeatingTank = np.zeros(self.Q_HeatingTank_bypass.shape)
         self.Q_HeatingTank_in = np.zeros(self.Q_HeatingTank_bypass.shape)
         self.Q_HeatingTank_out = np.zeros(self.Q_HeatingTank_bypass.shape)
@@ -388,6 +385,7 @@ class RefOperationModel(OperationModel):
                                         f"indoor comfort level.")
 
             self.Q_DHWTank = (tank_temperature + 273.15) * tank_capacity
+            self.PV2Load += (pv_surplus - pv_surplus_after_hot_water_tank)
 
         else:
             grid_demand_after_hot_water_tank = grid_demand
@@ -585,6 +583,7 @@ class RefOperationModel(OperationModel):
 
             self.Q_DHWTank = (tank_temperature + 273.15) * tank_capacity
             self.Q_DHWTank_bypass = self.Q_DHWTank_bypass.clip(min=0)  # TODO: for some unknown reason, for some scenarios, this line is necessary
+            self.PV2Load += (pv_surplus - pv_surplus_after_hot_water_tank)
 
         else:
             gas_demand_after_hot_water_tank = gas_demand
