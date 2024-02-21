@@ -68,6 +68,7 @@ def gen_summary_year(config: "Config"):
             d["Final_Grid"] = partial_get_scenario_result("Grid") / 1000
             d["Final_Load"] = partial_get_scenario_result("Load") / 1000
             d["Final_HP"] = partial_get_scenario_result("E_Heating_HP_out") / 1000
+            d["Final_HeatingElement"] = partial_get_scenario_result("Q_HeatingElement") / 1000
             d["Final_Fuel"] = partial_get_scenario_result("Fuel") / 1000
             d["BuildingNumber"] = row["building_num"]
             d["Total_Useful_Appliance"] = d["Useful_Appliance"] * row["building_num"]
@@ -80,6 +81,7 @@ def gen_summary_year(config: "Config"):
             d["Total_Final_Grid"] = d["Final_Grid"] * row["building_num"]
             d["Total_Final_Load"] = d["Final_Load"] * row["building_num"]
             d["Total_Final_HP"] = d["Final_HP"] * row["building_num"]
+            d["Total_HeatingElement"] = d["Final_HeatingElement"] * row["building_num"]
             d["Total_Final_Fuel"] = d["Final_Fuel"] * row["building_num"]
             d["Total_Final_HeatingSystem"] = d["Total_Final_HP"] + d["Total_Final_Fuel"]
             l.append(d)
