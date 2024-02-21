@@ -239,7 +239,7 @@ class RefOperationModel(OperationModel):
         The tank is charged by the heat pump with the COP for hot water.
         Whenever there is surplus of PV electricity the DHW tank is charged and it is discharged by the DHW-usage.
         IF a DHW tank is utilized, the energy for DHW will always be solemnly provided by the DHW tank.
-        Therefore the heat pump input into the DHW tank must be in accordance with the output of the DHW tank + losses.
+        Therefore, the heat pump input into the DHW tank must be in accordance with the output of the DHW tank + losses.
 
         Returns: grid_demand_after_DHW, electricity_surplus_after_DHW
         """

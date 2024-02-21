@@ -7,6 +7,7 @@ from utils.config import Config
 from utils.db import create_db_conn
 from utils.tables import InputTables, OutputTables
 from tqdm import tqdm
+from functools import partial
 
 PROJECT_SUMMARY_YEAR = "SummaryYear"
 PROJECT_SUMMARY_HOUR = "SummaryHour"
@@ -33,6 +34,7 @@ def gen_summary_year(config: "Config"):
     id_merged_scenario = 1
     for index, row in scenarios.iterrows():
         for index_sems in [1, 2]:
+
             d = {}
             d["Country"] = config.project_name.split("_")[0]
             d["Year"] = int(config.project_name.split("_")[1])
@@ -43,23 +45,41 @@ def gen_summary_year(config: "Config"):
             d["ID_PV"] = row["ID_PV"]
             d["ID_Battery"] = row["ID_Battery"]
             d["ID_Boiler"] = row["ID_Boiler"]
+            d["ID_Building"] = row["ID_Building"]
             d["unit"] = "kWh"
-            d["Useful_Appliance"] = get_scenario_result(row["ID_Scenario"], d["ID_SEMS"], row["ID_Boiler"], row["ID_Battery"], "BaseLoadProfile") / 1000
-            d["Useful_HotWater"] = get_scenario_result(row["ID_Scenario"], d["ID_SEMS"], row["ID_Boiler"], row["ID_Battery"], "HotWaterProfile") / 1000
-            d["Useful_SpaceHeating"] = get_scenario_result(row["ID_Scenario"], d["ID_SEMS"], row["ID_Boiler"], row["ID_Battery"], "Q_RoomHeating") / 1000
-            d["Final_PVGeneration"] = get_scenario_result(row["ID_Scenario"], d["ID_SEMS"], row["ID_Boiler"], row["ID_Battery"], "PhotovoltaicProfile") / 1000
-            d["Final_PVFeed"] = get_scenario_result(row["ID_Scenario"], d["ID_SEMS"], row["ID_Boiler"], row["ID_Battery"], "PV2Grid") / 1000
-            d["Final_Electricity"] = get_scenario_result(row["ID_Scenario"], d["ID_SEMS"], row["ID_Boiler"], row["ID_Battery"], "Grid") / 1000
-            d["Final_Fuel"] = get_scenario_result(row["ID_Scenario"], d["ID_SEMS"], row["ID_Boiler"], row["ID_Battery"], "Fuel") / 1000
+
+            partial_get_scenario_result = partial(
+                get_scenario_result, row["ID_Scenario"], d["ID_SEMS"], row["ID_Boiler"], row["ID_Battery"]
+            )
+
+            d["Useful_Appliance"] = partial_get_scenario_result("BaseLoadProfile") / 1000
+            d["Useful_HotWater"] = partial_get_scenario_result("HotWaterProfile") / 1000
+            d["Useful_SpaceHeating"] = partial_get_scenario_result("Q_RoomHeating") / 1000
+            d["Af"] = buildings.at[row["ID_Building"], "Af"]
+            d["hwb_invert"] = buildings.at[row["ID_Building"], "hwb"]
+            d["hwb_flex"] = d["Useful_SpaceHeating"] / d["Af"]
+            d["hwb_diff"] = (d["hwb_flex"] - d["hwb_invert"]) / d["hwb_invert"]
+            d["Final_PVGeneration"] = partial_get_scenario_result("PhotovoltaicProfile") / 1000
+            d["Final_PV2Load"] = partial_get_scenario_result("PV2Load") / 1000
+            d["Final_PV2Bat"] = partial_get_scenario_result("PV2Bat") / 1000
+            d["Final_PV2Grid"] = partial_get_scenario_result("PV2Grid") / 1000
+            d["Final_Grid"] = partial_get_scenario_result("Grid") / 1000
+            d["Final_Load"] = partial_get_scenario_result("Load") / 1000
+            d["Final_HP"] = d["Final_Load"] - d["Useful_Appliance"]
+            d["Final_Fuel"] = partial_get_scenario_result("Fuel") / 1000
             d["BuildingNumber"] = row["building_num"]
             d["Total_Useful_Appliance"] = d["Useful_Appliance"] * row["building_num"]
             d["Total_Useful_HotWater"] = d["Useful_HotWater"] * row["building_num"]
             d["Total_Useful_SpaceHeating"] = d["Useful_SpaceHeating"] * row["building_num"]
             d["Total_Final_PVGeneration"] = d["Final_PVGeneration"] * row["building_num"]
-            d["Total_Final_PVFeed"] = d["Final_PVFeed"] * row["building_num"]
-            d["Total_Final_Electricity"] = d["Final_Electricity"] * row["building_num"]
+            d["Total_Final_PV2Load"] = d["Final_PV2Load"] * row["building_num"]
+            d["Total_Final_PV2Bat"] = d["Final_PV2Bat"] * row["building_num"]
+            d["Total_Final_PV2Grid"] = d["Final_PV2Grid"] * row["building_num"]
+            d["Total_Final_Grid"] = d["Final_Grid"] * row["building_num"]
+            d["Total_Final_Load"] = d["Final_Load"] * row["building_num"]
+            d["Total_Final_HP"] = d["Final_HP"] * row["building_num"]
             d["Total_Final_Fuel"] = d["Final_Fuel"] * row["building_num"]
-            d["Total_Final_HeatingSystem"] = d["Total_Final_Fuel"] + d["Total_Final_Electricity"] - d["Total_Useful_Appliance"]
+            d["Total_Final_HeatingSystem"] = d["Total_Final_HP"] + d["Total_Final_Fuel"]
             l.append(d)
             id_merged_scenario += 1
     pd.DataFrame(l).to_csv(os.path.join(config.output, f"{config.project_name}_{PROJECT_SUMMARY_YEAR}.csv"), index=False)

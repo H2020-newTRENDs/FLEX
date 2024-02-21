@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import glob
-
+from tqdm import tqdm
 
 INPUT_FOLDER = os.path.join(
     os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
@@ -11,14 +11,15 @@ INPUT_FOLDER = os.path.join(
 
 OUTPUT_FOLDER = os.path.join(
     os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    "output_summary"
+    "output_summary",
+    "output"
 )
 
 SUMMARY_YEAR = "SummaryYear.csv"
-SUMMARY_YEAR_AGG = "SummaryYear_aggregated.xlsx"
+SUMMARY_YEAR_AGG = "SummaryYear_aggregated.csv"
 SUMMARY_HOUR = "SummaryHour.csv"
-SUMMARY_HOUR_AGG = "SummaryHour_aggregated.xlsx"
-SUMMARY_HOUR_AGG2 = "SummaryHour_further_aggregated.xlsx"
+SUMMARY_HOUR_AGG = "SummaryHour_aggregated.csv"
+SUMMARY_HOUR_AGG2 = "SummaryHour_further_aggregated.csv"
 INVERT_SUMMARY = "INVERT_Summary.xlsx"
 
 
@@ -34,7 +35,7 @@ def concat_summary():
         else:
             pass
     pd.concat(summary_year_l, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_YEAR), index=False)
-    pd.concat(summary_hour_l, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_HOUR), index=False)
+    # pd.concat(summary_hour_l, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_HOUR), index=False)
 
 
 def process_summary_year():
@@ -56,8 +57,12 @@ def process_summary_year():
         "Total_Useful_HotWater",
         "Total_Useful_SpaceHeating",
         "Total_Final_PVGeneration",
-        "Total_Final_PVFeed",
-        "Total_Final_Electricity",
+        "Total_Final_PV2Load",
+        "Total_Final_PV2Bat",
+        "Total_Final_PV2Grid",
+        "Total_Final_Grid",
+        "Total_Final_Load",
+        "Total_Final_HP",
         "Total_Final_Fuel",
         "Total_Final_HeatingSystem"
     ]
@@ -65,7 +70,7 @@ def process_summary_year():
     countries = list(df["Country"].unique())
     years = list(df["Year"].unique())
     l = []
-    for country in countries:
+    for country in tqdm(countries):
         for year in years:
             for id_sems in [1, 2]:
                 for id_teleworking in [1, 2]:
@@ -87,14 +92,8 @@ def process_summary_year():
                                     d["variable"] = var
                                     d["value"] = df_filtered[var].sum()/10**6
                                     l.append(d)
-                                # append total heat pump
-                                d = get_template_d()
-                                d["unit"] = "GWh"
-                                d["variable"] = "Total_Final_HP"
-                                d["value"] = (df_filtered["Total_Final_Electricity"].sum() - df_filtered["Total_Useful_Appliance"].sum())/10**6
-                                l.append(d)
 
-    pd.DataFrame(l).to_excel(os.path.join(OUTPUT_FOLDER, SUMMARY_YEAR_AGG), index=False)
+    pd.DataFrame(l).to_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_YEAR_AGG), index=False)
 
 
 def process_summary_hour():
@@ -147,7 +146,7 @@ def process_summary_hour():
     years = list(df["Year"].unique())
     l_aggregated = []
     l_further_aggregated = []
-    for country in countries:
+    for country in tqdm(countries):
         for year in years:
             for id_sems in [1, 2]:
                 for id_teleworking in [1, 2]:
@@ -171,8 +170,8 @@ def process_summary_hour():
                                     (df["ID_Boiler"] == id_boiler)
                                 ]
                                 l_aggregated.append(df_filtered.groupby(indices_aggregated, as_index=False)[vars].mean())
-    pd.concat(l_aggregated, axis=0, ignore_index=True).to_excel(os.path.join(OUTPUT_FOLDER, SUMMARY_HOUR_AGG), index=False)
-    pd.concat(l_further_aggregated, axis=0, ignore_index=True).to_excel(os.path.join(OUTPUT_FOLDER, SUMMARY_HOUR_AGG2), index=False)
+    pd.concat(l_aggregated, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_HOUR_AGG), index=False)
+    pd.concat(l_further_aggregated, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_HOUR_AGG2), index=False)
 
 
 def get_invert_summary():
