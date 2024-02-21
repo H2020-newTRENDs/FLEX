@@ -28,7 +28,7 @@ class RefOperationModel(OperationModel):
         )
         # check if the heat pump can supply enough for the whole year if no heating element is adopted
         if self.Q_HeatingElement.sum() > 0 and self.HeatingElement_power == 0:
-            logger.error(f"heating element is used in reference scenario but is not used in building.")
+            logger.error(f"heating element is used in reference scenario but is not used in building in Scenario: {self.scenario.scenario_id}.")
 
         self.Q_HeatingTank_bypass = self.Q_RoomHeating - self.Q_HeatingElement
         self.E_Heating_HP_out = self.Q_HeatingTank_bypass / self.SpaceHeatingHourlyCOP
@@ -519,7 +519,7 @@ class RefOperationModel(OperationModel):
 
     def calc_grid(self, grid_demand: np.array, pv_surplus: np.array):
         self.Grid = grid_demand
-        self.Grid2Load = grid_demand
+        self.Grid2Load = grid_demand - self.Grid2Bat - self.Grid2EV
         self.PV2Grid = pv_surplus
         self.Feed2Grid = pv_surplus
         self.TotalCost = self.ElectricityPrice * grid_demand - pv_surplus * self.FiT
@@ -591,7 +591,7 @@ class RefOperationModel(OperationModel):
 
     def calc_grid_fuel_boiler(self, grid_demand: np.array, pv_surplus: np.array):
         self.Grid = grid_demand
-        self.Grid2Load = grid_demand
+        self.Grid2Load = grid_demand - self.Grid2Bat - self.Grid2EV
         self.PV2Grid = pv_surplus
         self.Feed2Grid = pv_surplus
         if self.scenario.boiler.type not in ['Air_HP', 'Ground_HP', 'Electric', 'no heating']:
