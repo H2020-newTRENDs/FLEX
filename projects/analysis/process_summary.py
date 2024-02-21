@@ -16,7 +16,7 @@ OUTPUT_FOLDER = os.path.join(
 )
 
 SUMMARY_YEAR = "SummaryYear.csv"
-SUMMARY_YEAR_AGG = "SummaryYear_aggregated.csv"
+SUMMARY_YEAR_AGG = "SummaryYear_aggregated.xlsx"
 SUMMARY_HOUR = "SummaryHour.csv"
 SUMMARY_HOUR_AGG = "SummaryHour_aggregated.csv"
 SUMMARY_HOUR_AGG2 = "SummaryHour_further_aggregated.csv"
@@ -93,7 +93,7 @@ def process_summary_year():
                                     d["value"] = df_filtered[var].sum()/10**6
                                     l.append(d)
 
-    pd.DataFrame(l).to_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_YEAR_AGG), index=False)
+    pd.DataFrame(l).to_excel(os.path.join(OUTPUT_FOLDER, SUMMARY_YEAR_AGG), index=False)
 
 
 def process_summary_hour():
