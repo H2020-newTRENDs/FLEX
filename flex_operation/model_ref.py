@@ -597,7 +597,13 @@ class RefOperationModel(OperationModel):
         self.Grid2Load = grid_demand
         self.PV2Grid = pv_surplus
         self.Feed2Grid = pv_surplus
-        self.FuelPrice = self.scenario.energy_price.__dict__[self.scenario.boiler.type]
+        if self.scenario.boiler.type not in ['Air_HP', 'Ground_HP', 'Electric']:
+            self.FuelPrice = 0.00174  # gas price self.scenario.energy_price.__dict__[self.scenario.boiler.type]
+        elif self.scenario.boiler.type == "no heating":
+            self.FuelPrice = 1  # should not be used without heating but if so its easier to know how much was used
+        else:
+            self.FuelPrice = self.scenario.energy_price.gases
+
         self.TotalCost = self.ElectricityPrice * grid_demand - pv_surplus * self.FiT + \
                          self.Fuel * self.FuelPrice
 
