@@ -2,6 +2,8 @@ import pandas as pd
 import os
 import glob
 from tqdm import tqdm
+import numpy as np
+
 
 INPUT_FOLDER = os.path.join(
     os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
@@ -189,8 +191,17 @@ def get_invert_summary():
     return invert_summary
 
 
-def update_invert_indicator():
-    invert = get_invert_summary()
-
-
-
+def compare_hwb_diff():
+    l = []
+    for csv_file_path in glob.glob(f"{INPUT_FOLDER}/*.csv"):
+        file_name, _ = os.path.splitext(os.path.basename(csv_file_path))
+        country, year = file_name.split("_")[0:2]
+        if file_name.endswith("_SummaryYear"):
+            df = pd.read_csv(csv_file_path)
+            hwb_diff = np.sum(df["hwb_diff"].to_numpy() * df["BuildingNumber"].to_numpy()) / df["BuildingNumber"].sum()
+            l.append({
+                "Country": country,
+                "Year": year,
+                "hwb_diff": hwb_diff
+            })
+    pd.DataFrame(l).to_excel(os.path.join(OUTPUT_FOLDER, "hwb_diff.xlsx"), index=False)
