@@ -5,13 +5,13 @@ from tqdm import tqdm
 
 INPUT_FOLDER = os.path.join(
     os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    "output_summary",
+    "ECEMF_Summary",
     "input"
 )
 
 OUTPUT_FOLDER = os.path.join(
     os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    "output_summary",
+    "ECEMF_Summary",
     "output"
 )
 
