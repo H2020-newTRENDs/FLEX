@@ -1,4 +1,6 @@
-from typing import List, Union
+from typing import List, Union, Dict, Any
+import random
+from pathlib import Path
 import logging
 import sqlalchemy
 import numpy as np
@@ -7,16 +9,20 @@ from functools import wraps
 import time
 
 
-def get_logger(name, level=logging.INFO, file_name: str = None):
-    logging.basicConfig()
+def get_logger(name, level=logging.DEBUG, file_name: Union[str, "Path"] = None):
     logger = logging.getLogger(name)
     logger.setLevel(level)
     formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
-
     if file_name:
         file_handler = logging.FileHandler(file_name)
+        file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
+    else:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.INFO)
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
 
     return logger
 
@@ -66,3 +72,20 @@ def filter_df2s(df: pd.DataFrame, filter_dict: dict) -> pd.Series:
     df_filtered = filter_df(df, filter_dict)
     s = df_filtered.iloc[0]
     return s
+
+
+def dict_sample(options: Dict[Any, float]) -> Any:
+    value_sum = 0
+    for key in options.keys():
+        value_sum += options[key]
+    for key in options.keys():
+        options[key] = options[key] / value_sum
+    rand = random.uniform(0, 1)
+    prob_accumulated = 0
+    option_chosen_key = None
+    for key in options.keys():
+        prob_accumulated += options[key]
+        if prob_accumulated >= rand:
+            option_chosen_key = key
+            break
+    return option_chosen_key
