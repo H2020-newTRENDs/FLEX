@@ -353,7 +353,7 @@ class ECEMFPostProcess:
     def worker(self, id_scenario, number_of_occurences) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
         ref_loads = self.db.read_parquet(table_name=OperationTable.ResultRefHour,
                                          scenario_ID=id_scenario,
-                                         column_names=["Load", "Feed2Grid", "E_Heating_HP_out", "E_RoomCooling"])
+                                         column_names=["Grid", "Feed2Grid", "E_Heating_HP_out", "E_RoomCooling"])
         # check if optimisation exists for this scenario (dependent on the heating system)
         heating_system = self.scenario_table.loc[self.scenario_table["ID_Scenario"] == id_scenario, "ID_Boiler"].values[
             0]
@@ -362,7 +362,7 @@ class ECEMFPostProcess:
             prosumager_possibility = self.prosumager_percentage
             opt_loads = self.db.read_parquet(table_name=OperationTable.ResultOptHour,
                                              scenario_ID=id_scenario,
-                                             column_names=["Load", "Feed2Grid", "E_Heating_HP_out", "E_RoomCooling"])
+                                             column_names=["Grid", "Feed2Grid", "E_Heating_HP_out", "E_RoomCooling"])
         else:
             prosumager_possibility = 0
 
@@ -374,12 +374,12 @@ class ECEMFPostProcess:
         for i in range(number_of_occurences):
             prosumager = self.assign_id([prosumager_possibility])
             if prosumager == 0:
-                result_matrix_demand.loc[:, (id_scenario, i)] = ref_loads["Load"].to_numpy()
+                result_matrix_demand.loc[:, (id_scenario, i)] = ref_loads["Grid"].to_numpy()
                 result_matrix_feed2grid.loc[:, (id_scenario, i)] = ref_loads["Feed2Grid"].to_numpy()
                 result_matrix_cooling.loc[:, (id_scenario, i)] = ref_loads["E_RoomCooling"].to_numpy()
                 result_matrix_heating.loc[:, (id_scenario, i)] = ref_loads["E_Heating_HP_out"].to_numpy()
             else:
-                result_matrix_demand.loc[:, (id_scenario, i)] = opt_loads["Load"].to_numpy()
+                result_matrix_demand.loc[:, (id_scenario, i)] = opt_loads["Grid"].to_numpy()
                 result_matrix_feed2grid.loc[:, (id_scenario, i)] = opt_loads["Feed2Grid"].to_numpy()
                 result_matrix_cooling.loc[:, (id_scenario, i)] = opt_loads["E_RoomCooling"].to_numpy()
                 result_matrix_heating.loc[:, (id_scenario, i)] = opt_loads["E_Heating_HP_out"].to_numpy()
@@ -1164,14 +1164,14 @@ if __name__ == "__main__":
         "prosumager_percentage": 0,
     }
     pv_increase = np.arange(0.1, 1.1, 0.1).tolist()
-    prosumager_increase = np.arange(0, 0.5, 0.1).tolist()
+    prosumager_increase = np.arange(0, 1.1, 0.1).tolist()
     direct_electric_heating_increase = np.arange(0, 0.45, 0.05).tolist()
     AC_increase = np.arange(0, 1.1, 0.1).tolist()
     air_hp_increase = np.arange(0, 0.7, 0.1).tolist()
 
     scenario = {
         "region": "Murcia",
-        "pv_installation_percentage": pv_increase,
+        "pv_installation_percentage": 0.015,
         "dhw_storage_percentage": 0.5,
         "buffer_storage_percentage": 0,
         "heating_element_percentage": 0,
@@ -1181,7 +1181,7 @@ if __name__ == "__main__":
         "no_heating_percentage": 0.22,
         "ac_percentage": 0.5,
         "battery_percentage": 0.1,
-        "prosumager_percentage": 0,
+        "prosumager_percentage": prosumager_increase,
         "baseline": baseline
     }
 
