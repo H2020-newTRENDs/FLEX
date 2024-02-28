@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -413,7 +414,7 @@ class ECEMFPostProcess:
     @staticmethod
     def find_net_peak_demand_day(data: pd.DataFrame) -> int:
         """
-        finds the index of the day with the highest average demand
+        finds the index of the day with the highest peak demand
         :param profile: numpy array with shape (8760,)
         :return: integer which day has highest demand out of 364 (starting at 0)
         """
@@ -421,10 +422,14 @@ class ECEMFPostProcess:
         # Sum up all columns to get the net demand for each hour
         profile = data.sum(axis=1)
         # Resample the data to get average daily demand
-        daily_average = profile.groupby(profile.index // 24).mean()
+        # ---------------------------------- only for highest average demand day
+        # daily_average = profile.groupby(profile.index // 24).mean()
         # Find the day with the highest average demand
-        max_average_demand_day = pd.to_numeric(daily_average, errors="coerce").idxmax()
-        return max_average_demand_day
+        # max_average_demand_day = pd.to_numeric(daily_average, errors="coerce").idxmax()
+        # -------------------------------------
+        max_hour = pd.to_numeric(profile, errors="coerce").idxmax()
+        max_demand_day = max_hour // 24
+        return max_demand_day
 
     def show_chosen_dist(self, df: pd.DataFrame):
         # Create a subplot with shared x-axis
@@ -833,6 +838,28 @@ class ECEMFFigures:
             )
             ECEMFPostProcess(**self.baseline, baseline=self.baseline).create_output_csv()
 
+    def copy_scenario_outputs_into_specific_folder(self):
+        """
+        copy the csv files of a specific scenario into one folder to make it easier to send to other model
+        :return: None
+        """
+        if isinstance(self.scenario, list):
+            destination_path = self.data_output / f"scenario_comparisons_{self.changing_parameter}_{get_file_name(self.scenario[0])}"
+            info_destination_path = destination_path / "INFO"
+            if not destination_path.exists():
+                destination_path.mkdir()
+                info_destination_path.mkdir()
+            names_to_copy = [get_file_name(self.scenario[i]) for i in range(len(self.scenario))]
+
+            for file in self.data_output.glob("*.csv"):
+                for name in names_to_copy:
+                    if name in file.stem:
+                        if "INFO" in file.stem:
+                            shutil.copy(file, info_destination_path)
+                        else:
+                            shutil.copy(file, destination_path)
+
+
     def create_boxplot_p_to_p_difference(self,
                                          baseline: pd.DataFrame,
                                          scenario: pd.DataFrame,
@@ -1018,7 +1045,6 @@ class ECEMFFigures:
             fig.savefig(folder / f"Max_Day_{key}_Comparison.png")
             plt.close(fig)
 
-
     def create_figures(self):
         print("creating figures...")
         self.visualize_peak_day()
@@ -1185,8 +1211,12 @@ if __name__ == "__main__":
         "baseline": baseline
     }
 
-    ECEMFFigures(scenario=scenario).create_figures()
+    # ECEMFFigures(scenario=scenario).create_figures()
+    ECEMFFigures(scenario=scenario).copy_scenario_outputs_into_specific_folder()
 
     # todo generate graph for single scenarios where room cooling and room heating
     #  is visualized as part of the max demand
     #
+    # todo take day with highest peak demand and not average
+    # todo save the output in a seperate folder to easily send it to miguel
+    # todo get the 2030 and 2050 scenario only for heating (no DHW)
