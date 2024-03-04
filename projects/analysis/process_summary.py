@@ -195,11 +195,13 @@ def get_invert_summary():
 def compare_hwb_diff():
 
     def save_scatter(x, y, x_label, y_label):
+        print(f'plotting hwb_diff --> {country}_{year}')
         plt.figure()
         plt.scatter(x, y, s=20)
         plt.xlabel(x_label)
         plt.ylabel(y_label)
         plt.savefig(os.path.join(OUTPUT_FOLDER, f'{country}_{year}_{y_label}.png'))
+        plt.close()
 
     l = []
     for csv_file_path in glob.glob(f"{INPUT_FOLDER}/*.csv"):
