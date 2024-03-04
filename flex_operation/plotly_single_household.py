@@ -1,7 +1,7 @@
 from scipy.stats import norm
 from flex_operation.scenario import OperationScenario, MotherOperationScenario
 from flex_operation.Visualization_class import MotherVisualization
-from flex.config import Config
+from config import cfg
 
 import pandas as pd
 import numpy as np
@@ -104,9 +104,13 @@ class PlotlyVisualize(MotherVisualization):
         optimization_load = (
                 self.hourly_results_optimization_df.Load.to_numpy() / 1000
         )  # kW
-        electricity_price = (
-                self.hourly_results_reference_df.ElectricityPrice.to_numpy() * 1000
-        )  # ct/kWh
+        try:
+            electricity_price = (
+                    self.hourly_results_reference_df.ElectricityPrice.to_numpy() * 1000
+            )  # ct/kWh
+        except:
+            print("no energy price in hourly results saved")
+            electricity_price = np.zeros(shape=reference_load.shape)
 
         fig = make_subplots(
             rows=1, cols=1, shared_xaxes=True, specs=[[{"secondary_y": True}]]
@@ -308,15 +312,12 @@ class PlotlyVisualize(MotherVisualization):
 
 
 if __name__ == "__main__":
-    year = 2030
-    country = "AUT"
-    project_name = f"D5.4_{country}_{year}"
-    cfg = Config(project_name=project_name)
+
     # create scenario:
-    scenario_id = 563  # 598
+    scenario_id = 16664  # 598
     mother_tables = MotherOperationScenario(config=cfg)
     scenario = OperationScenario(scenario_id=scenario_id, config=cfg, tables=mother_tables)
-    plotly_visualization = PlotlyVisualize(scenario=scenario, cfg=cfg)
+    plotly_visualization = PlotlyVisualize(scenario=scenario)
     plotly_visualization.show_yearly_comparison_of_SEMS_reference()
     plotly_visualization.hourly_comparison_SEMS_reference()
     plotly_visualization.investigate_resulting_load_profile()
