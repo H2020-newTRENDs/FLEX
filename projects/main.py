@@ -42,4 +42,5 @@ if __name__ == "__main__":
     process_summary.concat_summary()
     process_summary.process_summary_year()
     # process_summary.process_summary_hour()
+    process_summary.compare_hwb_diff()
 
