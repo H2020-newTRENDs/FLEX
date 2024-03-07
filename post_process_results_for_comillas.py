@@ -1203,20 +1203,18 @@ if __name__ == "__main__":
         "heating_element_percentage": 0,
         "air_hp_percentage": 0.2,
         "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0.39,
+        "direct_electric_heating_percentage": direct_electric_heating_increase,
         "no_heating_percentage": 0.22,
         "ac_percentage": 0.5,
         "battery_percentage": 0.1,
-        "prosumager_percentage": prosumager_increase,
+        "prosumager_percentage": 0,
         "baseline": baseline
     }
 
-    # ECEMFFigures(scenario=scenario).create_figures()
+    ECEMFFigures(scenario=scenario).create_figures()
     ECEMFFigures(scenario=scenario).copy_scenario_outputs_into_specific_folder()
 
     # todo generate graph for single scenarios where room cooling and room heating
     #  is visualized as part of the max demand
-    #
-    # todo take day with highest peak demand and not average
-    # todo save the output in a seperate folder to easily send it to miguel
+
     # todo get the 2030 and 2050 scenario only for heating (no DHW)
