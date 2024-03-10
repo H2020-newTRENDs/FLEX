@@ -38,7 +38,7 @@ def concat_summary():
         else:
             pass
     pd.concat(summary_year_l, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_YEAR), index=False)
-    # pd.concat(summary_hour_l, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_HOUR), index=False)
+    pd.concat(summary_hour_l, axis=0, ignore_index=True).to_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_HOUR), index=False)
 
 
 def process_summary_year():
