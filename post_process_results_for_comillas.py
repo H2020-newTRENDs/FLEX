@@ -28,11 +28,12 @@ class ECEMFBuildingComparison:
     def __init__(self, region: str):
         self.region = region
         self.path_to_osm = Path(r"C:\Users\mascherbauer\PycharmProjects\OSM")
-        self.path_to_project = Path(r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects") / f"ECEMF_T4.3_{region}"
+        self.path_to_project = Path(
+            r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects") / f"ECEMF_T4.3_{region}_{year}"
         self.original_building_ids = self.load_original_building_ids()
         self.clustered_building_df = self.load_clustered_building_df()
         self.original_building_df = self.load_original_building_df()
-        self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}"))
+        self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}_{year}"))
         self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
         # add the cluster ID to the original building df
         self.add_cluster_id_to_original_building_df()
@@ -110,6 +111,7 @@ class ECEMFBuildingComparison:
 
 class ECEMFPostProcess:
     def __init__(self,
+                 year: int,
                  region: str,
                  pv_installation_percentage: float,
                  dhw_storage_percentage: float,
@@ -118,14 +120,14 @@ class ECEMFPostProcess:
                  air_hp_percentage: float,
                  ground_hp_percentage: float,
                  direct_electric_heating_percentage: float,
-                 no_heating_percentage: float,
+                 gases_percentage: float,
                  ac_percentage: float,
                  battery_percentage: float,
                  prosumager_percentage: float,
                  baseline: dict
                  ):
         """
-
+        :param year: int of the year that corresponds to the renovation of buildings and lowered heat demand
         :param region: name of the region (str)
         :param pv_installation_percentage: percentage of buildings having a PV installed (SFH = 5kWp, MFH = 15kWp)
         :param dhw_storage_percentage: percentage of buildings having a domestic hot water storage (SFH=300l, MFH=700l)
@@ -139,10 +141,11 @@ class ECEMFPostProcess:
         """
         self.baseline = baseline
         self.region = region
-        self.path_to_project = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}"
+        self.year = year
+        self.path_to_project = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}_{year}"
         self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}/data_output/"
         self.clustered_building_df = self.load_clustered_building_df()
-        self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}"))
+        self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}_{year}"))
         self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
         self.pv_sizes = {
             1: 0,  # kWp
@@ -186,10 +189,12 @@ class ECEMFPostProcess:
         self.air_hp_percentage = air_hp_percentage
         self.ground_hp_percentage = ground_hp_percentage
         self.direct_electric_heating_percentage = direct_electric_heating_percentage
-        self.no_heating_percentage = no_heating_percentage
+        self.gases_percentage = gases_percentage
         self.ac_percentage = ac_percentage
         self.battery_percentage = battery_percentage
         self.prosumager_percentage = prosumager_percentage
+        self.no_heating_percentage = 1 - (
+                self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage + self.gases_percentage)
         assert 0 <= self.pv_installation_percentage <= 1
         assert 0 <= self.dhw_storage_percentage <= 1
         assert 0 <= self.buffer_storage_percentage <= 1
@@ -201,7 +206,7 @@ class ECEMFPostProcess:
         assert 0 <= self.battery_percentage <= 1
         assert 0 <= self.prosumager_percentage <= 1
         assert 0 <= self.no_heating_percentage <= 1
-        assert self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage + no_heating_percentage <= 1
+        assert self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage + gases_percentage <= 1
 
     def load_clustered_building_df(self):
         return pd.read_excel(self.path_to_project / f"OperationScenario_Component_Building.xlsx")
@@ -241,14 +246,12 @@ class ECEMFPostProcess:
         :return: returns a list of all the scenarios IDs for the whole building stock
         """
 
-        gases_percentage = 1 - (
-                self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage + self.no_heating_percentage)
         dict_of_inputs = {
             "ID_PV": [1 - self.pv_installation_percentage, self.pv_installation_percentage * 0.5,
                       self.pv_installation_percentage * 0.25, self.pv_installation_percentage * 0.25],
             "ID_HotWaterTank": [self.dhw_storage_percentage],
             "ID_Boiler": [self.air_hp_percentage, self.ground_hp_percentage, self.direct_electric_heating_percentage,
-                          gases_percentage, self.no_heating_percentage],
+                          self.gases_percentage, self.no_heating_percentage],
             "ID_SpaceCoolingTechnology": [self.ac_percentage]
 
         }
@@ -312,7 +315,8 @@ class ECEMFPostProcess:
                     else:
                         id_battery = 1  # battery is not used
                 else:
-                    _ = self.assign_id([self.battery_percentage])  # call it to have the same amount of calls for random choice
+                    _ = self.assign_id(
+                        [self.battery_percentage])  # call it to have the same amount of calls for random choice
                     id_battery = 1
                 if len(possible_spacetank_ids) > 1:
                     if self.assign_id([self.buffer_storage_percentage]) > 1:
@@ -320,7 +324,8 @@ class ECEMFPostProcess:
                     else:
                         id_buffer = 1
                 else:
-                    _ = self.assign_id([self.buffer_storage_percentage])  # call it to have the same amount of calls in every run
+                    _ = self.assign_id(
+                        [self.buffer_storage_percentage])  # call it to have the same amount of calls in every run
                     id_buffer = 1
                 if len(possible_heatelement_ids) > 1:
                     if self.assign_id([self.heating_element_percentage]) > 1:
@@ -328,7 +333,8 @@ class ECEMFPostProcess:
                     else:
                         id_heatelement = 1
                 else:
-                    _ = self.assign_id([self.heating_element_percentage])  # call it to have the same amount of calls for random choice
+                    _ = self.assign_id(
+                        [self.heating_element_percentage])  # call it to have the same amount of calls for random choice
                     id_heatelement = 1
                 full_query = f"{query} and ID_Battery == {id_battery} " \
                              f"and ID_SpaceHeatingTank == {id_buffer} " \
@@ -535,7 +541,8 @@ class ECEMFPostProcess:
                               ):
 
         # load the table where real IDs are matched to the clustered IDs:
-        match = pd.read_excel(self.path_to_project / f"Original_Building_IDs_to_clusters_{self.region}.xlsx",
+        match = pd.read_excel(self.path_to_project /
+                              f"Original_Building_IDs_to_clusters_{self.region}_{self.year}.xlsx",
                               engine="openpyxl")
         # create a dict of the matches:
         match_dict = match.to_dict(orient="list")
@@ -605,7 +612,8 @@ class ECEMFPostProcess:
         print("saved add information csv")
 
     def __file_name__(self):
-        return f"{self.region}_" \
+        return f"{self.year}_" \
+               f"{self.region}_" \
                f"PV-{round(self.pv_installation_percentage * 100)}%_" \
                f"DHW-{round(self.dhw_storage_percentage * 100)}%_" \
                f"Buffer-{round(self.buffer_storage_percentage * 100)}%_" \
@@ -613,7 +621,7 @@ class ECEMFPostProcess:
                f"AirHP-{round(self.air_hp_percentage * 100)}%_" \
                f"GroundHP-{round(self.ground_hp_percentage * 100)}%_" \
                f"directE-{round(self.direct_electric_heating_percentage * 100)}%_" \
-               f"NoHeating-{round(self.no_heating_percentage * 100)}%_" \
+               f"Conventional-{round(self.gases_percentage * 100)}%_" \
                f"AC-{round(self.ac_percentage * 100)}%_" \
                f"Battery-{round(self.battery_percentage * 100)}%_" \
                f"Prosumager-{round(self.prosumager_percentage * 100)}%"
@@ -709,8 +717,14 @@ def create_figure_worker(scenario_list: list,
     colors = [cmap(i) for i in np.linspace(0, 1, len(scenario_list))]
 
     for i, scen in enumerate(scenario_list):
+
         data = pd.read_parquet(file_loc / f"{demand_feed}_{get_file_name(scen)}.parquet.gzip", engine="pyarrow")
         data_enhanced = get_season_and_datetime(data)
+        if changed_parameter in scen.keys():
+            nh = f"{round(scen[changed_parameter] * 100)} %"
+        else:
+            nh = f"{scen['year']}"
+
         median = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").median().mean(axis=1)
         # stds = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").std().mean(axis=1)
         percentile_75 = data_enhanced.query("season==@Season").drop(columns=["season"]).groupby("hour").quantile(
@@ -722,7 +736,7 @@ def create_figure_worker(scenario_list: list,
                 median,
                 color=colors[i],
                 linewidth=2,
-                label=f'{changed_parameter}: {round(scen[changed_parameter] * 100)}% Median'.replace("_", " "),
+                label=f'{changed_parameter}: {nh} Median'.replace("_", " "),
                 )
 
         ax.fill_between(np.arange(24),
@@ -748,7 +762,8 @@ def create_figure_worker(scenario_list: list,
 
 
 def get_file_name(dictionary: dict):
-    return f"{dictionary['region']}_" \
+    return f"{dictionary['year']}_" \
+           f"{dictionary['region']}_" \
            f"PV-{round(dictionary['pv_installation_percentage'] * 100)}%_" \
            f"DHW-{round(dictionary['dhw_storage_percentage'] * 100)}%_" \
            f"Buffer-{round(dictionary['buffer_storage_percentage'] * 100)}%_" \
@@ -756,7 +771,7 @@ def get_file_name(dictionary: dict):
            f"AirHP-{round(dictionary['air_hp_percentage'] * 100)}%_" \
            f"GroundHP-{round(dictionary['ground_hp_percentage'] * 100)}%_" \
            f"directE-{round(dictionary['direct_electric_heating_percentage'] * 100)}%_" \
-           f"NoHeating-{round(dictionary['no_heating_percentage'] * 100)}%_" \
+           f"Conventional-{round(dictionary['gases_percentage'] * 100)}%_" \
            f"AC-{round(dictionary['ac_percentage'] * 100)}%_" \
            f"Battery-{round(dictionary['battery_percentage'] * 100)}%_" \
            f"Prosumager-{round(dictionary['prosumager_percentage'] * 100)}%"
@@ -788,12 +803,29 @@ def get_season_and_datetime(df: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+def check_if_lists_in_dict_are_same_length(dictionary: dict) -> bool:
+    # check that the lists are the same length because each scenario will be one index of the lists:
+    value_list = []
+    for value in dictionary.values():
+        if isinstance(value, list):
+            value_list.append(value)
+    if any(len(v) != value_list[0] for v in value_list):
+        return True
+    else:
+        return False
+
+
 class ECEMFFigures:
-    def __init__(self, scenario: dict):
+    def __init__(self, scenario: dict, scenario_name: str = None):
         self.baseline = scenario["baseline"]
         self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{self.baseline['region']}/data_output/"
         self.path_2_figure = Path(__file__).parent / r"data/figure" / f"ECEMF_T4.3_{self.baseline['region']}"
-        if any(isinstance(value, list) for value in scenario.values()):
+        nr_lists = 0
+        for value in scenario.values():
+            if isinstance(value, list):
+                nr_lists += 1
+
+        if nr_lists == 1:
             # we have multiple scenarios
             changing_parameter, values = [(key, value) for key, value in scenario.items() if isinstance(value, list)][0]
             self.changing_parameter = changing_parameter
@@ -804,6 +836,21 @@ class ECEMFFigures:
                 new_scen[changing_parameter] = parameter
                 scenarios.append(new_scen)
             self.scenario = scenarios
+
+        elif nr_lists > 1:
+            assert check_if_lists_in_dict_are_same_length(scenario), "lists do not have the same length"
+            scenarios = []
+            changing_parameters = [(key, value) for key, value in scenario.items() if isinstance(value, list)]
+            for i in range(len(changing_parameters[0][1])):
+                new_scen = scenario.copy()
+                for param, values in changing_parameters:
+                    new_scen[param] = values[i]
+                scenarios.append(new_scen)
+            self.scenario = scenarios
+            # if this scenario is chosen, scneario name has to be provided:
+            assert scenario_name is not None, "please provide scenario name"
+            self.changing_parameter = scenario_name
+
         else:
             self.scenario = scenario
 
@@ -844,7 +891,7 @@ class ECEMFFigures:
         :return: None
         """
         if isinstance(self.scenario, list):
-            destination_path = self.data_output / f"scenario_comparisons_{self.changing_parameter}_{get_file_name(self.scenario[0])}"
+            destination_path = self.data_output / f"{str(self.changing_parameter).upper()}_{get_file_name(self.scenario[0])}"
             info_destination_path = destination_path / "INFO"
             if not destination_path.exists():
                 destination_path.mkdir()
@@ -858,7 +905,6 @@ class ECEMFFigures:
                             shutil.copy(file, info_destination_path)
                         else:
                             shutil.copy(file, destination_path)
-
 
     def create_boxplot_p_to_p_difference(self,
                                          baseline: pd.DataFrame,
@@ -946,13 +992,18 @@ class ECEMFFigures:
         feed_dict_d = {}
         demand_dict_f = {}
         feed_dict_f = {}
-        if isinstance(self.scenario, dict):
+        nr_lists = 0
+        for value in scenario.values():
+            if isinstance(value, list):
+                nr_lists += 1
+
+        if nr_lists == 0:
             data = pd.read_csv(self.data_output / f"{get_file_name(self.scenario)}.csv", sep=";")
             demand_dict_d["scenario"] = data.query("type=='grid demand on max demand day'").iloc[:, 3:]
             feed_dict_d["scenario"] = data.query("type=='feed to grid on max demand day'").iloc[:, 3:]
             demand_dict_f["scenario"] = data.query("type=='grid demand on max feed day'").iloc[:, 3:]
             feed_dict_f["scenario"] = data.query("type=='feed to grid on max feed day'").iloc[:, 3:]
-        else:
+        elif nr_lists == 1:
             for scen in self.scenario:
                 data = pd.read_csv(self.data_output / f"{get_file_name(scen)}.csv", sep=";")
                 demand_dict_d[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.query(
@@ -965,6 +1016,21 @@ class ECEMFFigures:
                     "type=='grid demand on max feed day'"
                 ).iloc[:, 3:]
                 feed_dict_f[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.query(
+                    "type=='feed to grid on max feed day'"
+                ).iloc[:, 3:]
+        else:
+            for scen in self.scenario:
+                data = pd.read_csv(self.data_output / f"{get_file_name(scen)}.csv", sep=";")
+                demand_dict_d[f"{self.changing_parameter}_{scen['year']}"] = data.query(
+                    "type=='grid demand on max demand day'"
+                ).iloc[:, 3:]
+                feed_dict_d[f"{self.changing_parameter}_{scen['year']}"] = data.query(
+                    "type=='feed to grid on max demand day'"
+                ).iloc[:, 3:]
+                demand_dict_f[f"{self.changing_parameter}_{scen['year']}"] = data.query(
+                    "type=='grid demand on max feed day'"
+                ).iloc[:, 3:]
+                feed_dict_f[f"{self.changing_parameter}_{scen['year']}"] = data.query(
                     "type=='feed to grid on max feed day'"
                 ).iloc[:, 3:]
 
@@ -1070,10 +1136,18 @@ class ECEMFFigures:
         heating_dict = {}
         cooling_dict = {}
         for i, scen in enumerate(self.scenario):
-            heating = pd.read_parquet(self.data_output / f"Heating_{get_file_name(scen)}.parquet.gzip", engine="pyarrow")
-            cooling = pd.read_parquet(self.data_output / f"Cooling_{get_file_name(scen)}.parquet.gzip", engine="pyarrow")
-            heating_dict[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = heating.sum().sum() / 1000 / 1000  #MWh
-            cooling_dict[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = cooling.sum().sum() / 1000 / 1000  #MWh
+            heating = pd.read_parquet(self.data_output / f"Heating_{get_file_name(scen)}.parquet.gzip",
+                                      engine="pyarrow")
+            cooling = pd.read_parquet(self.data_output / f"Cooling_{get_file_name(scen)}.parquet.gzip",
+                                      engine="pyarrow")
+            if self.changing_parameter in scen.keys():
+                nh = f"{round(scen[self.changing_parameter] * 100)} %"
+            else:
+                nh = f"{scen['year']}"
+            heating_dict[
+                f"{self.changing_parameter}_{nh}"] = heating.sum().sum() / 1000 / 1000  # MWh
+            cooling_dict[
+                f"{self.changing_parameter}_{nh}"] = cooling.sum().sum() / 1000 / 1000  # MWh
 
         x_heating, y_heating = list(heating_dict.keys()), list(heating_dict.values())
         x_cooling, y_cooling = list(cooling_dict.keys()), list(cooling_dict.values())
@@ -1088,8 +1162,6 @@ class ECEMFFigures:
         plt.xticks(rotation=90)
         plt.tight_layout()
         fig.savefig(fig_path / "Total_Heating_Cooling.png")
-
-
 
     def plot_seasonal_daily_means(self,
                                   df_baseline: pd.DataFrame,
@@ -1176,6 +1248,7 @@ if __name__ == "__main__":
     # Heating element is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating buffer storage is only installed in buildings with HPs. Probability only refers to buildings with HP
     baseline = {
+        "year": 2020,
         "region": "Murcia",
         "pv_installation_percentage": 0.015,
         "dhw_storage_percentage": 0.5,
@@ -1184,7 +1257,7 @@ if __name__ == "__main__":
         "air_hp_percentage": 0.2,
         "ground_hp_percentage": 0,
         "direct_electric_heating_percentage": 0.39,
-        "no_heating_percentage": 0.22,
+        "gases_percentage": 0.19,
         "ac_percentage": 0.5,
         "battery_percentage": 0.1,
         "prosumager_percentage": 0,
@@ -1195,26 +1268,44 @@ if __name__ == "__main__":
     AC_increase = np.arange(0, 1.1, 0.1).tolist()
     air_hp_increase = np.arange(0, 0.7, 0.1).tolist()
 
+    # to only analyse one parameter use ECEMFFigures wiht on parameter as list:
+    # scenario = {
+    #     "year": 2020,
+    #     "region": "Murcia",
+    #     "pv_installation_percentage": pv_increase,
+    #     "dhw_storage_percentage": 0.5,
+    #     "buffer_storage_percentage": 0,
+    #     "heating_element_percentage": 0,
+    #     "air_hp_percentage": 0.2,
+    #     "ground_hp_percentage": 0,
+    #     "direct_electric_heating_percentage": 0.39,
+    #     "gases_percentage": 0.19,
+    #     "ac_percentage": 0.5,
+    #     "battery_percentage": 0.1,
+    #     "prosumager_percentage": 0,
+    #     "baseline": baseline
+    # }
+    #
+    # ECEMFFigures(scenario=scenario).create_figures()
+    # ECEMFFigures(scenario=scenario).copy_scenario_outputs_into_specific_folder()
+
+    # calculate a complete scenario run:
     scenario = {
+        "year": [2020, 2030, 2040, 2050],
         "region": "Murcia",
-        "pv_installation_percentage": 0.015,
+        "pv_installation_percentage": [0.015, 0.15, 0.3, 0.5],
         "dhw_storage_percentage": 0.5,
         "buffer_storage_percentage": 0,
         "heating_element_percentage": 0,
-        "air_hp_percentage": 0.2,
-        "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": direct_electric_heating_increase,
-        "no_heating_percentage": 0.22,
-        "ac_percentage": 0.5,
+        "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
+        "ground_hp_percentage": [0, 0.05, 0.1, 0.15],
+        "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.1],
+        "gases_percentage": [0.19, 0.15, 0.1, 0.05],
+        "ac_percentage": [0.5, 0.65, 0.8, 1],
         "battery_percentage": 0.1,
-        "prosumager_percentage": 0,
+        "prosumager_percentage": [0, 0.1, 0.3, 0.5],
         "baseline": baseline
     }
-
-    ECEMFFigures(scenario=scenario).create_figures()
-    ECEMFFigures(scenario=scenario).copy_scenario_outputs_into_specific_folder()
-
-    # todo generate graph for single scenarios where room cooling and room heating
-    #  is visualized as part of the max demand
-
-    # todo get the 2030 and 2050 scenario only for heating (no DHW)
+    scen_name = "High Eff"
+    ECEMFFigures(scenario=scenario, scenario_name=scen_name).create_figures()
+    ECEMFFigures(scenario=scenario, scenario_name=scen_name).copy_scenario_outputs_into_specific_folder()
