@@ -1293,19 +1293,40 @@ if __name__ == "__main__":
     scenario = {
         "year": [2020, 2030, 2040, 2050],
         "region": "Murcia",
-        "pv_installation_percentage": [0.015, 0.15, 0.3, 0.5],
-        "dhw_storage_percentage": 0.5,
-        "buffer_storage_percentage": 0,
+        "pv_installation_percentage": [0.015, 0.1, 0.4, 0.6],
+        "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
+        "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
         "heating_element_percentage": 0,
         "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
-        "ground_hp_percentage": [0, 0.05, 0.1, 0.15],
+        "ground_hp_percentage": [0, 0.02, 0.04, 0.06],
         "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.1],
-        "gases_percentage": [0.19, 0.15, 0.1, 0.05],
-        "ac_percentage": [0.5, 0.65, 0.8, 1],
-        "battery_percentage": 0.1,
-        "prosumager_percentage": [0, 0.1, 0.3, 0.5],
+        "gases_percentage": [0.19, 0.15, 0.07, 0.02],
+        "ac_percentage": [0.5, 0.6, 0.8, 0.9],
+        "battery_percentage": [0.1, 0.12, 0.2, 0.3],
+        "prosumager_percentage": [0, 0.05, 0.2, 0.5],
         "baseline": baseline
     }
-    scen_name = "High Eff"
-    ECEMFFigures(scenario=scenario, scenario_name=scen_name).create_figures()
+    scen_name = "no_change"
+    # ECEMFFigures(scenario=scenario, scenario_name=scen_name).create_figures()
     ECEMFFigures(scenario=scenario, scenario_name=scen_name).copy_scenario_outputs_into_specific_folder()
+
+
+
+    # scenario = {
+    #     "year": [2020, 2030, 2040, 2050],
+    #     "region": "Murcia",
+    #     "pv_installation_percentage": [0.015, 0.15, 0.3, 0.5],
+    #     "dhw_storage_percentage": 0.5,
+    #     "buffer_storage_percentage": 0,
+    #     "heating_element_percentage": 0,
+    #     "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
+    #     "ground_hp_percentage": [0, 0.05, 0.1, 0.15],
+    #     "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.1],
+    #     "gases_percentage": [0.19, 0.15, 0.1, 0.05],
+    #     "ac_percentage": [0.5, 0.65, 0.8, 1],
+    #     "battery_percentage": 0.1,
+    #     "prosumager_percentage": [0, 0.1, 0.3, 0.5],
+    #     "baseline": baseline
+    # }
+    # todo check that buildings are not switching place!! Building ID has to stay the same
+    # todo send miguel sample scenario where nothing changes but building renovation.
