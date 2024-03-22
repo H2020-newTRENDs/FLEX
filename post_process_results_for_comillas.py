@@ -113,6 +113,7 @@ class ECEMFPostProcess:
     def __init__(self,
                  year: int,
                  region: str,
+                 building_scenario: str,
                  pv_installation_percentage: float,
                  dhw_storage_percentage: float,
                  buffer_storage_percentage: float,
@@ -142,10 +143,12 @@ class ECEMFPostProcess:
         self.baseline = baseline
         self.region = region
         self.year = year
-        self.path_to_project = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}_{year}"
+        self.building_scenario = building_scenario
+        self.path_to_results = Path(__file__).parent / "data" / "output" / f"ECEMF_T4.3_{region}_{year}_{building_scenario}"
+        self.path_to_model_input = Path(__file__).parent / "data" / "input_operation" / f"ECEMF_T4.3_{region}_{year}_{building_scenario}"
         self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}/data_output/"
         self.clustered_building_df = self.load_clustered_building_df()
-        self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}_{year}"))
+        self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}_{year}_{building_scenario}"))
         self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
         self.pv_sizes = {
             1: 0,  # kWp
@@ -209,7 +212,7 @@ class ECEMFPostProcess:
         assert self.air_hp_percentage + self.ground_hp_percentage + self.direct_electric_heating_percentage + gases_percentage <= 1
 
     def load_clustered_building_df(self):
-        return pd.read_excel(self.path_to_project / f"OperationScenario_Component_Building.xlsx")
+        return pd.read_excel(self.path_to_model_input / f"OperationScenario_Component_Building.xlsx")
 
     def percentage_of_total_buildings(self):
         """
@@ -541,7 +544,7 @@ class ECEMFPostProcess:
                               ):
 
         # load the table where real IDs are matched to the clustered IDs:
-        match = pd.read_excel(self.path_to_project /
+        match = pd.read_excel(self.path_to_model_input /
                               f"Original_Building_IDs_to_clusters_{self.region}_{self.year}.xlsx",
                               engine="openpyxl")
         # create a dict of the matches:
@@ -614,6 +617,7 @@ class ECEMFPostProcess:
     def __file_name__(self):
         return f"{self.year}_" \
                f"{self.region}_" \
+               f"{self.building_scenario}_" \
                f"PV-{round(self.pv_installation_percentage * 100)}%_" \
                f"DHW-{round(self.dhw_storage_percentage * 100)}%_" \
                f"Buffer-{round(self.buffer_storage_percentage * 100)}%_" \
@@ -764,6 +768,7 @@ def create_figure_worker(scenario_list: list,
 def get_file_name(dictionary: dict):
     return f"{dictionary['year']}_" \
            f"{dictionary['region']}_" \
+           f"{dictionary['building_scenario']}_" \
            f"PV-{round(dictionary['pv_installation_percentage'] * 100)}%_" \
            f"DHW-{round(dictionary['dhw_storage_percentage'] * 100)}%_" \
            f"Buffer-{round(dictionary['buffer_storage_percentage'] * 100)}%_" \
@@ -818,6 +823,7 @@ def check_if_lists_in_dict_are_same_length(dictionary: dict) -> bool:
 class ECEMFFigures:
     def __init__(self, scenario: dict, scenario_name: str = None):
         self.baseline = scenario["baseline"]
+        self.building_scenario = scenario["building_scenario"]
         self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{self.baseline['region']}/data_output/"
         self.path_2_figure = Path(__file__).parent / r"data/figure" / f"ECEMF_T4.3_{self.baseline['region']}"
         nr_lists = 0
@@ -1099,8 +1105,8 @@ class ECEMFFigures:
             ax2.set_xlabel('Hour of Day')
             ax1.set_ylabel(f'Grid demand (MW)')
             ax2.set_ylabel(f'Feed to grid (MW)')
-            ax1.set_title(f'Total demand for {region} on peak {key} day')
-            ax2.set_title(f'Total feed to grid for {region} on peak {key} day')
+            ax1.set_title(f'Total demand for {region} on peak {key} day {self.building_scenario}')
+            ax2.set_title(f'Total feed to grid for {region} on peak {key} day {self.building_scenario}')
             ax1.legend(loc="upper left")
             ax2.legend(loc="lower left")
 
@@ -1250,13 +1256,14 @@ if __name__ == "__main__":
     baseline = {
         "year": 2020,
         "region": "Murcia",
+        "building_scenario": "high_eff",
         "pv_installation_percentage": 0.015,
         "dhw_storage_percentage": 0.5,
         "buffer_storage_percentage": 0,
         "heating_element_percentage": 0,
         "air_hp_percentage": 0.2,
         "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0.39,
+        "direct_electric_heating_percentage": 0,
         "gases_percentage": 0.19,
         "ac_percentage": 0.5,
         "battery_percentage": 0.1,
@@ -1269,46 +1276,48 @@ if __name__ == "__main__":
     air_hp_increase = np.arange(0, 0.7, 0.1).tolist()
 
     # to only analyse one parameter use ECEMFFigures wiht on parameter as list:
-    # scenario = {
-    #     "year": 2020,
-    #     "region": "Murcia",
-    #     "pv_installation_percentage": pv_increase,
-    #     "dhw_storage_percentage": 0.5,
-    #     "buffer_storage_percentage": 0,
-    #     "heating_element_percentage": 0,
-    #     "air_hp_percentage": 0.2,
-    #     "ground_hp_percentage": 0,
-    #     "direct_electric_heating_percentage": 0.39,
-    #     "gases_percentage": 0.19,
-    #     "ac_percentage": 0.5,
-    #     "battery_percentage": 0.1,
-    #     "prosumager_percentage": 0,
-    #     "baseline": baseline
-    # }
+    scenario = {
+        "year": [2020, 2030, 2040, 2050],
+        "region": "Murcia",
+        "building_scenario": "moderate_eff",
+        "pv_installation_percentage": 0.015,
+        "dhw_storage_percentage": 0.5,
+        "buffer_storage_percentage": 0,
+        "heating_element_percentage": 0,
+        "air_hp_percentage": 0.2,
+        "ground_hp_percentage": 0,
+        "direct_electric_heating_percentage": 0,
+        "gases_percentage": 0.19,
+        "ac_percentage": 0.5,
+        "battery_percentage": 0.1,
+        "prosumager_percentage": 0,
+        "baseline": baseline
+    }
     #
     # ECEMFFigures(scenario=scenario).create_figures()
     # ECEMFFigures(scenario=scenario).copy_scenario_outputs_into_specific_folder()
 
     # calculate a complete scenario run:
-    scenario = {
-        "year": [2020, 2030, 2040, 2050],
-        "region": "Murcia",
-        "pv_installation_percentage": [0.015, 0.1, 0.4, 0.6],
-        "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
-        "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
-        "heating_element_percentage": 0,
-        "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
-        "ground_hp_percentage": [0, 0.02, 0.04, 0.06],
-        "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.1],
-        "gases_percentage": [0.19, 0.15, 0.07, 0.02],
-        "ac_percentage": [0.5, 0.6, 0.8, 0.9],
-        "battery_percentage": [0.1, 0.12, 0.2, 0.3],
-        "prosumager_percentage": [0, 0.05, 0.2, 0.5],
-        "baseline": baseline
-    }
-    scen_name = "no_change"
-    # ECEMFFigures(scenario=scenario, scenario_name=scen_name).create_figures()
-    ECEMFFigures(scenario=scenario, scenario_name=scen_name).copy_scenario_outputs_into_specific_folder()
+    # scenario = {
+    #     "year": [2020, 2030, 2040, 2050],
+    #     "region": "Murcia",
+    #     "building_scenario": "high_eff",
+    #     "pv_installation_percentage": [0.015, 0.1, 0.4, 0.6],
+    #     "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
+    #     "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
+    #     "heating_element_percentage": 0,
+    #     "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
+    #     "ground_hp_percentage": [0, 0.02, 0.04, 0.06],
+    #     "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.1],
+    #     "gases_percentage": [0.19, 0.15, 0.07, 0.02],
+    #     "ac_percentage": [0.5, 0.6, 0.8, 0.9],
+    #     "battery_percentage": [0.1, 0.12, 0.2, 0.3],
+    #     "prosumager_percentage": [0, 0.05, 0.2, 0.5],
+    #     "baseline": baseline
+    # }
+    scen_name = "base_base"
+    ECEMFFigures(scenario=scenario, scenario_name=scen_name).create_figures()
+    # ECEMFFigures(scenario=scenario, scenario_name=scen_name).copy_scenario_outputs_into_specific_folder()
 
 
 
