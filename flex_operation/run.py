@@ -1,3 +1,4 @@
+import random
 from typing import List, Tuple
 import numpy as np
 import pandas as pd
@@ -246,7 +247,7 @@ def main(project_name: str,
             )
             return
 
-        number_of_physical_cores = min(int(multiprocessing.cpu_count() / 2 - 4), len(missing_scenarios))
+        number_of_physical_cores = 5 #min(int(multiprocessing.cpu_count() / 2 - 4), len(missing_scenarios))
         new_scenario_names = split_scenario(orig_project_name=project_name, n_cores=number_of_physical_cores)
         input_list = [
             (
@@ -337,6 +338,7 @@ def run_operation_model(cfg: "Config",
         return  # stop the code
 
     opt_instance = OptInstance().create_instance()
+    random.seed(42)
     for id_operation_scenario in tqdm(scenario_ids, desc=f"{cfg.project_name}"):
         logger.info(f"FlexOperation Model --> Scenario = {id_operation_scenario}.")
         scenario = OperationScenario(scenario_id=id_operation_scenario, config=cfg, tables=mother_operation)
@@ -474,14 +476,14 @@ if __name__ == "__main__":
          save_hourly_results=True,
          save_monthly_results=False,
          save_yearly_results=True,
-         hourly_save_list=[
-             "Load",
-             "Grid",
-             "Feed2Grid",
-             "E_Heating_HP_out",
-             "E_RoomCooling",
-             "T_Room"
-         ]
+         # hourly_save_list=[
+         #     "Load",
+         #     "Grid",
+         #     "Feed2Grid",
+         #     "E_Heating_HP_out",
+         #     "E_RoomCooling",
+         #     "T_Room"
+         # ]
          )
 
     # TODO: direct electric heating is excluded from optim, the indoor set temperature for direct electricity
