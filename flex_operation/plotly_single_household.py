@@ -104,9 +104,13 @@ class PlotlyVisualize(MotherVisualization):
         optimization_load = (
                 self.hourly_results_optimization_df.Load.to_numpy() / 1000
         )  # kW
-        electricity_price = (
-                self.hourly_results_reference_df.ElectricityPrice.to_numpy() * 1000
-        )  # ct/kWh
+        try:
+            electricity_price = (
+                    self.hourly_results_reference_df.ElectricityPrice.to_numpy() * 1000
+            )  # ct/kWh
+        except:
+            print("no energy price in hourly results saved")
+            electricity_price = np.zeros(shape=reference_load.shape)
 
         fig = make_subplots(
             rows=1, cols=1, shared_xaxes=True, specs=[[{"secondary_y": True}]]

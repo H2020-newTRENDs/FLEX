@@ -96,7 +96,7 @@ class OperationScenario:
                 setattr(self, component_info.name, instance)
 
     def setup_region_weather_and_pv_generation(self):
-        df = self.db.read_dataframe(OperationTable.RegionWeatherProfile)
+        df = self.tables.OperationScenario_RegionWeather
         self.region.temperature = df["temperature"].to_numpy()
         self.region.radiation_north = df["radiation_north"].to_numpy()
         self.region.radiation_south = df["radiation_south"].to_numpy()
@@ -105,7 +105,7 @@ class OperationScenario:
         self.pv.generation = df[f"pv_generation_{self.pv.orientation}"].to_numpy() * self.pv.size
 
     def setup_energy_price(self):
-        df = self.db.read_dataframe(OperationTable.EnergyPriceProfile)
+        df = self.tables.OperationScenario_EnergyPrice
         for key, value in self.energy_price.__dict__.items():
             if key.startswith("id_") and value is not None:
                 energy_carrier = key.replace("id_", "")

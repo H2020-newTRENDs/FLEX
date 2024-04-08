@@ -247,7 +247,7 @@ def main(project_name: str,
             )
             return
 
-        number_of_physical_cores = min(int(multiprocessing.cpu_count() / 2 - 4), len(missing_scenarios))
+        number_of_physical_cores = 5 #min(int(multiprocessing.cpu_count() / 2 - 4), len(missing_scenarios))
         new_scenario_names = split_scenario(orig_project_name=project_name, n_cores=number_of_physical_cores)
         input_list = [
             (
