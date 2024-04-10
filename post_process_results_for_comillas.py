@@ -616,11 +616,6 @@ class ECEMFPostProcess:
         new_scenario_table = pd.concat(row_list, axis=0).drop(columns=["number_of_buildings"]).reset_index(drop=True)
         return new_scenario_table
 
-
-
-
-        pass
-
     def heating_systems_change(self):
         prev_scen = ECEMFPostProcess(**self.previous_scenario, previous_scenario=None)
 
@@ -647,24 +642,28 @@ class ECEMFPostProcess:
         change_buffer_tank = self.buffer_storage_percentage - prev_scen.buffer_storage_percentage
         change_prosumager = self.prosumager_percentage - prev_scen.prosumager_percentage
 
-        percentage_dict = {
-            "ID_PV": change_pv,
+        percentage_dict_heating_systems = {
             "ID_Boiler_HP_air": change_hp_air,
             "ID_Boiler_HP_ground": change_hp_ground,
             "ID_Boiler_direct_e": change_direct_e,
             "ID_Boiler_gases": change_gases,
             "ID_Boiler_no_heating": change_no_heating,
+        }
+        percentage_dict_storage_systems = {
+            "ID_PV": change_pv,
             "ID_HotWaterTank": change_dhw_tank,
             "ID_SpaceCoolingTechnology": change_cooling,
-            "ID_Battery": change_battery,
             "ID_SpaceHeatingTank": change_buffer_tank,
             "ID_Prosumager": change_prosumager,
+            "ID_Battery": change_battery,
         }
+        # Sort the dictionary by its values so the heating systems can be replaced in the next step.
+        # The storage systems have to be after the heating systems because their percentage depends partly on the
+        # installed systems (eg. Battery)
+        sorted_dict = dict(sorted(percentage_dict_heating_systems.items(), key=lambda item: item[1]))
+        percentage_dict = {**sorted_dict, **percentage_dict_storage_systems}
 
-        # Sort the dictionary by its values
-        sorted_dict = dict(sorted(percentage_dict.items(), key=lambda item: item[1]))
-
-        for tech_name, perc_increase in sorted_dict.items():
+        for tech_name, perc_increase in percentage_dict.items():
             if "ID_Boiler" in tech_name:  # differentiate between the different heating systems
                 id_name = "ID_Boiler"
                 if "HP_air" in tech_name:
@@ -710,28 +709,43 @@ class ECEMFPostProcess:
             if perc_increase == 0:
                 continue  # nothing changes
 
+            def query_or_full_df(dataframe, query):
+                if query:
+                    return dataframe.query(query)
+                else:
+                    # Query string is empty, return the full DataFrame
+                    return dataframe
+
             # the perc increase needs first to be set to "changing" in the buildings that dont have the tech yet
             # except if the percentage is declining
             if perc_increase < 0:  # if tech is decreasing tech_id_without and tech_id have to be switched:
                 tech_id, tech_id_without = tech_id_without, tech_id  # doesnt affect the heating techs
-            # for non heating technoligies the perc change has to be negative and positive at the same time because
+            # for non heating technologies the perc change has to be negative and positive at the same time because
             # they replace themselves:
+            filter_query = ""
+            if tech_name == "ID_Battery":  # only concerns buildings with PV
+                filter_query = f"ID_PV in {['new_PV', 2, 3, 4, 5, 6, 7]}"
+            if tech_name == "ID_SpaceHeatingTank":  # only buildings with heat pumps can have buffer storage
+                filter_query = f"ID_Boiler in {[2, 3]}"
 
             if perc_increase < 0 or not "ID_Boiler" == id_name:
                 b_type_group = df.groupby("type")
                 for b_type, group in b_type_group:
+                    filtered_group = query_or_full_df(group, filter_query)
                     # changing number is the number of systems that will be exchanged
-                    changing_number = round(group[id_name].count() * perc_increase)
+                    changing_number = round(filtered_group[id_name].count() * perc_increase)
                     # choose the buildings with the tech id and set some of them to "change"
-                    indices_to_replace = group.loc[group.loc[:, id_name].isin(tech_id_without[b_type]), id_name].sample(
-                        n=abs(changing_number), random_state=42).index
+                    indices_to_replace = filtered_group.loc[
+                        filtered_group.loc[:, id_name].isin(tech_id_without[b_type]), id_name
+                    ].sample(n=abs(changing_number), random_state=42).index
                     df.loc[indices_to_replace, id_name] = "changing"
 
             if perc_increase > 0 or not "ID_Boiler" == id_name:
                 b_type_group = df.groupby("type")
                 for b_type, group in b_type_group:
-                    changing_number = round(group[id_name].count() * perc_increase)
-                    indices_changing = group.loc[group.loc[:, id_name] == "changing", id_name].sample(
+                    filtered_group = query_or_full_df(group, filter_query)
+                    changing_number = round(filtered_group[id_name].count() * perc_increase)
+                    indices_changing = filtered_group.loc[filtered_group.loc[:, id_name] == "changing", id_name].sample(
                         n=abs(changing_number), random_state=42).index
                     if tech_name == "ID_PV":
                         df.loc[
@@ -802,7 +816,7 @@ class ECEMFPostProcess:
             # change the technologies based on the change in percentages compared to the previous scenario
             previous_df_with_changed_heating_system = self.heating_systems_change()
             # now change the buildings
-            self.building_change(previous_df_with_changed_heating_system)
+            scenario_building_table = self.building_change(previous_df_with_changed_heating_system)
 
 
             # for heating systems that are increased choose buildings that are "in transition" and without heating
