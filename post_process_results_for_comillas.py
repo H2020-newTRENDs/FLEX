@@ -612,6 +612,8 @@ class ECEMFPostProcess:
             , :].copy()
             # add prosumager ID from old table
             new_row["ID_Prosumager"] = row["ID_Prosumager"]
+            # overwrite the ID Building (from flex) with the real ID Building from old table
+            new_row["ID_Building"] = row["ID_Building"]
             row_list.append(new_row)
 
         new_scenario_table = pd.concat(row_list, axis=0).drop(columns=["number_of_buildings"]).reset_index(drop=True)
