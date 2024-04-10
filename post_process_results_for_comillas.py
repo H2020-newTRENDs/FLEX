@@ -23,90 +23,29 @@ from flex.db import DB
 from flex.config import Config
 from flex_operation.constants import OperationTable
 
-
-class ECEMFBuildingComparison:
-    def __init__(self, region: str):
-        self.region = region
-        self.path_to_osm = Path(r"C:\Users\mascherbauer\PycharmProjects\OSM")
-        self.path_to_project = Path(
-            r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects") / f"ECEMF_T4.3_{region}_{year}"
-        self.original_building_ids = self.load_original_building_ids()
-        self.clustered_building_df = self.load_clustered_building_df()
-        self.original_building_df = self.load_original_building_df()
-        self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}_{year}"))
-        self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
-        # add the cluster ID to the original building df
-        self.add_cluster_id_to_original_building_df()
-
-    def load_original_building_ids(self):
-        return pd.read_excel(self.path_to_project / f"Original_Building_IDs_to_clusters_{self.region}.xlsx")
-
-    def load_clustered_building_df(self):
-        return pd.read_excel(self.path_to_project / f"OperationScenario_Component_Building_small_{self.region}.xlsx")
-
-    def load_original_building_df(self):
-        # add the construction period, and hwb from invert, height from Urban3R
-        column_names = [
-            "ID_Building",
-            "construction_period_start",
-            "construction_period_end",
-            "hwb",
-            "numero_viv",
-            "height",
-            "demanda_ca"
-        ]
-        df_combined = pd.read_excel(self.path_to_osm / f"combined_building_df_{self.region}.xlsx",
-                                    usecols=column_names).rename(columns={"numero_viv": "number of persons"})
-        df_5r1c = pd.read_excel(self.path_to_osm / f"OperationScenario_Component_Building_{self.region}.xlsx")
-        df = df_5r1c.merge(df_combined, on="ID_Building")
-        return df
-
-    def add_cluster_id_to_original_building_df(self):
-        for cluster_id, building_ids in self.original_building_ids.iteritems():
-            list_of_ids = building_ids.dropna().astype(int).tolist()
-            self.original_building_df.loc[
-                self.original_building_df.loc[:, "ID_Building"].isin(list_of_ids), "Cluster ID"
-            ] = cluster_id
-
-    def select_original_buildings_for_cluster(self, cluster_id: int):
-        real_building_ids = self.original_building_ids.loc[:, cluster_id].dropna().astype(int).tolist()
-        return self.original_building_df.query(f"ID_Building in {real_building_ids}")
-
-    def show_variance_within_clusters(self):
-        columns_to_plot = [
-            "Cluster ID",
-            "Af",
-            "Hop",
-            "Htr_w",
-            "Hve",
-            "CM_factor",
-            "effective_window_area_south",
-            "construction_period_start",
-            "hwb",
-            "demanda_ca",
-            "number of persons",
-        ]
-
-        # drop buildings that are alone in a cluster as they obviously align with the original data:
-        value_counts = self.original_building_df['Cluster ID'].value_counts()
-        values_to_drop = value_counts[value_counts == 1].index
-        filtered_df = self.original_building_df[~self.original_building_df['Cluster ID'].isin(values_to_drop)]
-        plot_df = filtered_df[columns_to_plot].sort_values("Cluster ID").melt(id_vars="Cluster ID", )
-
-        number_columns = len(columns_to_plot) - 1
-        fig = px.box(data_frame=plot_df,
-                     color="Cluster ID",
-                     facet_col="variable",
-                     facet_col_wrap=1,
-                     facet_col_spacing=0.01,
-                     facet_row_spacing=0.02,
-                     width=800,
-                     height=350 * number_columns, )
-        fig.update_yaxes(matches=None)
-        fig.show()
-
-    def main(self):
-        self.show_variance_within_clusters()
+TRANSLATION_2_ID = {
+    "ID_PV": {
+        0: [1],  # IDs with no PV
+        1: [2, 3],  # PVs with optimal angles
+        2: [4, 5],  # PVs east
+        3: [6, 7],  # PVs west
+    },
+    "ID_HotWaterTank": {
+        0: [1],  # no DHW
+        1: [2, 3]  # with DHW
+    },
+    "ID_Boiler": {
+        0: [2],  # Air HP
+        1: [3],  # Ground HP
+        2: [1],  # Electric
+        3: [5],  # gases
+        4: [4],  # no_heating
+    },
+    "ID_SpaceCoolingTechnology": {
+        0: [2],  # without AC
+        1: [1]  # with AC
+    },
+}
 
 
 class ECEMFPostProcess:
@@ -125,7 +64,8 @@ class ECEMFPostProcess:
                  ac_percentage: float,
                  battery_percentage: float,
                  prosumager_percentage: float,
-                 baseline: dict
+                 baseline: dict,
+                 previous_scenario: dict
                  ):
         """
         :param year: int of the year that corresponds to the renovation of buildings and lowered heat demand
@@ -139,8 +79,11 @@ class ECEMFPostProcess:
         :param ground_hp_percentage: percentage of buildings having a ground sourced heat pump
         :param direct_electric_heating_percentage: percentage of buildings having a direct electric heating system
         :param ac_percentage: percentage of buildings having an air conditioner for cooling (COP=4)
+        :param baseline: dictionary containing the parameters of the baseline scenario
+        :param previous_scenario: dictionary containing the parameters of the scenario on which this scenario is built on
         """
         self.baseline = baseline
+        self.previous_scenario = previous_scenario
         self.region = region
         self.year = year
         self.building_scenario = building_scenario
@@ -243,15 +186,8 @@ class ECEMFPostProcess:
         choice = random.choices(choices, weights=weights)[0]
         return choice
 
-    def scenario_generator(self) -> pd.DataFrame:
-        """
-        generates a scenario based on the percentage values that are provided for each installation. The values have
-        to be between 0 and 1. 0 = no buildings are equipped with tech, 1 = all buildings are equipped.
-
-        :return: returns a list of all the scenarios IDs for the whole building stock
-        """
-
-        dict_of_inputs = {
+    def return_dict_of_inputs(self):
+        return {
             "ID_PV": [1 - self.pv_installation_percentage, self.pv_installation_percentage * 0.5,
                       self.pv_installation_percentage * 0.25, self.pv_installation_percentage * 0.25],
             "ID_HotWaterTank": [self.dhw_storage_percentage],
@@ -260,29 +196,17 @@ class ECEMFPostProcess:
             "ID_SpaceCoolingTechnology": [self.ac_percentage]
 
         }
-        translation_2_id = {
-            "ID_PV": {
-                0: [1],  # IDs with no PV
-                1: [2, 3],  # PVs with optimal angles
-                2: [4, 5],  # PVs east
-                3: [6, 7],  # PVs west
-            },
-            "ID_HotWaterTank": {
-                0: [1],  # no DHW
-                1: [2, 3]  # with DHW
-            },
-            "ID_Boiler": {
-                0: [2],  # Air HP
-                1: [3],  # Ground HP
-                2: [1],  # Electric
-                3: [5],  # gases
-                4: [4],  # no_heating
-            },
-            "ID_SpaceCoolingTechnology": {
-                0: [2],  # without AC
-                1: [1]  # with AC
-            },
-        }
+
+    def scenario_generator_baseline(self) -> pd.DataFrame:
+        """
+        generates a scenario based on the percentage values that are provided for each installation. The values have
+        to be between 0 and 1. 0 = no buildings are equipped with tech, 1 = all buildings are equipped.
+
+        :return: returns a list of all the scenarios IDs for the whole building stock
+        """
+
+        dict_of_inputs = self.return_dict_of_inputs()
+
         total_scenarios = pd.DataFrame()
         random.seed(42)
         for _, row in tqdm(self.clustered_building_df.iterrows(), desc=f"creating scenario based on the probabilities"):
@@ -297,7 +221,7 @@ class ECEMFPostProcess:
                     # get unique labels for the specific building
                     possible_labels = building_scenario[attribute_name].unique().tolist()
                     # grab the matching number within both lists:
-                    ID = list(set(possible_labels).intersection(translation_2_id[attribute_name][chosen_id]))[0]
+                    ID = list(set(possible_labels).intersection(TRANSLATION_2_ID[attribute_name][chosen_id]))[0]
                     # add the ID and to chosen_building_attributes
                     chosen_building_attributes[attribute_name] = ID
 
@@ -362,56 +286,49 @@ class ECEMFPostProcess:
             return_dict[scen_id] = list_of_scenarios.count(scen_id)
         return return_dict
 
-    def worker(self, id_scenario, number_of_occurences) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
-        # check if optimisation exists for this scenario (dependent on the heating system)
-        heating_system = self.scenario_table.loc[self.scenario_table["ID_Scenario"] == id_scenario, "ID_Boiler"].values[
-            0]
-        # air hp = 2 and ground hp = 3
-        if heating_system == 2 or heating_system == 3:
-            prosumager_possibility = self.prosumager_percentage
+    def worker(self, id_building, id_scenario, prosumager) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
+
+        result_matrix_demand = pd.DataFrame(index=range(8760), columns=[id_building])
+        result_matrix_feed2grid = pd.DataFrame(index=range(8760), columns=[id_building])
+        result_matrix_e_cooling = pd.DataFrame(index=range(8760), columns=[id_building])
+        result_matrix_e_hp_heating = pd.DataFrame(index=range(8760), columns=[id_building])
+        result_matrix_q_heating = pd.DataFrame(index=range(8760), columns=[id_building])
+
+        if prosumager == 0:
+            ref_loads = self.db.read_parquet(
+                table_name=OperationTable.ResultRefHour,
+                scenario_ID=id_scenario,
+                column_names=["Grid", "Feed2Grid", "E_Heating_HP_out", "E_RoomCooling", "Q_RoomHeating"]
+            )
+
+            result_matrix_demand.loc[:, id_building] = ref_loads["Grid"].to_numpy()
+            result_matrix_feed2grid.loc[:, id_building] = ref_loads["Feed2Grid"].to_numpy()
+            result_matrix_e_cooling.loc[:, id_building] = ref_loads["E_RoomCooling"].to_numpy()
+            result_matrix_e_hp_heating.loc[:, id_building] = ref_loads["E_Heating_HP_out"].to_numpy()
+            result_matrix_q_heating.loc[:, id_building] = ref_loads["Q_RoomHeating"].to_numpy()
+
         else:
-            prosumager_possibility = 0
+            opt_loads = self.db.read_parquet(
+                table_name=OperationTable.ResultOptHour,
+                scenario_ID=id_scenario,
+                column_names=["Grid", "Feed2Grid", "E_Heating_HP_out", "E_RoomCooling", "Q_RoomHeating"])
 
-        multi_index = pd.MultiIndex.from_tuples([(id_scenario, i) for i in range(number_of_occurences)])
-        result_matrix_demand = pd.DataFrame(index=range(8760), columns=multi_index)
-        result_matrix_feed2grid = pd.DataFrame(index=range(8760), columns=multi_index)
-        result_matrix_e_cooling = pd.DataFrame(index=range(8760), columns=multi_index)
-        result_matrix_e_hp_heating = pd.DataFrame(index=range(8760), columns=multi_index)
-        result_matrix_q_heating = pd.DataFrame(index=range(8760), columns=multi_index)
-
-        for i in range(number_of_occurences):
-            prosumager = self.assign_id([prosumager_possibility])
-            if prosumager == 0:
-                ref_loads = self.db.read_parquet(
-                    table_name=OperationTable.ResultRefHour,
-                    scenario_ID=id_scenario,
-                    column_names=["Grid", "Feed2Grid", "E_Heating_HP_out", "E_RoomCooling", "Q_RoomHeating"]
-                )
-
-                result_matrix_demand.loc[:, (id_scenario, i)] = ref_loads["Grid"].to_numpy()
-                result_matrix_feed2grid.loc[:, (id_scenario, i)] = ref_loads["Feed2Grid"].to_numpy()
-                result_matrix_e_cooling.loc[:, (id_scenario, i)] = ref_loads["E_RoomCooling"].to_numpy()
-                result_matrix_e_hp_heating.loc[:, (id_scenario, i)] = ref_loads["E_Heating_HP_out"].to_numpy()
-                result_matrix_q_heating.loc[:, (id_scenario, i)] = ref_loads["Q_RoomHeating"].to_numpy()
-
-            else:
-                opt_loads = self.db.read_parquet(
-                    table_name=OperationTable.ResultOptHour,
-                    scenario_ID=id_scenario,
-                    column_names=["Grid", "Feed2Grid", "E_Heating_HP_out", "E_RoomCooling", "Q_RoomHeating"])
-
-                result_matrix_demand.loc[:, (id_scenario, i)] = opt_loads["Grid"].to_numpy()
-                result_matrix_feed2grid.loc[:, (id_scenario, i)] = opt_loads["Feed2Grid"].to_numpy()
-                result_matrix_e_cooling.loc[:, (id_scenario, i)] = opt_loads["E_RoomCooling"].to_numpy()
-                result_matrix_e_hp_heating.loc[:, (id_scenario, i)] = opt_loads["E_Heating_HP_out"].to_numpy()
-                result_matrix_q_heating.loc[:, (id_scenario, i)] = opt_loads["Q_RoomHeating"].to_numpy()
+            result_matrix_demand.loc[:, id_building] = opt_loads["Grid"].to_numpy()
+            result_matrix_feed2grid.loc[:, id_building] = opt_loads["Feed2Grid"].to_numpy()
+            result_matrix_e_cooling.loc[:, id_building] = opt_loads["E_RoomCooling"].to_numpy()
+            result_matrix_e_hp_heating.loc[:, id_building] = opt_loads["E_Heating_HP_out"].to_numpy()
+            result_matrix_q_heating.loc[:, id_building] = opt_loads["Q_RoomHeating"].to_numpy()
 
         return result_matrix_demand, result_matrix_feed2grid, result_matrix_e_hp_heating, result_matrix_e_cooling, result_matrix_q_heating
 
-    def calculate_total_load_profiles(self, scenario_dictionary: dict):
+    def calculate_total_load_profiles(self, total_df: pd.DataFrame):
         with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self.worker, id_scenario, number_of_occurences)
-                       for id_scenario, number_of_occurences in scenario_dictionary.items()]
+            futures = [
+                executor.submit(self.worker, id_building, id_scenario, prosumager_value)
+                for (id_building, id_scenario, prosumager_value) in list(zip(
+                    total_df["ID_Building"], total_df["ID_Scenario"], total_df['ID_Prosumager'])
+                )
+            ]
 
             results_demand = []
             results_feed2grid = []
@@ -552,11 +469,7 @@ class ECEMFPostProcess:
 
     def add_real_building_ids(self,
                               scenario_df: pd.DataFrame,
-                              total_grid_demand,
-                              total_grid_feed,
-                              heating_demand_e_hp,
-                              cooling_demand,
-                              heating_demand_q
+                              old_column_names
                               ):
 
         # load the table where real IDs are matched to the clustered IDs:
@@ -574,22 +487,38 @@ class ECEMFPostProcess:
 
         # for each clustered Building ID draw a real building ID from match.
         # To avoid drawing the same building twice use pop
-        column_names = list(total_grid_demand.columns)
-        for j, (scenario_id, i) in enumerate(column_names):
+        column_names = []
+        scenario_and_building_id = {}
+        for j, scenario_id in enumerate(old_column_names):
             # get the building ID for the scenario ID
             cluster_id = clustered_ids[scenario_id]
             # with the building ID (which is the ID of the clustered buildings) select a real building ID
             real_id = int(match_dict[cluster_id].pop())
             # change the column name with the real ID:
-            column_names[j] = real_id
+            column_names.append(real_id)
+            scenario_and_building_id[real_id] = scenario_id
 
-        # reset the column ids to the real building IDs: column names are the same in both dataframes
-        total_grid_demand.columns = column_names
-        total_grid_feed.columns = column_names
-        heating_demand_e_hp.columns = column_names
-        cooling_demand.columns = column_names
-        heating_demand_q.columns = column_names
-        return total_grid_demand, total_grid_feed, heating_demand_e_hp, cooling_demand, heating_demand_q
+        # create a csv file containing the scenario ID and the Building ID:
+        scenario_building_table = self.create_scenario_building_csv(scenario_and_building_id)
+
+        return scenario_building_table
+
+    def create_scenario_building_csv(self, scenario_and_building_id):
+        building_scenario_ids_df = pd.DataFrame.from_dict(
+            scenario_and_building_id, orient="index"
+        ).sort_index().reset_index().rename(columns={0: "ID_Scenario", "index": "ID_Building"})
+        table = pd.merge(
+            building_scenario_ids_df, self.scenario_table.rename(columns={"ID_Building": "FLEX_ID_Building"}),
+            on="ID_Scenario", how="left"
+        )
+        # add prosumager ID to the table:
+        # create a df that contains the Scenario ID, the real Building ID and if Prosumager is in the house:
+        # check if optimisation exists for this scenario (dependent on the heating system)
+        # air hp = 2 and ground hp = 3
+        table["ID_Prosumager"] = table["ID_Boiler"].apply(
+            lambda x: self.assign_id([self.prosumager_percentage]) if x in [2, 3] else 0
+        )
+        return table
 
     def create_overall_information_csv(self,
                                        scenario_df: pd.DataFrame,
@@ -647,46 +576,205 @@ class ECEMFPostProcess:
                f"Battery-{round(self.battery_percentage * 100)}%_" \
                f"Prosumager-{round(self.prosumager_percentage * 100)}%"
 
+    def heating_systems_change(self):
+        prev_scen = ECEMFPostProcess(**self.previous_scenario, previous_scenario=None)
+
+        df = pd.read_csv(
+            prev_scen.data_output / f"Scenario_and_building_ids_{prev_scen.year}_{prev_scen.region}_{prev_scen.building_scenario}.csv",
+            sep=";")
+        # add the building type (MFH SFH) to the previous df:
+        type_df = pd.read_excel(
+            prev_scen.path_to_model_input / f"OperationScenario_Component_Building.xlsx", engine="openpyxl"
+        ).loc[:, ["ID_Building", "type"]].rename(columns={"ID_Building": "FLEX_ID_Building"})
+        df = pd.merge(df, type_df, on="FLEX_ID_Building")
+
+        self.scenario_table
+
+        # if number is positive, more is installed in current state
+        change_pv = self.pv_installation_percentage - prev_scen.pv_installation_percentage
+        change_hp_air = self.air_hp_percentage - prev_scen.air_hp_percentage  # Air HP
+        change_hp_ground = self.ground_hp_percentage - prev_scen.ground_hp_percentage  # Ground HP
+        change_direct_e = self.direct_electric_heating_percentage - prev_scen.direct_electric_heating_percentage
+        change_gases = self.gases_percentage - prev_scen.gases_percentage
+        change_no_heating = self.no_heating_percentage - prev_scen.no_heating_percentage
+
+        change_dhw_tank = self.dhw_storage_percentage - prev_scen.dhw_storage_percentage
+        change_cooling = self.ac_percentage - prev_scen.ac_percentage
+        change_battery = self.battery_percentage - prev_scen.battery_percentage
+        change_buffer_tank = self.buffer_storage_percentage - prev_scen.buffer_storage_percentage
+        change_prosumager = self.prosumager_percentage - prev_scen.prosumager_percentage
+
+        percentage_dict = {
+            "ID_PV": change_pv,
+            "ID_Boiler_HP_air": change_hp_air,
+            "ID_Boiler_HP_ground": change_hp_ground,
+            "ID_Boiler_direct_e": change_direct_e,
+            "ID_Boiler_gases": change_gases,
+            "ID_Boiler_no_heating": change_no_heating,
+            "ID_HotWaterTank": change_dhw_tank,
+            "ID_SpaceCoolingTechnology": change_cooling,
+            "ID_Battery": change_battery,
+            "ID_SpaceHeatingTank": change_buffer_tank,
+            "ID_Prosumager": change_prosumager,
+        }
+
+        # Sort the dictionary by its values
+        sorted_dict = dict(sorted(percentage_dict.items(), key=lambda item: item[1]))
+
+        random.seed(42)
+        for tech_name, perc_increase in sorted_dict.items():
+            if "ID_Boiler" in tech_name:  # differentiate between the different heating systems
+                id_name = "ID_Boiler"
+                if "HP_air" in tech_name:
+                    tech_id_without = {"SFH": [2], "MFH": [2]}
+                    tech_id = {"SFH": [2], "MFH": [2]}
+                elif "HP_ground" in tech_name:
+                    tech_id_without = {"SFH": [3], "MFH": [3]}
+                    tech_id = {"SFH": [3], "MFH": [3]}
+                elif "direct_e" in tech_name:
+                    tech_id_without = {"SFH": [1], "MFH": [1]}
+                    tech_id = {"SFH": [1], "MFH": [1]}
+
+                elif "gases" in tech_name:
+                    tech_id_without = {"SFH": [5], "MFH": [5]}
+                    tech_id = {"SFH": [5], "MFH": [5]}
+
+                elif "no_heating" in tech_name:
+                    tech_id_without = {"SFH": [4], "MFH": [4]}
+                    tech_id = {"SFH": [4], "MFH": [4]}
+                else:
+                    print("wrong tech name")
+
+            else:
+                id_name = tech_name
+                if tech_name == "ID_PV":  # distinguish between MFH and SFH
+                    tech_id_without = {"SFH": [1], "MFH": [1]}
+                    tech_id = {"SFH": [2, 4, 6], "MFH": [3, 5, 7]}
+                elif tech_name == "ID_HotWaterTank":
+                    tech_id_without = {"SFH": [1], "MFH": [1]}
+                    tech_id = {"SFH": [2], "MFH": [3]}
+                elif tech_name == "ID_SpaceHeatingTank":
+                    tech_id_without = {"SFH": [1], "MFH": [1]}
+                    tech_id = {"SFH": [2], "MFH": [3]}
+                elif tech_name == "ID_Battery":
+                    tech_id_without = {"SFH": [1], "MFH": [1]}
+                    tech_id = {"SFH": [2], "MFH": [3]}
+                elif tech_name == "ID_SpaceCoolingTechnology":
+                    tech_id_without = {"SFH": [2], "MFH": [2]}
+                    tech_id = {"SFH": [1], "MFH": [1]}
+                elif tech_name == "ID_Prosumager":
+                    tech_id_without = {"SFH": [0], "MFH": [0]}
+                    tech_id = {"SFH": [1], "MFH": [1]}
+            if perc_increase == 0:
+                continue  # nothing changes
+
+            # the perc increase needs first to be set to "changing" in the buildings that dont have the tech yet
+            # except if the percentage is declining
+            if perc_increase < 0:  # if tech is decreasing tech_id_without and tech_id have to be switched:
+                tech_id, tech_id_without = tech_id_without, tech_id  # doesnt affect the heating techs
+            # for non heating technoligies the perc change has to be negative and positive at the same time because
+            # they replace themselves:
+
+            if perc_increase < 0 or not "ID_Boiler" == id_name:
+                b_type_group = df.groupby("type")
+                for b_type, group in b_type_group:
+                    # changing number is the number of systems that will be exchanged
+                    changing_number = round(group[id_name].count() * perc_increase)
+                    # choose the buildings with the tech id and set some of them to "change"
+                    indices_to_replace = group.loc[group.loc[:, id_name].isin(tech_id_without[b_type]), id_name].sample(
+                        n=abs(changing_number), random_state=42).index
+                    df.loc[indices_to_replace, id_name] = "changing"
+
+            if perc_increase > 0 or not "ID_Boiler" == id_name:
+                b_type_group = df.groupby("type")
+                for b_type, group in b_type_group:
+                    changing_number = round(group[id_name].count() * perc_increase)
+                    indices_changing = group.loc[group.loc[:, id_name] == "changing", id_name].sample(
+                        n=abs(changing_number), random_state=42).index
+                    if tech_name == "ID_PV":
+                        df.loc[
+                            indices_changing, id_name] = "new_PV"  # need to distinguish between the different PV orientations later
+                    else:
+                        df.loc[indices_changing, id_name] = tech_id[b_type][0]
+
+
+
+
+
+
+
+                # "ID_PV": {
+                #     0: [1],  # IDs with no PV
+                #     1: [2, 3],  # PVs with optimal angles
+                #     2: [4, 5],  # PVs east
+                #     3: [6, 7],  # PVs west
+                # },
+
+                TRANSLATION_2_ID
+                # "ID_Boiler": {
+                #     0: [2],  # Air HP
+                #     1: [3],  # Ground HP
+                #     2: [1],  # Electric
+                #     3: [5],  # gases
+                #     4: [4],  # no_heating
+                # },
+        return "a"
+
     def create_output_csv(self):
-        scenarios = self.scenario_generator()
-        scenario_list = scenarios["ID_Scenario"].values.tolist()
-        scenario_dict = self.shorten_scenario_list(scenario_list)
+        if self.__file_name__() == get_file_name(self.baseline):
+            # generate the baseline scenario
+            scenarios = self.scenario_generator_baseline()
+            scenario_list = scenarios["ID_Scenario"].values.tolist()
 
-        total_grid_demand, total_grid_feed, heating_e_hp, cooling, heating_q = self.calculate_total_load_profiles(
-            scenario_dictionary=scenario_dict
-        )
-        total_grid_demand_real, total_grid_feed_real, heating_real_e_hp, cooling_real, heating_real_q = self.add_real_building_ids(
-            scenario_df=scenarios,
-            total_grid_demand=total_grid_demand,
-            total_grid_feed=total_grid_feed,
-            heating_demand_e_hp=heating_e_hp,
-            cooling_demand=cooling,
-            heating_demand_q=heating_q
-        )
+            # saving the scenario IDs together with the real building IDs that reference to the object
+            scenario_building_table = self.add_real_building_ids(
+                scenario_df=scenarios,
+                old_column_names=scenario_list
 
-        # define filename:
-        file_name = self.__file_name__()
+            )
+            # save the table because its the basis for the next run:
+            scenario_building_table.to_csv(
+                self.data_output / f"Scenario_and_building_ids_{self.year}_{self.region}_{self.building_scenario}.csv",
+                index=False, sep=";")
 
-        # save the total profiles to parquet
-        total_grid_demand_real.columns = total_grid_demand_real.columns.astype(str)
-        total_grid_feed_real.columns = total_grid_feed_real.columns.astype(str)
-        heating_real_e_hp.columns = heating_real_e_hp.columns.astype(str)
-        cooling_real.columns = cooling_real.columns.astype(str)
-        heating_real_q.columns = heating_real_q.columns.astype(str)
+            total_grid_demand, total_grid_feed, heating_e_hp, cooling, heating_q = self.calculate_total_load_profiles(
+                total_df=scenario_building_table
+            )
 
-        total_grid_demand_real.to_parquet(self.data_output / f"Demand_{file_name}.parquet.gzip")
-        total_grid_feed_real.to_parquet(self.data_output / f"Feed_{file_name}.parquet.gzip")
-        heating_real_e_hp.to_parquet(self.data_output / f"Heating_hp_{file_name}.parquet.gzip")
-        cooling_real.to_parquet(self.data_output / f"Cooling_e_{file_name}.parquet.gzip")
-        heating_real_q.to_parquet(self.data_output / f"Heating_q_{file_name}.parquet.gzip")
-        # save the profiles to csv
-        demand_start_hour, demand_end_hour = self.select_max_days(total_grid_demand_real)
-        demand_max_demand_day = total_grid_demand_real.loc[demand_start_hour: demand_end_hour, :]
-        feed_max_demand_day = total_grid_feed_real.loc[demand_start_hour: demand_end_hour, :]
+            # save the total profiles to parquet
+            total_grid_demand.columns = total_grid_demand.columns.astype(str)
+            total_grid_feed.columns = total_grid_feed.columns.astype(str)
+            heating_e_hp.columns = heating_e_hp.columns.astype(str)
+            cooling.columns = cooling.columns.astype(str)
+            heating_q.columns = heating_q.columns.astype(str)
 
-        feed_start_hour, feed_end_hour = self.select_max_days(total_grid_feed_real)
-        demand_max_feed_day = total_grid_demand_real.loc[feed_start_hour: feed_end_hour, :]
-        feed_max_feed_day = total_grid_feed_real.loc[feed_start_hour: feed_end_hour, :]
+            total_grid_demand.to_parquet(self.data_output / f"Demand_{self.__file_name__()}.parquet.gzip")
+            total_grid_feed.to_parquet(self.data_output / f"Feed_{self.__file_name__()}.parquet.gzip")
+            heating_e_hp.to_parquet(self.data_output / f"Heating_hp_{self.__file_name__()}.parquet.gzip")
+            cooling.to_parquet(self.data_output / f"Cooling_e_{self.__file_name__()}.parquet.gzip")
+            heating_q.to_parquet(self.data_output / f"Heating_q_{self.__file_name__()}.parquet.gzip")
+            # save the profiles to csv
+            demand_start_hour, demand_end_hour = self.select_max_days(total_grid_demand)
+            demand_max_demand_day = total_grid_demand.loc[demand_start_hour: demand_end_hour, :]
+            feed_max_demand_day = total_grid_feed.loc[demand_start_hour: demand_end_hour, :]
+
+            feed_start_hour, feed_end_hour = self.select_max_days(total_grid_feed)
+            demand_max_feed_day = total_grid_demand.loc[feed_start_hour: feed_end_hour, :]
+            feed_max_feed_day = total_grid_feed.loc[feed_start_hour: feed_end_hour, :]
+
+
+        else:
+            # generate a scenario based on the previous scenario (previous_scenario)
+
+            # check which heating systems are reduced and which are increased based on Building ID
+            self.heating_systems_change()
+            # for the heating systems that are reduced, take out the portion of heating systems and mark the
+            # buildings as "in transition". These buildings will undergo a heating system change
+
+            # for heating systems that are increased choose buildings that are "in transition" and without heating
+            # system for implementation of new heating systems.
+
+            pass
 
         hourly_df = self.save_hourly_csv(
             demand_d_day=demand_max_demand_day,
@@ -699,10 +787,10 @@ class ECEMFPostProcess:
         print("saved hourly csv file")
 
         self.create_overall_information_csv(scenario_df=scenarios,
-                                            total_grid_demand=total_grid_demand_real,
+                                            total_grid_demand=total_grid_demand,
                                             max_demand_day=int(demand_start_hour / 24),
                                             max_feed_day=int(feed_start_hour / 24),
-                                            file_name=file_name,
+                                            file_name=self.__file_name__(),
 
                                             )
 
@@ -717,7 +805,7 @@ class ECEMFPostProcess:
         return pd.read_csv(path_2_file, sep=";")
 
     def add_baseline_data_to_hourly_csv(self, hourly_csv_scen: pd.DataFrame):
-        base = ECEMFPostProcess(**self.baseline, baseline=self.baseline)
+        base = ECEMFPostProcess(**self.baseline, baseline=self.baseline, previous_scenario=None)
         try:  # if baseline does not exist yet:
             hourly_csv_base = base.get_hourly_csv()
             hourly_csv_base["type"] = hourly_csv_base["type"] + " baseline"
@@ -893,24 +981,52 @@ class ECEMFFigures:
             print(
                 f"{get_file_name(self.baseline)} \n parquet files do not exist. create_output_csv"
             )
-            ECEMFPostProcess(**self.baseline, baseline=self.baseline).create_output_csv()
+            ECEMFPostProcess(**self.baseline, baseline=self.baseline, previous_scenario=None).create_output_csv()
 
-        if isinstance(scenarios, list):
-            for scen in scenarios:
-                # check if baseline csv exists and check if the scenario csv exists. If not, create it:
+        elif isinstance(scenarios, list):
+            # the first scenario will be based on the baseline in case it is not the same as the baseline, making
+            # the baseline the previous scenario. After that always the previous scenario from the scenario list
+            # is taken as the previous scenario:
+            for i, scen in enumerate(scenarios):
+                if i == 0:  # make sure that the building scenario for the baseline is the same (moderate and high)
+                    # need to be identical, we ignore this parameter for the dict comparison
+                    a = scen.copy()
+                    a.pop("building_scenario")
+                    a.pop("baseline")
+                    b = self.baseline.copy()
+                    b.pop("building_scenario")
+
+                    if a == b:
+                        continue
+                    else:
+                        previous_scenario = self.baseline
+                else:  # the i-1 scenario is taken as the previous one
+                    # if the previous scenario scenario is the baseline, the building scenario parameter needs to be changed
+                    a = scenarios[i - 1].copy()
+                    a.pop("building_scenario")
+                    a.pop("baseline")
+                    b = self.baseline.copy()
+                    b.pop("building_scenario")
+                    if a == b:
+                        previous_scenario = scenarios[i - 1]
+                        previous_scenario["building_scenario"] = "high_eff"
+                    else:
+                        previous_scenario = scenarios[i - 1]
+                # check if the scenario csv exists. If not, create it:
                 if not self.path_to_gzip(f"Demand_{get_file_name(scen)}").exists() or not \
                         self.path_to_gzip(f"Feed_{get_file_name(scen)}").exists():
                     print(
                         f"{get_file_name(scen)} \n parquet files do not exist. create_output_csv"
                     )
-                    ECEMFPostProcess(**scen).create_output_csv()
-        else:
+                    ECEMFPostProcess(**scen, previous_scenario=previous_scenario).create_output_csv()
+
+        else:  # if its only a single scenario, base it on the baseline scenario
             if not self.path_to_gzip(f"Demand_{get_file_name(scenarios)}").exists() or not \
                     self.path_to_gzip(f"Feed_{get_file_name(scenarios)}").exists():
                 print(
                     f"{get_file_name(scenarios)} \n parquet files do not exist. create_output_csv"
                 )
-                ECEMFPostProcess(**scenarios).create_output_csv()
+                ECEMFPostProcess(**scenarios, previous_scenario=self.baseline).create_output_csv()
 
     def copy_scenario_outputs_into_specific_folder(self):
         """
@@ -1079,10 +1195,10 @@ class ECEMFFigures:
         """
         if isinstance(self.scenario, dict):
             folder = self.path_2_figure / get_file_name(self.scenario)
-            region = ECEMFPostProcess(**self.scenario).region
+            region = ECEMFPostProcess(**self.scenario, previous_scenario=None).region
         else:
             folder = self.path_2_figure / f"scenario_comparisons_{self.changing_parameter}_{get_file_name(self.scenario[0])}"
-            region = ECEMFPostProcess(**self.scenario[0]).region
+            region = ECEMFPostProcess(**self.scenario[0], previous_scenario=None).region
         if not folder.exists():
             # Create the folder
             folder.mkdir(parents=True, exist_ok=True)
@@ -1207,7 +1323,6 @@ class ECEMFFigures:
         plt.xticks(rotation=90)
         plt.tight_layout()
         fig.savefig(fig_path / "Total_UED_Heating.png")
-
 
     def plot_seasonal_daily_means(self,
                                   df_baseline: pd.DataFrame,
@@ -1363,8 +1478,8 @@ if __name__ == "__main__":
         "region": "Murcia",
         "building_scenario": "moderate_eff",
         "pv_installation_percentage": [0.015, 0.15, 0.3, 0.5],
-        "dhw_storage_percentage": 0.5,
-        "buffer_storage_percentage": 0,
+        "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
+        "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
         "heating_element_percentage": 0,
         "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
         "ground_hp_percentage": [0, 0.05, 0.1, 0.15],
