@@ -48,6 +48,9 @@ TRANSLATION_2_ID = {
 }
 
 
+def convert_to_numeric(column):
+    return pd.to_numeric(column, errors="ignore")
+
 class ECEMFPostProcess:
     def __init__(self,
                  year: int,
@@ -589,10 +592,8 @@ class ECEMFPostProcess:
         for key in match_dict.keys():
             match_dict[key] = [int(x) for x in match_dict[key] if not pd.isna(x)]
 
-        type_df = self.clustered_building_df.loc[:, ["ID_Building", "type", "number_of_buildings"]].rename(columns={"ID_Building": "FLEX_ID_Building"})
-        df = pd.merge(self.scenario_table.rename(columns={"ID_Building": "FLEX_ID_Building"}), type_df, on="FLEX_ID_Building")
-
-        prev_scen = ECEMFPostProcess(**self.previous_scenario, previous_scenario=None)
+        type_df = self.clustered_building_df.loc[:, ["ID_Building", "type", "number_of_buildings"]]
+        df = pd.merge(self.scenario_table, type_df, on="ID_Building")
 
         row_list = []
         for _, row in tqdm(old_building_table.iterrows(), desc=f"updating the buildings"):
@@ -602,12 +603,12 @@ class ECEMFPostProcess:
             new_row = df.loc[
                 (df.loc[:, "ID_SpaceCoolingTechnology"] == row["ID_SpaceCoolingTechnology"]) &
                 (df.loc[:, "ID_HotWaterTank"] == row["ID_HotWaterTank"]) &
-                (df.loc[:, "ID_PV"] == row["ID_HotWaterTank"]) &
-                (df.loc[:, "ID_SpaceHeatingTank"] == row["ID_HotWaterTank"]) &
-                (df.loc[:, "ID_Boiler"] == row["ID_HotWaterTank"]) &
-                (df.loc[:, "ID_Battery"] == row["ID_HotWaterTank"]) &
+                (df.loc[:, "ID_PV"] == row["ID_PV"]) &
+                (df.loc[:, "ID_SpaceHeatingTank"] == row["ID_SpaceHeatingTank"]) &
+                (df.loc[:, "ID_Boiler"] == row["ID_Boiler"]) &
+                (df.loc[:, "ID_Battery"] == row["ID_Battery"]) &
                 (df.loc[:, "type"] == row["type"]) &
-                (df.loc[:, "FLEX_ID_Building"] == flex_id)
+                (df.loc[:, "ID_Building"] == flex_id)
             , :].copy()
             # add prosumager ID from old table
             new_row["ID_Prosumager"] = row["ID_Prosumager"]
@@ -675,7 +676,6 @@ class ECEMFPostProcess:
                 elif "direct_e" in tech_name:
                     tech_id_without = {"SFH": [1], "MFH": [1]}
                     tech_id = {"SFH": [1], "MFH": [1]}
-
                 elif "gases" in tech_name:
                     tech_id_without = {"SFH": [5], "MFH": [5]}
                     tech_id = {"SFH": [5], "MFH": [5]}
@@ -723,19 +723,24 @@ class ECEMFPostProcess:
             # for non heating technologies the perc change has to be negative and positive at the same time because
             # they replace themselves:
             filter_query = ""
-            if tech_name == "ID_Battery":  # only concerns buildings with PV
+            if id_name == "ID_Battery":  # only concerns buildings with PV
                 filter_query = f"ID_PV in {['new_PV', 2, 3, 4, 5, 6, 7]}"
-            if tech_name == "ID_SpaceHeatingTank":  # only buildings with heat pumps can have buffer storage
+            if id_name == "ID_SpaceHeatingTank":  # only buildings with heat pumps can have buffer storage
                 filter_query = f"ID_Boiler in {[2, 3]}"
-            if tech_name == "ID_Prosumager":
+            if id_name == "ID_Prosumager":
                 filter_query = f"ID_Boiler in {[2, 3]}"
 
             if perc_increase < 0 or not "ID_Boiler" == id_name:
                 b_type_group = df.groupby("type")
                 for b_type, group in b_type_group:
+                    if id_name == "ID_Boiler":
+                        filter_query = f"ID_Boiler in {tech_id[b_type]}"
                     filtered_group = query_or_full_df(group, filter_query)
                     # changing number is the number of systems that will be exchanged
-                    changing_number = round(filtered_group[id_name].count() * perc_increase)
+                    if id_name == "ID_Boiler":  # boiler percentages are always on the whole dataset even with filterquery
+                        changing_number = round(group[id_name].count() * perc_increase)
+                    else:  # relative percentages are calculated
+                        changing_number = round(filtered_group[id_name].count() * perc_increase)
                     # choose the buildings with the tech id and set some of them to "change"
                     indices_to_replace = filtered_group.loc[
                         filtered_group.loc[:, id_name].isin(tech_id_without[b_type]), id_name
@@ -745,11 +750,17 @@ class ECEMFPostProcess:
             if perc_increase > 0 or not "ID_Boiler" == id_name:
                 b_type_group = df.groupby("type")
                 for b_type, group in b_type_group:
-                    filtered_group = query_or_full_df(group, filter_query)
-                    changing_number = round(filtered_group[id_name].count() * perc_increase)
+                    if id_name == "ID_Boiler":
+                        filter_query = f"ID_Boiler in {tech_id[b_type]}"
+                    if id_name == "ID_Boiler":  # boiler percentages are always on the whole dataset even with filterquery
+                        filtered_group = group.copy()
+                        changing_number = round(group[id_name].count() * perc_increase)
+                    else:
+                        filtered_group = query_or_full_df(group, filter_query)
+                        changing_number = round(filtered_group[id_name].count() * perc_increase)
                     indices_changing = filtered_group.loc[filtered_group.loc[:, id_name] == "changing", id_name].sample(
                         n=abs(changing_number), random_state=42).index
-                    if tech_name == "ID_PV":
+                    if id_name == "ID_PV":
                         df.loc[
                             indices_changing, id_name] = "new_PV"  # need to distinguish between the different PV orientations later
                     else:
@@ -763,14 +774,12 @@ class ECEMFPostProcess:
                     return np.random.choice([3, 5, 7], p=[0.5, 0.25, 0.25])
             else:
                 return row["ID_PV"]
-        np.random.seed(42)
+
         # replace the "new_PV" with the different PV sizes + orientation
         df["ID_PV"] = df.apply(complex_condition, axis=1)
-        return df
-
-
-
-
+        # fix the ID Behavior (1 for the new HP buildings)
+        df.loc[df.loc[:, "ID_Prosumager"] == 1, "ID_Behavior"] = 1
+        return df.apply(convert_to_numeric)
 
     def create_output_csv(self):
         if self.__file_name__() == get_file_name(self.baseline):
@@ -784,48 +793,41 @@ class ECEMFPostProcess:
                 old_column_names=scenario_list
 
             )
-            # save the table because its the basis for the next run:
-            scenario_building_table.to_csv(
-                self.data_output / f"Scenario_and_building_ids_{self.year}_{self.region}_{self.building_scenario}.csv",
-                index=False, sep=";")
-
-            total_grid_demand, total_grid_feed, heating_e_hp, cooling, heating_q = self.calculate_total_load_profiles(
-                total_df=scenario_building_table
-            )
-
-            # save the total profiles to parquet
-            total_grid_demand.columns = total_grid_demand.columns.astype(str)
-            total_grid_feed.columns = total_grid_feed.columns.astype(str)
-            heating_e_hp.columns = heating_e_hp.columns.astype(str)
-            cooling.columns = cooling.columns.astype(str)
-            heating_q.columns = heating_q.columns.astype(str)
-
-            total_grid_demand.to_parquet(self.data_output / f"Demand_{self.__file_name__()}.parquet.gzip")
-            total_grid_feed.to_parquet(self.data_output / f"Feed_{self.__file_name__()}.parquet.gzip")
-            heating_e_hp.to_parquet(self.data_output / f"Heating_hp_{self.__file_name__()}.parquet.gzip")
-            cooling.to_parquet(self.data_output / f"Cooling_e_{self.__file_name__()}.parquet.gzip")
-            heating_q.to_parquet(self.data_output / f"Heating_q_{self.__file_name__()}.parquet.gzip")
-            # save the profiles to csv
-            demand_start_hour, demand_end_hour = self.select_max_days(total_grid_demand)
-            demand_max_demand_day = total_grid_demand.loc[demand_start_hour: demand_end_hour, :]
-            feed_max_demand_day = total_grid_feed.loc[demand_start_hour: demand_end_hour, :]
-
-            feed_start_hour, feed_end_hour = self.select_max_days(total_grid_feed)
-            demand_max_feed_day = total_grid_demand.loc[feed_start_hour: feed_end_hour, :]
-            feed_max_feed_day = total_grid_feed.loc[feed_start_hour: feed_end_hour, :]
-
         else:
             # change the technologies based on the change in percentages compared to the previous scenario
             previous_df_with_changed_heating_system = self.heating_systems_change()
             # now change the buildings
             scenario_building_table = self.building_change(previous_df_with_changed_heating_system)
 
+        # save the table because its the basis for the next run:
+        scenario_building_table.to_csv(
+            self.data_output / f"Scenario_and_building_ids_{self.year}_{self.region}_{self.building_scenario}.csv",
+            index=False, sep=";")
 
-            # for heating systems that are increased choose buildings that are "in transition" and without heating
-            # system for implementation of new heating systems.
+        total_grid_demand, total_grid_feed, heating_e_hp, cooling, heating_q = self.calculate_total_load_profiles(
+            total_df=scenario_building_table
+        )
 
-            pass
+        # save the total profiles to parquet
+        total_grid_demand.columns = total_grid_demand.columns.astype(str)
+        total_grid_feed.columns = total_grid_feed.columns.astype(str)
+        heating_e_hp.columns = heating_e_hp.columns.astype(str)
+        cooling.columns = cooling.columns.astype(str)
+        heating_q.columns = heating_q.columns.astype(str)
 
+        total_grid_demand.to_parquet(self.data_output / f"Demand_{self.__file_name__()}.parquet.gzip")
+        total_grid_feed.to_parquet(self.data_output / f"Feed_{self.__file_name__()}.parquet.gzip")
+        heating_e_hp.to_parquet(self.data_output / f"Heating_hp_{self.__file_name__()}.parquet.gzip")
+        cooling.to_parquet(self.data_output / f"Cooling_e_{self.__file_name__()}.parquet.gzip")
+        heating_q.to_parquet(self.data_output / f"Heating_q_{self.__file_name__()}.parquet.gzip")
+        # save the profiles to csv
+        demand_start_hour, demand_end_hour = self.select_max_days(total_grid_demand)
+        demand_max_demand_day = total_grid_demand.loc[demand_start_hour: demand_end_hour, :]
+        feed_max_demand_day = total_grid_feed.loc[demand_start_hour: demand_end_hour, :]
+
+        feed_start_hour, feed_end_hour = self.select_max_days(total_grid_feed)
+        demand_max_feed_day = total_grid_demand.loc[feed_start_hour: feed_end_hour, :]
+        feed_max_feed_day = total_grid_feed.loc[feed_start_hour: feed_end_hour, :]
         hourly_df = self.save_hourly_csv(
             demand_d_day=demand_max_demand_day,
             demand_f_day=demand_max_feed_day,
