@@ -727,6 +727,8 @@ class ECEMFPostProcess:
                 filter_query = f"ID_PV in {['new_PV', 2, 3, 4, 5, 6, 7]}"
             if tech_name == "ID_SpaceHeatingTank":  # only buildings with heat pumps can have buffer storage
                 filter_query = f"ID_Boiler in {[2, 3]}"
+            if tech_name == "ID_Prosumager":
+                filter_query = f"ID_Boiler in {[2, 3]}"
 
             if perc_increase < 0 or not "ID_Boiler" == id_name:
                 b_type_group = df.groupby("type")
