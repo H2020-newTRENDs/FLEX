@@ -576,6 +576,51 @@ class ECEMFPostProcess:
                f"Battery-{round(self.battery_percentage * 100)}%_" \
                f"Prosumager-{round(self.prosumager_percentage * 100)}%"
 
+    def building_change(self, old_building_table: pd.DataFrame) -> (list, list):
+        print("implementing renovations")
+
+        # load the table where real IDs are matched to the clustered IDs:
+        match = pd.read_excel(self.path_to_model_input /
+                              f"Original_Building_IDs_to_clusters_{self.region}_{self.year}.xlsx",
+                              engine="openpyxl")
+        # create a dict of the matches:
+        match_dict = match.to_dict(orient="list")
+        # remove nan from the dict
+        for key in match_dict.keys():
+            match_dict[key] = [int(x) for x in match_dict[key] if not pd.isna(x)]
+
+        type_df = self.clustered_building_df.loc[:, ["ID_Building", "type", "number_of_buildings"]].rename(columns={"ID_Building": "FLEX_ID_Building"})
+        df = pd.merge(self.scenario_table.rename(columns={"ID_Building": "FLEX_ID_Building"}), type_df, on="FLEX_ID_Building")
+
+        prev_scen = ECEMFPostProcess(**self.previous_scenario, previous_scenario=None)
+
+        row_list = []
+        for _, row in tqdm(old_building_table.iterrows(), desc=f"updating the buildings"):
+            # get the real building ID and see what is the corresponding cluster from the Oiriginal Building IDS to
+            # cluster file
+            flex_id = [key for key, value_list in match_dict.items() if row["ID_Building"] in value_list][0]
+            new_row = df.loc[
+                (df.loc[:, "ID_SpaceCoolingTechnology"] == row["ID_SpaceCoolingTechnology"]) &
+                (df.loc[:, "ID_HotWaterTank"] == row["ID_HotWaterTank"]) &
+                (df.loc[:, "ID_PV"] == row["ID_HotWaterTank"]) &
+                (df.loc[:, "ID_SpaceHeatingTank"] == row["ID_HotWaterTank"]) &
+                (df.loc[:, "ID_Boiler"] == row["ID_HotWaterTank"]) &
+                (df.loc[:, "ID_Battery"] == row["ID_HotWaterTank"]) &
+                (df.loc[:, "type"] == row["type"]) &
+                (df.loc[:, "FLEX_ID_Building"] == flex_id)
+            , :].copy()
+            # add prosumager ID from old table
+            new_row["ID_Prosumager"] = row["ID_Prosumager"]
+            row_list.append(new_row)
+
+        new_scenario_table = pd.concat(row_list, axis=0).drop(columns=["number_of_buildings"]).reset_index(drop=True)
+        return new_scenario_table
+
+
+
+
+        pass
+
     def heating_systems_change(self):
         prev_scen = ECEMFPostProcess(**self.previous_scenario, previous_scenario=None)
 
@@ -587,8 +632,6 @@ class ECEMFPostProcess:
             prev_scen.path_to_model_input / f"OperationScenario_Component_Building.xlsx", engine="openpyxl"
         ).loc[:, ["ID_Building", "type"]].rename(columns={"ID_Building": "FLEX_ID_Building"})
         df = pd.merge(df, type_df, on="FLEX_ID_Building")
-
-        self.scenario_table
 
         # if number is positive, more is installed in current state
         change_pv = self.pv_installation_percentage - prev_scen.pv_installation_percentage
@@ -621,7 +664,6 @@ class ECEMFPostProcess:
         # Sort the dictionary by its values
         sorted_dict = dict(sorted(percentage_dict.items(), key=lambda item: item[1]))
 
-        random.seed(42)
         for tech_name, perc_increase in sorted_dict.items():
             if "ID_Boiler" in tech_name:  # differentiate between the different heating systems
                 id_name = "ID_Boiler"
@@ -697,28 +739,22 @@ class ECEMFPostProcess:
                     else:
                         df.loc[indices_changing, id_name] = tech_id[b_type][0]
 
+        def complex_condition(row):
+            if row["ID_PV"] == "new_PV":
+                if row["type"] == "SFH":
+                    return np.random.choice([2, 4, 6], p=[0.5, 0.25, 0.25])
+                else:
+                    return np.random.choice([3, 5, 7], p=[0.5, 0.25, 0.25])
+            else:
+                return row["ID_PV"]
+        np.random.seed(42)
+        # replace the "new_PV" with the different PV sizes + orientation
+        df["ID_PV"] = df.apply(complex_condition, axis=1)
+        return df
 
 
 
 
-
-
-                # "ID_PV": {
-                #     0: [1],  # IDs with no PV
-                #     1: [2, 3],  # PVs with optimal angles
-                #     2: [4, 5],  # PVs east
-                #     3: [6, 7],  # PVs west
-                # },
-
-                TRANSLATION_2_ID
-                # "ID_Boiler": {
-                #     0: [2],  # Air HP
-                #     1: [3],  # Ground HP
-                #     2: [1],  # Electric
-                #     3: [5],  # gases
-                #     4: [4],  # no_heating
-                # },
-        return "a"
 
     def create_output_csv(self):
         if self.__file_name__() == get_file_name(self.baseline):
@@ -762,14 +798,12 @@ class ECEMFPostProcess:
             demand_max_feed_day = total_grid_demand.loc[feed_start_hour: feed_end_hour, :]
             feed_max_feed_day = total_grid_feed.loc[feed_start_hour: feed_end_hour, :]
 
-
         else:
-            # generate a scenario based on the previous scenario (previous_scenario)
+            # change the technologies based on the change in percentages compared to the previous scenario
+            previous_df_with_changed_heating_system = self.heating_systems_change()
+            # now change the buildings
+            self.building_change(previous_df_with_changed_heating_system)
 
-            # check which heating systems are reduced and which are increased based on Building ID
-            self.heating_systems_change()
-            # for the heating systems that are reduced, take out the portion of heating systems and mark the
-            # buildings as "in transition". These buildings will undergo a heating system change
 
             # for heating systems that are increased choose buildings that are "in transition" and without heating
             # system for implementation of new heating systems.
