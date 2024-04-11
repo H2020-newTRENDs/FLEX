@@ -51,6 +51,7 @@ TRANSLATION_2_ID = {
 def convert_to_numeric(column):
     return pd.to_numeric(column, errors="ignore")
 
+
 class ECEMFPostProcess:
     def __init__(self,
                  year: int,
@@ -601,14 +602,14 @@ class ECEMFPostProcess:
             # cluster file
             flex_id = [key for key, value_list in match_dict.items() if row["ID_Building"] in value_list][0]
             new_row = df.loc[
-                (df.loc[:, "ID_SpaceCoolingTechnology"] == row["ID_SpaceCoolingTechnology"]) &
-                (df.loc[:, "ID_HotWaterTank"] == row["ID_HotWaterTank"]) &
-                (df.loc[:, "ID_PV"] == row["ID_PV"]) &
-                (df.loc[:, "ID_SpaceHeatingTank"] == row["ID_SpaceHeatingTank"]) &
-                (df.loc[:, "ID_Boiler"] == row["ID_Boiler"]) &
-                (df.loc[:, "ID_Battery"] == row["ID_Battery"]) &
-                (df.loc[:, "type"] == row["type"]) &
-                (df.loc[:, "ID_Building"] == flex_id)
+                      (df.loc[:, "ID_SpaceCoolingTechnology"] == row["ID_SpaceCoolingTechnology"]) &
+                      (df.loc[:, "ID_HotWaterTank"] == row["ID_HotWaterTank"]) &
+                      (df.loc[:, "ID_PV"] == row["ID_PV"]) &
+                      (df.loc[:, "ID_SpaceHeatingTank"] == row["ID_SpaceHeatingTank"]) &
+                      (df.loc[:, "ID_Boiler"] == row["ID_Boiler"]) &
+                      (df.loc[:, "ID_Battery"] == row["ID_Battery"]) &
+                      (df.loc[:, "type"] == row["type"]) &
+                      (df.loc[:, "ID_Building"] == flex_id)
             , :].copy()
             # add prosumager ID from old table
             new_row["ID_Prosumager"] = row["ID_Prosumager"]
@@ -621,7 +622,10 @@ class ECEMFPostProcess:
         return new_scenario_table
 
     def heating_systems_change(self):
-        prev_scen = ECEMFPostProcess(**self.previous_scenario, previous_scenario=None)
+        if "baseline" in self.previous_scenario.keys():
+            prev_scen = ECEMFPostProcess(**self.previous_scenario, previous_scenario=None)
+        else:
+            prev_scen = ECEMFPostProcess(**self.previous_scenario, previous_scenario=None, baseline=None)
 
         df = pd.read_csv(
             prev_scen.data_output / f"Scenario_and_building_ids_{prev_scen.year}_{prev_scen.region}_{prev_scen.building_scenario}.csv",
@@ -746,7 +750,9 @@ class ECEMFPostProcess:
                         # changing_number is adapted if a technology goes completely to 0 or 1:
                         changing_number = max(round(group[id_name].count() * perc_increase), -len(filtered_group))
                     else:  # relative percentages are calculated
-                        changing_number = round(filtered_group[id_name].count() * perc_increase)
+                        changing_number = min(abs(round(filtered_group[id_name].count() * perc_increase)),
+                                              len(filtered_group.loc[
+                                                      filtered_group.loc[:, id_name].isin(tech_id_without[b_type])]))
                     # choose the buildings with the tech id and set some of them to "change"
                     indices_to_replace = filtered_group.loc[
                         filtered_group.loc[:, id_name].isin(tech_id_without[b_type]), id_name
@@ -767,7 +773,8 @@ class ECEMFPostProcess:
                                               len(filtered_group.loc[filtered_group.loc[:, id_name] == "changing", :]))
                     else:
                         filtered_group = query_or_full_df(group, filter_query)
-                        changing_number = round(filtered_group[id_name].count() * perc_increase)
+                        changing_number = min(round(filtered_group[id_name].count() * perc_increase),
+                                              len(filtered_group.loc[filtered_group.loc[:, id_name] == "changing", :]))
 
                     indices_changing = filtered_group.loc[filtered_group.loc[:, id_name] == "changing", id_name].sample(
                         n=abs(changing_number), random_state=42).index
@@ -1002,8 +1009,8 @@ class ECEMFFigures:
         for value in scenario.values():
             if isinstance(value, list):
                 nr_lists += 1
-
-        if nr_lists == 1:
+        self.nr_lists = nr_lists
+        if self.nr_lists == 1:
             # we have multiple scenarios
             changing_parameter, values = [(key, value) for key, value in scenario.items() if isinstance(value, list)][0]
             self.changing_parameter = changing_parameter
@@ -1015,7 +1022,7 @@ class ECEMFFigures:
                 scenarios.append(new_scen)
             self.scenario = scenarios
 
-        elif nr_lists > 1:
+        elif self.nr_lists > 1:
             assert check_if_lists_in_dict_are_same_length(scenario), "lists do not have the same length"
             scenarios = []
             changing_parameters = [(key, value) for key, value in scenario.items() if isinstance(value, list)]
@@ -1198,21 +1205,14 @@ class ECEMFFigures:
         feed_dict_d = {}
         demand_dict_f = {}
         feed_dict_f = {}
-        nr_lists = 0
-        if isinstance(self.scenario, list):
-            nr_lists = len(self.scenario)
-        else:
-            for value in self.scenario.values():
-                if isinstance(value, list):
-                    nr_lists += 1
 
-        if nr_lists == 0:
+        if self.nr_lists == 0:
             data = pd.read_csv(self.data_output / f"{get_file_name(self.scenario)}.csv", sep=";")
             demand_dict_d["scenario"] = data.query("type=='grid demand on max demand day'").iloc[:, 3:]
             feed_dict_d["scenario"] = data.query("type=='feed to grid on max demand day'").iloc[:, 3:]
             demand_dict_f["scenario"] = data.query("type=='grid demand on max feed day'").iloc[:, 3:]
             feed_dict_f["scenario"] = data.query("type=='feed to grid on max feed day'").iloc[:, 3:]
-        elif nr_lists == 1:
+        elif self.nr_lists == 1:
             for scen in self.scenario:
                 data = pd.read_csv(self.data_output / f"{get_file_name(scen)}.csv", sep=";")
                 demand_dict_d[f"{self.changing_parameter}_{round(scen[self.changing_parameter] * 100)} %"] = data.query(
@@ -1487,33 +1487,32 @@ if __name__ == "__main__":
         "battery_percentage": 0.1,
         "prosumager_percentage": 0,
     }
-    pv_increase = np.arange(0.1, 1.1, 0.1).tolist()
-    prosumager_increase = np.arange(0, 1.1, 0.1).tolist()
-    direct_electric_heating_increase = np.arange(0, 0.45, 0.05).tolist()
-    AC_increase = np.arange(0, 1.1, 0.1).tolist()
-    air_hp_increase = np.arange(0, 0.7, 0.1).tolist()
+    pv_increase = [0.1, 0.4, 0.7, 1]
+    prosumager_increase = [0, 0.33, 0.66, 1]
+    direct_electric_heating_decrease = [0.4, 0.3, 0.2, 0.1]
+    AC_increase = [0.5, 0.65, 0.80, 1]
+    air_hp_increase = [0.2, 0.45, 0.7, 0.95]
 
-    # to only analyse one parameter use ECEMFFigures wiht on parameter as list:
-    # scenario = {
-    #     "year": [2020, 2030, 2040, 2050],
-    #     "region": "Murcia",
-    #     "building_scenario": "moderate_eff",
-    #     "pv_installation_percentage": 0.015,
-    #     "dhw_storage_percentage": 0.5,
-    #     "buffer_storage_percentage": 0,
-    #     "heating_element_percentage": 0,
-    #     "air_hp_percentage": 0.2,
-    #     "ground_hp_percentage": 0,
-    #     "direct_electric_heating_percentage": 0,
-    #     "gases_percentage": 0.19,
-    #     "ac_percentage": 0.5,
-    #     "battery_percentage": 0.1,
-    #     "prosumager_percentage": 0,
-    #     "baseline": baseline
-    # }
-    #
-    # ECEMFFigures(scenario=scenario).create_figures()
-    # ECEMFFigures(scenario=scenario).copy_scenario_outputs_into_specific_folder()
+    # to only analyse one parameter use ECEMFFigures with on parameter as list:
+    scenario = {
+        "year": 2050,
+        "region": "Murcia",
+        "building_scenario": "H",
+        "pv_installation_percentage": 0.6,
+        "dhw_storage_percentage": 0.65,
+        "buffer_storage_percentage": 0.25,
+        "heating_element_percentage": 0,
+        "air_hp_percentage": 0.7,
+        "ground_hp_percentage": 0.06,
+        "direct_electric_heating_percentage": 0.1,
+        "gases_percentage": 0.02,
+        "ac_percentage": 0.9,
+        "battery_percentage": 0.3,
+        "prosumager_percentage": prosumager_increase,
+        "baseline": baseline
+    }
+
+    ECEMFFigures(scenario=scenario, scenario_name="Prosumager_increase_2050_stron_policy").create_figures()
 
     # calculate a complete scenario run:
     scenario_high_eff = {
@@ -1533,8 +1532,6 @@ if __name__ == "__main__":
         "prosumager_percentage": [0, 0.05, 0.2, 0.5],
         "baseline": baseline
     }
-
-    # ECEMFFigures(scenario=scenario, scenario_name=scen_name).copy_scenario_outputs_into_specific_folder()
 
     scenario_moderate_eff = {
         "year": [2020, 2030, 2040, 2050],
@@ -1557,5 +1554,5 @@ if __name__ == "__main__":
     # scen_name = "scenario_high_eff"
     # ECEMFFigures(scenario=scenario_high_eff, scenario_name=scen_name).create_figures()
 
-    scen_name = "scenario_moderate_eff"
-    ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=scen_name).create_figures()
+    # scen_name = "scenario_moderate_eff"
+    # ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=scen_name).create_figures()
