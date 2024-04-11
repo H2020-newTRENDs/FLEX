@@ -613,6 +613,7 @@ class ECEMFPostProcess:
             # add prosumager ID from old table
             new_row["ID_Prosumager"] = row["ID_Prosumager"]
             # overwrite the ID Building (from flex) with the real ID Building from old table
+            new_row["FLEX_ID_Building"] = new_row["ID_Building"]
             new_row["ID_Building"] = row["ID_Building"]
             row_list.append(new_row)
 
@@ -740,7 +741,10 @@ class ECEMFPostProcess:
                     filtered_group = query_or_full_df(group, filter_query)
                     # changing number is the number of systems that will be exchanged
                     if id_name == "ID_Boiler":  # boiler percentages are always on the whole dataset even with filterquery
-                        changing_number = round(group[id_name].count() * perc_increase)
+                        # if a technology goes to 0 the random initialization of buildings can lead to
+                        # this code not working because the percentages are not exactly met. Therefore the
+                        # changing_number is adapted if a technology goes completely to 0 or 1:
+                        changing_number = max(round(group[id_name].count() * perc_increase), -len(filtered_group))
                     else:  # relative percentages are calculated
                         changing_number = round(filtered_group[id_name].count() * perc_increase)
                     # choose the buildings with the tech id and set some of them to "change"
@@ -756,10 +760,15 @@ class ECEMFPostProcess:
                         filter_query = f"ID_Boiler in {tech_id[b_type]}"
                     if id_name == "ID_Boiler":  # boiler percentages are always on the whole dataset even with filterquery
                         filtered_group = group.copy()
-                        changing_number = round(group[id_name].count() * perc_increase)
+                        # if a technology goes to 0 the random initialization of buildings can lead to
+                        # this code not working because the percentages are not exactly met. Therefore the
+                        # changing_number is adapted if a technology goes completely to 0 or 1:
+                        changing_number = min(round(group[id_name].count() * perc_increase),
+                                              len(filtered_group.loc[filtered_group.loc[:, id_name] == "changing", :]))
                     else:
                         filtered_group = query_or_full_df(group, filter_query)
                         changing_number = round(filtered_group[id_name].count() * perc_increase)
+
                     indices_changing = filtered_group.loc[filtered_group.loc[:, id_name] == "changing", id_name].sample(
                         n=abs(changing_number), random_state=42).index
                     if id_name == "ID_PV":
@@ -793,13 +802,14 @@ class ECEMFPostProcess:
             scenario_building_table = self.add_real_building_ids(
                 scenario_df=scenarios,
                 old_column_names=scenario_list
-
             )
         else:
             # change the technologies based on the change in percentages compared to the previous scenario
             previous_df_with_changed_heating_system = self.heating_systems_change()
             # now change the buildings
             scenario_building_table = self.building_change(previous_df_with_changed_heating_system)
+            # drop the "type" column from teh scenario building table
+            scenario_building_table.drop(columns=["type"], inplace=True)
 
         # save the table because its the basis for the next run:
         scenario_building_table.to_csv(
@@ -837,10 +847,9 @@ class ECEMFPostProcess:
             feed2grid_f_day=feed_max_feed_day,
         )
         self.add_baseline_data_to_hourly_csv(hourly_df)
-
         print("saved hourly csv file")
 
-        self.create_overall_information_csv(scenario_df=scenarios,
+        self.create_overall_information_csv(scenario_df=scenario_building_table,
                                             total_grid_demand=total_grid_demand,
                                             max_demand_day=int(demand_start_hour / 24),
                                             max_feed_day=int(feed_start_hour / 24),
@@ -1063,7 +1072,7 @@ class ECEMFFigures:
                     b.pop("building_scenario")
                     if a == b:
                         previous_scenario = scenarios[i - 1]
-                        previous_scenario["building_scenario"] = "high_eff"
+                        previous_scenario["building_scenario"] = "H"
                     else:
                         previous_scenario = scenarios[i - 1]
                 # check if the scenario csv exists. If not, create it:
@@ -1465,7 +1474,7 @@ if __name__ == "__main__":
     baseline = {
         "year": 2020,
         "region": "Murcia",
-        "building_scenario": "high_eff",
+        "building_scenario": "H",
         "pv_installation_percentage": 0.015,
         "dhw_storage_percentage": 0.5,
         "buffer_storage_percentage": 0,
@@ -1510,7 +1519,7 @@ if __name__ == "__main__":
     scenario_high_eff = {
         "year": [2020, 2030, 2040, 2050],
         "region": "Murcia",
-        "building_scenario": "high_eff",
+        "building_scenario": "H",
         "pv_installation_percentage": [0.015, 0.1, 0.4, 0.6],
         "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
         "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
@@ -1530,7 +1539,7 @@ if __name__ == "__main__":
     scenario_moderate_eff = {
         "year": [2020, 2030, 2040, 2050],
         "region": "Murcia",
-        "building_scenario": "moderate_eff",
+        "building_scenario": "M",
         "pv_installation_percentage": [0.015, 0.15, 0.3, 0.5],
         "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
         "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
