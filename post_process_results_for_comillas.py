@@ -1495,24 +1495,24 @@ if __name__ == "__main__":
 
     # to only analyse one parameter use ECEMFFigures with on parameter as list:
     scenario = {
-        "year": 2050,
+        "year": 2020,
         "region": "Murcia",
         "building_scenario": "H",
-        "pv_installation_percentage": 0.6,
-        "dhw_storage_percentage": 0.65,
-        "buffer_storage_percentage": 0.25,
+        "pv_installation_percentage": 0.015,
+        "dhw_storage_percentage": 0.5,
+        "buffer_storage_percentage": 0,
         "heating_element_percentage": 0,
-        "air_hp_percentage": 0.7,
-        "ground_hp_percentage": 0.06,
-        "direct_electric_heating_percentage": 0.1,
-        "gases_percentage": 0.02,
-        "ac_percentage": 0.9,
-        "battery_percentage": 0.3,
+        "air_hp_percentage": 0.2,
+        "ground_hp_percentage": 0,
+        "direct_electric_heating_percentage": 0.39,
+        "gases_percentage": 0.19,
+        "ac_percentage": 0.5,
+        "battery_percentage": 0.1,
         "prosumager_percentage": prosumager_increase,
         "baseline": baseline
     }
 
-    ECEMFFigures(scenario=scenario, scenario_name="Prosumager_increase_2050_stron_policy").create_figures()
+    ECEMFFigures(scenario=scenario, scenario_name="Prosumager_increase_2020_strong_policy").create_figures()
 
     # calculate a complete scenario run:
     scenario_high_eff = {
