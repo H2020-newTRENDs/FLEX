@@ -189,7 +189,7 @@ def check_if_some_results_exist(number_of_tasks, original_config, multi: int) ->
                         results_exist.append(True)
     # result exists if all entries in list are "True", then the
     # calculation can be continued. Otherwise it will be restarted.
-    if all(results_exist):
+    if all(results_exist) and len(results_exist) > 0:
         return True
     else:
         return False
