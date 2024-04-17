@@ -1,7 +1,7 @@
 import os
 import random
 from projects.analysis.main_operation import run_operation_model
-from projects.analysis.main_operation import run_operation_model_parallel
+from models.operation.main import run_operation_model_parallel
 from plotters.operation import household_load_balance
 from utils.config import Config
 from utils.db import init_project_db
