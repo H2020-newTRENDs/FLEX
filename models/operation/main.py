@@ -277,7 +277,7 @@ def run_operation_model_parallel(
         }
         for task_id in range(1, task_num + 1)
     ]
-    # Parallel(n_jobs=task_num)(delayed(run_operation_model)(**task) for task in tasks)
+    Parallel(n_jobs=task_num)(delayed(run_operation_model)(**task) for task in tasks)
 
     # merge task results
     merge_year_month_tables(number_of_tasks=task_num, original_config=config)
