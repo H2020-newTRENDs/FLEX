@@ -23,7 +23,7 @@ class DB:
     def get_engine(self):
         return self.engine
 
-    def close(self):
+    def dispose(self):
         self.engine.dispose()
 
     def get_table_names(self):
