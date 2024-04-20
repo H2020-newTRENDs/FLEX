@@ -1,8 +1,7 @@
 import os
 import random
 from typing import List
-from projects.analysis.main_operation import run_operation_model
-from models.operation.main import run_operation_model_parallel
+from projects.analysis.main_operation import run_operation_model_parallel
 from plotters.operation import household_load_balance
 from utils.config import Config
 from utils.db import init_project_db
@@ -45,11 +44,11 @@ def process_summary_files():
 if __name__ == "__main__":
 
     SCENARIOS = [
-        "FIN_2040",
-        "GRC_2040",
-        "LTU_2040",
-        "LVA_2040",
-        "ROU_2040",
+        # "FIN_2040",
+        # "GRC_2040",
+        # "LTU_2040",
+        # "LVA_2040",
+        # "ROU_2040",
         "SWE_2040",
     ]
     run_scenario_and_generate_summary_files(SCENARIOS)
