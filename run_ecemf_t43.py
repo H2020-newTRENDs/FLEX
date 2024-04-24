@@ -17,10 +17,23 @@ def delete_result_task_folders(conf):
                         sub_item.unlink()  # Delete the file
                 shutil.rmtree(item)
 
+
+def delete_input_task_folders(conf):
+    for item in Path(conf.input_operation).parent.iterdir():
+        if item.is_dir():
+            if conf.project_name in item.name and conf.project_name != item.name:
+                print(f"Deleting directory and all contents: {item}")
+                for sub_item in item.iterdir():
+                    # Check if the sub_item is a file
+                    if sub_item.is_file():
+                        sub_item.unlink()  # Delete the file
+                shutil.rmtree(item)
+
+
 if __name__ == "__main__":
 
     for year in [2020, 2030, 2040, 2050]:
-        for scen in ["H"]:#, "M"]:
+        for scen in ["H", "M"]:
             cfg = Config(f"ECEMF_T4.3_Leeuwarden_{year}_{scen}")
             df_start = pd.read_excel(cfg.input_operation / f'Scenario_start_Leeuwarden_{year}_{scen}.xlsx')
             init = ProjectDatabaseInit(
@@ -50,6 +63,7 @@ if __name__ == "__main__":
             
             try:
                 delete_result_task_folders(cfg)
+                delete_input_task_folders(cfg)
             except:
                 print(f"taskfolders for {country} {year} were not deleted")
             
