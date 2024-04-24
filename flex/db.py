@@ -106,18 +106,25 @@ class DB:
         saving_path = self.config.output / file_name
         table.to_parquet(path=saving_path, engine="auto", compression='gzip', index=False)
 
-    def read_parquet(self, table_name: str, scenario_ID: int, column_names: List[str] = None) -> pd.DataFrame:
-        """
-        Returns: dataframe containing the results for the table name and specific scenario ID
-        """
-        file_name = f"{table_name}_{scenario_ID}.parquet.gzip"
-        path_to_file = self.config.output / file_name
-        if column_names:
-            df = pd.read_parquet(path=path_to_file, engine="auto", columns=column_names)
-        else:
-            df = pd.read_parquet(path=path_to_file, engine="auto")
-        return df
-
-
 def create_db_conn(config: "Config") -> DB:
-    return DB(config)
+    if config.task_id is None:
+        conn = DB(os.path.join(config.output, config.project_name + ".sqlite"))
+    else:
+        conn = DB(os.path.join(config.task_output, f'{config.project_name}.sqlite'))
+    return conn
+
+
+def init_project_db(config: "Config"):
+    db = create_db_conn(config)
+    db.clear_database()
+
+    def file_exists(table_name: str):
+        df = None
+        extensions = {".xlsx": pd.read_excel,
+                      ".csv": pd.read_csv}
+        for ext, pd_read_func in extensions.items():
+            file_path = os.path.join(config.input, table_name + ext)
+            if os.path.exists(file_path):
+                df = pd_read_func(file_path)
+                break
+        return df
