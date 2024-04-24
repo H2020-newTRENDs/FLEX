@@ -38,15 +38,15 @@ if __name__ == "__main__":
                 start_scenario_table=df_start)
             init.run()
 
-            # operation_main(project_name = cfg.project_name,
-            #                 use_multiprocessing = True,
-            #                 save_hourly_results = True,
-            #                 save_monthly_results = False,
-            #                 save_yearly_results = True,
-            #                 hourly_save_list = None,
-            #                 operation_scenario_ids = None,
-            #                 n_cores=20,
-            #                 )
+            operation_main(project_name = cfg.project_name,
+                            use_multiprocessing = True,
+                            save_hourly_results = True,
+                            save_monthly_results = False,
+                            save_yearly_results = True,
+                            hourly_save_list = None,
+                            operation_scenario_ids = None,
+                            n_cores=20,
+                            )
             
             try:
                 delete_result_task_folders(cfg)
