@@ -106,6 +106,7 @@ class DB:
         saving_path = self.config.output / file_name
         table.to_parquet(path=saving_path, engine="auto", compression='gzip', index=False)
 
+
 def create_db_conn(config: "Config") -> DB:
     if config.task_id is None:
         conn = DB(os.path.join(config.output, config.project_name + ".sqlite"))

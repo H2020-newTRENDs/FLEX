@@ -15,11 +15,20 @@ class Config(ABC):
         self.fig: "Path" = self.setup_path(self.project_root / f"data/figure/{project_name}/")
         self.project_folder = self.project_root / "projects" / f"{project_name}"
         self.config_logging()
+        self.task_id = None
+        self.task_output = None
 
     @staticmethod
     def setup_path(folder_path: Path) -> "Path":
         folder_path.mkdir(parents=True, exist_ok=True)
         return folder_path
+
+    def set_task_id(self, task_id: int) -> "Config":
+        self.task_id = task_id
+        self.task_output = os.path.join(self.output, f"task_{task_id}")
+        if not os.path.exists(self.task_output):
+            os.makedirs(self.task_output)
+        return self
 
     @staticmethod
     def config_logging():
