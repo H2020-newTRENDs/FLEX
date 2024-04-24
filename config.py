@@ -2,4 +2,4 @@ import logging
 from flex.config import Config
 
 logging.getLogger("pyomo.core").setLevel(logging.ERROR)
-cfg = Config(project_name="ECEMF_T4.3_Murcia")
+cfg = Config(project_name="ECEMF_T4.3_Leeuwarden")
