@@ -19,7 +19,7 @@ def get_config(project_name: str):
 def run_flex_operation_model(config: "Config"):
     init_project_db(config)
     # run_operation_model(config=config, save_hour=True, scenario_ids=[1])
-    run_operation_model_parallel(config=config, task_num=8, save_hour=True)
+    run_operation_model_parallel(config=config, task_num=20, save_hour=True)
 
 
 def run_flex_operation_plotter(config: "Config"):
