@@ -91,13 +91,13 @@ class ECEMFPostProcess:
         self.region = region
         self.year = year
         self.building_scenario = building_scenario
-        self.path_to_results = Path(
-            __file__).parent / "data" / "output" / f"ECEMF_T4.3_{region}_{year}_{building_scenario}"
-        self.path_to_model_input = Path(
-            __file__).parent / "data" / "input_operation" / f"ECEMF_T4.3_{region}_{year}_{building_scenario}"
+        self.data_base_name = f"ECEMF_T4.3_{region}_{year}_{building_scenario}"
+        self.path_to_results = Path(__file__).parent / "data" / "output" / self.data_base_name
+        self.path_to_model_input = Path(__file__).parent / "data" / "input_operation" / self.data_base_name
         self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}/data_output/"
+        self.data_output.mkdir(parents=True, exist_ok=True)
         self.clustered_building_df = self.load_clustered_building_df()
-        self.db = DB(config=Config(project_name=f"ECEMF_T4.3_{region}_{year}_{building_scenario}"))
+        self.db = DB(path=Config(project_name=self.data_base_name).output / f"{self.data_base_name}.sqlite")
         self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
         self.pv_sizes = {
             1: 0,  # kWp
@@ -302,6 +302,7 @@ class ECEMFPostProcess:
             ref_loads = self.db.read_parquet(
                 table_name=OperationTable.ResultRefHour,
                 scenario_ID=id_scenario,
+                folder=self.path_to_results,
                 column_names=["Grid", "Feed2Grid", "E_Heating_HP_out", "E_RoomCooling", "Q_RoomHeating"]
             )
 
@@ -315,6 +316,7 @@ class ECEMFPostProcess:
             opt_loads = self.db.read_parquet(
                 table_name=OperationTable.ResultOptHour,
                 scenario_ID=id_scenario,
+                folder=self.path_to_results,
                 column_names=["Grid", "Feed2Grid", "E_Heating_HP_out", "E_RoomCooling", "Q_RoomHeating"])
 
             result_matrix_demand.loc[:, id_building] = opt_loads["Grid"].to_numpy()
@@ -1473,17 +1475,17 @@ if __name__ == "__main__":
     # Heating buffer storage is only installed in buildings with HPs. Probability only refers to buildings with HP
     baseline = {
         "year": 2020,
-        "region": "Murcia",
+        "region": "Leeuwarden",
         "building_scenario": "H",
-        "pv_installation_percentage": 0.015,
+        "pv_installation_percentage": 0.016,
         "dhw_storage_percentage": 0.5,
         "buffer_storage_percentage": 0,
         "heating_element_percentage": 0,
-        "air_hp_percentage": 0.2,
+        "air_hp_percentage": 0.04,
         "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0.39,
-        "gases_percentage": 0.19,
-        "ac_percentage": 0.5,
+        "direct_electric_heating_percentage": 0.02,
+        "gases_percentage": 0.9,
+        "ac_percentage": 0.2,
         "battery_percentage": 0.1,
         "prosumager_percentage": 0,
     }
@@ -1496,19 +1498,19 @@ if __name__ == "__main__":
     # to only analyse one parameter use ECEMFFigures with on parameter as list:
     scenario = {
         "year": 2020,
-        "region": "Murcia",
+        "region": "Leeuwarden",
         "building_scenario": "H",
-        "pv_installation_percentage": 0.015,
+        "pv_installation_percentage": pv_increase,
         "dhw_storage_percentage": 0.5,
         "buffer_storage_percentage": 0,
         "heating_element_percentage": 0,
-        "air_hp_percentage": 0.2,
+        "air_hp_percentage": 0.1,
         "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0.39,
-        "gases_percentage": 0.19,
-        "ac_percentage": 0.5,
+        "direct_electric_heating_percentage": 0.05,
+        "gases_percentage": 0.8,
+        "ac_percentage": 0.05,
         "battery_percentage": 0.1,
-        "prosumager_percentage": prosumager_increase,
+        "prosumager_percentage": 0,
         "baseline": baseline
     }
 
