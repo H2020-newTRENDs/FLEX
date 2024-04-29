@@ -18,7 +18,6 @@ def get_config(project_name: str):
 
 def run_flex_operation_model(config: "Config"):
     init_project_db(config)
-    # run_operation_model(config=config, save_hour=True, scenario_ids=[1])
     run_operation_model_parallel(config=config, task_num=8, save_hour=True)
 
 
@@ -26,31 +25,29 @@ def run_flex_operation_plotter(config: "Config"):
     household_load_balance(config, scenario_ids=random.sample(range(1, 4375), 100))
 
 
-def run_scenario_and_generate_summary_files(scenarios: List[str]):
+def run_scenario_and_generate_summary_files():
+    scenarios = []
     for scenario in scenarios:
         cfg = get_config(scenario)
-        run_flex_operation_model(cfg)
+        # run_flex_operation_model(cfg)
         generate_summary.gen_summary_year(cfg)
-        generate_summary.gen_summary_hour(cfg)
+        # generate_summary.gen_summary_hour(cfg)
 
 
 def process_summary_files():
-    process_summary.concat_summary()
-    process_summary.process_summary_year()
-    process_summary.process_summary_hour()
-    process_summary.compare_hwb_diff()
+    # process_summary.concat_summary()
+    # process_summary.start_from_8760h_summary()
+    # process_summary.harmonize_with_invert()
+    # process_summary.implement_iamc_formatting_year()
+    # process_summary.mix_scenarios_year()
+    # process_summary.implement_iamc_formatting_hour()
+    # process_summary.mix_scenarios_hour()
+    # process_summary.insert_pv_2_grid_hour()
+    process_summary.filter_aut()
 
 
 if __name__ == "__main__":
 
-    SCENARIOS = [
-        # "FIN_2040",
-        # "GRC_2040",
-        # "LTU_2040",
-        # "LVA_2040",
-        # "ROU_2040",
-        "SWE_2040",
-    ]
-    run_scenario_and_generate_summary_files(SCENARIOS)
+    process_summary_files()
 
 
