@@ -43,11 +43,17 @@ def process_summary_files():
     # process_summary.implement_iamc_formatting_hour()
     # process_summary.mix_scenarios_hour()
     # process_summary.insert_pv_2_grid_hour()
-    process_summary.filter_aut()
+    # process_summary.filter_aut()
+    process_summary.aggregate_by_day_hour()
+
+
+def plot_figures():
+    ...
 
 
 if __name__ == "__main__":
 
     process_summary_files()
+    # plot_figures()
 
 

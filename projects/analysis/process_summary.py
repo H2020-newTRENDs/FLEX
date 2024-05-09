@@ -370,5 +370,19 @@ def filter_aut():
                              sheet_name="data")
 
 
+def aggregate_by_day_hour():
+    df = pd.read_csv(os.path.join(OUTPUT_FOLDER, IAMC_HOUR_SUBMISSION))
+    df = df.groupby([
+        "model",
+        "scenario",
+        "region",
+        "variable",
+        "unit",
+        "year",
+        "day_hour"
+    ], as_index=False)["value"].mean()
+    df.to_excel(os.path.join(OUTPUT_FOLDER, "IamcHour_DayHourAverage.xlsx"), index=False)
+
+
 
 
