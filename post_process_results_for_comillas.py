@@ -1586,15 +1586,15 @@ if __name__ == "__main__":
         "battery_percentage": [0.1, 0.12, 0.16, 0.25],
         "prosumager_percentage": [0, 0.05, 0.2, 0.4],
         "baseline": baseline_leeuwarden
-    }
+    }   
 
         # building scenarios
-    # ECEMFFigures(scenario=building_scenario_leeuwarden_H, scenario_name="Buildings_strong_policy").create_figures()
-    # ECEMFFigures(scenario=building_scenario_leeuwarden_M, scenario_name="Buildings_weak_policy").create_figures()
+    ECEMFFigures(scenario=building_scenario_leeuwarden_H, scenario_name="Buildings_strong_policy").create_figures()
+    ECEMFFigures(scenario=building_scenario_leeuwarden_M, scenario_name="Buildings_weak_policy").create_figures()
 
     # complete scenarios
-    # ECEMFFigures(scenario=scenario_high_eff, scenario_name="Strong_policy").create_figures()
-    # ECEMFFigures(scenario=scenario_moderate_eff, scenario_name="Weak_policy").create_figures()
+    ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name="Strong_policy").create_figures()
+    ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name="Weak_policy").create_figures()
 
 
 
@@ -1661,7 +1661,7 @@ if __name__ == "__main__":
         "baseline": baseline_murcia
     }
     # calculate a complete scenario run:
-    scenario_high_eff = {
+    scenario_high_eff_murcia = {
         "year": [2020, 2030, 2040, 2050],
         "region": "Murcia",
         "building_scenario": "H",
@@ -1679,7 +1679,7 @@ if __name__ == "__main__":
         "baseline": baseline_murcia
     }
 
-    scenario_moderate_eff = {
+    scenario_moderate_eff_murcia = {
         "year": [2020, 2030, 2040, 2050],
         "region": "Murcia",
         "building_scenario": "M",
@@ -1698,9 +1698,9 @@ if __name__ == "__main__":
     }
 
     # # building scenarios
-    ECEMFFigures(scenario=building_scenario_murcia_h, scenario_name="Buildings_strong_policy").create_figures()
-    ECEMFFigures(scenario=building_scenario_murcia_m, scenario_name="Buildings_weak_policy").create_figures()
+    # ECEMFFigures(scenario=building_scenario_murcia_h, scenario_name="Buildings_strong_policy").create_figures()
+    # ECEMFFigures(scenario=building_scenario_murcia_m, scenario_name="Buildings_weak_policy").create_figures()
 
-    # complete scenarios
-    ECEMFFigures(scenario=scenario_high_eff, scenario_name="Strong_policy").create_figures()
-    ECEMFFigures(scenario=scenario_moderate_eff, scenario_name="Weak_policy").create_figures()
+    # # complete scenarios
+    # ECEMFFigures(scenario=scenario_high_eff_murcia, scenario_name="Strong_policy").create_figures()
+    # ECEMFFigures(scenario=scenario_moderate_eff_murcia, scenario_name="Weak_policy").create_figures()
