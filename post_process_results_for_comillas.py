@@ -828,7 +828,7 @@ class ECEMFPostProcess:
             price_df = pd.read_csv(self.data_output / file_name)
         else:
             price_df = pd.DataFrame()
-        price_df.loc[:, self.__file_name__] = price
+        price_df.loc[:, self.__file_name__()] = price
         price_df.to_csv(self.data_output / file_name, sep=";", index=False)
 
 
