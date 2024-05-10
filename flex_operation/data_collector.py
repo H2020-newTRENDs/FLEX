@@ -40,6 +40,7 @@ class OperationDataCollector(ABC):
         """
         self.model = model
         self.scenario_id = scenario_id
+        self.config = config
         self.db = create_db_conn(config)
         self.hour_result = {}
         self.month_result = {}
@@ -148,7 +149,8 @@ class OperationDataCollector(ABC):
         df_to_save = self.reduce_df_size(result_hour_df)
         self.db.write_to_parquet(table_name=self.get_hour_result_table_name(),
                                  scenario_ID=self.scenario_id,
-                                 table=df_to_save)
+                                 table=df_to_save,
+                                 folder=self.config.output)
 
     def save_month_result(self):
         result_month_df = pd.DataFrame(self.month_result)

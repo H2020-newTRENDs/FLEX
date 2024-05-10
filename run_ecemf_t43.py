@@ -2,7 +2,32 @@ from db_init import ProjectDatabaseInit
 import pandas as pd
 from flex.config import Config
 from flex_operation.run import main as operation_main
+from pathlib import Path
+import shutil
 
+
+def delete_result_task_folders(conf):
+    for item in Path(conf.output).parent.iterdir():
+        if item.is_dir():
+            if conf.project_name in item.name and conf.project_name != item.name:
+                print(f"Deleting directory and all contents: {item}")
+                for sub_item in item.iterdir():
+                    # Check if the sub_item is a file
+                    if sub_item.is_file():
+                        sub_item.unlink()  # Delete the file
+                shutil.rmtree(item)
+
+
+def delete_input_task_folders(conf):
+    for item in Path(conf.input_operation).parent.iterdir():
+        if item.is_dir():
+            if conf.project_name in item.name and conf.project_name != item.name:
+                print(f"Deleting directory and all contents: {item}")
+                for sub_item in item.iterdir():
+                    # Check if the sub_item is a file
+                    if sub_item.is_file():
+                        sub_item.unlink()  # Delete the file
+                shutil.rmtree(item)
 
 
 if __name__ == "__main__":
@@ -35,6 +60,14 @@ if __name__ == "__main__":
                             operation_scenario_ids = None,
                             n_cores=20,
                             )
+            
+            try:
+                delete_result_task_folders(cfg)
+                delete_input_task_folders(cfg)
+            except:
+                print(f"taskfolders for {country} {year} were not deleted")
+            
+
 
 
 

@@ -1,5 +1,6 @@
 import os
 from typing import TYPE_CHECKING, List
+from pathlib import Path
 
 import pandas as pd
 import sqlalchemy
@@ -71,7 +72,10 @@ class DB:
         table = self.metadata.tables[table_name]
 
         if column_names:
-            query = sqlalchemy.select([table.columns[name] for name in column_names])
+            if len(column_names) > 1:
+                query = sqlalchemy.select([table.columns[name] for name in column_names])
+            else:
+                query = sqlalchemy.select([table.columns[name] for name in column_names][0])
         else:
             query = sqlalchemy.select(table)
 
@@ -98,12 +102,12 @@ class DB:
     def query(self, sql) -> pd.DataFrame:
         return pd.read_sql(sql, self.engine)
 
-    def write_to_parquet(self, table_name: str, scenario_ID: int, table: pd.DataFrame) -> None:
+    def write_to_parquet(self, table_name: str, scenario_ID: int, table: pd.DataFrame, folder) -> None:
         """
         is used to save the results. Writes the dataframe into a parquet file with 'table_name_ID' as file name
         """
         file_name = f"{table_name}_{scenario_ID}.parquet.gzip"
-        saving_path = self.config.output / file_name
+        saving_path = Path(folder) / file_name
         table.to_parquet(path=saving_path, engine="auto", compression='gzip', index=False)
 
 
