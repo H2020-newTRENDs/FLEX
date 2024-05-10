@@ -1592,51 +1592,56 @@ if __name__ == "__main__":
 
     # Leeuwarden Scenarios
     # calculate a complete scenario run:
-    scenario_high_eff_leeuwarden = {
-        "year": [2020, 2030, 2040, 2050],
-        "region": "Leeuwarden",
-        "building_scenario": "H",
-        "pv_installation_percentage": [0.02, 0.15, 0.4, 0.6],
-        "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
-        "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
-        "heating_element_percentage": 0,
-        "air_hp_percentage": [0.04, 0.18, 0.5, 0.7],
-        "ground_hp_percentage": [0, 0.05, 0.1, 0.15],
-        "direct_electric_heating_percentage": [0.02, 0.03, 0.02, 0.01],
-        "gases_percentage": [0.9, 0.7, 0.34, 0.1],
-        "ac_percentage": [0.2, 0.3, 0.5, 0.7],
-        "battery_percentage": [0.1, 0.12, 0.2, 0.3],
-        "prosumager_percentage": [0, 0.1, 0.3, 0.5],
-        "baseline": baseline_leeuwarden
-    }
+    for i, prosumager_shares in enumerate([Low, Medium, High]):
+        if i == 0:
+            pr = "P-low"
+        elif i == 1:
+            pr = "P-medium"
+        elif i == 2:
+            pr = "P-high" 
+        scenario_high_eff_leeuwarden = {
+            "year": [2020, 2030, 2040, 2050],
+            "region": "Leeuwarden",
+            "building_scenario": "H",
+            "pv_installation_percentage": [0.02, 0.15, 0.4, 0.6],
+            "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
+            "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
+            "heating_element_percentage": 0,
+            "air_hp_percentage": [0.04, 0.18, 0.5, 0.7],
+            "ground_hp_percentage": [0, 0.05, 0.1, 0.15],
+            "direct_electric_heating_percentage": [0.02, 0.03, 0.02, 0.01],
+            "gases_percentage": [0.9, 0.7, 0.34, 0.1],
+            "ac_percentage": [0.2, 0.3, 0.5, 0.7],
+            "battery_percentage": [0.1, 0.12, 0.2, 0.3],
+            "prosumager_percentage": prosumager_shares,
+            "baseline": baseline_leeuwarden
+        }
 
-    scenario_moderate_eff_leeuwarden = {
-        "year": [2020, 2030, 2040, 2050],
-        "region": "Leeuwarden",
-        "building_scenario": "M",
-        "pv_installation_percentage": [0.02, 0.1, 0.3, 0.5],
-        "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
-        "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
-        "heating_element_percentage": 0,
-        "air_hp_percentage": [0.04, 0.18, 0.45, 0.6],
-        "ground_hp_percentage": [0, 0.02, 0.06, 0.1],
-        "direct_electric_heating_percentage": [0.02, 0.03, 0.02, 0.02],
-        "gases_percentage": [0.9, 0.73, 0.43, 0.24],
-        "ac_percentage": [0.2, 0.35, 0.6, 0.8],
-        "battery_percentage": [0.1, 0.12, 0.16, 0.25],
-        "prosumager_percentage": [0, 0.05, 0.2, 0.4],
-        "baseline": baseline_leeuwarden
-    }
+        scenario_moderate_eff_leeuwarden = {
+            "year": [2020, 2030, 2040, 2050],
+            "region": "Leeuwarden",
+            "building_scenario": "M",
+            "pv_installation_percentage": [0.02, 0.1, 0.3, 0.5],
+            "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
+            "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
+            "heating_element_percentage": 0,
+            "air_hp_percentage": [0.04, 0.18, 0.45, 0.6],
+            "ground_hp_percentage": [0, 0.02, 0.06, 0.1],
+            "direct_electric_heating_percentage": [0.02, 0.03, 0.02, 0.02],
+            "gases_percentage": [0.9, 0.73, 0.43, 0.24],
+            "ac_percentage": [0.2, 0.35, 0.6, 0.8],
+            "battery_percentage": [0.1, 0.12, 0.16, 0.25],
+            "prosumager_percentage": prosumager_shares,
+            "baseline": baseline_leeuwarden
+        }
+            # complete scenarios
+        ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
+        ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
+
 
         # building scenarios
     # ECEMFFigures(scenario=building_scenario_leeuwarden_H, scenario_name="Buildings_strong_policy").create_figures()
     # ECEMFFigures(scenario=building_scenario_leeuwarden_M, scenario_name="Buildings_weak_policy").create_figures()
-
-    # complete scenarios
-    # ECEMFFigures(scenario=scenario_high_eff, scenario_name="Strong_policy").create_figures()
-    # ECEMFFigures(scenario=scenario_moderate_eff, scenario_name="Weak_policy").create_figures()
-
-
 
     # Murcia Scenarios
     baseline_murcia = {
@@ -1689,6 +1694,7 @@ if __name__ == "__main__":
         "prosumager_percentage": 0,
         "baseline": baseline_murcia
     }
+
     # calculate a complete scenario run:
     for i, prosumager_shares in enumerate([Low, Medium, High]):
         if i == 0:
@@ -1705,14 +1711,14 @@ if __name__ == "__main__":
             "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
             "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
             "heating_element_percentage": 0,
-            "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
+            "air_hp_percentage": [0.2, 0.35, 0.6, 0.8],
             "ground_hp_percentage": [0, 0.02, 0.04, 0.06],
-            "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.1],
+            "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.05],
             "gases_percentage": [0.19, 0.15, 0.07, 0.02],
             "ac_percentage": [0.5, 0.6, 0.8, 0.9],
             "battery_percentage": [0.1, 0.12, 0.2, 0.3],
             "prosumager_percentage": prosumager_shares,
-            "baseline": baseline
+            "baseline": baseline_murcia
         }
 
         scenario_moderate_eff = {
@@ -1724,20 +1730,17 @@ if __name__ == "__main__":
             "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
             "heating_element_percentage": 0,
             "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
-            "ground_hp_percentage": [0, 0.05, 0.1, 0.15],
-            "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.1],
-            "gases_percentage": [0.19, 0.15, 0.1, 0.05],
-            "ac_percentage": [0.5, 0.65, 0.8, 1],
+            "ground_hp_percentage": [0, 0.01, 0.02, 0.03],
+            "direct_electric_heating_percentage": [0.39, 0.32, 0.2, 0.1],
+            "gases_percentage": [0.19, 0.16, 0.1, 0.05],
+            "ac_percentage": [0.5, 0.65, 0.8, 0.95],
             "battery_percentage": [0.1, 0.12, 0.16, 0.25],
             "prosumager_percentage": prosumager_shares,
-            "baseline": baseline
+            "baseline": baseline_murcia
         }
-
-        scen_name = f"Strong_policy_{pr}"
-        ECEMFFigures(scenario=scenario_high_eff, scenario_name=scen_name).create_figures()
-
-        scen_name = f"Weak_policy_{pr}"
-        ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=scen_name).create_figures()
+        # complete scenarios
+        ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").create_figures()
+        ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=f"Weak_policy_{pr}").create_figures()
 
     # create file that indicates for each building: building type, number of persons, 
     # send prices to miguel from the highest total demand day (1 new file with all the scenarios with 24 values, 1 file Murcia, 1 file Leeuwarden, column name same as for scenario)
@@ -1747,47 +1750,10 @@ if __name__ == "__main__":
     # Medium: 0, 10, 30, 50
     # High: 0, 15, 40, 80
 
-    scenario_high_eff = {
-        "year": [2020, 2030, 2040, 2050],
-        "region": "Murcia",
-        "building_scenario": "H",
-        "pv_installation_percentage": [0.015, 0.1, 0.4, 0.6],
-        "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
-        "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
-        "heating_element_percentage": 0,
-        "air_hp_percentage": [0.2, 0.3, 0.6, 0.8],
-        "ground_hp_percentage": [0, 0.02, 0.04, 0.06],
-        "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.05],
-        "gases_percentage": [0.19, 0.15, 0.07, 0.02],
-        "ac_percentage": [0.5, 0.6, 0.8, 0.9],
-        "battery_percentage": [0.1, 0.12, 0.2, 0.3],
-        "prosumager_percentage": [0, 0.1, 0.3, 0.5],
-        "baseline": baseline_murcia
-    }
-
-    scenario_moderate_eff = {
-        "year": [2020, 2030, 2040, 2050],
-        "region": "Murcia",
-        "building_scenario": "M",
-        "pv_installation_percentage": [0.015, 0.15, 0.3, 0.5],
-        "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
-        "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
-        "heating_element_percentage": 0,
-        "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
-        "ground_hp_percentage": [0, 0.01, 0.02, 0.03],
-        "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.1],
-        "gases_percentage": [0.19, 0.15, 0.1, 0.05],
-        "ac_percentage": [0.5, 0.65, 0.8, 0.95],
-        "battery_percentage": [0.1, 0.12, 0.16, 0.25],
-        "prosumager_percentage": [0, 0.05, 0.2, 0.4],
-        "baseline": baseline_murcia
-    }
 
     # # building scenarios
-    ECEMFFigures(scenario=building_scenario_murcia_h, scenario_name="Buildings_strong_policy").create_figures()
-    ECEMFFigures(scenario=building_scenario_murcia_m, scenario_name="Buildings_weak_policy").create_figures()
+    # ECEMFFigures(scenario=building_scenario_murcia_h, scenario_name="Buildings_strong_policy").create_figures()
+    # ECEMFFigures(scenario=building_scenario_murcia_m, scenario_name="Buildings_weak_policy").create_figures()
 
-    # complete scenarios
-    ECEMFFigures(scenario=scenario_high_eff, scenario_name="Strong_policy").create_figures()
-    ECEMFFigures(scenario=scenario_moderate_eff, scenario_name="Weak_policy").create_figures()
+
 
