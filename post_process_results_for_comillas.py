@@ -629,7 +629,7 @@ class ECEMFPostProcess:
         if file_name not in self.data_output.iterdir():
             # get the building 
             type_df = pd.read_excel(
-                prev_scen.path_to_model_input / f"OperationScenario_Component_Building.xlsx", engine="openpyxl"
+                self.path_to_model_input / f"OperationScenario_Component_Building.xlsx", engine="openpyxl"
             ).loc[:, ["ID_Building", "type", "person_num"]].rename(columns={"ID_Building": "FLEX_ID_Building"})
             df = pd.merge(df, type_df, on="FLEX_ID_Building")
             df.drop("FLEX_ID_Building", inplace=True)
