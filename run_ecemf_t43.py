@@ -36,6 +36,7 @@ if __name__ == "__main__":
         for scen in ["H", "M"]:
             cfg = Config(f"ECEMF_T4.3_Leeuwarden_{year}_{scen}")
             df_start = pd.read_excel(cfg.input_operation / f'Scenario_start_Leeuwarden_{year}_{scen}.xlsx')
+            print(f"{year} {scen}")
             init = ProjectDatabaseInit(
                 config=cfg,
                 exclude_from_permutation=["ID_Building",
