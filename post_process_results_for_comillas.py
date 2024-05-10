@@ -632,7 +632,7 @@ class ECEMFPostProcess:
                 self.path_to_model_input / f"OperationScenario_Component_Building.xlsx", engine="openpyxl"
             ).loc[:, ["ID_Building", "type", "person_num"]].rename(columns={"ID_Building": "FLEX_ID_Building"})
             df = pd.merge(df, type_df, on="FLEX_ID_Building")
-            df.drop("FLEX_ID_Building", inplace=True)
+            df.drop(columns=["FLEX_ID_Building"], inplace=True)
             df.to_csv(self.data_output / file_name)
         
 
