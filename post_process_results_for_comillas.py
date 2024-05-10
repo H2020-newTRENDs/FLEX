@@ -620,6 +620,20 @@ class ECEMFPostProcess:
 
         new_scenario_table = pd.concat(row_list, axis=0).drop(columns=["number_of_buildings"]).reset_index(drop=True)
         return new_scenario_table
+    
+    def create_summary_excel_for_building_type_and_number_of_inhabs(self, df: pd.DataFrame):
+        # open excel if it already exists:
+        file_name = f"Building_types_{self.year}_{self.region}_{self.building_scenario}.csv"
+        if file_name not in self.data_output.iterdir():
+            # get the building 
+            type_df = pd.read_excel(
+                prev_scen.path_to_model_input / f"OperationScenario_Component_Building.xlsx", engine="openpyxl"
+            ).loc[:, ["ID_Building", "type", "person_num"]].rename(columns={"ID_Building": "FLEX_ID_Building"})
+            df = pd.merge(df, type_df, on="FLEX_ID_Building")
+            df.drop("FLEX_ID_Building", inplace=True)
+            df.to_csv(self.data_output / file_name)
+        
+
 
     def heating_systems_change(self):
         if "baseline" in self.previous_scenario.keys():
@@ -798,6 +812,23 @@ class ECEMFPostProcess:
         # fix the ID Behavior (1 for the new HP buildings)
         df.loc[df.loc[:, "ID_Prosumager"] == 1, "ID_Behavior"] = 1
         return df.apply(convert_to_numeric)
+    
+    def get_electricty_price_for_max_demand_day(self, start_hour: int, end_hour: int):
+        # read electricity price:
+        elec_price = pd.read_excel(self.path_to_model_input / "OperationScenario_EnergyPrice.xlsx", engine="openpyxl").loc[:, "electricity_1"]
+        max_day_price = elec_price.iloc[start_hour: end_hour]
+        return max_day_price
+    
+    def save_electricity_price_to_excel(self, price: pd.Series):
+        # check if price excel existst:
+        file_name = "electricity_prices.csv"
+        if file_name in self.data_output.iterdir():
+            price_df = pd.read_csv(self.data_output / file_name)
+        else:
+            price_df = pd.DataFrame()
+        price_df.loc[:, self.__file_name__] = price
+        price_df.to_csv(self.data_output / file_name, sep=";", index=False)
+
 
     def create_output_csv(self):
         if self.__file_name__() == get_file_name(self.baseline):
@@ -863,6 +894,11 @@ class ECEMFPostProcess:
                                             file_name=self.__file_name__(),
 
                                             )
+        
+        self.create_summary_excel_for_building_type_and_number_of_inhabs(df=scenario_building_table)
+        # add the electricity price to an excel with elec prices for all scenarios:
+        max_day_price = self.get_electricty_price_for_max_demand_day(start_hour=demand_start_hour, end_hour=demand_end_hour)
+        self.save_electricity_price_to_excel(price=max_day_price)
 
     def get_hourly_csv(self) -> pd.DataFrame:
         file_name = self.__file_name__()
@@ -1471,6 +1507,10 @@ if __name__ == "__main__":
     # Battery is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating element is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating buffer storage is only installed in buildings with HPs. Probability only refers to buildings with HP
+    Low = [0, 0.05, 0.1, 0.2]
+    Medium = [0, 0.1, 0.3, 0.5]
+    High = [0, 0.15, 0.4, 0.8]
+
     baseline = {
         "year": 2020,
         "region": "Murcia",
@@ -1515,44 +1555,60 @@ if __name__ == "__main__":
     ECEMFFigures(scenario=scenario, scenario_name="Prosumager_increase_2020_strong_policy").create_figures()
 
     # calculate a complete scenario run:
-    scenario_high_eff = {
-        "year": [2020, 2030, 2040, 2050],
-        "region": "Murcia",
-        "building_scenario": "H",
-        "pv_installation_percentage": [0.015, 0.1, 0.4, 0.6],
-        "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
-        "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
-        "heating_element_percentage": 0,
-        "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
-        "ground_hp_percentage": [0, 0.02, 0.04, 0.06],
-        "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.1],
-        "gases_percentage": [0.19, 0.15, 0.07, 0.02],
-        "ac_percentage": [0.5, 0.6, 0.8, 0.9],
-        "battery_percentage": [0.1, 0.12, 0.2, 0.3],
-        "prosumager_percentage": [0, 0.05, 0.2, 0.5],
-        "baseline": baseline
-    }
 
-    scenario_moderate_eff = {
-        "year": [2020, 2030, 2040, 2050],
-        "region": "Murcia",
-        "building_scenario": "M",
-        "pv_installation_percentage": [0.015, 0.15, 0.3, 0.5],
-        "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
-        "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
-        "heating_element_percentage": 0,
-        "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
-        "ground_hp_percentage": [0, 0.05, 0.1, 0.15],
-        "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.1],
-        "gases_percentage": [0.19, 0.15, 0.1, 0.05],
-        "ac_percentage": [0.5, 0.65, 0.8, 1],
-        "battery_percentage": 0.1,
-        "prosumager_percentage": [0, 0.1, 0.3, 0.5],
-        "baseline": baseline
-    }
+    for i, prosumager_shares in enumerate([Low, Medium, High]):
+        if i == 0:
+            pr = "P-low"
+        elif i == 1:
+            pr = "P-medium"
+        elif i == 2:
+            pr = "P-high"
+        scenario_high_eff = {
+            "year": [2020, 2030, 2040, 2050],
+            "region": "Murcia",
+            "building_scenario": "H",
+            "pv_installation_percentage": [0.015, 0.1, 0.4, 0.6],
+            "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
+            "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
+            "heating_element_percentage": 0,
+            "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
+            "ground_hp_percentage": [0, 0.02, 0.04, 0.06],
+            "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.1],
+            "gases_percentage": [0.19, 0.15, 0.07, 0.02],
+            "ac_percentage": [0.5, 0.6, 0.8, 0.9],
+            "battery_percentage": [0.1, 0.12, 0.2, 0.3],
+            "prosumager_percentage": prosumager_shares,
+            "baseline": baseline
+        }
 
-    # scen_name = "scenario_high_eff"
-    # ECEMFFigures(scenario=scenario_high_eff, scenario_name=scen_name).create_figures()
+        scenario_moderate_eff = {
+            "year": [2020, 2030, 2040, 2050],
+            "region": "Murcia",
+            "building_scenario": "M",
+            "pv_installation_percentage": [0.015, 0.15, 0.3, 0.5],
+            "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
+            "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
+            "heating_element_percentage": 0,
+            "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
+            "ground_hp_percentage": [0, 0.05, 0.1, 0.15],
+            "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.1],
+            "gases_percentage": [0.19, 0.15, 0.1, 0.05],
+            "ac_percentage": [0.5, 0.65, 0.8, 1],
+            "battery_percentage": [0.1, 0.12, 0.16, 0.25],
+            "prosumager_percentage": prosumager_shares,
+            "baseline": baseline
+        }
 
-    # scen_name = "scenario_moderate_eff"
-    # ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=scen_name).create_figures()
+        scen_name = f"Strong_policy_{pr}"
+        ECEMFFigures(scenario=scenario_high_eff, scenario_name=scen_name).create_figures()
+
+        scen_name = f"Weak_policy_{pr}"
+        ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=scen_name).create_figures()
+
+    # create file that indicates for each building: building type, number of persons, 
+    # send prices to miguel from the highest total demand day (1 new file with all the scenarios with 24 values, 1 file Murcia, 1 file Leeuwarden, column name same as for scenario)
+    # create prosumager scnearios , low, high, medium  --> 6 scenarios for strong and weak policy
+    # prosumager percentages:
+    # Low: 0, 5, 10, 20
+    # Medium: 0, 10, 30, 50
+    # High: 0, 15, 40, 80
