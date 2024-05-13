@@ -818,17 +818,17 @@ class ECEMFPostProcess:
     def get_electricty_price_for_max_demand_day(self, start_hour: int, end_hour: int):
         # read electricity price:
         elec_price = pd.read_excel(self.path_to_model_input / "OperationScenario_EnergyPrice.xlsx", engine="openpyxl").loc[:, "electricity_1"]
-        max_day_price = elec_price.iloc[start_hour: end_hour]
+        max_day_price = elec_price.iloc[start_hour: end_hour+1]
         return max_day_price
     
     def save_electricity_price_to_excel(self, price: pd.Series):
         # check if price excel existst:
         file_name = "electricity_prices.csv"
-        if file_name in self.data_output.iterdir():
-            price_df = pd.read_csv(self.data_output / file_name)
+        if file_name in [f.name for f in self.data_output.iterdir()]:
+            price_df = pd.read_csv(self.data_output / file_name, sep=";")
         else:
             price_df = pd.DataFrame()
-        price_df.loc[:, self.__file_name__()] = price
+        price_df.loc[:, self.__file_name__()] = price.to_numpy()
         price_df.to_csv(self.data_output / file_name, sep=";", index=False)
 
 
@@ -1089,7 +1089,7 @@ class ECEMFFigures:
             )
             ECEMFPostProcess(**self.baseline, baseline=self.baseline, previous_scenario=None).create_output_csv()
 
-        elif isinstance(scenarios, list):
+        if isinstance(scenarios, list):
             # the first scenario will be based on the baseline in case it is not the same as the baseline, making
             # the baseline the previous scenario. After that always the previous scenario from the scenario list
             # is taken as the previous scenario:
@@ -1561,34 +1561,6 @@ if __name__ == "__main__":
         "prosumager_percentage": 0,
         "baseline": baseline_leeuwarden
     }
-
-
-    pv_increase = [0.1, 0.4, 0.7, 1]
-    prosumager_increase = [0, 0.33, 0.66, 1]
-    direct_electric_heating_decrease = [0.4, 0.3, 0.2, 0.1]
-    AC_increase = [0.5, 0.65, 0.80, 1]
-    air_hp_increase = [0.2, 0.45, 0.7, 0.95]
-
-    # to only analyse one parameter use ECEMFFigures with on parameter as list:
-    scenario = {
-        "year": 2020,
-        "region": "Leeuwarden",
-        "building_scenario": "H",
-        "pv_installation_percentage": pv_increase,
-        "dhw_storage_percentage": 0.5,
-        "buffer_storage_percentage": 0,
-        "heating_element_percentage": 0,
-        "air_hp_percentage": 0.1,
-        "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0.05,
-        "gases_percentage": 0.8,
-        "ac_percentage": 0.05,
-        "battery_percentage": 0.1,
-        "prosumager_percentage": 0,
-        "baseline": baseline_leeuwarden
-    }
-
-    # ECEMFFigures(scenario=scenario, scenario_name="Prosumager_increase_2020_strong_policy").create_figures()
 
     # Leeuwarden Scenarios
     # calculate a complete scenario run:
