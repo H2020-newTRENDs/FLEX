@@ -44,7 +44,8 @@ def process_summary_files():
     # process_summary.mix_scenarios_hour()
     # process_summary.insert_pv_2_grid_hour()
     # process_summary.filter_aut()
-    process_summary.aggregate_by_day_hour()
+    # process_summary.aggregate_by_day_hour()
+    process_summary.divide_electricity_price_with_eight()
 
 
 def plot_figures():

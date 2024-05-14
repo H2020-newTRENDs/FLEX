@@ -17,6 +17,12 @@ OUTPUT_FOLDER = os.path.join(
     "output"
 )
 
+SUBMISSION_FOLDER = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+    "ECEMF_Summary",
+    "submission"
+)
+
 SUMMARY_YEAR = "_SummaryYear.csv"
 SUMMARY_HOUR = "_SummaryHour.csv"
 INVERT_SUMMARY = "_INVERT_Summary.xlsx"
@@ -82,6 +88,7 @@ def start_from_8760h_summary():
                         ]
                     l_aggregated.append(df_filtered.groupby(indices_aggregated, as_index=False)[cols_kept].sum())
     df_result = pd.concat(l_aggregated, axis=0, ignore_index=True)
+    df_result["ElectricityPrice"] = df_result["ElectricityPrice"] / 8
     df_result_aut = df_result.loc[df_result["Country"] == "AUT"]
     df_result.to_csv(os.path.join(OUTPUT_FOLDER, SUMMARY_HOUR_SELECTIVE_AGGREGATION), index=False)
     df_result_aut.to_excel(os.path.join(OUTPUT_FOLDER, f"{SUMMARY_HOUR_SELECTIVE_AGGREGATION[0:-4]}_AUT.xlsx"), index=False)
@@ -384,5 +391,12 @@ def aggregate_by_day_hour():
     df.to_excel(os.path.join(OUTPUT_FOLDER, "IamcHour_DayHourAverage.xlsx"), index=False)
 
 
+def divide_electricity_price_with_eight():
+    file_name = "ECEMF_T4.2_Digitalization in Residential Sector_Hour Results"
+    df = pd.read_csv(os.path.join(SUBMISSION_FOLDER, f"{file_name}.csv"))
+    filtered_rows = df[df["variable"] == "Energy Price|Residential|Electricity"]
+    filtered_rows["value"] = filtered_rows["value"] / 8
+    df.update(filtered_rows)
+    df.to_csv(os.path.join(SUBMISSION_FOLDER, f"{file_name}.csv"), index=False)
 
 
