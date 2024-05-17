@@ -65,7 +65,8 @@ class DB:
         table = self.metadata.tables[table_name]
 
         if column_names:
-            query = sqlalchemy.select([table.columns[name] for name in column_names])
+            columns = [table.columns[name] for name in column_names]
+            query = sqlalchemy.select(*columns)
         else:
             query = sqlalchemy.select(table)
 
