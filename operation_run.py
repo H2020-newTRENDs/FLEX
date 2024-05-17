@@ -7,7 +7,7 @@ from models.operation.data_collector import RefDataCollector
 from models.operation.model_opt import OptInstance
 from models.operation.model_opt import OptOperationModel
 from models.operation.model_ref import RefOperationModel
-from models.operation.scenario import OperationScenario
+from models.operation.scenario import OperationScenario, MotherOperationScenario
 
 logger = get_logger(__name__)
 
@@ -25,10 +25,11 @@ def run_opt_scenario(scenario: "OperationScenario", opt_instance):
 
 def run_scenarios(scenario_ids):
     opt_instance = OptInstance().create_instance()
+    mother_operation = MotherOperationScenario(config=config)
     for scenario_id in scenario_ids:
         logger.info(f"FlexOperation --> Scenario = {scenario_id}.")
 
-        scenario = OperationScenario(scenario_id=scenario_id, config=config)
+        scenario = OperationScenario(scenario_id=scenario_id, config=config, tables=mother_operation)
         run_ref_operation(scenario)
         run_opt_scenario(scenario, opt_instance)
 

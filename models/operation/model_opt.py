@@ -779,7 +779,6 @@ class OptConfig:
             instance.E_RoomCooling_with_cooling_rule.activate()
 
     def config_vehicle(self, instance):
-        max_discharge_ev = self.model.create_upper_bound_ev_discharge()
         if self.scenario.vehicle.capacity == 0:  # no EV is implemented
             for t in range(1, 8761):
                 instance.Grid2EV[t].fix(0)
@@ -795,6 +794,7 @@ class OptConfig:
             instance.EVDischarge_rule.deactivate()
             instance.EVSoC_rule.deactivate()
         else:
+            max_discharge_ev = self.model.create_upper_bound_ev_discharge()
             # if there is a PV installed:
             if self.scenario.pv.size > 0:
                 for t in range(1, 8761):

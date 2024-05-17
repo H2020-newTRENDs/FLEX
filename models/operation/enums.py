@@ -105,8 +105,8 @@ class OperationResultVar(Enum):
     # energy price
     ElectricityPrice = "year_not_include"
     FiT = "year_not_include"
-    GasPrice = "year_not_include"
-    Gas = "year_include"
+    # GasPrice = "year_not_include"
+    # Gas = "year_include"
 
     # grid
     BaseLoadProfile = "year_include"

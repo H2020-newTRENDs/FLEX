@@ -421,3 +421,14 @@ flex/data/result/*.sqlite
 *.png
 
 *.pdf
+
+*.gzip
+*.parquet.gzip
+*.bat
+*.exe
+
+*.idm
+*.idc
+*.prn
+*.mat
+

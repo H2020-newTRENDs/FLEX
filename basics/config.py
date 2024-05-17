@@ -11,7 +11,7 @@ class Config(ABC):
             self.project_root / Path("data/input_behavior/")
         )
         self.input_operation: "Path" = self.setup_folder_path(
-            self.project_root / Path("data/input_operation/")
+            self.project_root / Path("data/input_operation/") / f"{self.project_name}"
         )
         self.input_community: "Path" = self.setup_folder_path(
             os.path.dirname("data/input_community/")

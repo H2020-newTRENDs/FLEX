@@ -6,6 +6,11 @@ import numpy as np
 import pandas as pd
 import os
 from typing import List
+import sys
+# Get the absolute path of the directory two levels up
+two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+# Add this directory to sys.path
+sys.path.insert(0, two_levels_up)
 from basics.db import DB
 from config import config, get_config
 from models.operation.enums import OperationTable
@@ -30,7 +35,10 @@ class PRNImporter:
             8: "MFH_1_B",
             9: "MFH_1_S"
         }
-        self.scenario_table = DB(get_config(self.project_name)).read_dataframe(
+        config = get_config(self.project_name)
+        path_to_sqlite_file = config.output / f"{config.project_name}.sqlite"
+        self.db = DB(path_to_sqlite_file)
+        self.scenario_table = self.db.read_dataframe(
             table_name=OperationTable.Scenarios.value)
 
     def scenario_id_2_building_name(self, id_scenario: int) -> str:
@@ -198,7 +206,7 @@ class PRNImporter:
 
     def read_heat_demand(self, table_name: str, prize_scenario: str, cooling: int):
         scenario_id = self.grab_scenario_ids_for_price(int(prize_scenario.replace("_cooling", "")[-1]), cooling)
-        demand = DB(get_config(self.project_name)).read_dataframe(table_name=table_name,
+        demand = DB(config.output / f"{config.project_name}.sqlite").read_dataframe(table_name=table_name,
                                         column_names=["ID_Scenario", "Q_HeatingTank_bypass", "Hour"],
                                         )
         # split the demand into columns for every Scenario ID:

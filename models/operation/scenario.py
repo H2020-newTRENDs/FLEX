@@ -30,7 +30,7 @@ class MotherOperationScenario:
     config: "Config"
 
     def __post_init__(self):
-        self.db = create_db_conn(self.config)
+        self.db = create_db_conn(self.config.output / f"{self.config.project_name}.sqlite")
         self.component_table_names = self.get_component_table_names()
         self.get_component_tables()
 
@@ -70,13 +70,13 @@ class OperationScenario:
     heating_element: Optional["HeatingElement"] = None
 
     def __post_init__(self):
-        self.db = create_db_conn(self.config)
+        self.db = create_db_conn(self.config.output / f"{self.config.project_name}.sqlite")
         self.component_scenario_ids = self.get_component_scenario_ids()
         self.setup_components()
         self.setup_region_weather_and_pv_generation()
         self.setup_energy_price()
         self.setup_behavior()
-        self.setup_vehicle_profiles()
+        # self.setup_vehicle_profiles()
 
     def get_component_scenario_ids(self) -> dict:
         scenario_df = self.tables.__getattribute__(OperationTable.Scenarios)
@@ -102,7 +102,7 @@ class OperationScenario:
         self.region.radiation_south = df["radiation_south"].to_numpy()
         self.region.radiation_east = df["radiation_east"].to_numpy()
         self.region.radiation_west = df["radiation_west"].to_numpy()
-        self.pv.generation = df["pv_generation"].to_numpy() * self.pv.size
+        self.pv.generation = df["pv_generation_optimal"].to_numpy() * self.pv.size
 
     def setup_energy_price(self):
         df = self.db.read_dataframe(OperationTable.EnergyPriceProfile)

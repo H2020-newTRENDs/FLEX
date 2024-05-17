@@ -25,7 +25,7 @@ class OperationDataCollector(ABC):
     ):
         self.model = model
         self.scenario_id = scenario_id
-        self.db = create_db_conn(config)
+        self.db = create_db_conn(config.output / f"{config.project_name}.sqlite")
         self.hour_result = {}
         self.year_result = {}
         self.save_hour = save_hour_results
