@@ -4,10 +4,7 @@ from typing import TYPE_CHECKING, List, Dict
 import pandas as pd
 import sqlalchemy
 
-from utils.tables import InputTables
-
-if TYPE_CHECKING:
-    from utils.config import Config
+from config import Config
 
 
 class DB:
@@ -96,12 +93,8 @@ class DB:
         return pd.read_sql(sql, self.engine)
 
 
-def create_db_conn(config: "Config") -> DB:
-    if config.task_id is None:
-        conn = DB(os.path.join(config.output, config.project_name + ".sqlite"))
-    else:
-        conn = DB(os.path.join(config.task_output, f'{config.project_name}.sqlite'))
-    return conn
+def create_db_conn(path) -> DB:
+    return DB(path)
 
 
 def init_project_db(config: "Config"):

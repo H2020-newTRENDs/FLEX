@@ -23,7 +23,7 @@ class DatabaseInitializer:
         scenario_components: ClassVar["Enum"] = None,
     ):
         self.config = config
-        self.db = create_db_conn(config)
+        self.db = create_db_conn(Path("'sqlite:///") / config.output / f"{config.project_name}.sqlite")
         self.input_folder = input_folder
         self.scenario_components = scenario_components
 
@@ -35,15 +35,15 @@ class DatabaseInitializer:
         file = self.input_folder / Path(component.table_name + ".xlsx")
         logger.info(f"loading table -> {component.table_name}")
         df = pd.read_excel(file, engine="openpyxl").dropna(how="all")  # drop columns and rows that contain only nan
-        data_types = kit.convert_datatype_py2sql(get_type_hints(component.class_var))
-        assert all(
-            key in list(data_types.keys()) for key in list(df.columns[1:])
-        ), logger.error(
-            f"Attributes of component {component.name} are inconsistent in the scenario table. "
-            f"Please check and revise."
-        )
+        # data_types = kit.convert_datatype_py2sql(get_type_hints(component.class_var))
+        # assert all(
+        #     key in list(data_types.keys()) for key in list(df.columns[1:])
+        # ), logger.error(
+        #     f"Attributes of component {component.name} are inconsistent in the scenario table. "
+        #     f"Please check and revise."
+        # )
         self.db.write_dataframe(
-            component.table_name, df, data_types=data_types, if_exists="replace"
+            component.table_name, df, if_exists="replace"
         )
 
     def load_table(self, table_enum: ClassVar["Enum"]):
