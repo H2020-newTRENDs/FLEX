@@ -438,3 +438,10 @@ flex/data/result/*.sqlite
 
 /projects/5R1C_Validation/OneDrive-2023-04-20.zip
 /projects/*
+
+*.exe
+*.ps1
+*.bat
+*.cfg
+*.csv
+
