@@ -689,17 +689,17 @@ class ECEMFPostProcess:
         new_scenario_table = pd.concat(row_list, axis=0).drop(columns=["number_of_buildings"]).reset_index(drop=True)
         return new_scenario_table
     
-    def create_summary_excel_for_building_type_and_number_of_inhabs(self, df: pd.DataFrame):
-        # open excel if it already exists:
-        file_name = f"Building_types_{self.year}_{self.region}_{self.building_scenario}.csv"
-        if file_name not in self.data_output.iterdir():
-            # get the building 
-            type_df = pd.read_excel(
-                self.path_to_model_input / f"OperationScenario_Component_Building.xlsx", engine="openpyxl"
-            ).loc[:, ["ID_Building", "type", "person_num"]].rename(columns={"ID_Building": "FLEX_ID_Building"})
-            df = pd.merge(df, type_df, on="FLEX_ID_Building")
-            df.drop(columns=["FLEX_ID_Building"], inplace=True)
-            df.to_csv(self.data_output / file_name)
+    # def create_summary_excel_for_building_type_and_number_of_inhabs(self, df: pd.DataFrame):
+    #     # open excel if it already exists:
+    #     file_name = f"Building_types_{self.year}_{self.region}_{self.building_scenario}.csv"
+    #     if file_name not in self.data_output.iterdir():
+    #         # get the building 
+    #         type_df = pd.read_excel(
+    #             self.path_to_model_input / f"OperationScenario_Component_Building.xlsx", engine="openpyxl"
+    #         ).loc[:, ["ID_Building", "type", "person_num"]].rename(columns={"ID_Building": "FLEX_ID_Building"})
+    #         df = pd.merge(df, type_df, on="FLEX_ID_Building")
+    #         df.drop(columns=["FLEX_ID_Building"], inplace=True)
+    #         df.to_csv(self.data_output / file_name)
         
 
 
@@ -908,7 +908,7 @@ class ECEMFPostProcess:
         init.run()  # old results in sqlite file are deleted! parquet files are overwritten in the operation_main
 
         operation_main(project_name = cfg.project_name,
-                use_multiprocessing = False,
+                use_multiprocessing = True,
                 save_hourly_results = True,
                 save_monthly_results = False,
                 save_yearly_results = True,
@@ -939,9 +939,10 @@ class ECEMFPostProcess:
             scenarios.drop(columns=["type"], inplace=True)
             scenarios.to_excel(self.path_to_model_input / "OperationScenario.xlsx", index=False)
 
+        # check or change the number of persons per building:
+        self.building_df["person_num"] = self.building_df["person_num"].apply(lambda x: np.floor(x))
         # calculate the  scenario using the FLEX operation model:
         self.run_FLEX_model()
-
 
         total_grid_demand, total_grid_feed, heating_e_hp, cooling, heating_q = self.calculate_total_load_profiles(
             total_df=scenarios
@@ -976,7 +977,7 @@ class ECEMFPostProcess:
         self.add_baseline_data_to_hourly_csv(hourly_df)
         print("saved hourly csv file")
 
-        self.create_overall_information_csv(scenario_df=scenario_building_table,
+        self.create_overall_information_csv(scenario_df=scenarios,
                                             total_grid_demand=total_grid_demand,
                                             max_demand_day=int(demand_start_hour / 24),
                                             max_feed_day=int(feed_start_hour / 24),
@@ -984,7 +985,7 @@ class ECEMFPostProcess:
 
                                             )
         
-        self.create_summary_excel_for_building_type_and_number_of_inhabs(df=scenario_building_table)
+        # self.create_summary_excel_for_building_type_and_number_of_inhabs(df=scenarios)
         # add the electricity price to an excel with elec prices for all scenarios:
         max_day_price = self.get_electricty_price_for_max_demand_day(start_hour=demand_start_hour, end_hour=demand_end_hour)
         self.save_electricity_price_to_excel(price=max_day_price)
