@@ -30,6 +30,7 @@ class MotherOperationScenario:
     config: "Config"
 
     def __post_init__(self):
+        self.ignored_components = []
         self.db = create_db_conn(self.config)
         self.component_table_names = self.get_component_table_names()
         self.get_component_tables()
@@ -46,9 +47,14 @@ class MotherOperationScenario:
 
     def get_component_tables(self):
         for table_name in self.component_table_names:
-            component_info = OperationScenarioComponent.__dict__[table_name.replace("ID_", "")]
-            df = self.db.read_dataframe(component_info.table_name)
-            setattr(self, component_info.table_name, df)
+            try:
+                component_info = OperationScenarioComponent.__dict__[table_name.replace("ID_", "")]
+                df = self.db.read_dataframe(component_info.table_name)
+                setattr(self, component_info.table_name, df)
+            except:
+                print(f"{table_name} does not have an input file")
+                self.ignored_components.append(table_name)
+
 
 
 @dataclass
@@ -87,6 +93,8 @@ class OperationScenario:
 
     def setup_components(self):
         for id_component, component_scenario_id in self.component_scenario_ids.items():
+            if id_component in self.tables.ignored_components:  # skip IDs that have been added to the scenario table for other purpuses and dont have their own input file
+                continue
             component_info = OperationScenarioComponent.__dict__[id_component.replace("ID_", "")]
             if component_info.name in self.__dict__.keys():
                 df = self.tables.__getattribute__(component_info.table_name)

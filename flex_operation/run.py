@@ -344,18 +344,19 @@ def run_operation_model(cfg: "Config",
     for id_operation_scenario in tqdm(scenario_ids, desc=f"{cfg.project_name}"):
         logger.info(f"FlexOperation Model --> Scenario = {id_operation_scenario}.")
         scenario = OperationScenario(scenario_id=id_operation_scenario, config=cfg, tables=mother_operation)
-        # run ref model
-        ref_model = RefOperationModel(scenario).solve()
-        RefDataCollector(model=ref_model,
-                         scenario_id=scenario.scenario_id,
-                         config=cfg,
-                         save_hour_results=save_hourly_results,
-                         save_month_results=save_monthly_results,
-                         save_year_results=save_yearly_results,
-                         hourly_save_list=hourly_save_list).run()
-
-        # run opt model (if heating system is direct electric or no heating system, skip)
-        if scenario.boiler.type == "Air_HP" or scenario.boiler.type == "Ground_HP":
+        
+        if scenario.tables.OperationScenario.loc[id_operation_scenario, "ID_Prosumager"] == 0:
+            # run ref model
+            ref_model = RefOperationModel(scenario).solve()
+            RefDataCollector(model=ref_model,
+                            scenario_id=scenario.scenario_id,
+                            config=cfg,
+                            save_hour_results=save_hourly_results,
+                            save_month_results=save_monthly_results,
+                            save_year_results=save_yearly_results,
+                            hourly_save_list=hourly_save_list).run()
+        else:
+        # run opt model
             opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
             if solve_status:
                 OptDataCollector(model=opt_model,

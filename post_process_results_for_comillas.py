@@ -22,6 +22,9 @@ matplotlib.use('Agg')
 from flex.db import DB
 from flex.config import Config
 from flex_operation.constants import OperationTable
+from db_init import ProjectDatabaseInit
+from flex_operation.run import main as operation_main
+
 
 TRANSLATION_2_ID = {
     "ID_PV": {
@@ -50,6 +53,30 @@ TRANSLATION_2_ID = {
 
 def convert_to_numeric(column):
     return pd.to_numeric(column, errors="ignore")
+
+
+def delete_result_task_folders(conf):
+    for item in Path(conf.output).parent.iterdir():
+        if item.is_dir():
+            if conf.project_name in item.name and conf.project_name != item.name:
+                print(f"Deleting directory and all contents: {item}")
+                for sub_item in item.iterdir():
+                    # Check if the sub_item is a file
+                    if sub_item.is_file():
+                        sub_item.unlink()  # Delete the file
+                shutil.rmtree(item)
+
+
+def delete_input_task_folders(conf):
+    for item in Path(conf.input_operation).parent.iterdir():
+        if item.is_dir():
+            if conf.project_name in item.name and conf.project_name != item.name:
+                print(f"Deleting directory and all contents: {item}")
+                for sub_item in item.iterdir():
+                    # Check if the sub_item is a file
+                    if sub_item.is_file():
+                        sub_item.unlink()  # Delete the file
+                shutil.rmtree(item)
 
 
 class ECEMFPostProcess:
@@ -270,10 +297,10 @@ class ECEMFPostProcess:
 
         # ID SEMS
         if all_ids["ID_Boiler"] in [2, 3]:  # Air_HP or Ground_HP
-            all_ids["ID_SEMS"] = self.assign_id([self.prosumager_percentage])
+            all_ids["ID_Prosumager"] = self.assign_id([self.prosumager_percentage])
         else:
             _ = self.assign_id([self.prosumager_percentage])
-            all_ids["ID_SEMS"] = 0
+            all_ids["ID_Prosumager"] = 0
 
         # ID Heating Element is alsways 1
         all_ids["ID_HeatingElement"] = 1
@@ -283,6 +310,8 @@ class ECEMFPostProcess:
 
         # ID Region is 1
         all_ids["ID_Region"] = 1
+
+        all_ids["ID_Vehicle"] = 1
  
         return all_ids
 
@@ -293,8 +322,7 @@ class ECEMFPostProcess:
 
         :return: returns a list of all the scenarios IDs for the whole building stock
         """
-
-        total_scenarios = pd.DataFrame(columns=[
+        columns=[
             "ID_Scenario",
             "ID_Region",
             "ID_Building",
@@ -308,18 +336,22 @@ class ECEMFPostProcess:
             "ID_EnergyPrice",
             "ID_Behavior",
             "ID_HeatingElement",
-            "ID_SEMS"
-        ])
+            "ID_Prosumager"
+        ]
         random.seed(42)
+        scenario_list = []
         for i, row in tqdm(self.building_df.iterrows(), desc=f"creating scenario based on the probabilities"):
             building_id = row["ID_Building"]
             chosen_ids = self.choose_appliances(building_type=row["type"])
 
-            building_attributes = pd.DataFrame(chosen_ids, index=[i])
-            building_attributes.loc[i, "ID_Scenario"] = int(building_id)  # Building ID is the same as Scenario ID because every single one is different
-            building_attributes.loc[i, "ID_Building"] = int(building_id)
-            total_scenarios = pd.concat([total_scenarios, building_attributes], axis=0)
+            building_attributes = {
+                "ID_Scenario": building_id,  # Building ID is the same as Scenario ID
+                "ID_Building": building_id,
+                **chosen_ids
+            }
+            scenario_list.append(building_attributes)
 
+        total_scenarios = pd.DataFrame(scenario_list, columns=columns)
         return total_scenarios
 
     @staticmethod
@@ -629,17 +661,7 @@ class ECEMFPostProcess:
     def building_change(self, old_building_table: pd.DataFrame) -> (list, list):
         print("implementing renovations")
 
-        # load the table where real IDs are matched to the clustered IDs:
-        match = pd.read_excel(self.path_to_model_input /
-                              f"Original_Building_IDs_to_clusters_{self.region}_{self.year}.xlsx",
-                              engine="openpyxl")
-        # create a dict of the matches:
-        match_dict = match.to_dict(orient="list")
-        # remove nan from the dict
-        for key in match_dict.keys():
-            match_dict[key] = [int(x) for x in match_dict[key] if not pd.isna(x)]
-
-        type_df = self.clustered_building_df.loc[:, ["ID_Building", "type", "number_of_buildings"]]
+        type_df = self.building_df.loc[:, ["ID_Building", "type"]]
         df = pd.merge(self.scenario_table, type_df, on="ID_Building")
 
         row_list = []
@@ -687,14 +709,15 @@ class ECEMFPostProcess:
         else:
             prev_scen = ECEMFPostProcess(**self.previous_scenario, previous_scenario=None, baseline=None)
 
-        df = pd.read_csv(
-            prev_scen.data_output / f"Scenario_and_building_ids_{prev_scen.year}_{prev_scen.region}_{prev_scen.building_scenario}.csv",
-            sep=";")
+        df = pd.read_excel(
+            prev_scen.path_to_model_input / f"OperationScenario.xlsx", engine="openpyxl"
+            )
+        
         # add the building type (MFH SFH) to the previous df:
         type_df = pd.read_excel(
-            prev_scen.path_to_model_input / f"OperationScenario_Component_Building.xlsx", engine="openpyxl"
-        ).loc[:, ["ID_Building", "type"]].rename(columns={"ID_Building": "FLEX_ID_Building"})
-        df = pd.merge(df, type_df, on="FLEX_ID_Building")
+            prev_scen.path_to_model_input / f"OperationScenario_Component_Building_{prev_scen.region}_non_clustered_{prev_scen.year}_{prev_scen.building_scenario}.xlsx", engine="openpyxl"
+        ).loc[:, ["ID_Building", "type"]]
+        df = pd.merge(df, type_df, on="ID_Building")
 
         # if number is positive, more is installed in current state
         change_pv = self.pv_installation_percentage - prev_scen.pv_installation_percentage
@@ -852,8 +875,9 @@ class ECEMFPostProcess:
                     return np.random.choice([3, 5, 7], p=[0.5, 0.25, 0.25])
             else:
                 return row["ID_PV"]
-
+            
         # replace the "new_PV" with the different PV sizes + orientation
+        np.random.seed(42)
         df["ID_PV"] = df.apply(complex_condition, axis=1)
         # fix the ID Behavior (1 for the new HP buildings)
         df.loc[df.loc[:, "ID_Prosumager"] == 1, "ID_Behavior"] = 1
@@ -875,33 +899,52 @@ class ECEMFPostProcess:
         price_df.loc[:, self.__file_name__()] = price.to_numpy()
         price_df.to_csv(self.data_output / file_name, sep=";", index=False)
 
+    def run_FLEX_model(self):
+        cfg = Config(f"ECEMF_T4.3_{self.region}_{self.year}_{self.building_scenario}")
+        print(f"initialising model for {self.region} {self.year} {self.building_scenario}")
+        init = ProjectDatabaseInit(
+            config=cfg,
+            load_scenario_table=True)
+        init.run()  # old results in sqlite file are deleted! parquet files are overwritten in the operation_main
 
+        operation_main(project_name = cfg.project_name,
+                use_multiprocessing = False,
+                save_hourly_results = True,
+                save_monthly_results = False,
+                save_yearly_results = True,
+                hourly_save_list = None,
+                operation_scenario_ids = None,
+                n_cores=20,
+                )
+            
+        try:
+            delete_result_task_folders(cfg)
+            delete_input_task_folders(cfg)
+        except:
+            print(f"taskfolders for {self.region} {self.year} were not deleted")
+        
+        print(f"FLEX run for {self.region} {self.year} {self.building_scenario} done!")
+
+    
     def create_output_csv(self):
         if self.__file_name__() == get_file_name(self.baseline):
             # generate the baseline scenario
             scenarios = self.scenario_generator_baseline()
-            scenario_list = scenarios["ID_Scenario"].values.tolist()
-
-            # saving the scenario IDs together with the real building IDs that reference to the object
-            scenario_building_table = self.add_real_building_ids(
-                scenario_df=scenarios,
-                old_column_names=scenario_list
-            )
+            # save scenarios table to start folder
+            scenarios.to_excel(self.path_to_model_input / "OperationScenario.xlsx", index=False)
         else:
             # change the technologies based on the change in percentages compared to the previous scenario
-            previous_df_with_changed_heating_system = self.heating_systems_change()
-            # now change the buildings
-            scenario_building_table = self.building_change(previous_df_with_changed_heating_system)
-            # drop the "type" column from teh scenario building table
-            scenario_building_table.drop(columns=["type"], inplace=True)
+            scenarios = self.heating_systems_change()
+            # drop the "type" column from teh scenario  table
+            scenarios.drop(columns=["type"], inplace=True)
+            scenarios.to_excel(self.path_to_model_input / "OperationScenario.xlsx", index=False)
 
-        # save the table because its the basis for the next run:
-        scenario_building_table.to_csv(
-            self.data_output / f"Scenario_and_building_ids_{self.year}_{self.region}_{self.building_scenario}.csv",
-            index=False, sep=";")
+        # calculate the  scenario using the FLEX operation model:
+        self.run_FLEX_model()
+
 
         total_grid_demand, total_grid_feed, heating_e_hp, cooling, heating_q = self.calculate_total_load_profiles(
-            total_df=scenario_building_table
+            total_df=scenarios
         )
 
         # save the total profiles to parquet

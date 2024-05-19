@@ -99,7 +99,7 @@ class ProjectDatabaseInit(DatabaseInitializer):
         self.setup_operation_scenario_table()
         self.load_operation_profile_tables()
         # self.load_community_tables()
-        # self.drop_tables()
+        self.drop_tables()
 
 
 if __name__ == "__main__":
