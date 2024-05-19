@@ -215,7 +215,8 @@ def main(project_name: str,
          save_monthly_results: bool = False,
          save_yearly_results: bool = True,
          hourly_save_list: List[str] = None,
-         operation_scenario_ids: List[int] = None
+         operation_scenario_ids: List[int] = None,
+         n_cores: int = None,
          ):
     """
 
@@ -232,22 +233,23 @@ def main(project_name: str,
     parallelized = False
     if use_multiprocessing and operation_scenario_ids is None:
         # in case the sub folders have been deleted check first if the total scenario is already finished
-        missing_scenarios = determine_missing_scenarios(c=Config(project_name),
-                                                        mother_op=MotherOperationScenario(Config(project_name)))
-        # if there are already scenarios in the original file saved, fall back to default without multiprocessing
-        if len(missing_scenarios) != determine_number_of_scenarios(Config(project_name)):
-            logger.warning(f"Results already exist. Can't use multiprocessing.")
-            run_operation_model(
-                cfg=Config(project_name=project_name),
-                save_hourly_results=save_hourly_results,
-                save_monthly_results=save_monthly_results,
-                save_yearly_results=save_yearly_results,
-                hourly_save_list=hourly_save_list,
-                operation_scenario_ids=missing_scenarios
-            )
-            return
-
-        number_of_physical_cores = 5 #min(int(multiprocessing.cpu_count() / 2 - 4), len(missing_scenarios))
+        # missing_scenarios = determine_missing_scenarios(c=Config(project_name),
+        #                                                 mother_op=MotherOperationScenario(Config(project_name)))
+        # # if there are already scenarios in the original file saved, fall back to default without multiprocessing
+        # if len(missing_scenarios) != determine_number_of_scenarios(Config(project_name)):
+        #     logger.warning(f"Results already exist. Can't use multiprocessing.")
+        #     run_operation_model(
+        #         cfg=Config(project_name=project_name),
+        #         save_hourly_results=save_hourly_results,
+        #         save_monthly_results=save_monthly_results,
+        #         save_yearly_results=save_yearly_results,
+        #         hourly_save_list=hourly_save_list,
+        #         operation_scenario_ids=missing_scenarios
+        #     )
+        #     return
+        if n_cores == None:
+            n_cores = min(int(multiprocessing.cpu_count() / 2 - 4), len(missing_scenarios))
+        number_of_physical_cores = n_cores
         new_scenario_names = split_scenario(orig_project_name=project_name, n_cores=number_of_physical_cores)
         input_list = [
             (

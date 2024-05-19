@@ -444,4 +444,5 @@ flex/data/result/*.sqlite
 *.bat
 *.cfg
 *.csv
-
+*.parquet.gzip
+*.gzip
