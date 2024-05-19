@@ -96,9 +96,10 @@ class ECEMFPostProcess:
         self.path_to_model_input = Path(__file__).parent / "data" / "input_operation" / self.data_base_name
         self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}/data_output/"
         self.data_output.mkdir(parents=True, exist_ok=True)
-        self.clustered_building_df = self.load_clustered_building_df()
-        self.db = DB(path=Config(project_name=self.data_base_name).output / f"{self.data_base_name}.sqlite")
-        self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
+        # self.clustered_building_df = self.load_clustered_building_df()
+        self.building_df = pd.read_excel(self.path_to_model_input / f"OperationScenario_Component_Building_{self.region}_non_clustered_{self.year}_{self.building_scenario}.xlsx")
+        # self.db = DB(path=Config(project_name=self.data_base_name).output / f"{self.data_base_name}.sqlite")
+        # self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
         self.pv_sizes = {
             1: 0,  # kWp
             2: 5,
@@ -189,17 +190,101 @@ class ECEMFPostProcess:
             assert "list of percentages is empty"
         choice = random.choices(choices, weights=weights)[0]
         return choice
+    
 
-    def return_dict_of_inputs(self):
-        return {
-            "ID_PV": [1 - self.pv_installation_percentage, self.pv_installation_percentage * 0.5,
-                      self.pv_installation_percentage * 0.25, self.pv_installation_percentage * 0.25],
+    def choose_appliances(self, building_type: str):
+        all_ids = {}
+        first_assignment = {
+            "ID_PV": [1 - self.pv_installation_percentage, 
+                    self.pv_installation_percentage * 0.5,
+                    self.pv_installation_percentage * 0.25, 
+                    self.pv_installation_percentage * 0.25],
             "ID_HotWaterTank": [self.dhw_storage_percentage],
-            "ID_Boiler": [self.air_hp_percentage, self.ground_hp_percentage, self.direct_electric_heating_percentage,
-                          self.gases_percentage, self.no_heating_percentage],
-            "ID_SpaceCoolingTechnology": [self.ac_percentage]
-
+            "ID_Boiler": [self.air_hp_percentage, 
+                        self.ground_hp_percentage, 
+                        self.direct_electric_heating_percentage,
+                        self.gases_percentage, 
+                        self.no_heating_percentage],
+            "ID_SpaceCoolingTechnology": [self.ac_percentage],
         }
+
+        for attribute_name, perc_list in first_assignment.items():
+            chosen_id = self.assign_id(list_of_percentages=perc_list)
+            trans_id = TRANSLATION_2_ID[attribute_name][chosen_id]
+            if len(trans_id) > 1:
+                if building_type == "SFH":  
+                    all_ids[attribute_name] = trans_id[0]
+                else:  # MFH
+                    all_ids[attribute_name] = trans_id[1]
+            else:
+                all_ids[attribute_name] = trans_id[0]
+
+        # based in the first assignment of the attributes that are independent we choose the non-independent ones:
+        # battery only if there is PV:
+        if all_ids["ID_PV"] != 1:
+            yes_no = self.assign_id([self.battery_percentage])
+            if building_type == "SFH":
+                id_battery = [1, 2][yes_no] 
+            else:  # MFH
+                id_battery = [1, 3][yes_no]
+        else:
+            _ = self.assign_id([self.battery_percentage])
+            id_battery = 1
+        all_ids["ID_Battery"] = id_battery
+
+        # Space heating tank only if heat pump exists:
+        if all_ids["ID_Boiler"] in [2, 3]:  # heat pump indices
+            yes_no = self.assign_id([self.buffer_storage_percentage])
+            if building_type == "SFH":
+                id_spaceheatingtank = [1, 2][yes_no]
+            else:
+                id_spaceheatingtank = [1, 3][yes_no]
+
+        else:
+            _ = self.assign_id([self.buffer_storage_percentage])
+            id_spaceheatingtank = 1
+        all_ids["ID_SpaceHeatingTank"] = id_spaceheatingtank
+
+        # DHW tank is only installed with heat pumps (because it only plays a role for flexibility)
+        if all_ids["ID_Boiler"] in [2, 3]:  # heat pump indices
+            yes_no = self.assign_id([self.dhw_storage_percentage])
+            if building_type == "SFH":
+                id_dhwtank = [1, 2][yes_no]
+            else:
+                id_dhwtank = [1, 3][yes_no]
+
+        else:
+            _ = self.assign_id([self.dhw_storage_percentage])
+            id_dhwtank = 1
+        all_ids["ID_HotWaterTank"] = id_dhwtank
+
+        # Behavior is a random chosen on for direct electric heating element
+        if all_ids["ID_Boiler"] in [2, 3, 5]:  # Air_HP or Ground_HP or Gas
+            all_ids["ID_Behavior"] = 1
+        elif all_ids["ID_Boiler"] == 1:
+            all_ids["ID_Behavior"] = 3 # Electric
+        elif all_ids["ID_Boiler"] == 4:
+            all_ids["ID_Behavior"] = 2 # no heating
+        else:
+            assert "Boiler ID is not pre-defined boiler ids"
+
+        # ID SEMS
+        if all_ids["ID_Boiler"] in [2, 3]:  # Air_HP or Ground_HP
+            all_ids["ID_SEMS"] = self.assign_id([self.prosumager_percentage])
+        else:
+            _ = self.assign_id([self.prosumager_percentage])
+            all_ids["ID_SEMS"] = 0
+
+        # ID Heating Element is alsways 1
+        all_ids["ID_HeatingElement"] = 1
+
+        # ID EnergyPrice is always 1
+        all_ids["ID_EnergyPrice"] = 1
+
+        # ID Region is 1
+        all_ids["ID_Region"] = 1
+ 
+        return all_ids
 
     def scenario_generator_baseline(self) -> pd.DataFrame:
         """
@@ -209,72 +294,31 @@ class ECEMFPostProcess:
         :return: returns a list of all the scenarios IDs for the whole building stock
         """
 
-        dict_of_inputs = self.return_dict_of_inputs()
-
-        total_scenarios = pd.DataFrame()
+        total_scenarios = pd.DataFrame(columns=[
+            "ID_Scenario",
+            "ID_Region",
+            "ID_Building",
+            "ID_Boiler",
+            "ID_SpaceHeatingTank",
+            "ID_HotWaterTank",
+            "ID_SpaceCoolingTechnology",
+            "ID_PV",
+            "ID_Battery",
+            "ID_Vehicle",
+            "ID_EnergyPrice",
+            "ID_Behavior",
+            "ID_HeatingElement",
+            "ID_SEMS"
+        ])
         random.seed(42)
-        for _, row in tqdm(self.clustered_building_df.iterrows(), desc=f"creating scenario based on the probabilities"):
-            number_buildings = row["number_of_buildings"]
+        for i, row in tqdm(self.building_df.iterrows(), desc=f"creating scenario based on the probabilities"):
             building_id = row["ID_Building"]
-            building_scenario = self.scenario_table.query(f"ID_Building == {building_id}")
-            for n_building in range(number_buildings):
-                chosen_building_attributes = {}
-                for attribute_name, perc_list in dict_of_inputs.items():
-                    chosen_id = self.assign_id(list_of_percentages=perc_list)
-                    # translate the chosen ID to an ID in the scenario table:
-                    # get unique labels for the specific building
-                    possible_labels = building_scenario[attribute_name].unique().tolist()
-                    # grab the matching number within both lists:
-                    ID = list(set(possible_labels).intersection(TRANSLATION_2_ID[attribute_name][chosen_id]))[0]
-                    # add the ID and to chosen_building_attributes
-                    chosen_building_attributes[attribute_name] = ID
+            chosen_ids = self.choose_appliances(building_type=row["type"])
 
-                # select the correct scenario for the chosen IDs:
-                query_list = [f"{key}=={value}" for key, value in chosen_building_attributes.items()]
-                query = f" and ".join(query_list)
-
-                # in the second round we check if multiple options exist for the SpaceHeatingTank (related to heating
-                # system), the Battery, and the Heating Element (related to PV):
-                possible_bat_ids = building_scenario.query(query)["ID_Battery"].unique().tolist()
-                possible_spacetank_ids = building_scenario.query(query)["ID_SpaceHeatingTank"].unique().tolist()
-                possible_heatelement_ids = building_scenario.query(query)["ID_HeatingElement"].unique().tolist()
-
-                # check if multiple scenarios exist:
-                # If multiple exist, battery is an option otherwise there is no PV and thus no battery can be chosen.
-                if len(possible_bat_ids) > 1:
-                    # decide if battery is used
-                    if self.assign_id([self.battery_percentage]) == 1:  # battery is used
-                        id_battery = list(set(possible_bat_ids).intersection([2, 3]))[0]  # select ID based on building
-                    else:
-                        id_battery = 1  # battery is not used
-                else:
-                    _ = self.assign_id(
-                        [self.battery_percentage])  # call it to have the same amount of calls for random choice
-                    id_battery = 1
-                if len(possible_spacetank_ids) > 1:
-                    if self.assign_id([self.buffer_storage_percentage]) > 1:
-                        id_buffer = list(set(possible_spacetank_ids).intersection([2, 3]))[0]
-                    else:
-                        id_buffer = 1
-                else:
-                    _ = self.assign_id(
-                        [self.buffer_storage_percentage])  # call it to have the same amount of calls in every run
-                    id_buffer = 1
-                if len(possible_heatelement_ids) > 1:
-                    if self.assign_id([self.heating_element_percentage]) > 1:
-                        id_heatelement = list(set(possible_heatelement_ids).intersection([2, 3]))[0]
-                    else:
-                        id_heatelement = 1
-                else:
-                    _ = self.assign_id(
-                        [self.heating_element_percentage])  # call it to have the same amount of calls for random choice
-                    id_heatelement = 1
-                full_query = f"{query} and ID_Battery == {id_battery} " \
-                             f"and ID_SpaceHeatingTank == {id_buffer} " \
-                             f"and ID_HeatingElement == {id_heatelement}"
-
-                scenario = building_scenario.query(full_query)
-                total_scenarios = pd.concat([total_scenarios, scenario], axis=0)
+            building_attributes = pd.DataFrame(chosen_ids, index=[i])
+            building_attributes.loc[i, "ID_Scenario"] = int(building_id)  # Building ID is the same as Scenario ID because every single one is different
+            building_attributes.loc[i, "ID_Building"] = int(building_id)
+            total_scenarios = pd.concat([total_scenarios, building_attributes], axis=0)
 
         return total_scenarios
 
@@ -1635,8 +1679,8 @@ if __name__ == "__main__":
             "baseline": baseline_leeuwarden
         }
             # complete scenarios
-        ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
-        ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
+        # ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
+        # ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
 
 
         # building scenarios
