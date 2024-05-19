@@ -432,3 +432,5 @@ flex/data/result/*.sqlite
 *.prn
 *.mat
 
+*.csv
+

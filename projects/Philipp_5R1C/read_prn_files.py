@@ -76,7 +76,7 @@ class PRNImporter:
         for i, entry in enumerate(all_values):
             # split entries
             row = [float(number) for number in entry.split(" ") if number != ""]
-            df = df.append(pd.DataFrame([row], columns=column_names), ignore_index=True)
+            df = pd.concat([df, pd.DataFrame([row], columns=column_names)], axis=0)
         return df
 
     def prn_to_csv(self, path) -> None:
@@ -205,7 +205,11 @@ class PRNImporter:
             pool.starmap(self.create_csvs, multi_list)
 
     def read_heat_demand(self, table_name: str, prize_scenario: str, cooling: int):
-        scenario_id = self.grab_scenario_ids_for_price(int(prize_scenario.replace("_cooling", "")[-1]), cooling)
+        if prize_scenario == "basic":
+            scen_id = 1
+        else:
+            scen_id = int(prize_scenario.replace("_cooling", "")[-1])
+        scenario_id = self.grab_scenario_ids_for_price(scen_id, cooling)
         demand = DB(config.output / f"{config.project_name}.sqlite").read_dataframe(table_name=table_name,
                                         column_names=["ID_Scenario", "Q_HeatingTank_bypass", "Hour"],
                                         )
@@ -224,7 +228,7 @@ class PRNImporter:
         # load heat demand from first price scenario
         heating_systems = ["ideal", "floor_heating"]
         for system in heating_systems:
-            filename = f"heating_demand_daniel_{system}_price1.csv"
+            filename = f"heating_demand_daniel_{system}_basic.csv"
             ref_demand_df = pd.read_csv(self.main_path / Path(filename), sep=";")
             prices = self.get_folder_names(self.main_path / system)
             for price in prices:
@@ -246,7 +250,7 @@ class PRNImporter:
                 # check each hour if the heat demand is 0 in the 5R1C model and above 0 in the IDA. If this is the case
                 # the heat demand in the IDA model will be exchanged with the heat demand of the IDA model without
                 # optimization:
-                for column_name, series in opt_demand_IDA.iteritems():
+                for column_name, series in opt_demand_IDA.items():
                     for index, value in enumerate(series):
                         if opt_demand_5R1C.loc[index, column_name] == 0 and value > 0:
                             # exchange with the ref demand from IDA:
@@ -266,6 +270,6 @@ class PRNImporter:
 
 if __name__ == "__main__":
     prn_importer = PRNImporter("5R1C_validation")
-    prn_importer.main()
-    prn_importer.clean_up()
+    # prn_importer.main()
+    # prn_importer.clean_up()
     prn_importer.modify_heat_demand()

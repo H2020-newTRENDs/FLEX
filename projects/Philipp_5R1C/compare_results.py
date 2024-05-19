@@ -1087,7 +1087,7 @@ class CompareModels:
         plt.show()
 
     def run(self, price_scenarios: list, floor_heating: bool, cooling: bool):
-        # self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
+        self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
         self.subplots_relative(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
         # self.subplots_yearly(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
         # self.show_plotly_comparison(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
@@ -1100,17 +1100,17 @@ class CompareModels:
         # self.indoor_temp_to_csv(cooling=False)
         self.indoor_temp_to_csv(cooling=True)
 
-        # self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
-        # self.plot_yearly_heat_demand_floor_ideal_not_optimized()
+        self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
+        self.plot_yearly_heat_demand_floor_ideal_not_optimized()
 
         floor_heating = True
         cooling = True
         # run through results: run takes scenarios, floor_heating, cooling as input
         # run it with floor heating and without cooling (not included in floor heating)
         # run it with ideal heating system including end excluding cooling:
-        # self.run(price_scenarios, floor_heating=True, cooling=False)
-        # self.run(price_scenarios, floor_heating=False, cooling=False)
-        # self.run(price_scenarios, floor_heating=False, cooling=True)
+        self.run(price_scenarios, floor_heating=True, cooling=False)
+        self.run(price_scenarios, floor_heating=False, cooling=False)
+        self.run(price_scenarios, floor_heating=False, cooling=True)
 
 
 if __name__ == "__main__":
