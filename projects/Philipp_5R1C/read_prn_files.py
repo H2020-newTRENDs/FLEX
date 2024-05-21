@@ -205,7 +205,7 @@ class PRNImporter:
             pool.starmap(self.create_csvs, multi_list)
 
     def read_heat_demand(self, table_name: str, prize_scenario: str, cooling: int):
-        if prize_scenario == "basic":
+        if "basic" in prize_scenario:
             scen_id = 1
         else:
             scen_id = int(prize_scenario.replace("_cooling", "")[-1])
@@ -233,9 +233,9 @@ class PRNImporter:
             prices = self.get_folder_names(self.main_path / system)
             for price in prices:
                 if "cooling" in price:
-                    cooling = 2
-                else:
                     cooling = 1
+                else:
+                    cooling = 2
                 # load heat demand from other price scenarios:
                 filename = f"heating_demand_daniel_{system}_{price}.csv"
                 opt_demand_IDA = pd.read_csv(self.main_path / Path(filename), sep=";")
@@ -270,6 +270,6 @@ class PRNImporter:
 
 if __name__ == "__main__":
     prn_importer = PRNImporter("5R1C_validation")
-    prn_importer.main()
-    prn_importer.clean_up()
+    # prn_importer.main()
+    # prn_importer.clean_up()
     prn_importer.modify_heat_demand()
