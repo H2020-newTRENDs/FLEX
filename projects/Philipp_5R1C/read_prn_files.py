@@ -37,8 +37,8 @@ class PRNImporter:
         }
         config = get_config(self.project_name)
         path_to_sqlite_file = config.output / f"{config.project_name}.sqlite"
-        self.db = DB(path_to_sqlite_file)
-        self.scenario_table = self.db.read_dataframe(
+        db = DB(path_to_sqlite_file)
+        self.scenario_table = db.read_dataframe(
             table_name=OperationTable.Scenarios.value)
 
     def scenario_id_2_building_name(self, id_scenario: int) -> str:
@@ -270,6 +270,6 @@ class PRNImporter:
 
 if __name__ == "__main__":
     prn_importer = PRNImporter("5R1C_validation")
-    # prn_importer.main()
-    # prn_importer.clean_up()
+    prn_importer.main()
+    prn_importer.clean_up()
     prn_importer.modify_heat_demand()

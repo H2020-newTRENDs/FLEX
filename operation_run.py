@@ -36,7 +36,7 @@ def run_scenarios(scenario_ids):
 
 if __name__ == "__main__":
 
-    SCENARIO_IDS = np.arange(1, 55)
+    SCENARIO_IDS = np.arange(1, 73)
     run_scenarios(SCENARIO_IDS)
 
 
