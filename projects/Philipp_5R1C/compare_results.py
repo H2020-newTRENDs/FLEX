@@ -86,9 +86,9 @@ class CompareModels:
 
     def grab_scenario_ids_for_price(self, id_price: int, cooling: bool) -> list:
         if cooling:
-            cooling_id = 2
-        else:
             cooling_id = 1
+        else:
+            cooling_id = 2
         ids = self.scenario_table.loc[(self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price) &
                                       (self.scenario_table.loc[:, "ID_SpaceCoolingTechnology"] == cooling_id),
                                       "ID_Scenario"]
@@ -119,7 +119,7 @@ class CompareModels:
         plt.legend()
         # fig.savefig(self.path_to_figures / Path("electricity_prices.png"))
         fig.savefig(self.figure_path / Path("electricity_prices.svg"))
-        fig.show()
+        fig.close()
 
     def read_daniel_heat_demand(self, price: str, cooling: bool, floor_heating: bool) -> pd.DataFrame:
         if floor_heating:
@@ -506,7 +506,7 @@ class CompareModels:
         for ax in [fig.axes[2], fig.axes[3]]:
             ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
         fig.savefig(self.figure_path / Path(f"Total heat demand with {system} and {ac}.svg"))
-        plt.show()
+        plt.close()
 
     def plot_yearly_cooling_demand(self, prices: list):
         plt.style.use("seaborn-paper")
@@ -541,7 +541,7 @@ class CompareModels:
         for ax in [fig.axes[2], fig.axes[3]]:
             ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
         fig.savefig(self.figure_path / Path(f"Total cooling demand.svg"))
-        plt.show()
+        plt.close()
 
     def plot_yearly_costs(self, prices: list, cooling: bool, floor_heating: bool):
         # cost
@@ -586,7 +586,7 @@ class CompareModels:
         for ax in [fig2.axes[2], fig2.axes[3]]:
             ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
         fig2.savefig(self.figure_path / Path(f"total_heating{ac}_cost_{system}.svg"))
-        plt.show()
+        plt.close()
 
     def subplots_yearly(self, prices: list, cooling: bool, floor_heating: bool):
         """ plot the total heat and cooling demand over the year comparing 5R1C to IDA ICE"""
@@ -642,7 +642,7 @@ class CompareModels:
         for ax in [fig.axes[2], fig.axes[3]]:
             ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
         fig.savefig(self.figure_path / Path(f"relative_change_in_heat_demand_{system}_{ac.replace(' ', '_')}.svg"))
-        plt.show()
+        plt.close()
 
     def plot_relative_cooling_demand(self, prices: list):
         plt.style.use("seaborn-paper")
@@ -677,7 +677,7 @@ class CompareModels:
         for ax in [fig.axes[2], fig.axes[3]]:
             ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
         fig.savefig(self.figure_path / Path(f"relative_change_in_cooling_demand.svg"))
-        plt.show()
+        plt.close()
 
     def plot_yearly_heat_demand_floor_ideal_not_optimized(self):
         """ plot the yearly heat demand for 5R1C, IDA ICE and IDA ICE Floor heating"""
@@ -701,7 +701,7 @@ class CompareModels:
             ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
         plt.title("heat demand")
         plt.savefig(self.figure_path / f"Yearly_heat_demand_comparison.svg")
-        plt.show()
+        plt.close()
 
     def calculate_relative_cost_change(self, opt_df, ref_df) -> pd.DataFrame:
         # compare total demand
@@ -767,7 +767,7 @@ class CompareModels:
         ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
         fig2.savefig(
             self.figure_path / Path(f"cost_change.svg"))
-        plt.show()
+        plt.close()
 
     def plot_relative_cost_reduction(self, prices: list, floor_heating: bool, cooling: bool):
 
@@ -817,7 +817,7 @@ class CompareModels:
         fig2.suptitle(f"relative_change_in_heating{ac} with {system}_cost".replace('_', ' '))
         fig2.savefig(
             self.figure_path / Path(f"relative_change_in_heating{ac}_with_{system.replace(' ', '_')}_cost.svg"))
-        plt.show()
+        plt.close()
 
     def plot_relative_cooling_cost_reduction(self, prices: list, cooling: bool):
         # cost
@@ -855,7 +855,7 @@ class CompareModels:
             ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
         fig2.suptitle(f"relative change in cooling cost")
         fig2.savefig(self.figure_path / Path(f"relative_change_in_cooling_cost.svg"))
-        plt.show()
+        plt.close()
 
     def subplots_relative(self, prizes: list, floor_heating: bool, cooling: bool):
         """ compares the relative change in heat demand between the reference case where no load is shifted
@@ -1075,7 +1075,7 @@ class CompareModels:
 
         plt.tight_layout()
         fig.savefig(self.figure_path / f"Single_building_year_{building}.svg")
-        plt.show()
+        plt.close()
 
         # week plot
         week_number = 5
@@ -1104,16 +1104,16 @@ class CompareModels:
 
         plt.tight_layout()
         fig2.savefig(self.figure_path / f"Single_building_week_{building}.svg")
-        plt.show()
+        plt.close()
 
     def run(self, price_scenarios: list, floor_heating: bool, cooling: bool):
         self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
         self.subplots_relative(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
-        # self.subplots_yearly(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
-        # self.show_plotly_comparison(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
+        self.subplots_yearly(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
+        self.show_plotly_comparison(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
         # if cooling:
-        # self.plot_relative_cooling_cost_reduction(prices=price_scenarios,
-        #                                           cooling=cooling)  # no floor heating with cooling
+        self.plot_relative_cooling_cost_reduction(prices=price_scenarios,
+                                                  cooling=cooling)  # no floor heating with cooling
 
     def main(self):
         price_scenarios = ["price1", "price2", "price3", "price4"]
@@ -1123,18 +1123,16 @@ class CompareModels:
         self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
         self.plot_yearly_heat_demand_floor_ideal_not_optimized()
 
-        floor_heating = True
-        cooling = True
         # run through results: run takes scenarios, floor_heating, cooling as input
         # run it with floor heating and without cooling (not included in floor heating)
         # run it with ideal heating system including end excluding cooling:
-        self.run(price_scenarios, floor_heating=True, cooling=False)
+        # self.run(price_scenarios, floor_heating=True, cooling=False)
         self.run(price_scenarios, floor_heating=False, cooling=False)
-        self.run(price_scenarios, floor_heating=False, cooling=True)
+        # self.run(price_scenarios, floor_heating=False, cooling=True)
 
 
 if __name__ == "__main__":
-    # CompareModels("5R1C_validation").show_elec_prices()
+    CompareModels("5R1C_validation").show_elec_prices()
     # CompareModels("5R1C_validation").show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price4",
     #                                                                                          building="EZFH_5_B")
     CompareModels("5R1C_validation").main()

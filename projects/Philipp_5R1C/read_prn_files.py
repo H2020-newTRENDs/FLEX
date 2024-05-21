@@ -203,6 +203,7 @@ class PRNImporter:
 
         with multiprocessing.Pool(processes=6) as pool:
             pool.starmap(self.create_csvs, multi_list)
+        print("done creating csvs")
 
     def read_heat_demand(self, table_name: str, prize_scenario: str, cooling: int):
         if "basic" in prize_scenario:
@@ -259,6 +260,7 @@ class PRNImporter:
                 # save opt_demand_IDA as csv under the old name
                 opt_demand_IDA.to_csv(self.main_path / Path(f"heating_demand_daniel_{system}_{price}.csv"), sep=";",
                                       index=False)
+        print("modified heat demand of IDA ICE optimization")
 
     def clean_up(self):
         """ delete the csv files that only contain zeros (cooling demand for scenarios without cooling)"""
@@ -266,6 +268,7 @@ class PRNImporter:
             if file.name.lower().startswith("cooling"):
                 if file.name.lower().count("cooling") == 1:
                     file.unlink()
+        print("deleted unnessecary data")
 
 
 if __name__ == "__main__":
