@@ -177,10 +177,20 @@ def merge_scenarios(orig_project_name: str,
         sub_config = Config(project_name=sub_project_name)
         sub_db = create_db_conn(sub_config)
         if save_yearly_results:
-            yearly_ref, yearly_opt = sub_db.read_dataframe(OperationTable.ResultRefYear), \
-                                     sub_db.read_dataframe(OperationTable.ResultOptYear)
-            yearly_ref_df = pd.concat([yearly_ref_df, yearly_ref], axis=0)
-            yearly_opt_df = pd.concat([yearly_opt_df, yearly_opt], axis=0)
+            try:
+                yearly_ref = sub_db.read_dataframe(OperationTable.ResultRefYear)
+                yearly_ref_df = pd.concat([yearly_ref_df, yearly_ref], axis=0)
+                bool_ref_year = True
+            except:
+                print("can not read yearly Ref results")  
+                bool_ref_year = False
+            try:
+                yearly_opt = sub_db.read_dataframe(OperationTable.ResultOptYear)
+                yearly_opt_df = pd.concat([yearly_opt_df, yearly_opt], axis=0)
+                bool_opt_year = True
+            except:
+                print("can not read yearly Opt results")  
+                bool_opt_year = False
 
         if save_monthly_results:
             monthly_ref, monthly_opt = sub_db.read_dataframe(OperationTable.ResultRefMonth), \
@@ -201,8 +211,10 @@ def merge_scenarios(orig_project_name: str,
     # write to sqlite db:
     orig_db = create_db_conn(config)
     if save_yearly_results:
-        orig_db.write_dataframe(data_frame=yearly_ref_df, table_name=OperationTable.ResultRefYear, if_exists="append")
-        orig_db.write_dataframe(data_frame=yearly_opt_df, table_name=OperationTable.ResultOptYear, if_exists="append")
+        if bool_ref_year:
+            orig_db.write_dataframe(data_frame=yearly_ref_df, table_name=OperationTable.ResultRefYear, if_exists="append")
+        if bool_opt_year:
+            orig_db.write_dataframe(data_frame=yearly_opt_df, table_name=OperationTable.ResultOptYear, if_exists="append")
     if save_monthly_results:
         orig_db.write_dataframe(data_frame=monthly_ref_df, table_name=OperationTable.ResultRefMonth, if_exists="append")
         orig_db.write_dataframe(data_frame=monthly_opt_df, table_name=OperationTable.ResultOptMonth, if_exists="append")
@@ -345,7 +357,7 @@ def run_operation_model(cfg: "Config",
         logger.info(f"FlexOperation Model --> Scenario = {id_operation_scenario}.")
         scenario = OperationScenario(scenario_id=id_operation_scenario, config=cfg, tables=mother_operation)
         
-        if scenario.tables.OperationScenario.loc[id_operation_scenario, "ID_Prosumager"] == 0:
+        if scenario.tables.OperationScenario.loc[scenario.tables.OperationScenario.loc[:,"ID_Scenario"]==id_operation_scenario, "ID_Prosumager"].values[0] == 0:
             # run ref model
             ref_model = RefOperationModel(scenario).solve()
             RefDataCollector(model=ref_model,
@@ -356,7 +368,7 @@ def run_operation_model(cfg: "Config",
                             save_year_results=save_yearly_results,
                             hourly_save_list=hourly_save_list).run()
         else:
-        # run opt model
+            # run opt model
             opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
             if solve_status:
                 OptDataCollector(model=opt_model,

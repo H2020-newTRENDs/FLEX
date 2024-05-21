@@ -79,6 +79,18 @@ def delete_input_task_folders(conf):
                 shutil.rmtree(item)
 
 
+def delete_figure_task_folders(conf):
+    for item in Path(conf.input_operation).parent.parent / "figure".iterdir():
+        if item.is_dir():
+            if conf.project_name in item.name and conf.project_name != item.name:
+                print(f"Deleting directory and all contents: {item}")
+                for sub_item in item.iterdir():
+                    # Check if the sub_item is a file
+                    if sub_item.is_file():
+                        sub_item.unlink()  # Delete the file
+                shutil.rmtree(item)
+
+
 class ECEMFPostProcess:
     def __init__(self,
                  year: int,
@@ -123,10 +135,7 @@ class ECEMFPostProcess:
         self.path_to_model_input = Path(__file__).parent / "data" / "input_operation" / self.data_base_name
         self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}/data_output/"
         self.data_output.mkdir(parents=True, exist_ok=True)
-        # self.clustered_building_df = self.load_clustered_building_df()
-        self.building_df = pd.read_excel(self.path_to_model_input / f"OperationScenario_Component_Building_{self.region}_non_clustered_{self.year}_{self.building_scenario}.xlsx")
-        # self.db = DB(path=Config(project_name=self.data_base_name).output / f"{self.data_base_name}.sqlite")
-        # self.scenario_table = self.db.read_dataframe(OperationTable.Scenarios)
+        self.building_df = pd.read_excel(self.path_to_model_input /f"OperationScenario_Component_Building.xlsx", engine="openpyxl")
         self.pv_sizes = {
             1: 0,  # kWp
             2: 5,
@@ -920,6 +929,7 @@ class ECEMFPostProcess:
         try:
             delete_result_task_folders(cfg)
             delete_input_task_folders(cfg)
+            delete_figure_task_folders(cfg)
         except:
             print(f"taskfolders for {self.region} {self.year} were not deleted")
         
@@ -939,8 +949,6 @@ class ECEMFPostProcess:
             scenarios.drop(columns=["type"], inplace=True)
             scenarios.to_excel(self.path_to_model_input / "OperationScenario.xlsx", index=False)
 
-        # check or change the number of persons per building:
-        self.building_df["person_num"] = self.building_df["person_num"].apply(lambda x: np.floor(x))
         # calculate the  scenario using the FLEX operation model:
         self.run_FLEX_model()
 
