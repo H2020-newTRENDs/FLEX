@@ -119,7 +119,7 @@ class CompareModels:
         plt.legend()
         # fig.savefig(self.path_to_figures / Path("electricity_prices.png"))
         fig.savefig(self.figure_path / Path("electricity_prices.svg"))
-        fig.close()
+        plt.close()
 
     def read_daniel_heat_demand(self, price: str, cooling: bool, floor_heating: bool) -> pd.DataFrame:
         if floor_heating:
@@ -130,11 +130,7 @@ class CompareModels:
             ac = "_cooling"
         else:
             ac = ""
-        if price == "price1":
-            p = "basic"
-        else:
-            p = price
-        filename = f"heating_demand_daniel_{system}_{p}{ac}.csv"
+        filename = f"heating_demand_daniel_{system}_{price}{ac}.csv"
         demand_df = pd.read_csv(self.input_path / Path(filename), sep=";")
         # rearrange the df:
         df = self.reorder_table(demand_df)
@@ -142,11 +138,7 @@ class CompareModels:
 
     def read_daniel_cooling_demand(self, price: str):
         system = "ideal"
-        if price == "price1":
-            p = "basic"
-        else:
-            p = price
-        filename = f"cooling_demand_daniel_{system}_{p}_cooling.csv"
+        filename = f"cooling_demand_daniel_{system}_{price}_cooling.csv"
         demand_df = pd.read_csv(self.input_path / Path(filename), sep=";")
         # rearrange the df:
         df = self.reorder_table(demand_df)
@@ -163,7 +155,11 @@ class CompareModels:
         and cooling. Floor heating is not modelled in 5R1C therefore it is not an input parameter.
 
         """
-        scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", prize_scenario)[0]), cooling)
+        if prize_scenario == "basic":
+            p = "price1"
+        else:
+            p = prize_scenario
+        scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", p)[0]), cooling)
         demand = self.db.read_dataframe(table_name=table_name,
                                         column_names=["ID_Scenario", "Q_HeatingTank_bypass", "Hour"],
                                         )
@@ -175,7 +171,11 @@ class CompareModels:
         return self.reorder_table(df)
 
     def read_cooling_demand(self, table_name: str, prize_scenario: str, cooling: bool) -> pd.DataFrame:
-        scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", prize_scenario)[0]), cooling)
+        if prize_scenario == "basic":
+            p = "price1"
+        else:
+            p = prize_scenario
+        scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", p)[0]), cooling)
         demand = self.db.read_dataframe(table_name=table_name,
                                         column_names=["ID_Scenario", "Q_RoomCooling", "Hour"],
                                         )
@@ -187,7 +187,11 @@ class CompareModels:
         return self.reorder_table(df)
 
     def read_indoor_temp(self, table_name: str, prize_scenario: str, cooling: int) -> pd.DataFrame:
-        scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", prize_scenario)[0]), cooling)
+        if prize_scenario == "basic":
+            p = "price1"
+        else:
+            p = prize_scenario
+        scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", p)[0]), cooling)
         temp = self.db.read_dataframe(table_name=table_name,
                                       column_names=["ID_Scenario", "T_Room", "Hour"])
         df = temp.pivot_table(index="Hour", columns="ID_Scenario")
@@ -204,11 +208,7 @@ class CompareModels:
             ac = "_cooling"
         else:
             ac = ""
-        if price == "price1":
-            p = "basic"
-        else:
-            p = price
-        filename = f"indoor_temp_daniel_{system}_{p}{ac}.csv"
+        filename = f"indoor_temp_daniel_{system}_{price}{ac}.csv"
         temp_df = pd.read_csv(self.input_path / Path(filename), sep=";")
         # rearrange the df:
         df = self.reorder_table(temp_df)
@@ -224,7 +224,11 @@ class CompareModels:
         return self.reorder_table(df)
 
     def read_electricity_price(self, price_id: str) -> np.array:
-        number = int(price_id[-1])
+        if price_id == "basic":
+            p = "price1"
+        else:
+            p = price_id
+        number = int(p[-1])
         price = self.db.read_dataframe(table_name=OperationTable.EnergyPriceProfile.value,
                                        column_names=[f"electricity_{number}"]).to_numpy()
         return price
@@ -316,12 +320,12 @@ class CompareModels:
                                    floor_heating: bool) -> pd.DataFrame:
         price_profile = self.read_electricity_price(price_id).squeeze()
         COP_HP = self.read_COP(table_name)
-        heat_demand = self.read_daniel_heat_demand(price="price1", cooling=cooling,
+        heat_demand = self.read_daniel_heat_demand(price="basic", cooling=cooling,
                                                    floor_heating=floor_heating)  # because here the indoor set temp is steady
         electricity_heat = (heat_demand / COP_HP).reset_index(drop=True)
 
         COP_AC = self.read_COP_AC(table_name)
-        cooling_demand = self.read_daniel_cooling_demand(price="price1")
+        cooling_demand = self.read_daniel_cooling_demand(price="basic")
         electricity_cooling = (cooling_demand / COP_AC).reset_index(drop=True)
 
         hourly_cost_heating = electricity_heat.mul(pd.Series(price_profile), axis=0)
@@ -334,7 +338,7 @@ class CompareModels:
         price_profile = self.read_electricity_price(price_id).squeeze()
 
         COP_AC = self.read_COP_AC(table_name)
-        cooling_demand = self.read_daniel_cooling_demand(price="price1")
+        cooling_demand = self.read_daniel_cooling_demand(price="basic")
         electricity_cooling = (cooling_demand / COP_AC).reset_index(drop=True)
 
         hourly_cost_cooling = electricity_cooling.mul(pd.Series(price_profile), axis=0)
@@ -388,7 +392,8 @@ class CompareModels:
         fig2.show()
 
     def yearly_comparison(self,
-                          figure, axes,
+                          figure, 
+                          axes,
                           profile_list: List[pd.DataFrame],
                           profile_names: list,
                           y_label: str,
@@ -470,10 +475,10 @@ class CompareModels:
         fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(13, 7), sharex=True)
         # ref heat demand is always the same
         heat_demand_ref = self.read_heat_demand(table_name=OperationTable.ResultRefHour.value,
-                                                prize_scenario="price1",
+                                                prize_scenario="basic",
                                                 cooling=cooling)
         # ref IDA ICE is the one where the indoor set temp is not changed (basic)
-        heat_demand_IDA_ref = self.read_daniel_heat_demand(price="price1",
+        heat_demand_IDA_ref = self.read_daniel_heat_demand(price="basic",
                                                            cooling=cooling,
                                                            floor_heating=floor_heating)
         ax_number = 0
@@ -516,10 +521,10 @@ class CompareModels:
         fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(13, 7), sharex=True)
         # ref heat demand is always the same
         cooling_demand_ref = self.read_cooling_demand(table_name=OperationTable.ResultRefHour.value,
-                                                      prize_scenario="price1",
+                                                      prize_scenario="basic",
                                                       cooling=True)
         # ref IDA ICE is the one where the indoor set temp is not changed (basic)
-        cooling_demand_IDA_ref = self.read_daniel_cooling_demand(price="price1")
+        cooling_demand_IDA_ref = self.read_daniel_cooling_demand(price="basic")
         ax_number = 0
         for price in prices:
             cooling_demand_opt = self.read_cooling_demand(table_name=OperationTable.ResultOptHour.value,
@@ -605,10 +610,10 @@ class CompareModels:
         fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(13, 7), sharex=True)
         # ref heat demand is always the same
         heat_demand_ref = self.read_heat_demand(table_name=OperationTable.ResultRefHour.value,
-                                                prize_scenario="price1",
+                                                prize_scenario="basic",
                                                 cooling=cooling)
         # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
-        heat_demand_IDA_ref = self.read_daniel_heat_demand(price="price1",
+        heat_demand_IDA_ref = self.read_daniel_heat_demand(price="basic",
                                                            cooling=cooling,
                                                            floor_heating=floor_heating)
         ax_number = 0
@@ -651,7 +656,7 @@ class CompareModels:
         fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(13, 7), sharex=True)
         # ref heat demand is always the same
         cooling_demand_ref = self.read_cooling_demand(table_name=OperationTable.ResultRefHour.value,
-                                                      prize_scenario="price1",
+                                                      prize_scenario="basic",
                                                       cooling=True)
         # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
         cooling_demand_IDA_ref = self.read_daniel_cooling_demand(price="basic")
@@ -683,7 +688,7 @@ class CompareModels:
         """ plot the yearly heat demand for 5R1C, IDA ICE and IDA ICE Floor heating"""
         plt.style.use("seaborn-paper")
         heat_5R1C = self.read_heat_demand(table_name=OperationTable.ResultRefHour.value,
-                                          prize_scenario="price1",
+                                          prize_scenario="basic",
                                           cooling=False).sum() / 1_000  # kWh
         heat_ida = self.read_daniel_heat_demand(price="basic", cooling=False, floor_heating=False).sum() / 1_000
         heat_ida_floor = self.read_daniel_heat_demand(price="basic", cooling=False, floor_heating=True).sum() / 1_000
@@ -777,7 +782,7 @@ class CompareModels:
         fig2, axes2 = plt.subplots(nrows=3, ncols=1, figsize=(5, 8.5), sharex=True, sharey=True)
         ax_number = 0
         for price in prices:
-            if price == "price1":
+            if price == "basic":
                 continue
             costs_ref = self.calculate_costs(table_name=OperationTable.ResultRefHour.value,
                                              price_id=price,
@@ -920,7 +925,7 @@ class CompareModels:
     def show_plotly_comparison(self, prices: list, cooling: bool, floor_heating: bool):
         # ref heat demand is always the same
         heat_demand_ref = self.read_heat_demand(table_name=OperationTable.ResultRefHour.value,
-                                                prize_scenario="price1",
+                                                prize_scenario="basic",
                                                 cooling=cooling)
         # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
         heat_demand_IDA_ref = self.read_daniel_heat_demand(price="basic", cooling=cooling, floor_heating=floor_heating)
@@ -1116,7 +1121,7 @@ class CompareModels:
                                                   cooling=cooling)  # no floor heating with cooling
 
     def main(self):
-        price_scenarios = ["price1", "price2", "price3", "price4"]
+        price_scenarios = ["basic", "price2", "price3", "price4"]
         # self.indoor_temp_to_csv(cooling=False)
         self.indoor_temp_to_csv(cooling=True)
 
@@ -1132,7 +1137,7 @@ class CompareModels:
 
 
 if __name__ == "__main__":
-    CompareModels("5R1C_validation").show_elec_prices()
-    # CompareModels("5R1C_validation").show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price4",
-    #                                                                                          building="EZFH_5_B")
-    CompareModels("5R1C_validation").main()
+    # CompareModels("5R1C_validation").show_elec_prices()
+    CompareModels("5R1C_validation").show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price4",
+                                                                                             building="EZFH_5_B")
+    # CompareModels("5R1C_validation").main()
