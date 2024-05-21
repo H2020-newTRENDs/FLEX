@@ -14,7 +14,13 @@ import matplotlib.ticker as ticker
 import seaborn as sns
 import math
 import re
+import os
+import sys
 
+# Get the absolute path of the directory two levels up
+two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+# Add this directory to sys.path
+sys.path.insert(0, two_levels_up)
 from basics.db import DB
 from config import config, get_config
 from models.operation.enums import OperationTable
@@ -26,9 +32,11 @@ logger.setLevel(level=logging.INFO)
 class CompareModels:
     def __init__(self, db_name):
         self.project_name = db_name
-        self.input_path = get_config(self.project_name).project_root / Path(f"projects/{self.project_name}/input")
-        self.figure_path = get_config(self.project_name).fig
-        self.db = DB(get_config(self.project_name))
+        self.config = get_config(self.project_name)
+        path_to_sqlite_file = config.output / f"{config.project_name}.sqlite"
+        self.input_path = self.config.project_root / Path(f"projects/{self.project_name}/input")
+        self.figure_path = self.config.fig
+        self.db = DB(path_to_sqlite_file)
         self.scenario_table = self.db.read_dataframe(table_name=OperationTable.Scenarios.value)
 
         self.grey = "#95a5a6"
@@ -122,7 +130,11 @@ class CompareModels:
             ac = "_cooling"
         else:
             ac = ""
-        filename = f"heating_demand_daniel_{system}_{price}{ac}.csv"
+        if price == "price1":
+            p = "basic"
+        else:
+            p = price
+        filename = f"heating_demand_daniel_{system}_{p}{ac}.csv"
         demand_df = pd.read_csv(self.input_path / Path(filename), sep=";")
         # rearrange the df:
         df = self.reorder_table(demand_df)
@@ -130,7 +142,11 @@ class CompareModels:
 
     def read_daniel_cooling_demand(self, price: str):
         system = "ideal"
-        filename = f"cooling_demand_daniel_{system}_{price}_cooling.csv"
+        if price == "price1":
+            p = "basic"
+        else:
+            p = price
+        filename = f"cooling_demand_daniel_{system}_{p}_cooling.csv"
         demand_df = pd.read_csv(self.input_path / Path(filename), sep=";")
         # rearrange the df:
         df = self.reorder_table(demand_df)
@@ -188,7 +204,11 @@ class CompareModels:
             ac = "_cooling"
         else:
             ac = ""
-        filename = f"indoor_temp_daniel_{system}_{price}{ac}.csv"
+        if price == "price1":
+            p = "basic"
+        else:
+            p = price
+        filename = f"indoor_temp_daniel_{system}_{p}{ac}.csv"
         temp_df = pd.read_csv(self.input_path / Path(filename), sep=";")
         # rearrange the df:
         df = self.reorder_table(temp_df)
@@ -452,7 +472,7 @@ class CompareModels:
         heat_demand_ref = self.read_heat_demand(table_name=OperationTable.ResultRefHour.value,
                                                 prize_scenario="price1",
                                                 cooling=cooling)
-        # ref IDA ICE is the one where the indoor set temp is not changed (price1)
+        # ref IDA ICE is the one where the indoor set temp is not changed (basic)
         heat_demand_IDA_ref = self.read_daniel_heat_demand(price="price1",
                                                            cooling=cooling,
                                                            floor_heating=floor_heating)
@@ -498,7 +518,7 @@ class CompareModels:
         cooling_demand_ref = self.read_cooling_demand(table_name=OperationTable.ResultRefHour.value,
                                                       prize_scenario="price1",
                                                       cooling=True)
-        # ref IDA ICE is the one where the indoor set temp is not changed (price1)
+        # ref IDA ICE is the one where the indoor set temp is not changed (basic)
         cooling_demand_IDA_ref = self.read_daniel_cooling_demand(price="price1")
         ax_number = 0
         for price in prices:
@@ -634,7 +654,7 @@ class CompareModels:
                                                       prize_scenario="price1",
                                                       cooling=True)
         # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
-        cooling_demand_IDA_ref = self.read_daniel_cooling_demand(price="price1")
+        cooling_demand_IDA_ref = self.read_daniel_cooling_demand(price="basic")
         ax_number = 0
         for price in prices:
             cooling_demand_opt = self.read_cooling_demand(table_name=OperationTable.ResultOptHour.value,
@@ -665,8 +685,8 @@ class CompareModels:
         heat_5R1C = self.read_heat_demand(table_name=OperationTable.ResultRefHour.value,
                                           prize_scenario="price1",
                                           cooling=False).sum() / 1_000  # kWh
-        heat_ida = self.read_daniel_heat_demand(price="price1", cooling=False, floor_heating=False).sum() / 1_000
-        heat_ida_floor = self.read_daniel_heat_demand(price="price1", cooling=False, floor_heating=True).sum() / 1_000
+        heat_ida = self.read_daniel_heat_demand(price="basic", cooling=False, floor_heating=False).sum() / 1_000
+        heat_ida_floor = self.read_daniel_heat_demand(price="basic", cooling=False, floor_heating=True).sum() / 1_000
         plot_df = pd.concat([heat_5R1C, heat_ida, heat_ida_floor], axis=1)  # kWh
         plot_df.columns = ["5R1C", "IDA ICE ideal heating", "IDA ICE floor heating"]
         plot_df = plot_df.reset_index().rename(columns={"index": "Building"})
@@ -903,10 +923,10 @@ class CompareModels:
                                                 prize_scenario="price1",
                                                 cooling=cooling)
         # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
-        heat_demand_IDA_ref = self.read_daniel_heat_demand(price="price1", cooling=cooling, floor_heating=floor_heating)
-        temperature_daniel_ref = self.read_indoor_temp_daniel(price="price1", cooling=cooling,
+        heat_demand_IDA_ref = self.read_daniel_heat_demand(price="basic", cooling=cooling, floor_heating=floor_heating)
+        temperature_daniel_ref = self.read_indoor_temp_daniel(price="basic", cooling=cooling,
                                                               floor_heating=floor_heating)
-        cooling_demand_daniel_ref = self.read_daniel_cooling_demand(price="price1")
+        cooling_demand_daniel_ref = self.read_daniel_cooling_demand(price="basic")
         for price in prices:
             # heat demand
             heat_demand_opt = self.read_heat_demand(table_name=OperationTable.ResultOptHour.value,
