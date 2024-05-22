@@ -91,6 +91,17 @@ def delete_figure_task_folders(conf):
                 shutil.rmtree(item)
 
 
+def delete_result_folder(conf):
+    for item in Path(conf.output).parent.iterdir():
+        if item.is_dir():
+            if conf.project_name == item.name:
+                print(f"Deleting directory and all contents: {item}")
+                for sub_item in item.iterdir():
+                    # Check if the sub_item is a file
+                    if sub_item.is_file():
+                        sub_item.unlink()  # Delete the file
+                shutil.rmtree(item)
+
 class ECEMFPostProcess:
     def __init__(self,
                  year: int,
@@ -925,6 +936,7 @@ class ECEMFPostProcess:
         # delete all task folder before running the model in case they exist from preivous run
         delete_input_task_folders(conf=cfg)
         delete_result_task_folders(conf=cfg)
+        # delete_result_folder(conf=cfg)  # code doesnt work if i delete the sqlite file instantly and the folder which is needed
         print(f"initialising model for {self.region} {self.year} {self.building_scenario}")
         init = ProjectDatabaseInit(
             config=cfg,
@@ -1731,8 +1743,8 @@ if __name__ == "__main__":
             "baseline": baseline_leeuwarden
         }
             # complete scenarios
-        # ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
-        # ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
+        ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
+        ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
 
 
         # building scenarios
@@ -1836,7 +1848,7 @@ if __name__ == "__main__":
         }
         # complete scenarios
         ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").create_figures()
-        # ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=f"Weak_policy_{pr}").create_figures()
+        ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=f"Weak_policy_{pr}").create_figures()
 
         # ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").delete_all_results()
 
