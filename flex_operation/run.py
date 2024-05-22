@@ -260,7 +260,7 @@ def main(project_name: str,
         #     )
         #     return
         if n_cores == None:
-            n_cores = min(int(multiprocessing.cpu_count() / 2 - 4), len(missing_scenarios))
+            n_cores = int(multiprocessing.cpu_count() / 2 - 4)
         number_of_physical_cores = n_cores
         new_scenario_names = split_scenario(orig_project_name=project_name, n_cores=number_of_physical_cores)
         input_list = [
@@ -343,11 +343,12 @@ def run_operation_model(cfg: "Config",
     logger = logging.getLogger(f"{cfg.project_name}")
     # define mother operation before looping through scenarios:
     mother_operation = MotherOperationScenario(cfg)
-    scenario_ids = determine_missing_scenarios(
-        c=cfg,
-        mother_op=mother_operation,
-        scens=operation_scenario_ids
-    )
+    # scenario_ids = determine_missing_scenarios(
+    #     c=cfg,
+    #     mother_op=mother_operation,
+    #     scens=operation_scenario_ids
+    # )
+    scenario_ids = create_db_conn(cfg).read_dataframe(table_name="OperationScenario")["ID_Scenario"].to_list()
     if len(scenario_ids) == 0:
         return  # stop the code
 

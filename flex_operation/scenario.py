@@ -1,4 +1,5 @@
 import sys
+import os
 from dataclasses import dataclass, fields
 from typing import Optional
 
@@ -6,6 +7,10 @@ import numpy as np
 import pandas as pd
 import random
 
+# Get the absolute path of the directory two levels up
+level_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+# Add this directory to sys.path
+sys.path.insert(0, level_up)
 from flex.config import Config
 from flex.db import create_db_conn
 from flex_operation.components import (
@@ -98,7 +103,7 @@ class OperationScenario:
             component_info = OperationScenarioComponent.__dict__[id_component.replace("ID_", "")]
             if component_info.name in self.__dict__.keys():
                 df = self.tables.__getattribute__(component_info.table_name)
-                row = df.loc[df.loc[:, component_info.id_name] == component_scenario_id[self.scenario_id], :].squeeze()
+                row = df.loc[df.loc[:, component_info.id_name] == int(component_scenario_id[self.scenario_id]), :].squeeze()
                 instance = getattr(sys.modules[__name__], component_info.camel_name)()
                 instance.set_params(row.to_dict())
                 setattr(self, component_info.name, instance)

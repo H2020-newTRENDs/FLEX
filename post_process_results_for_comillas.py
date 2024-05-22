@@ -354,7 +354,7 @@ class ECEMFPostProcess:
             chosen_ids = self.choose_appliances(building_type=row["type"])
 
             building_attributes = {
-                "ID_Scenario": building_id,  # Building ID is the same as Scenario ID
+                "ID_Scenario": i + 1,  
                 "ID_Building": building_id,
                 **chosen_ids
             }
@@ -375,7 +375,7 @@ class ECEMFPostProcess:
             return_dict[scen_id] = list_of_scenarios.count(scen_id)
         return return_dict
 
-    def worker(self, id_building, id_scenario, prosumager) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
+    def worker(self, id_building, id_scenario, prosumager, db) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
 
         result_matrix_demand = pd.DataFrame(index=range(8760), columns=[id_building])
         result_matrix_feed2grid = pd.DataFrame(index=range(8760), columns=[id_building])
@@ -384,7 +384,7 @@ class ECEMFPostProcess:
         result_matrix_q_heating = pd.DataFrame(index=range(8760), columns=[id_building])
 
         if prosumager == 0:
-            ref_loads = self.db.read_parquet(
+            ref_loads = db.read_parquet(
                 table_name=OperationTable.ResultRefHour,
                 scenario_ID=id_scenario,
                 folder=self.path_to_results,
@@ -398,7 +398,7 @@ class ECEMFPostProcess:
             result_matrix_q_heating.loc[:, id_building] = ref_loads["Q_RoomHeating"].to_numpy()
 
         else:
-            opt_loads = self.db.read_parquet(
+            opt_loads = db.read_parquet(
                 table_name=OperationTable.ResultOptHour,
                 scenario_ID=id_scenario,
                 folder=self.path_to_results,
@@ -413,9 +413,10 @@ class ECEMFPostProcess:
         return result_matrix_demand, result_matrix_feed2grid, result_matrix_e_hp_heating, result_matrix_e_cooling, result_matrix_q_heating
 
     def calculate_total_load_profiles(self, total_df: pd.DataFrame):
+        database = DB(path=self.path_to_results / f"{self.data_base_name}.sqlite")
         with ThreadPoolExecutor() as executor:
             futures = [
-                executor.submit(self.worker, id_building, id_scenario, prosumager_value)
+                executor.submit(self.worker, id_building, id_scenario, prosumager_value, database)
                 for (id_building, id_scenario, prosumager_value) in list(zip(
                     total_df["ID_Building"], total_df["ID_Scenario"], total_df['ID_Prosumager'])
                 )
@@ -724,7 +725,7 @@ class ECEMFPostProcess:
         
         # add the building type (MFH SFH) to the previous df:
         type_df = pd.read_excel(
-            prev_scen.path_to_model_input / f"OperationScenario_Component_Building_{prev_scen.region}_non_clustered_{prev_scen.year}_{prev_scen.building_scenario}.xlsx", engine="openpyxl"
+            prev_scen.path_to_model_input / f"OperationScenario_Component_Building.xlsx", engine="openpyxl"
         ).loc[:, ["ID_Building", "type"]]
         df = pd.merge(df, type_df, on="ID_Building")
 
@@ -888,8 +889,19 @@ class ECEMFPostProcess:
         # replace the "new_PV" with the different PV sizes + orientation
         np.random.seed(42)
         df["ID_PV"] = df.apply(complex_condition, axis=1)
-        # fix the ID Behavior (1 for the new HP buildings)
-        df.loc[df.loc[:, "ID_Prosumager"] == 1, "ID_Behavior"] = 1
+        # if (for some reason i dont understand) a "changing" is still in df (in the ID_Boiler), select a new one
+        if "changing" in df["ID_Boiler"].to_list():
+            df.loc[df.loc[:, "ID_Boiler"] == "changing", "ID_Boiler"] = np.random.choice([1, 2, 3, 4, 5,] ,
+                                                                                         p=[self.direct_electric_heating_percentage,
+                                                                                            self.air_hp_percentage,
+                                                                                            self.ground_hp_percentage,
+                                                                                            self.no_heating_percentage,
+                                                                                            self.gases_percentage])
+              
+        # fix the ID Behavior
+        df.loc[df.loc[:, "ID_Boiler"].isin([2, 3, 5]), "ID_Behavior"] = 1
+        df.loc[df.loc[:, "ID_Boiler"] == 1, "ID_Behavior"] = 3
+        df.loc[df.loc[:, "ID_Boiler"] == 4, "ID_Behavior"] = 2
         return df.apply(convert_to_numeric)
     
     def get_electricty_price_for_max_demand_day(self, start_hour: int, end_hour: int):
@@ -910,6 +922,9 @@ class ECEMFPostProcess:
 
     def run_FLEX_model(self):
         cfg = Config(f"ECEMF_T4.3_{self.region}_{self.year}_{self.building_scenario}")
+        # delete all task folder before running the model in case they exist from preivous run
+        delete_input_task_folders(conf=cfg)
+        delete_result_task_folders(conf=cfg)
         print(f"initialising model for {self.region} {self.year} {self.building_scenario}")
         init = ProjectDatabaseInit(
             config=cfg,
@@ -940,7 +955,7 @@ class ECEMFPostProcess:
         if self.__file_name__() == get_file_name(self.baseline):
             # generate the baseline scenario
             scenarios = self.scenario_generator_baseline()
-            # save scenarios table to start folder
+            # save scenarios table to start folder because it will be loaded by the FLEX model run
             scenarios.to_excel(self.path_to_model_input / "OperationScenario.xlsx", index=False)
         else:
             # change the technologies based on the change in percentages compared to the previous scenario
@@ -1471,6 +1486,19 @@ class ECEMFFigures:
             # load data
             self.visualize_heating_and_cooling_load()
             self.create_scenario_comparison_daily_mean_plot_for_each_season()
+    
+    def delete_all_results(self):
+        path_2_delete = Path(__file__).parent / "data" / "output" #/ f"ECEMF_T4.3_{self.baseline['region']}"
+        for item in Path(path_2_delete).iterdir():
+            if item.is_dir():
+                if f"ECEMF_T4.3_{self.scenario['region']}" in item.name and self.scenario['building_scenario'] in item.name:
+                    print(f"Deleting directory and all contents: {item}")
+                    for sub_item in item.iterdir():
+                        # Check if the sub_item is a file
+                        if sub_item.is_file():
+                            sub_item.unlink()  # Delete the file
+                    shutil.rmtree(item)
+
 
     def visualize_heating_and_cooling_load(self):
         fig_path = self.path_2_figure / f"{self.scenario_name}"
@@ -1808,7 +1836,9 @@ if __name__ == "__main__":
         }
         # complete scenarios
         ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").create_figures()
-        ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=f"Weak_policy_{pr}").create_figures()
+        # ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=f"Weak_policy_{pr}").create_figures()
+
+        # ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").delete_all_results()
 
     # create file that indicates for each building: building type, number of persons, 
     # send prices to miguel from the highest total demand day (1 new file with all the scenarios with 24 values, 1 file Murcia, 1 file Leeuwarden, column name same as for scenario)
