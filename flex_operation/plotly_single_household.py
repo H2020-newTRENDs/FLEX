@@ -1,7 +1,6 @@
 from scipy.stats import norm
-from flex_operation.scenario import OperationScenario, MotherOperationScenario
-from flex_operation.Visualization_class import MotherVisualization
-from config import cfg
+import os
+import sys
 
 import pandas as pd
 import numpy as np
@@ -10,9 +9,18 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
 
+# Get the absolute path of the directory two levels up
+two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+# Add this directory to sys.path
+sys.path.insert(0, two_levels_up)
+from scenario import OperationScenario, MotherOperationScenario
+from flex_operation.Visualization_class import MotherVisualization
+from flex.config import Config
 
 # -----------------------------------------------------------------------------------------------------------
 class PlotlyVisualize(MotherVisualization):
+
+    
     def show_yearly_comparison_of_SEMS_reference(self) -> None:
         """
         this function creates a plotly bar chart that instantly shows the differences in the yearly results. When bars
@@ -314,7 +322,8 @@ class PlotlyVisualize(MotherVisualization):
 if __name__ == "__main__":
 
     # create scenario:
-    scenario_id = 16663  # 598
+    scenario_id = 1716  # 598
+    cfg = Config(project_name="ECEMF_T4.3_Murcia_2030_H")
     mother_tables = MotherOperationScenario(config=cfg)
     scenario = OperationScenario(scenario_id=scenario_id, config=cfg, tables=mother_tables)
     plotly_visualization = PlotlyVisualize(scenario=scenario)

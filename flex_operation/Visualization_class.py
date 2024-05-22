@@ -1,12 +1,19 @@
 import pandas as pd
 import sqlalchemy.exc
 import sqlite3
+import os
+import sys
+
+# Get the absolute path of the directory two levels up
+two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+# Add this directory to sys.path
+sys.path.insert(0, two_levels_up)
 from flex_operation.scenario import OperationScenario
 from flex_operation.model_opt import OptInstance, OptOperationModel
 from flex_operation.model_ref import RefOperationModel
 from flex_operation.data_collector import RefDataCollector, OptDataCollector
-from flex.db import DB
-from config import cfg
+from flex.db import create_db_conn
+
 from flex_operation.constants import OperationTable
 
 
@@ -35,15 +42,13 @@ class MotherVisualization:
     def calculate_single_results(self):
         # list of source tables:
         result_table_names = [
-            "Reference_hourly",
             "Reference_yearly",
-            "Optimization_hourly",
             "Optimization_yearly",
         ]
         # delete the rows in case one of them is saved (eg. optimization is not here but reference is)
         for table_name in result_table_names:
             try:
-                DB(config=cfg).delete_row_from_table(
+                create_db_conn(self.scenario.config).delete_row_from_table(
                     table_name=table_name,
                     column_name_plus_value={"ID_Scenario": self.scenario.scenario_id},
                 )
@@ -55,31 +60,34 @@ class MotherVisualization:
         # solve model
         opt_model = OptOperationModel(self.scenario).solve(hp_instance)
         # datacollector save results to db
-        OptDataCollector(opt_model, self.scenario.scenario_id, cfg).run()
+        OptDataCollector(model=opt_model, scenario_id=self.scenario.scenario_id, config=self.scenario.config).run()
 
         ref_model = RefOperationModel(self.scenario).solve()
 
         # save results to db
-        RefDataCollector(ref_model, self.scenario.scenario_id, cfg).run()
+        RefDataCollector(model=ref_model, scenario_id=self.scenario.scenario_id, config=self.scenario.config).run()
 
     def read_hourly_results(
         self,
     ) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
+        db = create_db_conn(self.scenario.config)
         # check if scenario id is in results, if yes, load them instead of calculating them:
-        hourly_results_reference_df = DB(cfg).read_parquet(
+        hourly_results_reference_df = db.read_parquet(
+            folder=self.scenario.config.output,
             table_name=OperationTable.ResultRefHour,
             scenario_ID=self.scenario.scenario_id
         )
-        yearly_results_reference_df = DB(cfg).read_dataframe(
+        yearly_results_reference_df = db.read_dataframe(
             table_name=OperationTable.ResultRefYear,
             filter={"ID_Scenario": self.scenario.scenario_id}
         )
 
-        hourly_results_optimization_df = DB(cfg).read_parquet(
+        hourly_results_optimization_df = db.read_parquet(
+            folder=self.scenario.config.output,
             table_name=OperationTable.ResultOptHour,
             scenario_ID=self.scenario.scenario_id,
         )
-        yearly_results_optimization_df = DB(cfg).read_dataframe(
+        yearly_results_optimization_df = db.read_dataframe(
             table_name=OperationTable.ResultOptYear,
             filter={"ID_Scenario": self.scenario.scenario_id},
         )
@@ -106,26 +114,18 @@ class MotherVisualization:
             if len(hourly_results_reference_df) == 0:
                 print("creating the tables...")
                 self.calculate_single_results()
-            else:
-                return (
-                    hourly_results_reference_df,
-                    yearly_results_reference_df,
-                    hourly_results_optimization_df,
-                    yearly_results_optimization_df,
-                )
 
         # if table doesn't exist:
-        except (sqlite3.OperationalError, sqlalchemy.exc.OperationalError) as error:
-            print(error)
+        except:
             print("creating the tables...")
             self.calculate_single_results()
         # ---------------------------------------------------------------------------------------------------------
-        (
-            hourly_results_reference_df,
+        (hourly_results_reference_df,
             yearly_results_reference_df,
             hourly_results_optimization_df,
             yearly_results_optimization_df,
-        ) = self.read_hourly_results()
+            ) = self.read_hourly_results()
+
         return (
             hourly_results_reference_df,
             yearly_results_reference_df,
