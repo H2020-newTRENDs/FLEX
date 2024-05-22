@@ -118,7 +118,8 @@ class DB:
         condition = condition[0:-5]  # deleting last "and"
 
         query = f"DELETE FROM {table_name}" + condition
-        self.engine.execute(query)
+        with self.engine.connect() as connection:
+            connection.execute(sqlalchemy.text(query))
 
     def query(self, sql) -> pd.DataFrame:
         return pd.read_sql(sql, self.engine)
@@ -127,7 +128,7 @@ class DB:
 
 def create_db_conn(config: "Config") -> DB:
     if config.task_id is None:
-        conn = DB(os.path.join(config.output, config.project_name + ".sqlite"))
+        conn = DB(config.output / f"{config.project_name}.sqlite")
     else:
         conn = DB(os.path.join(config.task_output, f'{config.project_name}.sqlite'))
     return conn
