@@ -6,6 +6,7 @@ from tqdm import tqdm
 import logging
 import shutil
 import multiprocessing
+from pathlib import Path
 from joblib import Parallel, delayed
 from flex.config import Config
 from config import cfg as project_config
@@ -105,12 +106,15 @@ def create_intermediate_folders(conf: "Config", folder_names: List[str]):
         output_folder_source = conf.output
         output_folder_target = conf.output.parent / sub_project_name
         if not output_folder_target.exists():
-            shutil.copytree(src=output_folder_source, dst=output_folder_target, dirs_exist_ok=True)
+            output_folder_target.mkdir(parents=True)
+            # shutil.copytree(src=output_folder_source, dst=output_folder_target, dirs_exist_ok=True)
             # of it already exists use the old folder where scenarios might already exist
+            path_to_source_sqlite = output_folder_source / f"{conf.project_name}.sqlite"
+            path_to_target_sqlite = output_folder_target / f"{conf.project_name}.sqlite"
+            shutil.copy2(src=path_to_source_sqlite, dst=path_to_target_sqlite)
             # rename the copied database so it will be used:
-            path_to_sqlite = output_folder_target / f"{conf.project_name}.sqlite"
-            path_to_sqlite.rename(output_folder_target / f"{sub_project_name}.sqlite")
-            print(f"copied sqlite database to {path_to_sqlite}")
+            path_to_target_sqlite.rename(output_folder_target / f"{sub_project_name}.sqlite")
+            print(f"copied sqlite database to {path_to_target_sqlite}")
         # copy operation folder
         operation_folder_source = conf.input_operation
         operation_folder_target = conf.input_operation.parent / sub_project_name
