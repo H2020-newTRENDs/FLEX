@@ -275,4 +275,4 @@ if __name__ == "__main__":
     prn_importer = PRNImporter("5R1C_validation")
     prn_importer.main()
     prn_importer.clean_up()
-    prn_importer.modify_heat_demand()
+    # prn_importer.modify_heat_demand()  #not sure if this is beneficial

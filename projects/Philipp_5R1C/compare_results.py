@@ -1137,7 +1137,7 @@ class CompareModels:
 
 
 if __name__ == "__main__":
-    # CompareModels("5R1C_validation").show_elec_prices()
+    CompareModels("5R1C_validation").show_elec_prices()
     CompareModels("5R1C_validation").show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price4",
                                                                                              building="EZFH_5_B")
-    # CompareModels("5R1C_validation").main()
+    CompareModels("5R1C_validation").main()
