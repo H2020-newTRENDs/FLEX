@@ -23,7 +23,7 @@ two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 sys.path.insert(0, two_levels_up)
 from basics.db import DB
 from config import config, get_config
-from models.operation.enums import OperationTable
+from models.operation.enums import OperationTable, OperationScenarioComponent
 
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
@@ -66,7 +66,7 @@ class CompareModels:
 
     def scenario_id_2_building_name(self, id_scenario: int) -> str:
         building_id = int(
-            self.scenario_table.loc[self.scenario_table.loc[:, "ID_Scenario"] == id_scenario, "ID_Building"])
+            self.scenario_table.loc[self.scenario_table.loc[:, "ID_Scenario"] == id_scenario, "ID_Building"].iloc[0])
         return f"{self.building_names[building_id]}"
 
     def reorder_table(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -426,7 +426,8 @@ class CompareModels:
         return by_label
 
     def relative_yearly_comparison(self,
-                                   figure, axes,
+                                   figure, 
+                                   axes,
                                    profile_list: List[pd.DataFrame],
                                    profile_names: list,
                                    y_label: str,
@@ -441,11 +442,8 @@ class CompareModels:
         total_df = pd.concat([profile.sum() for profile in profile_list], axis=1) / denominator  # kW
         total_df.columns = [name for name in profile_names]
 
-        total_df.loc[:, "5R1C"] = (total_df.loc[:, "5R1C optimized"] - total_df.loc[:, "5R1C"]) / total_df.loc[:,
-                                                                                                  "5R1C"] * 100
-        total_df.loc[:, "IDA ICE"] = (total_df.loc[:, "IDA ICE optimized"] - total_df.loc[:, "IDA ICE"]) / total_df.loc[
-                                                                                                           :,
-                                                                                                           "IDA ICE"] * 100
+        total_df.loc[:, "5R1C"] = (total_df.loc[:, "5R1C optimized"] - total_df.loc[:, "5R1C"]) / total_df.loc[:, "5R1C"] * 100
+        total_df.loc[:, "IDA ICE"] = (total_df.loc[:, "IDA ICE optimized"] - total_df.loc[:, "IDA ICE"]) / total_df.loc[ :, "IDA ICE"] * 100
         total_df = total_df.drop(columns=["5R1C optimized", "IDA ICE optimized"])
 
         ax = axes.flatten()[ax_number]
@@ -708,6 +706,36 @@ class CompareModels:
         plt.savefig(self.figure_path / f"Yearly_heat_demand_comparison.svg")
         plt.close()
 
+    def plot_normalized_yearly_heat_demand_floor_ideal_not_optimized(self):
+        """ plot the yearly heat demand for 5R1C, IDA ICE and IDA ICE Floor heating"""
+        plt.style.use("seaborn-paper")
+        heat_5R1C = self.read_heat_demand(table_name=OperationTable.ResultRefHour.value,
+                                          prize_scenario="basic",
+                                          cooling=False).sum() / 1_000  # kWh
+        heat_ida = self.read_daniel_heat_demand(price="basic", cooling=False, floor_heating=False).sum() / 1_000
+        heat_ida_floor = self.read_daniel_heat_demand(price="basic", cooling=False, floor_heating=True).sum() / 1_000
+        plot_df = pd.concat([heat_5R1C, heat_ida, heat_ida_floor], axis=1)  # kWh
+        columns = ["5R1C", "IDA ICE ideal heating", "IDA ICE floor heating"]
+        plot_df.columns = columns
+        building_df = self.db.read_dataframe(table_name=OperationScenarioComponent.Building.table_name, column_names=["ID_Building", "type", "Af"])
+        building_df["index"] = building_df.loc[:, "ID_Building"].map(self.building_names)
+        plot_df_merged = plot_df.reset_index().merge(building_df.loc[:, ["index", "Af"]], how="left")
+        plot_df_normalized = plot_df_merged.loc[:, columns].div(plot_df_merged.loc[:, "Af"], axis=0) 
+        plot_df_normalized["Building"] = plot_df_merged["index"]
+        
+        melted_df = plot_df_normalized.melt(id_vars="Building").rename(columns={"value": "heat demand (kWh/m$^2$)",
+                                                                                "variable": "model"})
+
+        sns.barplot(data=melted_df, x="Building", y="heat demand (kWh/m$^2$)", hue="model",
+                    palette=["blue", self.orange, "green"])
+        ax = plt.gca()
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
+        ax.get_yaxis().set_major_formatter(
+            ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
+        plt.title("heat demand")
+        plt.savefig(self.figure_path / f"Yearly_heat_demand_comparison_normalized.svg")
+        plt.close()
+
     def calculate_relative_cost_change(self, opt_df, ref_df) -> pd.DataFrame:
         # compare total demand
         relative = (opt_df - ref_df) / ref_df * 100
@@ -819,9 +847,9 @@ class CompareModels:
                     borderaxespad=0, ncol=4, bbox_transform=fig2.transFigure)
         ax = fig2.axes[2]
         ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='center')
-        fig2.suptitle(f"relative_change_in_heating{ac} with {system}_cost".replace('_', ' '))
+        fig2.suptitle(f"relative_change_in_heating{ac} cost with {system}".replace('_', ' '))
         fig2.savefig(
-            self.figure_path / Path(f"relative_change_in_heating{ac}_with_{system.replace(' ', '_')}_cost.svg"))
+            self.figure_path / Path(f"relative_change_in_heating{ac}_cost_with_{system.replace(' ', '_')}.svg"))
         plt.close()
 
     def plot_relative_cooling_cost_reduction(self, prices: list, cooling: bool):
@@ -866,7 +894,7 @@ class CompareModels:
         """ compares the relative change in heat demand between the reference case where no load is shifted
         and the optimized case with load shifting in the 5R1C model and the IDA ICE model.
         The relative change in heat and cooling demand as well as price is compared"""
-        # self.plot_relative_heat_demand(prices=prizes, floor_heating=floor_heating, cooling=cooling)
+        self.plot_relative_heat_demand(prices=prizes, floor_heating=floor_heating, cooling=cooling)
         if cooling:
             self.plot_relative_cooling_demand(prices=prizes)  # cooling scenario is only without floor heating
 
@@ -1115,7 +1143,6 @@ class CompareModels:
         self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
         self.subplots_relative(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
         self.subplots_yearly(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
-        self.show_plotly_comparison(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
         # if cooling:
         self.plot_relative_cooling_cost_reduction(prices=price_scenarios,
                                                   cooling=cooling)  # no floor heating with cooling
@@ -1123,21 +1150,27 @@ class CompareModels:
     def main(self):
         price_scenarios = ["basic", "price2", "price3", "price4"]
         # self.indoor_temp_to_csv(cooling=False)
-        self.indoor_temp_to_csv(cooling=True)
+        # self.indoor_temp_to_csv(cooling=True)# was only relevant for Daniel
 
-        self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
+        self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
         self.plot_yearly_heat_demand_floor_ideal_not_optimized()
+        self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
 
         # run through results: run takes scenarios, floor_heating, cooling as input
         # run it with floor heating and without cooling (not included in floor heating)
         # run it with ideal heating system including end excluding cooling:
-        # self.run(price_scenarios, floor_heating=True, cooling=False)
+        self.run(price_scenarios, floor_heating=True, cooling=False)
         self.run(price_scenarios, floor_heating=False, cooling=False)
-        # self.run(price_scenarios, floor_heating=False, cooling=True)
+        self.run(price_scenarios, floor_heating=False, cooling=True)
+
+        # self.show_plotly_comparison(prices=price_scenarios, cooling=True, floor_heating=True)
+
 
 
 if __name__ == "__main__":
-    CompareModels("5R1C_validation").show_elec_prices()
-    CompareModels("5R1C_validation").show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price4",
-                                                                                             building="EZFH_5_B")
+    # CompareModels("5R1C_validation").show_elec_prices()
+    # CompareModels("5R1C_validation").show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price4",
+    #                                                                                          building="EZFH_5_B")
     CompareModels("5R1C_validation").main()
+
+    # TODO Cooling demand plot passt nicht
