@@ -1701,7 +1701,6 @@ class ECEMFFigures:
     
 
 if __name__ == "__main__":
-    change_direct_elec_load_mfh_buildings()
     # ECEMFBuildingComparison(region="Murcia").main()
 
     # Battery is only installed in buildings with PV so the probability only refers to buildings with PV.
