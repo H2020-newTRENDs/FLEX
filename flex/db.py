@@ -94,7 +94,7 @@ class DB:
 
         if column_names:
             if len(column_names) > 1:
-                query = sqlalchemy.select([table.columns[name] for name in column_names])
+                query = sqlalchemy.select(*[table.columns[name] for name in column_names])
             else:
                 query = sqlalchemy.select([table.columns[name] for name in column_names][0])
         else:
