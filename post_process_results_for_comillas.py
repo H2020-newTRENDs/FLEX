@@ -388,7 +388,7 @@ class ECEMFPostProcess:
             return_dict[scen_id] = list_of_scenarios.count(scen_id)
         return return_dict
 
-    def worker(self, id_building, id_scenario, prosumager, db) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
+    def worker(self, id_building, id_scenario, prosumager, db, electric_heating_ids) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
 
         result_matrix_demand = pd.DataFrame(index=range(8760), columns=[id_building])
         result_matrix_feed2grid = pd.DataFrame(index=range(8760), columns=[id_building])
@@ -404,11 +404,17 @@ class ECEMFPostProcess:
                 column_names=["Grid", "Feed2Grid", "E_Heating_HP_out", "E_RoomCooling", "Q_RoomHeating"]
             )
 
-            result_matrix_demand.loc[:, id_building] = ref_loads["Grid"].to_numpy()
+            # change the grid demand and heating of direct electric heating buildings if they are MFH with moving avg.5
+            if id_scenario in electric_heating_ids:
+                result_matrix_demand.loc[:, id_building] = ref_loads["Grid"].rolling(window=5, min_periods=1).mean().to_numpy()
+                result_matrix_q_heating.loc[:, id_building] = ref_loads["Q_RoomHeating"].rolling(window=5, min_periods=1).mean().to_numpy()
+            else:
+                result_matrix_demand.loc[:, id_building] = ref_loads["Grid"].to_numpy()
+                result_matrix_q_heating.loc[:, id_building] = ref_loads["Q_RoomHeating"].to_numpy()
+          
             result_matrix_feed2grid.loc[:, id_building] = ref_loads["Feed2Grid"].to_numpy()
             result_matrix_e_cooling.loc[:, id_building] = ref_loads["E_RoomCooling"].to_numpy()
             result_matrix_e_hp_heating.loc[:, id_building] = ref_loads["E_Heating_HP_out"].to_numpy()
-            result_matrix_q_heating.loc[:, id_building] = ref_loads["Q_RoomHeating"].to_numpy()
 
         else:
             opt_loads = db.read_parquet(
@@ -417,19 +423,29 @@ class ECEMFPostProcess:
                 folder=self.path_to_results,
                 column_names=["Grid", "Feed2Grid", "E_Heating_HP_out", "E_RoomCooling", "Q_RoomHeating"])
 
-            result_matrix_demand.loc[:, id_building] = opt_loads["Grid"].to_numpy()
+            if id_scenario in electric_heating_ids:
+                result_matrix_demand.loc[:, id_building] = opt_loads["Grid"].rolling(window=5, min_periods=1).mean().to_numpy()
+                result_matrix_q_heating.loc[:, id_building] = opt_loads["Q_RoomHeating"].rolling(window=5, min_periods=1).mean().to_numpy()
+            else:
+                result_matrix_demand.loc[:, id_building] = opt_loads["Grid"].to_numpy()
+                result_matrix_q_heating.loc[:, id_building] = opt_loads["Q_RoomHeating"].to_numpy()
+            
             result_matrix_feed2grid.loc[:, id_building] = opt_loads["Feed2Grid"].to_numpy()
             result_matrix_e_cooling.loc[:, id_building] = opt_loads["E_RoomCooling"].to_numpy()
             result_matrix_e_hp_heating.loc[:, id_building] = opt_loads["E_Heating_HP_out"].to_numpy()
-            result_matrix_q_heating.loc[:, id_building] = opt_loads["Q_RoomHeating"].to_numpy()
 
         return result_matrix_demand, result_matrix_feed2grid, result_matrix_e_hp_heating, result_matrix_e_cooling, result_matrix_q_heating
 
     def calculate_total_load_profiles(self, total_df: pd.DataFrame):
         database = DB(path=self.path_to_results / f"{self.data_base_name}.sqlite")
+        building_table = database.read_dataframe(table_name="OperationScenario_Component_Building",
+                                                 column_names=["ID_Building", "type"])
+        merged = pd.merge(self.scenario_table, building_table, on="ID_Building")
+        electric_heating_ids = merged.loc[(merged.loc[:, "ID_Boiler"] == 1) & (merged.loc[:, "type"] == "MFH"), "ID_Scenario"].to_list()
+        
         with ThreadPoolExecutor() as executor:
             futures = [
-                executor.submit(self.worker, id_building, id_scenario, prosumager_value, database)
+                executor.submit(self.worker, id_building, id_scenario, prosumager_value, database, electric_heating_ids)
                 for (id_building, id_scenario, prosumager_value) in list(zip(
                     total_df["ID_Building"], total_df["ID_Scenario"], total_df['ID_Prosumager'])
                 )
@@ -964,7 +980,7 @@ class ECEMFPostProcess:
             print(f"taskfolders for {self.region} {self.year} were not deleted")
         
         print(f"FLEX run for {self.region} {self.year} {self.building_scenario} done!")
-
+       
     
     def create_output_csv(self):
         if self.__file_name__() == get_file_name(self.baseline):
@@ -1679,7 +1695,13 @@ class ECEMFFigures:
                        color="Building ID")
             fig.write_html(fig_path / f"highest_peak_profiles.html")
 
+
+
+    
+    
+
 if __name__ == "__main__":
+    change_direct_elec_load_mfh_buildings()
     # ECEMFBuildingComparison(region="Murcia").main()
 
     # Battery is only installed in buildings with PV so the probability only refers to buildings with PV.
