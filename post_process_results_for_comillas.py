@@ -119,7 +119,8 @@ class ECEMFPostProcess:
                  battery_percentage: float,
                  prosumager_percentage: float,
                  baseline: dict,
-                 previous_scenario: dict
+                 previous_scenario: dict,
+                 scenario_name: str,
                  ):
         """
         :param year: int of the year that corresponds to the renovation of buildings and lowered heat demand
@@ -147,6 +148,7 @@ class ECEMFPostProcess:
         self.data_output = Path(__file__).parent / "projects" / f"ECEMF_T4.3_{region}/data_output/"
         self.data_output.mkdir(parents=True, exist_ok=True)
         self.building_df = pd.read_excel(self.path_to_model_input /f"OperationScenario_Component_Building.xlsx", engine="openpyxl")
+        self.scenario_name = scenario_name
         self.pv_sizes = {
             1: 0,  # kWp
             2: 5,
@@ -661,6 +663,7 @@ class ECEMFPostProcess:
         final_info = pd.DataFrame.from_dict(data={**add_info_df, **total_cooling, **total_boilers},
                                             orient="index")
         final_info.to_csv(self.data_output / f"I_{file_name}.csv", sep=";")
+        final_info.to_csv(self.data_output / f"Info_{self.region}_{self.year}_{self.scenario_name.replace('P', 'Prosumager')}.csv")
         print("saved add information csv")
 
     def __file_name__(self):
@@ -726,9 +729,9 @@ class ECEMFPostProcess:
 
     def heating_systems_change(self):
         if "baseline" in self.previous_scenario.keys():
-            prev_scen = ECEMFPostProcess(**self.previous_scenario, previous_scenario=None)
+            prev_scen = ECEMFPostProcess(**self.previous_scenario, previous_scenario=None, scenario_name=self.scenario_name)
         else:
-            prev_scen = ECEMFPostProcess(**self.previous_scenario, previous_scenario=None, baseline=None)
+            prev_scen = ECEMFPostProcess(**self.previous_scenario, previous_scenario=None, baseline=None, scenario_name=self.scenario_name)
 
         df = pd.read_excel(
             prev_scen.path_to_model_input / f"OperationScenario.xlsx", engine="openpyxl"
@@ -1036,7 +1039,7 @@ class ECEMFPostProcess:
         return pd.read_csv(path_2_file, sep=";")
 
     def add_baseline_data_to_hourly_csv(self, hourly_csv_scen: pd.DataFrame):
-        base = ECEMFPostProcess(**self.baseline, baseline=self.baseline, previous_scenario=None)
+        base = ECEMFPostProcess(**self.baseline, baseline=self.baseline, previous_scenario=None, scenario_name=self.scenario_name)
         try:  # if baseline does not exist yet:
             hourly_csv_base = base.get_hourly_csv()
             hourly_csv_base["type"] = hourly_csv_base["type"] + " baseline"
@@ -1045,6 +1048,7 @@ class ECEMFPostProcess:
             df = hourly_csv_scen
 
         df.to_csv(self.data_output / f"{self.__file_name__()}.csv", sep=";", index=False)
+        df.to_csv(self.data_output / f"Profiles_{self.region}_{self.year}_{self.scenario_name.replace('P', 'Prosumager')}.csv")
 
 
 def create_figure_worker(scenario_list: list,
@@ -1210,7 +1214,7 @@ class ECEMFFigures:
             print(
                 f"{get_file_name(self.baseline)} \n parquet files do not exist. create_output_csv"
             )
-            ECEMFPostProcess(**self.baseline, baseline=self.baseline, previous_scenario=None).create_output_csv()
+            ECEMFPostProcess(**self.baseline, baseline=self.baseline, previous_scenario=None, scenario_name=self.scenario_name).create_output_csv()
 
         if isinstance(scenarios, list):
             # the first scenario will be based on the baseline in case it is not the same as the baseline, making
@@ -1247,7 +1251,7 @@ class ECEMFFigures:
                     print(
                         f"{get_file_name(scen)} \n parquet files do not exist. create_output_csv"
                     )
-                    ECEMFPostProcess(**scen, previous_scenario=previous_scenario).create_output_csv()
+                    ECEMFPostProcess(**scen, previous_scenario=previous_scenario, scenario_name=self.scenario_name).create_output_csv()
 
         else:  # if its only a single scenario, base it on the baseline scenario
             if not self.path_to_gzip(f"Demand_{get_file_name(scenarios)}").exists() or not \
@@ -1255,7 +1259,7 @@ class ECEMFFigures:
                 print(
                     f"{get_file_name(scenarios)} \n parquet files do not exist. create_output_csv"
                 )
-                ECEMFPostProcess(**scenarios, previous_scenario=self.baseline).create_output_csv()
+                ECEMFPostProcess(**scenarios, previous_scenario=self.baseline, scenario_name=self.scenario_name).create_output_csv()
 
     def copy_scenario_outputs_into_specific_folder(self):
         """
@@ -1417,10 +1421,10 @@ class ECEMFFigures:
         """
         if isinstance(self.scenario, dict):
             folder = self.path_2_figure / get_file_name(self.scenario)
-            region = ECEMFPostProcess(**self.scenario, previous_scenario=None).region
+            region = ECEMFPostProcess(**self.scenario, previous_scenario=None, scenario_name=self.scenario_name).region
         else:
             folder = self.path_2_figure / f"{self.scenario_name}"
-            region = ECEMFPostProcess(**self.scenario[0], previous_scenario=None).region
+            region = ECEMFPostProcess(**self.scenario[0], previous_scenario=None, scenario_name=self.scenario_name).region
         if not folder.exists():
             # Create the folder
             folder.mkdir(parents=True, exist_ok=True)
@@ -1498,6 +1502,8 @@ class ECEMFFigures:
             # load data
             self.visualize_heating_and_cooling_load()
             self.create_scenario_comparison_daily_mean_plot_for_each_season()
+            self.plot_peaks_of_all_households()
+            self.plot_biggest_peak_profiles()
     
     def delete_all_results(self):
         path_2_delete = Path(__file__).parent / "data" / "output" #/ f"ECEMF_T4.3_{self.baseline['region']}"
@@ -1637,6 +1643,42 @@ class ECEMFFigures:
         print(f"created Daily Median {demand_or_feed} plot")
 
 
+    def plot_peaks_of_all_households(self):
+        fig_path = self.path_2_figure / f"{self.scenario_name}"
+        peaks_dict = {}
+
+        for i, scen in enumerate(self.scenario):
+            demand = pd.read_parquet(self.data_output / f"Demand_{get_file_name(scen)}.parquet.gzip",
+                                         engine="pyarrow")
+            peaks = demand.max(axis=0)
+            peaks_dict[f"{scen['year']}"] = peaks
+
+        labels = [n for n in peaks_dict.keys()]
+        fig = plt.figure(figsize=(20, 16))
+        ax = plt.gca()
+        ax.boxplot([v / 1_000 for v in peaks_dict.values()], vert=True, positions=range(len(peaks_dict)))
+        ax.set_xticklabels(labels, rotation=0)
+        plt.title(f"{self.scenario_name.replace('P', 'Prosumager').replace('_', ' ')}")
+        plt.ylabel("demand in kWh")
+        plt.tight_layout()
+        plt.savefig(fig_path / f"Peaks.png")          
+
+    def plot_biggest_peak_profiles(self):
+        fig_path = self.path_2_figure / f"{self.scenario_name}"
+        for i, scen in enumerate(self.scenario):
+            demand = pd.read_parquet(self.data_output / f"Demand_{get_file_name(scen)}.parquet.gzip",
+                                         engine="pyarrow")
+            peaks = demand.max(axis=0)
+            highest_5_peaks = peaks.sort_values().iloc[-5:]
+            building_indices = highest_5_peaks.index
+            highes_peak_profiles = demand.loc[:, building_indices]
+           
+            fig = px.line(data_frame=highes_peak_profiles.melt(var_name="Building ID", value_name="electricity demand in Wh", ignore_index=False).reset_index().rename(columns={"index": "hour"}), 
+                       x="hour", 
+                       y="electricity demand in Wh",
+                       color="Building ID")
+            fig.write_html(fig_path / f"highest_peak_profiles.html")
+
 if __name__ == "__main__":
     # ECEMFBuildingComparison(region="Murcia").main()
 
@@ -1743,8 +1785,8 @@ if __name__ == "__main__":
             "baseline": baseline_leeuwarden
         }
             # complete scenarios
-        ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
-        ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
+        # ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
+        # ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
 
 
         # building scenarios
@@ -1804,7 +1846,7 @@ if __name__ == "__main__":
     }
 
     # calculate a complete scenario run:
-    for i, prosumager_shares in enumerate([Low, Medium, High]):
+    for i, prosumager_shares in enumerate([High, Medium, Low]):
         if i == 0:
             pr = "P-low"
         elif i == 1:
@@ -1847,8 +1889,8 @@ if __name__ == "__main__":
             "baseline": baseline_murcia
         }
         # complete scenarios
-        ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").create_figures()
         ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=f"Weak_policy_{pr}").create_figures()
+        ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").create_figures()
 
         # ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").delete_all_results()
 
