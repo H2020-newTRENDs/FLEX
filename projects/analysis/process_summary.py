@@ -160,7 +160,7 @@ def implement_iamc_formatting_year():
 
     variables = {
         "Final Energy|Residential|Electricity": ["Grid", "electricity"],
-        "Final Energy|Residential|Appliance|Electricity": ["BaseLoadProfile"],
+        "Final Energy|Residential|Appliances|Electricity": ["BaseLoadProfile"],
         "Final Energy|Residential|Space and Water Heating": ["E_Heating_HP_out", "E_DHW_HP_out", "electricity", "wood", "coal", "district_heating", "gas", "oil", "solar_thermal"],
         "Final Energy|Residential|Space and Water Heating|Electricity": ["E_Heating_HP_out", "E_DHW_HP_out", "electricity"],
         "Final Energy|Residential|Space and Water Heating|Solids": ["wood", "coal"],
@@ -400,3 +400,77 @@ def divide_electricity_price_with_eight():
     df.to_csv(os.path.join(SUBMISSION_FOLDER, f"{file_name}.csv"), index=False)
 
 
+def update_hour_submission():
+
+    variables = [
+        "Final Energy|Residential|Electricity",
+        "Energy Supply|Residential|PV",
+        "Energy Supply|Residential|PV|SelfConsumption",
+        "Energy Price|Residential|Electricity"
+    ]
+
+    def get_country_code():
+        country_code_df = pd.read_excel(os.path.join(SUBMISSION_FOLDER, f"country_codes.xlsx"))
+        return dict(zip(country_code_df["code"], country_code_df["name"]))
+
+    def update_region_name(row):
+        return country_code[row["region_ios3"]]
+
+    def get_sub_annual_col():
+        from datetime import datetime, timedelta
+        start_date = datetime(2023, 1, 1, 0, 0)
+        datetime_list = [start_date + timedelta(hours=i) for i in range(8760)]
+        return [dt.strftime("%m-%d %H:%M+01:00") for dt in datetime_list]
+
+    file_name = "ECEMF_T4.2_Digitalization in Residential Sector_Hour Results"
+    df = pd.read_csv(os.path.join(SUBMISSION_FOLDER, f"{file_name}.csv"))
+    # file_name = "ECEMF_T4.2_Digitalization in Residential Sector_Hour Results (Austria)"
+    # df = pd.read_excel(os.path.join(SUBMISSION_FOLDER, f"{file_name}.xlsx"))
+    country_code = get_country_code()
+    df = df.rename(columns={'region': 'region_ios3'})
+    df['region'] = df.apply(update_region_name, axis=1)
+    df = df.drop('region_ios3', axis=1)
+    dfs = []
+    for _, name in tqdm(country_code.items(), desc="EU27 --> "):
+        df_r = df.loc[df["region"] == name]
+        if len(df_r) > 0:
+            for scenario in D_SCENARIOS.values():
+                df_rs = df_r.loc[df_r["scenario"] == scenario]
+                for variable in variables:
+                    df_rsv = df_rs.loc[df_rs["variable"] == variable]
+                    pivoted_df = df_rsv.pivot_table(
+                        index=[
+                            "model",
+                            "scenario",
+                            "region",
+                            "variable",
+                            "year_hour",
+                            "unit"
+                        ],
+                        columns='year',
+                        values='value'
+                    ).reset_index()
+                    pivoted_df.insert(6, "subannual", get_sub_annual_col())
+                    pivoted_df.drop('year_hour', axis=1, inplace=True)
+                    dfs.append(pivoted_df)
+    final = pd.concat(dfs)
+    final.to_csv("ECEMF_T4.2_Digitalization in Residential Sector_Hour Results (wide).csv", index=False)
+    final.to_csv(
+        os.path.join(
+            SUBMISSION_FOLDER,
+            "ECEMF_T4.2_Digitalization in Residential Sector_Hour Results (wide).csv"
+        ),
+        index=False)
+
+
+def separate_hour_submission():
+    file_name = "ECEMF_T4.2_Digitalization in Residential Sector_Hour Results (wide)"
+    df = pd.read_csv(os.path.join(SUBMISSION_FOLDER, f"{file_name}.csv"))
+    for scenario in D_SCENARIOS.values():
+        df_filter = df.loc[df["scenario"] == scenario]
+        df_filter.to_csv(
+            os.path.join(
+                SUBMISSION_FOLDER,
+                f"ECEMF_T4.2_Digitalization in Residential Sector_Hour Results (wide_{scenario.split('|')[-1]}).csv"
+            ),
+            index=False)
