@@ -440,7 +440,8 @@ class ECEMFPostProcess:
         database = DB(path=self.path_to_results / f"{self.data_base_name}.sqlite")
         building_table = database.read_dataframe(table_name="OperationScenario_Component_Building",
                                                  column_names=["ID_Building", "type"])
-        merged = pd.merge(self.scenario_table, building_table, on="ID_Building")
+        scenario_table = database.read_dataframe(table_name="OperationScenario", column_names=["ID_Scenario", "ID_Building", "ID_Boiler"])
+        merged = pd.merge(scenario_table, building_table, on="ID_Building")
         electric_heating_ids = merged.loc[(merged.loc[:, "ID_Boiler"] == 1) & (merged.loc[:, "type"] == "MFH"), "ID_Scenario"].to_list()
         
         with ThreadPoolExecutor() as executor:
@@ -513,8 +514,9 @@ class ECEMFPostProcess:
                           )
         fig.show()
 
-    def select_max_days(self, demand: pd.DataFrame) -> (int, int):
-        max_grid_day_index = self.find_net_peak_demand_day(demand)
+    @staticmethod
+    def select_max_days(demand: pd.DataFrame) -> (int, int):
+        max_grid_day_index = ECEMFPostProcess.find_net_peak_demand_day(demand)
         start_hour = max_grid_day_index * 24
         end_hour = (max_grid_day_index + 1) * 24 - 1
         return start_hour, end_hour
@@ -1659,6 +1661,15 @@ class ECEMFFigures:
         print(f"created Daily Median {demand_or_feed} plot")
 
 
+    def return_peaks_of_all_houses(self) -> dict:
+        peaks_dict = {}
+        for i, scen in enumerate(self.scenario):
+            demand = pd.read_parquet(self.data_output / f"Demand_{get_file_name(scen)}.parquet.gzip",
+                                         engine="pyarrow")
+            peaks = demand.max(axis=0)
+            peaks_dict[f"{scen['year']}"] = peaks
+        return peaks_dict
+
     def plot_peaks_of_all_households(self):
         fig_path = self.path_2_figure / f"{self.scenario_name}"
         peaks_dict = {}
@@ -1677,7 +1688,8 @@ class ECEMFFigures:
         plt.title(f"{self.scenario_name.replace('P', 'Prosumager').replace('_', ' ')}")
         plt.ylabel("demand in kWh")
         plt.tight_layout()
-        plt.savefig(fig_path / f"Peaks.png")          
+        plt.savefig(fig_path / f"Peaks.png")
+        plt.close()          
 
     def plot_biggest_peak_profiles(self):
         fig_path = self.path_2_figure / f"{self.scenario_name}"
@@ -1696,9 +1708,71 @@ class ECEMFFigures:
             fig.write_html(fig_path / f"highest_peak_profiles.html")
 
 
+def plot_peaks_over_different_scenarios(scenarios: list[ECEMFFigures]):
+    big_df_list = []
+    for scen in scenarios:
+        peak_dict = scen.return_peaks_of_all_houses()
 
+        peak_df = pd.DataFrame.from_dict(peak_dict, orient="index").reset_index().rename(columns={"index": "year"})
+        peak_df[f"scenario"] = scen.scenario_name.replace("P", "Prosuamger").replace("_", " ")
+        big_df_list.append(peak_df.melt(id_vars=["year", "scenario"], var_name="houses", value_name="peaks (Wh)"))
     
+    big_df = pd.concat(big_df_list, axis=0)
+
+    matplotlib.rc("font", **{"size": 28})
+    palette = sns.color_palette("Paired", 6)
+    figure = plt.figure(figsize=(20, 16))
+    sns.boxplot(data=big_df,
+                x="year",
+                y="peaks (Wh)",
+                hue="scenario",
+                palette=palette
+                )
     
+    plt.savefig(scen.path_2_figure / "Peak_demand_single_houses.png")
+    plt.close()
+
+    # show the same plot but without outliers because mean etc. can not be seen
+    figure = plt.figure(figsize=(20, 16))
+    sns.boxplot(data=big_df,
+            x="year",
+            y="peaks (Wh)",
+            hue="scenario",
+            palette=palette,
+            showfliers=False
+            )
+    plt.savefig(scen.path_2_figure / "Peak_demand_single_houses_no_outliers.png")
+    plt.close()
+
+def plot_peak_day_comparison_between_scenarios(scenarios: list[ECEMFFigures]):
+    big_df_list = []
+    for scen in scenarios:
+        small_df_dict = {}
+        for year_scen in scen.scenario:
+            demand = pd.read_parquet(scen.data_output / f"Demand_{get_file_name(year_scen)}.parquet.gzip", engine="pyarrow")
+            max_total_peak = demand.sum(axis=1).max() / 1_000_000  # W->kW->MW
+            small_df_dict[year_scen["year"]] = max_total_peak
+        small_df = pd.DataFrame.from_dict(small_df_dict, orient="index").reset_index().rename(columns={"index": "year", 0: "peaks (MW)"})
+        small_df["scenario"] = scen.scenario_name.replace("P", "Prosuamger").replace("_", " ")
+        big_df_list.append(small_df)
+
+    big_df = pd.concat(big_df_list, axis=0)
+
+    matplotlib.rc("font", **{"size": 28})
+    min_value = round(big_df["peaks (MW)"].min()) - 10
+    palette = sns.color_palette("Paired", 6)
+    figure = plt.figure(figsize=(20, 16))
+    ax = plt.gca()
+    sns.barplot(data=big_df,
+                x="year",
+                y="peaks (MW)",
+                hue="scenario",
+                palette=palette
+                )
+    plt.ylim(min_value, ax.get_ylim()[1])
+    plt.ylabel("highest peak on peak demand day (MW)")
+    plt.savefig(scen.path_2_figure / "Peak_demand_total.png")
+    plt.close()
 
 if __name__ == "__main__":
     # ECEMFBuildingComparison(region="Murcia").main()
@@ -1763,6 +1837,7 @@ if __name__ == "__main__":
 
     # Leeuwarden Scenarios
     # calculate a complete scenario run:
+    scenario_list_leeuwarden = []
     for i, prosumager_shares in enumerate([Low, Medium, High]):
         if i == 0:
             pr = "P-low"
@@ -1805,12 +1880,17 @@ if __name__ == "__main__":
             "prosumager_percentage": prosumager_shares,
             "baseline": baseline_leeuwarden
         }
-            # complete scenarios
-        # ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
-        # ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
-
-
-        # building scenarios
+        # complete scenarios
+        ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
+        ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
+        # append scenarios to list for later plots over all scenarios:
+        scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}"))
+        scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}"))
+ 
+    plot_peak_day_comparison_between_scenarios(scenarios=scenario_list_leeuwarden)
+    plot_peaks_over_different_scenarios(scenarios=scenario_list_leeuwarden)
+        
+    # building scenarios
     # ECEMFFigures(scenario=building_scenario_leeuwarden_H, scenario_name="Buildings_strong_policy").create_figures()
     # ECEMFFigures(scenario=building_scenario_leeuwarden_M, scenario_name="Buildings_weak_policy").create_figures()
 
@@ -1867,6 +1947,7 @@ if __name__ == "__main__":
     }
 
     # calculate a complete scenario run:
+    scenario_list_murcia = []
     for i, prosumager_shares in enumerate([High, Medium, Low]):
         if i == 0:
             pr = "P-low"
@@ -1910,11 +1991,16 @@ if __name__ == "__main__":
             "baseline": baseline_murcia
         }
         # complete scenarios
-        ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=f"Weak_policy_{pr}").create_figures()
-        ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").create_figures()
+        # ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=f"Weak_policy_{pr}").create_figures()
+        # ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").create_figures()
+        # append scenarios to list for later plots over all scenarios:
+        scenario_list_murcia.append(ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=f"Weak_policy_{pr}"))
+        scenario_list_murcia.append(ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}"))
 
         # ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").delete_all_results()
 
+    plot_peak_day_comparison_between_scenarios(scenarios=scenario_list_murcia)
+    plot_peaks_over_different_scenarios(scenarios=scenario_list_murcia)
     # create file that indicates for each building: building type, number of persons, 
     # send prices to miguel from the highest total demand day (1 new file with all the scenarios with 24 values, 1 file Murcia, 1 file Leeuwarden, column name same as for scenario)
     # create prosumager scnearios , low, high, medium  --> 6 scenarios for strong and weak policy
