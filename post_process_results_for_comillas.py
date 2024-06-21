@@ -1454,43 +1454,57 @@ class ECEMFFigures:
                                "Feed": {"demand": demand_dict_max_feed,
                                         "feed": feed_dict_max_feed}
                                }.items():
-            fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(36, 18))
-            cmap = get_cmap('tab20c')
-            colors = [cmap(i) for i in np.linspace(0, 1, len(scen_dict["demand"]))]
-            for i, (scen_name, df) in enumerate(scen_dict["demand"].items()):
+            fig1, ax1 = plt.subplots(nrows=1, ncols=1, figsize=(25, 18))
+            fig2, ax2 = plt.subplots(nrows=1, ncols=1, figsize=(25, 18))
+
+            cmap = get_cmap('tab10')
+            colors = [cmap(i) for i in range(4)]
+            i = 0
+            for scen_name, df in scen_dict["demand"].items():
                 if scen_name == "baseline":
                     line_style = "--"
                 else:
                     line_style = "-"
+                if "2020" in scen_name:
+                    continue
                 ax1.plot(
                     np.arange(1, 25),
                     df.sum(axis=1) / 1_000 / 1_000,  # GWh
                     color=colors[i],
                     linewidth=2,
-                    label=f'{scen_name.replace("_", " ")}',
+                    label=f'{scen_name.replace("_", " ").replace("baseline", "Baseline 2020")}',
                     linestyle=line_style
                 )
+                i+=1
 
-            for i, (scen_name, df) in enumerate(scen_dict["feed"].items()):
+            i = 0
+            for scen_name, df in scen_dict["feed"].items():
                 if scen_name == "baseline":
                     line_style = "--"
                 else:
                     line_style = "-"
+                if "2020" in scen_name:
+                    continue
                 ax2.plot(
                     np.arange(1, 25),
                     df.sum(axis=1) / 1_000 / 1_000 * -1,  # GWh
                     color=colors[i],
                     linewidth=2,
-                    label=f'{scen_name.replace("_", " ")}',
+                    label=f'{scen_name.replace("_", " ").replace("baseline", "Baseline 2020")}',
                     linestyle=line_style
                 )
+                i+=1
 
             ax1.set_xlabel('Hour of Day')
             ax2.set_xlabel('Hour of Day')
             ax1.set_ylabel(f'Grid demand (MW)')
             ax2.set_ylabel(f'Feed to grid (MW)')
-            ax1.set_title(f'Total demand for {region} on peak {key} day {self.building_scenario}')
-            ax2.set_title(f'Total feed to grid for {region} on peak {key} day {self.building_scenario}')
+            if self.building_scenario == "H":
+                scenario_name = "strong policy scneario"
+            else:
+                scenario_name = "weak policy scneario"
+            ax1.set_title(f'Total load for {region} on peak {key.lower()} day \n in the {scenario_name}')
+            ax2.set_title(f'Total feed to grid for {region} on peak {key.lower()} day \n in the {scenario_name}')
             ax1.legend(loc="upper left")
             ax2.legend(loc="lower left")
 
@@ -1498,30 +1512,33 @@ class ECEMFFigures:
             # ax.grid(True)
             plt.tight_layout()
 
-            fig.savefig(folder / f"Max_Day_{key}_Comparison.png")
-            plt.close(fig)
+            fig1.savefig(folder / f"Max_Demand_on_max_{key}-Day_Comparison.png")
+            fig2.savefig(folder / f"Max_Feed_on_max_{key}-Day_Comparison.png")
+            plt.close(fig1)
+            plt.close(fig2)
+
 
     def create_figures(self):
         print("creating figures...")
         self.visualize_peak_day()
-        if isinstance(self.scenario, dict):
-            # load the data from gzip files
-            demand = pd.read_parquet(self.path_to_gzip(f"Demand_{get_file_name(self.scenario)}"), engine="pyarrow")
-            feed = pd.read_parquet(self.path_to_gzip(f"Feed_{get_file_name(self.scenario)}"), engine="pyarrow")
-            base_demand = pd.read_parquet(self.path_to_gzip(f"Demand_{get_file_name(self.baseline)}"), engine="pyarrow")
-            base_feed = pd.read_parquet(self.path_to_gzip(f"Feed_{get_file_name(self.baseline)}"), engine="pyarrow")
+        # if isinstance(self.scenario, dict):
+        #     # load the data from gzip files
+        #     demand = pd.read_parquet(self.path_to_gzip(f"Demand_{get_file_name(self.scenario)}"), engine="pyarrow")
+        #     feed = pd.read_parquet(self.path_to_gzip(f"Feed_{get_file_name(self.scenario)}"), engine="pyarrow")
+        #     base_demand = pd.read_parquet(self.path_to_gzip(f"Demand_{get_file_name(self.baseline)}"), engine="pyarrow")
+        #     base_feed = pd.read_parquet(self.path_to_gzip(f"Feed_{get_file_name(self.baseline)}"), engine="pyarrow")
 
-            # create the figures
-            self.create_boxplot_p_to_p_difference(baseline=base_demand, scenario=demand, demand_or_feed="Demand")
-            self.plot_seasonal_daily_means(df_baseline=base_demand, df_scenario=demand, demand_or_feed="Demand")
-            self.plot_seasonal_daily_means(df_baseline=base_feed, df_scenario=feed, demand_or_feed="Feed")
-        else:  # self.scenario is a list of scenarios:
-            # create a graph that shows the difference between the scenarios:
-            # load data
-            self.visualize_heating_and_cooling_load()
-            self.create_scenario_comparison_daily_mean_plot_for_each_season()
-            self.plot_peaks_of_all_households()
-            self.plot_biggest_peak_profiles()
+        #     # create the figures
+        #     self.create_boxplot_p_to_p_difference(baseline=base_demand, scenario=demand, demand_or_feed="Demand")
+        #     self.plot_seasonal_daily_means(df_baseline=base_demand, df_scenario=demand, demand_or_feed="Demand")
+        #     self.plot_seasonal_daily_means(df_baseline=base_feed, df_scenario=feed, demand_or_feed="Feed")
+        # else:  # self.scenario is a list of scenarios:
+        #     # create a graph that shows the difference between the scenarios:
+        #     # load data
+        #     self.visualize_heating_and_cooling_load()
+            # self.create_scenario_comparison_daily_mean_plot_for_each_season()
+        #     self.plot_peaks_of_all_households()
+        #     self.plot_biggest_peak_profiles()
     
     def delete_all_results(self):
         path_2_delete = Path(__file__).parent / "data" / "output" #/ f"ECEMF_T4.3_{self.baseline['region']}"
@@ -1715,7 +1732,9 @@ def plot_peaks_over_different_scenarios(scenarios: list[ECEMFFigures]):
 
         peak_df = pd.DataFrame.from_dict(peak_dict, orient="index").reset_index().rename(columns={"index": "year"})
         peak_df[f"scenario"] = scen.scenario_name.replace("P", "Prosuamger").replace("_", " ")
-        big_df_list.append(peak_df.melt(id_vars=["year", "scenario"], var_name="houses", value_name="peaks (Wh)"))
+        melted = peak_df.melt(id_vars=["year", "scenario"], var_name="houses", value_name="peaks (kW)")
+        melted["peaks (kW)"] =  melted["peaks (kW)"] / 1000
+        big_df_list.append(melted)
     
     big_df = pd.concat(big_df_list, axis=0)
 
@@ -1724,7 +1743,7 @@ def plot_peaks_over_different_scenarios(scenarios: list[ECEMFFigures]):
     figure = plt.figure(figsize=(20, 16))
     sns.boxplot(data=big_df,
                 x="year",
-                y="peaks (Wh)",
+                y="peaks (kW)",
                 hue="scenario",
                 palette=palette
                 )
@@ -1736,7 +1755,7 @@ def plot_peaks_over_different_scenarios(scenarios: list[ECEMFFigures]):
     figure = plt.figure(figsize=(20, 16))
     sns.boxplot(data=big_df,
             x="year",
-            y="peaks (Wh)",
+            y="peaks (kW)",
             hue="scenario",
             palette=palette,
             showfliers=False
@@ -1744,6 +1763,56 @@ def plot_peaks_over_different_scenarios(scenarios: list[ECEMFFigures]):
     plt.savefig(scen.path_2_figure / "Peak_demand_single_houses_no_outliers.png")
     plt.close()
 
+def plot_peak_day_profile_comparison_between_scenarios(scenarios: list[ECEMFFigures]):
+    small_df_dict = {}
+    for scen in scenarios:
+        demand_dict_max_demand, feed_dict_max_demand, demand_dict_max_feed, feed_dict_max_feed = scen.get_max_day_feed_and_demand_sum()
+        for policy_year_scen, profiles in demand_dict_max_demand.items():
+            if "baseline" in policy_year_scen:
+                continue
+            small_df_dict[policy_year_scen] = profiles.sum(axis=1) / 1_000 / 1_000  # MW, baseline will be always the same and gets overwritten
+
+    small_df = pd.DataFrame.from_dict(small_df_dict, orient="index").T.reset_index().rename(columns={"index": "hours"}).melt(value_name="load in (MW)", id_vars="hours")
+    small_df["policy scenario"] = small_df["variable"].apply(lambda x: "weak policy" if "weak" in x.lower() else "strong policy")
+    small_df["prosumager scenario"] = small_df["variable"].apply(lambda x: "High Prosumager" if "high" in x.lower() else ("Medium Prosumager" if "medium" in x.lower() else "Low Prosumager"))
+    small_df["year"] = small_df["variable"].apply(lambda x: x[-4:])
+    
+    years_to_plot = ["2030", "2040", "2050"]
+    df_2020 = small_df[small_df['year'] == "2020"].iloc[:24, :]
+    df_other_years = small_df[small_df['year'].isin(years_to_plot)]
+    palette = sns.color_palette("tab10")
+    # Create a figure with subplots
+    fig, axes = plt.subplots(1, len(years_to_plot), figsize=(60, 16), sharey=True)
+    for ax, year in zip(axes, years_to_plot):
+        # Filter the DataFrame for the current year
+        df_year = df_other_years[df_other_years['year'] == year]
+
+        # Combine with the 2020 data
+        df_plot = pd.concat([df_2020, df_year])
+
+        # Create the line plot
+        sns.lineplot(data=df_year,
+                    x="hours",
+                    y="load in (MW)",
+                    hue="prosumager scenario",
+                    style="policy scenario",
+                    palette=palette,
+                    ax=ax,
+                    )
+        ax.plot(df_2020['hours'], df_2020['load in (MW)'], color='red', linewidth=2, label='Baseline 2020', alpha=0.8, linestyle=":")
+        ax.legend().set_visible(False)
+        ax.set_title(year)
+    # Adjust legend to be outside of the plot and include the red line "C"
+    handles, labels = ax.get_legend_handles_labels()
+    # handles.append(plt.Line2D([0], [0], color='red', linewidth=2))
+    # labels.append('Baseline 2020')
+    fig.legend(handles, labels, loc='upper center', ncol=len(labels)//4, bbox_to_anchor=(0.475, 0.87))
+
+    plt.tight_layout()
+    plt.savefig(scen.path_2_figure / "Peak_demand_profile_comparison.png")
+    plt.close()
+        
+            
 def plot_peak_day_comparison_between_scenarios(scenarios: list[ECEMFFigures]):
     big_df_list = []
     for scen in scenarios:
@@ -1881,14 +1950,14 @@ if __name__ == "__main__":
             "baseline": baseline_leeuwarden
         }
         # complete scenarios
-        ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
-        ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
+        # ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
+        # ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
         # append scenarios to list for later plots over all scenarios:
-        scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}"))
-        scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}"))
+    #     scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}"))
+    #     scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}"))
  
-    plot_peak_day_comparison_between_scenarios(scenarios=scenario_list_leeuwarden)
-    plot_peaks_over_different_scenarios(scenarios=scenario_list_leeuwarden)
+    # plot_peak_day_comparison_between_scenarios(scenarios=scenario_list_leeuwarden)
+    # plot_peaks_over_different_scenarios(scenarios=scenario_list_leeuwarden)
         
     # building scenarios
     # ECEMFFigures(scenario=building_scenario_leeuwarden_H, scenario_name="Buildings_strong_policy").create_figures()
@@ -1948,7 +2017,7 @@ if __name__ == "__main__":
 
     # calculate a complete scenario run:
     scenario_list_murcia = []
-    for i, prosumager_shares in enumerate([High, Medium, Low]):
+    for i, prosumager_shares in enumerate([Low, Medium, High]):
         if i == 0:
             pr = "P-low"
         elif i == 1:
@@ -1998,9 +2067,10 @@ if __name__ == "__main__":
         scenario_list_murcia.append(ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}"))
 
         # ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").delete_all_results()
-
+    plot_peak_day_profile_comparison_between_scenarios(scenarios=scenario_list_murcia)
     plot_peak_day_comparison_between_scenarios(scenarios=scenario_list_murcia)
     plot_peaks_over_different_scenarios(scenarios=scenario_list_murcia)
+
     # create file that indicates for each building: building type, number of persons, 
     # send prices to miguel from the highest total demand day (1 new file with all the scenarios with 24 values, 1 file Murcia, 1 file Leeuwarden, column name same as for scenario)
     # create prosumager scnearios , low, high, medium  --> 6 scenarios for strong and weak policy
