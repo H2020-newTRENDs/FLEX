@@ -1769,7 +1769,7 @@ def plot_peak_day_profile_comparison_between_scenarios(scenarios: list[ECEMFFigu
         demand_dict_max_demand, feed_dict_max_demand, demand_dict_max_feed, feed_dict_max_feed = scen.get_max_day_feed_and_demand_sum()
         for policy_year_scen, profiles in demand_dict_max_demand.items():
             if "baseline" in policy_year_scen:
-                continue
+                continue  # exclude baseline because its the same as 2020
             small_df_dict[policy_year_scen] = profiles.sum(axis=1) / 1_000 / 1_000  # MW, baseline will be always the same and gets overwritten
 
     small_df = pd.DataFrame.from_dict(small_df_dict, orient="index").T.reset_index().rename(columns={"index": "hours"}).melt(value_name="load in (MW)", id_vars="hours")
@@ -1778,17 +1778,15 @@ def plot_peak_day_profile_comparison_between_scenarios(scenarios: list[ECEMFFigu
     small_df["year"] = small_df["variable"].apply(lambda x: x[-4:])
     
     years_to_plot = ["2030", "2040", "2050"]
-    df_2020 = small_df[small_df['year'] == "2020"].iloc[:24, :]
+    df_2020 = small_df[small_df['year'] == "2020"].iloc[:24, :]  # 2020 is always the same because its the baseline
     df_other_years = small_df[small_df['year'].isin(years_to_plot)]
     palette = sns.color_palette("tab10")
+    matplotlib.rc("font", **{"size": 38})
     # Create a figure with subplots
     fig, axes = plt.subplots(1, len(years_to_plot), figsize=(60, 16), sharey=True)
     for ax, year in zip(axes, years_to_plot):
         # Filter the DataFrame for the current year
         df_year = df_other_years[df_other_years['year'] == year]
-
-        # Combine with the 2020 data
-        df_plot = pd.concat([df_2020, df_year])
 
         # Create the line plot
         sns.lineplot(data=df_year,
@@ -1799,17 +1797,15 @@ def plot_peak_day_profile_comparison_between_scenarios(scenarios: list[ECEMFFigu
                     palette=palette,
                     ax=ax,
                     )
-        ax.plot(df_2020['hours'], df_2020['load in (MW)'], color='red', linewidth=2, label='Baseline 2020', alpha=0.8, linestyle=":")
+        ax.plot(df_2020['hours'], df_2020['load in (MW)'], color='darkred', linewidth=4, label='Baseline 2020', alpha=0.8, linestyle=":")
         ax.legend().set_visible(False)
         ax.set_title(year)
-    # Adjust legend to be outside of the plot and include the red line "C"
-    handles, labels = ax.get_legend_handles_labels()
-    # handles.append(plt.Line2D([0], [0], color='red', linewidth=2))
-    # labels.append('Baseline 2020')
-    fig.legend(handles, labels, loc='upper center', ncol=len(labels)//4, bbox_to_anchor=(0.475, 0.87))
+        # Adjust legend to be outside of the plot and include the red line "C"
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles, labels, loc='upper left', ncol=len(labels)//4,)# bbox_to_anchor=(0.475, 0.87))
 
     plt.tight_layout()
-    plt.savefig(scen.path_2_figure / "Peak_demand_profile_comparison.png")
+    plt.savefig(scen.path_2_figure / "Peak_demand_profile_comparison.svg")
     plt.close()
         
             
@@ -1953,9 +1949,10 @@ if __name__ == "__main__":
         # ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
         # ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
         # append scenarios to list for later plots over all scenarios:
-    #     scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}"))
-    #     scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}"))
- 
+        scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}"))
+        scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}"))
+    
+    plot_peak_day_profile_comparison_between_scenarios(scenarios=scenario_list_leeuwarden)
     # plot_peak_day_comparison_between_scenarios(scenarios=scenario_list_leeuwarden)
     # plot_peaks_over_different_scenarios(scenarios=scenario_list_leeuwarden)
         
@@ -2068,8 +2065,8 @@ if __name__ == "__main__":
 
         # ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").delete_all_results()
     plot_peak_day_profile_comparison_between_scenarios(scenarios=scenario_list_murcia)
-    plot_peak_day_comparison_between_scenarios(scenarios=scenario_list_murcia)
-    plot_peaks_over_different_scenarios(scenarios=scenario_list_murcia)
+    # plot_peak_day_comparison_between_scenarios(scenarios=scenario_list_murcia)
+    # plot_peaks_over_different_scenarios(scenarios=scenario_list_murcia)
 
     # create file that indicates for each building: building type, number of persons, 
     # send prices to miguel from the highest total demand day (1 new file with all the scenarios with 24 values, 1 file Murcia, 1 file Leeuwarden, column name same as for scenario)
