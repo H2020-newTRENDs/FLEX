@@ -26,10 +26,6 @@ class OperationModel(ABC):
         self.setup_behavior_params()
         self.setup_heating_element_params()
 
-    def setup_time_params(self):
-        self.Hour = np.arange(1, 8761)
-        self.DayHour = np.tile(np.arange(1, 25), 365)
-
     def setup_region_params(self):
         self.T_outside = self.scenario.region.temperature  # °C
         self.Q_Solar = self.calculate_solar_gain()  # W
