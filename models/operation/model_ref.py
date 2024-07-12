@@ -113,7 +113,7 @@ class RefOperationModel(OperationModel):
                     if bat_soc_start < capacity:
                         bat_gap = capacity - bat_soc_start
                         if pv_surplus[i] >= bat_gap:
-                            charge_amount = min(bat_gap, max_charge_power)
+                            charge_amount = min(bat_gap/charge_efficiency, max_charge_power)
                         else:
                             charge_amount = min(pv_surplus[i], max_charge_power)
                         self.BatSoC[i] = (bat_soc_start + charge_amount * charge_efficiency)
@@ -127,7 +127,7 @@ class RefOperationModel(OperationModel):
                         if bat_soc_start * discharge_efficiency <= grid_demand[i]:
                             discharge_amount = min(bat_soc_start, max_discharge_power)
                         else:
-                            discharge_amount = min(grid_demand[i], max_discharge_power)
+                            discharge_amount = min(grid_demand[i]/discharge_efficiency, max_discharge_power)
                         grid_demand_after_battery[i] = grid_demand[i] - discharge_amount * discharge_efficiency
                         self.BatSoC[i] = bat_soc_start - discharge_amount
                         self.Bat2Load[i] = discharge_amount * discharge_efficiency

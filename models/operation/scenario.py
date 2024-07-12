@@ -45,6 +45,7 @@ class OperationScenario:
         self.setup_region_weather_and_pv_generation()
         self.setup_energy_price()
         self.setup_behavior()
+        self.setup_vehicle_profiles()
 
     def get_component_scenario_ids(self) -> dict:
         scenario_df = self.input_tables[InputTables.OperationScenario.name]
@@ -146,3 +147,7 @@ class OperationScenario:
             self.behavior.vehicle_at_home = parking_home[str(self.vehicle.id_parking_at_home_profile)].to_numpy()
             self.behavior.vehicle_distance = distance[str(self.vehicle.id_distance_profile)].to_numpy()
             self.behavior.vehicle_demand = self.behavior.vehicle_distance * self.vehicle.consumption_rate
+
+    def return_splitted_list_for_rolling_horizon(self):
+        for array in self.__dict__:
+            a=1

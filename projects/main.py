@@ -24,6 +24,6 @@ def run_flex_operation_plotter(config: "Config"):
 
 if __name__ == "__main__":
 
-    cfg = get_config("PROJECT_FOLDER_NAME")
+    cfg = get_config("Test_bed")
     run_flex_operation_model(cfg)
-    run_flex_operation_plotter(cfg)
+    # run_flex_operation_plotter(cfg)

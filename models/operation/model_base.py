@@ -557,3 +557,6 @@ class OperationModel(ABC):
                 )
             else:  # vehicle returns home -> counter is set to 0
                 counter = 0
+
+    def return_splitted_scenarios(self):
+        """This function returns a list containing OperationModel"""

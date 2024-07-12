@@ -7,6 +7,8 @@ from models.operation.model_base import OperationModel
 
 
 class OptInstance:
+    def __init__(self, instance_length: int):
+        self.instance_length = instance_length
 
     # @performance_counter
     def create_instance(self):
@@ -36,9 +38,8 @@ class OptInstance:
         self.setup_objective(m)
         return m
 
-    @staticmethod
-    def setup_sets(m):
-        m.t = pyo.Set(initialize=np.arange(1, 8761))
+    def setup_sets(self, m):
+        m.t = pyo.Set(initialize=np.arange(1, self.instance_length + 1))
 
     @staticmethod
     def setup_params(m):
@@ -466,30 +467,49 @@ class OptInstance:
         return dictionary
 
 
+def split_data(vector: np.array)->list:
+    # split the vector into 36 hour pieces however the "new data" will always be available at 12o'clock
+    # therefore the perfect foresight is effectively 36 hours, being updated every 24 hours
+    # split the data into 36 hour pieces starting at hour 0, 12, 36, 60, 84, ...
+    split_indices = np.array([0, 12])
+    split_indices = np.append(split_indices, np.arange(36, 8760, 24))
+    splited_vector = [vector[i:i+24] for i in split_indices]
+    return splited_vector
+
+
+
 class OptOperationModel(OperationModel):
+
+    def prepare_input_data_for_rolling_horizon(self):
+        self.scenario.return_splitted_list_for_rolling_horizon()
+        
+
 
     # @performance_counter
     def solve(self, instance):
+        self.prepare_input_data_for_rolling_horizon()
         logger = logging.getLogger(f"{self.scenario.config.project_name}")
         logger.info("starting solving Opt model.")
-        instance = OptConfig(self).config_instance(instance)
-        results = pyo.SolverFactory("gurobi").solve(instance, tee=False)
+        instance_length = instance.instance_length
+        opt_instance = OptConfig(self, instance_length=instance_length).config_instance(instance)
+        results = pyo.SolverFactory("gurobi").solve(opt_instance, tee=False)
         if results.solver.termination_condition == TerminationCondition.optimal:
-            instance.solutions.load_from(results)
-            logger.info(f"OptCost: {round(instance.total_operation_cost_rule(), 2)}")
+            opt_instance.solutions.load_from(results)
+            logger.info(f"OptCost: {round(opt_instance.total_operation_cost_rule(), 2)}")
             solved = True
         else:
             print(f'Infeasible Scenario Warning!!!!!!!!!!!!!!!!!!!!!! --> ID_Scenario = {self.scenario.scenario_id}')
             logger.warning(f'Infeasible Scenario Warning!!!!!!!!!!!!!!!!!!!!!! --> ID_Scenario = {self.scenario.scenario_id}')
             solved = False
-        return instance, solved
+        return opt_instance, solved
 
 
 class OptConfig:
 
-    def __init__(self, model: 'OperationModel'):
+    def __init__(self, model: 'OperationModel', instance_length: int):
         self.model = model
         self.scenario = model.scenario
+        self.instance_length = instance_length
 
     # @performance_counter
     def config_instance(self, instance):
@@ -558,7 +578,7 @@ class OptConfig:
         instance.Boiler_MaximalThermalPower = self.model.SpaceHeating_MaxBoilerPower
 
     def config_external_params(self, instance):
-        for t in range(1, 8761):
+        for t in range(1, self.instance_length + 1):
             instance.Q_Solar[t] = self.model.Q_Solar[t-1]
             instance.T_outside[t] = self.model.T_outside[t-1]
             instance.HotWaterProfile[t] = self.model.HotWaterProfile[t-1]
@@ -566,7 +586,7 @@ class OptConfig:
             instance.PhotovoltaicProfile[t] = self.model.PhotovoltaicProfile[t-1]
 
         if self.scenario.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 # unfix heat pump parameters:
                 instance.E_Heating_HP_out[t].fixed = False
                 instance.E_DHW_HP_out[t].fixed = False
@@ -593,7 +613,7 @@ class OptConfig:
             instance.calc_use_of_HP_power_DHW_rule.activate()
 
         else:  # fuel based boiler instead of heat pump
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 # unfix boiler parameters:
                 instance.Fuel[t].fixed = False
                 instance.Q_DHW_Boiler_out[t].fixed = False
@@ -624,20 +644,20 @@ class OptConfig:
         else:
             instance.HeatingElement_efficiency = 1  # to avoid that the model cant run
         if self.model.HeatingElement_power == 0:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.Q_HeatingElement[t].fix(0)
                 instance.Q_HeatingElement_heat[t].fix(0)
                 instance.Q_HeatingElement_DHW[t].fix(0)
             instance.heating_element_rule.deactivate()
         else:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.Q_HeatingElement[t].setub(self.model.HeatingElement_power)
                 instance.Q_HeatingElement_heat[t].setub(self.model.HeatingElement_power)
                 instance.Q_HeatingElement_DHW[t].setub(self.model.HeatingElement_power)
             instance.heating_element_rule.activate()
 
     def config_prices(self, instance):
-        for t in range(1, 8761):
+        for t in range(1, self.instance_length + 1):
             instance.ElectricityPrice[t] = self.scenario.energy_price.electricity[t-1]
             instance.FiT[t] = self.scenario.energy_price.electricity_feed_in[t-1]
             if self.scenario.boiler.type not in ['Air_HP', 'Ground_HP', "Electric"]:
@@ -646,24 +666,24 @@ class OptConfig:
                 instance.FuelPrice[t] = 0
 
     def config_grid(self, instance):
-        for t in range(1, 8761):
+        for t in range(1, self.instance_length + 1):
             instance.Grid[t].setub(self.scenario.building.grid_power_max)
             instance.Feed2Grid[t].setub(self.scenario.building.grid_power_max)
 
     def config_space_heating(self, instance):
-        for t in range(1, 8761):
+        for t in range(1, self.instance_length + 1):
             instance.T_BuildingMass[t].setub(100)
         if self.scenario.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.E_Heating_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
         else:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.Q_Heating_Boiler_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
                 instance.Q_DHW_Boiler_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
 
     def config_space_heating_tank(self, instance):
         if self.scenario.space_heating_tank.size == 0:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.Q_HeatingTank[t].setlb(0)
                 instance.Q_HeatingTank[t].setub(0)
                 instance.Q_HeatingTank_out[t].fix(0)
@@ -672,7 +692,7 @@ class OptConfig:
 
             instance.tank_energy_rule_heating.deactivate()
         else:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.Q_HeatingTank_out[t].fixed = False
                 instance.Q_HeatingTank_in[t].fixed = False
                 instance.Q_HeatingTank[t].fixed = False
@@ -689,7 +709,7 @@ class OptConfig:
 
     def config_hot_water_tank(self, instance):
         if self.scenario.hot_water_tank.size == 0:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.Q_DHWTank_out[t].fix(0)
                 instance.Q_DHWTank_in[t].fix(0)
                 instance.Q_DHWTank[t].setlb(0)
@@ -699,7 +719,7 @@ class OptConfig:
                 instance.E_DHW_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)  # TODO
             instance.tank_energy_rule_DHW.deactivate()
         else:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.Q_DHWTank_out[t].fixed = False
                 instance.Q_DHWTank_in[t].fixed = False
                 instance.Q_DHWTank[t].fixed = False
@@ -716,7 +736,7 @@ class OptConfig:
 
     def config_battery(self, instance):
         if self.scenario.battery.capacity == 0:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.Grid2Bat[t].fix(0)
                 instance.Bat2Load[t].fix(0)
                 instance.BatSoC[t].fix(0)
@@ -729,14 +749,14 @@ class OptConfig:
         else:
             # check if pv exists:
             if self.scenario.pv.size > 0:
-                for t in range(1, 8761):
+                for t in range(1, self.instance_length + 1):
                     instance.PV2Bat[t].fixed = False
                     instance.PV2Bat[t].setub(self.scenario.battery.charge_power_max)
             else:
-                for t in range(1, 8761):
+                for t in range(1, self.instance_length + 1):
                     instance.PV2Bat[t].fix(0)
 
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 # variables have to be unfixed in case they were fixed in a previous run
                 instance.Grid2Bat[t].fixed = False
                 instance.Bat2Load[t].fixed = False
@@ -757,20 +777,20 @@ class OptConfig:
         # in winter only 3°C increase to keep comfort level and in summer maximum reduction of 3°C
         max_target_temperature, min_target_temperature = self.model.generate_target_indoor_temperature(
             temperature_offset=3)
-        for t in range(1, 8761):
+        for t in range(1, self.instance_length + 1):
             instance.T_Room[t].setub(max_target_temperature[t - 1])
             instance.T_Room[t].setlb(min_target_temperature[t - 1])
 
     def config_space_cooling_technology(self, instance):
         if self.scenario.space_cooling_technology.power == 0:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.Q_RoomCooling[t].fix(0)
                 instance.E_RoomCooling[t].fix(0)
                 instance.CoolingHourlyCOP[t] = 0
 
             instance.E_RoomCooling_with_cooling_rule.deactivate()
         else:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.Q_RoomCooling[t].fixed = False
                 instance.E_RoomCooling[t].fixed = False
                 instance.Q_RoomCooling[t].setub(self.scenario.space_cooling_technology.power)
@@ -781,7 +801,7 @@ class OptConfig:
     def config_vehicle(self, instance):
         max_discharge_ev = self.model.create_upper_bound_ev_discharge()
         if self.scenario.vehicle.capacity == 0:  # no EV is implemented
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.Grid2EV[t].fix(0)
                 instance.Bat2EV[t].fix(0)
                 instance.PV2EV[t].fix(0)
@@ -797,13 +817,13 @@ class OptConfig:
         else:
             # if there is a PV installed:
             if self.scenario.pv.size > 0:
-                for t in range(1, 8761):
+                for t in range(1, self.instance_length + 1):
                     instance.PV2EV[t].fixed = False
             else:  # if there is no PV, EV can not be charged by it
-                for t in range(1, 8761):
+                for t in range(1, self.instance_length + 1):
                     instance.PV2EV[t].fix(0)
 
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 # unfix variables
                 instance.Grid2EV[t].fixed = False
                 instance.Bat2EV[t].fixed = False
@@ -813,7 +833,7 @@ class OptConfig:
                 instance.EV2Load[t].fixed = False
                 instance.EV2Bat[t].fixed = False
 
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 # set upper bounds
                 instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
                 instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
@@ -831,13 +851,13 @@ class OptConfig:
             # in case there is a stationary battery available:
             if self.scenario.battery.capacity > 0:
                 if self.model.EVOptionV2B == 0:
-                    for t in range(1, 8761):
+                    for t in range(1, self.instance_length + 1):
                         instance.EV2Bat[t].fix(0)
                         instance.EV2Load[t].fix(0)
 
             # in case there is no stationary battery available:
             else:
-                for t in range(1, 8761):
+                for t in range(1, self.instance_length + 1):
                     instance.EV2Bat[t].fix(0)
                     instance.Bat2EV[t].fix(0)
                     if self.model.EVOptionV2B == 0:
@@ -849,16 +869,18 @@ class OptConfig:
 
     def config_pv(self, instance):
         if self.scenario.pv.size == 0:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.PV2Load[t].fix(0)
                 instance.PV2Bat[t].fix(0)
                 instance.PV2Grid[t].fix(0)
             instance.UseOfPV_rule.deactivate()
         else:
-            for t in range(1, 8761):
+            for t in range(1, self.instance_length + 1):
                 instance.PV2Load[t].fixed = False
                 instance.PV2Grid[t].fixed = False
                 # instance.PV2Load[t].setub(self.scenario.building.grid_power_max)
             instance.UseOfPV_rule.activate()
 
 
+if __name__=="__main__":
+    split_data(np.arange(8760))
