@@ -1,52 +1,140 @@
 from abc import ABC
-
+from collections.abc import Iterable
 import numpy as np
 from typing import Union
 from models.operation.scenario import OperationScenario
-
+import copy
+import pydantic
 
 class OperationModel(ABC):
 
     def __init__(self, scenario: "OperationScenario"):
-        self.scenario = scenario
         self.CPWater = 4200 / 3600
-        self.setup_operation_model_params()
+        # save all the scenario variables that need to be used later as self variables so the scenario does not have to be copied explicitly because its large:
 
-    def setup_operation_model_params(self):
-        self.setup_time_params()
-        self.setup_region_params()
-        self.setup_building_params()
-        self.setup_space_heating_params()
-        self.setup_hot_water_params()
-        self.setup_space_cooling_params()
-        self.setup_pv_params()
-        self.setup_battery_params()
-        self.setup_ev_params()
-        self.setup_energy_price_params()
-        self.setup_behavior_params()
-        self.setup_heating_element_params()
+        # behviour parameters:
+        self.HotWaterProfile = scenario.behavior.hot_water_demand
+        self.BaseLoadProfile = scenario.behavior.appliance_electricity_demand
+        self.target_temperature_array_min = scenario.behavior.target_temperature_array_min
+        self.target_temperature_array_max = scenario.behavior.target_temperature_array_max
 
-    def setup_region_params(self):
-        self.T_outside = self.scenario.region.temperature  # °C
-        self.Q_Solar = self.calculate_solar_gain()  # W
+        # region paramters
+        self.T_outside = scenario.region.temperature  # °C
+        self.effective_window_area_north = scenario.building.effective_window_area_north
+        self.effective_window_area_west_east = scenario.building.effective_window_area_west_east
+        self.effective_window_area_sout = scenario.building.effective_window_area_south
+        self.shading_threshold_temperature = scenario.behavior.shading_threshold_temperature
+        self.shading_solar_reduction_rate = scenario.behavior.shading_solar_reduction_rate
+        self.radiation_north = scenario.region.radiation_north
+        self.radiation_east = scenario.region.radiation_east
+        self.radiation_west = scenario.region.radiation_west
+        self.radiation_south = scenario.region.radiation_south
 
-    def setup_building_params(self):
-        """
-        The thermal dynamics of building is modeled following...
-        provide the link, so the equation numbers can make sense
-        """
-        self.Am = (self.scenario.building.Am_factor * self.scenario.building.Af)  # Effective mass related area [m^2]
-        self.Cm = self.scenario.building.CM_factor * self.scenario.building.Af
-        self.Atot = (4.5 * self.scenario.building.Af)  # 7.2.2.2: Area of all surfaces facing the building zone
-        self.Qi = self.scenario.building.internal_gains * self.scenario.building.Af
-        self.Htr_w = self.scenario.building.Htr_w
+
+        self.Q_Solar = self.calculate_solar_gain()
+        
+        # EV parameters
+        self.EVDemandProfile = scenario.behavior.vehicle_demand
+        self.EVAtHomeProfile = scenario.behavior.vehicle_at_home
+        self.EVChargeEfficiency = scenario.vehicle.charge_efficiency
+        self.EVDischargeEfficiency = scenario.vehicle.discharge_efficiency
+        self.EVOptionV2B = scenario.vehicle.charge_bidirectional
+        self.vehicle_discharge_power_max = scenario.vehicle.discharge_power_max
+        self.vehicle_capacity = scenario.vehicle.capacity
+        self.vehicle_demand = scenario.behavior.vehicle_demand
+
+        # Battery parameters
+        self.battery_charge_efficiency = scenario.battery.charge_efficiency
+        self.battery_discharge_efficiency = scenario.battery.discharge_efficiency
+
+        # Heating Element
+        self.HeatingElement_efficiency = scenario.heating_element.efficiency
+        self.HeatingElement_power = scenario.heating_element.power
+
+        # boiler parameters
+        self.fuel_boiler_efficiency = scenario.boiler.fuel_boiler_efficiency
+        self.supply_temperature = scenario.building.supply_temperature
+        self.carnot_efficiency_factor = scenario.boiler.carnot_efficiency_factor
+        self.boiler_type = scenario.boiler.type
+
+        # Hot water parameters
+        self.HotWaterHourlyCOP = self.calc_cop(
+            outside_temperature=self.T_outside,
+            supply_temperature=self.supply_temperature,
+            efficiency=self.carnot_efficiency_factor,
+            source=self.boiler_type,
+        )
+        self.HotWaterHourlyCOP_tank = self.calc_cop(
+            outside_temperature=self.T_outside,
+            supply_temperature=self.supply_temperature + 10,
+            efficiency=self.carnot_efficiency_factor,
+            source=self.boiler_type,
+        )
+        self.T_TankStart_DHW = scenario.hot_water_tank.temperature_start
+        self.M_WaterTank_DHW = scenario.hot_water_tank.size
+        self.U_LossTank_DHW = scenario.hot_water_tank.loss
+        self.T_TankSurrounding_DHW = scenario.hot_water_tank.temperature_surrounding
+        self.A_SurfaceTank_DHW = self.calculate_surface_area_from_volume(scenario.hot_water_tank.size)
+        self.Q_TankEnergyMin_DHW = self.CPWater * scenario.hot_water_tank.size * \
+                                   (273.15 + scenario.hot_water_tank.temperature_min)
+        self.Q_TankEnergyMax_DHW = self.CPWater * scenario.hot_water_tank.size * \
+                                   (273.15 + scenario.hot_water_tank.temperature_max)
+
+        # Thermal tank parameters and space heating
+        self.SpaceHeatingHourlyCOP = self.calc_cop(
+            outside_temperature=self.T_outside,
+            supply_temperature=self.supply_temperature,
+            efficiency=self.carnot_efficiency_factor,
+            source=self.boiler_type,
+        )
+        self.SpaceHeatingHourlyCOP_tank = self.calc_cop(
+            outside_temperature=self.T_outside,
+            supply_temperature=self.supply_temperature + 10,
+            efficiency=self.carnot_efficiency_factor,
+            source=self.boiler_type,
+        )
+        self.T_TankStart_heating = scenario.space_heating_tank.temperature_start
+        self.M_WaterTank_heating = scenario.space_heating_tank.size
+        self.U_LossTank_heating = scenario.space_heating_tank.loss
+        self.T_TankSurrounding_heating = (scenario.space_heating_tank.temperature_surrounding)
+        self.A_SurfaceTank_heating = self.calculate_surface_area_from_volume(scenario.space_heating_tank.size)
+        self.SpaceHeating_MaxBoilerPower = self.generate_maximum_electric_or_thermal_power()
+        self.Q_TankEnergyMin_heating = self.CPWater * scenario.space_heating_tank.size * \
+                                       (273.15 + scenario.space_heating_tank.temperature_min)
+        self.Q_TankEnergyMax_heating = self.CPWater * scenario.space_heating_tank.size * \
+                                       (273.15 + scenario.space_heating_tank.temperature_max)
+        
+        # Cooling parameters:
+        self.CoolingCOP = scenario.space_cooling_technology.efficiency
+        self.CoolingHourlyCOP = (np.ones(8760, ) * self.CoolingCOP)
+        self.cooling_power = scenario.space_cooling_technology.power
+
+        # PV parameters:
+        self.PhotovoltaicProfile = scenario.pv.generation
+
+        # energy price parameters:
+        self.ElectricityPrice = scenario.energy_price.electricity  # C/Wh
+        self.FiT = scenario.energy_price.electricity_feed_in  # C/Wh
+
+        # building parameters:
+        self.Am_factor = scenario.building.Am_factor
+        self.Af = scenario.building.Af
+        self.Cm_factor = scenario.building.CM_factor
+        self.internal_gains = scenario.building.internal_gains
+        self.Htr_w = scenario.building.Htr_w
+        self.Hop = scenario.building.Hop
+        self.Hve = scenario.building.Hve
+        self.Am = (self.Am_factor * self.Af)  # Effective mass related area [m^2]
+        self.Cm = self.Cm_factor * self.Af
+        self.Atot = (4.5 * self.Af)  # 7.2.2.2: Area of all surfaces facing the building zone
+        self.Qi = self.internal_gains * self.Af
+        self.Htr_w = self.Htr_w
         self.Htr_ms = np.float_(9.1) * self.Am  # from 12.2.2 Equ. (64)
         self.Htr_is = np.float_(3.45) * self.Atot
-        self.Htr_em = 1 / (1 / self.scenario.building.Hop - 1 / self.Htr_ms)  # from 12.2.2 Equ. (63)
-        self.Htr_1 = np.float_(1) / (np.float_(1) / self.scenario.building.Hve + np.float_(1) / self.Htr_is)  # Equ. C.6
-        self.Htr_2 = self.Htr_1 + self.scenario.building.Htr_w  # Equ. C.7
+        self.Htr_em = 1 / (1 / self.Hop - 1 / self.Htr_ms)  # from 12.2.2 Equ. (63)
+        self.Htr_1 = np.float_(1) / (np.float_(1) / self.Hve + np.float_(1) / self.Htr_is)  # Equ. C.6
+        self.Htr_2 = self.Htr_1 + self.Htr_w  # Equ. C.7
         self.Htr_3 = 1 / (1 / self.Htr_2 + 1 / self.Htr_ms)  # Equ.C.8
-        self.Hve = self.scenario.building.Hve
         self.PHI_ia = 0.5 * self.Qi  # Equ. C.1
         _, _, _, mass_temperature = self.calculate_heating_and_cooling_demand(static=True)
         self.BuildingMassTemperatureStartValue = mass_temperature[-1]
@@ -55,57 +143,6 @@ class OperationModel(ABC):
             self.calculate_heating_and_cooling_demand(thermal_start_temperature=self.BuildingMassTemperatureStartValue,
                                                       static=False)
 
-    def setup_space_heating_params(self):
-        self.fuel_boiler_efficiency = self.scenario.boiler.fuel_boiler_efficiency
-        self.SpaceHeatingHourlyCOP = self.calc_cop(
-            outside_temperature=self.scenario.region.temperature,
-            supply_temperature=self.scenario.building.supply_temperature,
-            efficiency=self.scenario.boiler.carnot_efficiency_factor,
-            source=self.scenario.boiler.type,
-        )
-        self.SpaceHeatingHourlyCOP_tank = self.calc_cop(
-            outside_temperature=self.scenario.region.temperature,
-            supply_temperature=self.scenario.building.supply_temperature + 10,
-            efficiency=self.scenario.boiler.carnot_efficiency_factor,
-            source=self.scenario.boiler.type,
-        )
-        self.T_TankStart_heating = self.scenario.space_heating_tank.temperature_start
-        self.M_WaterTank_heating = self.scenario.space_heating_tank.size
-        self.U_LossTank_heating = self.scenario.space_heating_tank.loss
-        self.T_TankSurrounding_heating = (self.scenario.space_heating_tank.temperature_surrounding)
-        self.A_SurfaceTank_heating = self.calculate_surface_area_from_volume(self.scenario.space_heating_tank.size)
-        self.SpaceHeating_MaxBoilerPower = self.generate_maximum_electric_or_thermal_power()
-        self.Q_TankEnergyMin_heating = self.CPWater * self.scenario.space_heating_tank.size * \
-                                       (273.15 + self.scenario.space_heating_tank.temperature_min)
-        self.Q_TankEnergyMax_heating = self.CPWater * self.scenario.space_heating_tank.size * \
-                                       (273.15 + self.scenario.space_heating_tank.temperature_max)
-
-    def setup_heating_element_params(self):
-        self.HeatingElement_efficiency = self.scenario.heating_element.efficiency
-        self.HeatingElement_power = self.scenario.heating_element.power
-
-    def setup_hot_water_params(self):
-        self.HotWaterHourlyCOP = self.calc_cop(
-            outside_temperature=self.scenario.region.temperature,
-            supply_temperature=self.scenario.building.supply_temperature,
-            efficiency=self.scenario.boiler.carnot_efficiency_factor,
-            source=self.scenario.boiler.type,
-        )
-        self.HotWaterHourlyCOP_tank = self.calc_cop(
-            outside_temperature=self.scenario.region.temperature,
-            supply_temperature=self.scenario.building.supply_temperature + 10,
-            efficiency=self.scenario.boiler.carnot_efficiency_factor,
-            source=self.scenario.boiler.type,
-        )
-        self.T_TankStart_DHW = self.scenario.hot_water_tank.temperature_start
-        self.M_WaterTank_DHW = self.scenario.hot_water_tank.size
-        self.U_LossTank_DHW = self.scenario.hot_water_tank.loss
-        self.T_TankSurrounding_DHW = self.scenario.hot_water_tank.temperature_surrounding
-        self.A_SurfaceTank_DHW = self.calculate_surface_area_from_volume(self.scenario.hot_water_tank.size)
-        self.Q_TankEnergyMin_DHW = self.CPWater * self.scenario.hot_water_tank.size * \
-                                   (273.15 + self.scenario.hot_water_tank.temperature_min)
-        self.Q_TankEnergyMax_DHW = self.CPWater * self.scenario.hot_water_tank.size * \
-                                   (273.15 + self.scenario.hot_water_tank.temperature_max)
 
     def calculate_surface_area_from_volume(self, volume: float) -> float:
         # V = h * pi * r2 -> h = V/(r2*pi), A = 2r*pi*h + 2pi*r2 -> A = 2r*pi*V/(r2*pi) + 2pi*r2 = 2V/r + 2pi*r2
@@ -116,34 +153,7 @@ class OperationModel(ABC):
         r = np.cbrt(V / np.pi)
         h = V / (r ** 2 * np.pi)
         return np.round(2 * r * np.pi * h + 2 * np.pi * r ** 2, 2)
-
-    def setup_space_cooling_params(self):
-        self.CoolingCOP = self.scenario.space_cooling_technology.efficiency
-        self.CoolingHourlyCOP = (np.ones(8760, ) * self.CoolingCOP)
-
-    def setup_pv_params(self):
-        self.PhotovoltaicProfile = self.scenario.pv.generation
-
-    def setup_battery_params(self):
-        self.ChargeEfficiency = self.scenario.battery.charge_efficiency
-        self.DischargeEfficiency = self.scenario.battery.discharge_efficiency
-
-    def setup_ev_params(self):
-        self.EVDemandProfile = self.scenario.behavior.vehicle_demand
-        self.EVAtHomeProfile = self.scenario.behavior.vehicle_at_home
-        self.EVChargeEfficiency = self.scenario.vehicle.charge_efficiency
-        self.EVDischargeEfficiency = self.scenario.vehicle.discharge_efficiency
-        self.EVOptionV2B = self.scenario.vehicle.charge_bidirectional
-        # if self.scenario.vehicle.capacity > 0:
-        #     self.test_vehicle_profile()  # test if vehicle makes model infeasible
-
-    def setup_energy_price_params(self):
-        self.ElectricityPrice = self.scenario.energy_price.electricity  # C/Wh
-        self.FiT = self.scenario.energy_price.electricity_feed_in  # C/Wh
-
-    def setup_behavior_params(self):
-        self.HotWaterProfile = self.scenario.behavior.hot_water_demand
-        self.BaseLoadProfile = self.scenario.behavior.appliance_electricity_demand
+        
 
     def calculate_heating_and_cooling_demand(
             self, thermal_start_temperature: float = 15, static=False
@@ -154,19 +164,19 @@ class OperationModel(ABC):
         building in the beginning of the calculation is achieved. Solar gains are set to 0.
         Returns: heating demand, cooling demand, indoor air temperature, temperature of the thermal mass
         """
-        heating_power_10 = self.scenario.building.Af * 10
+        heating_power_10 = self.Af * 10
 
-        if self.scenario.space_cooling_technology.power == 0:
+        if self.cooling_power  == 0:
             T_air_max = np.full((8760,), 100)
             # if no cooling is adopted --> raise max air temperature to 100 so it will never cool:
         else:
-            T_air_max = self.scenario.behavior.target_temperature_array_max
+            T_air_max = self.target_temperature_array_max
 
         if static:
             Q_solar = np.array([0] * 100)
-            T_outside = np.array([self.scenario.region.temperature[0]] * 100)
+            T_outside = np.array([self.T_outside[0]] * 100)
             T_air_min = np.array(
-                [self.scenario.behavior.target_temperature_array_min[0]] * 100
+                [self.target_temperature_array_min[0]] * 100
             )
             time = np.arange(100)
 
@@ -179,7 +189,7 @@ class OperationModel(ABC):
         else:
             Q_solar = self.Q_Solar
             T_outside = self.T_outside
-            T_air_min = self.scenario.behavior.target_temperature_array_min
+            T_air_min = self.target_temperature_array_min
             time = np.arange(8760)
 
             Tm_t = np.zeros(shape=(8760,))  # thermal mass temperature
@@ -396,17 +406,17 @@ class OperationModel(ABC):
         max_temperature_list = []
         min_temperature_list = []
         for i, indoor_temp in enumerate(self.T_Room):
-            temperature_max_winter = self.scenario.behavior.target_temperature_array_min[i] + temperature_offset
+            temperature_max_winter = self.target_temperature_array_min[i] + temperature_offset
             if indoor_temp < temperature_max_winter:
-                min_temperature_list.append(self.scenario.behavior.target_temperature_array_min[i])
+                min_temperature_list.append(self.target_temperature_array_min[i])
                 max_temperature_list.append(indoor_temp + temperature_offset)
-            elif temperature_max_winter <= indoor_temp <= self.scenario.behavior.target_temperature_array_max[
+            elif temperature_max_winter <= indoor_temp <= self.target_temperature_array_max[
                 i] + 0.01:  # 0.01 is added to ignore floating point errors
-                if self.scenario.space_cooling_technology.power == 0:
+                if self.cooling_power  == 0:
                     max_temperature_list.append(indoor_temp + temperature_offset)
                     min_temperature_list.append(indoor_temp - temperature_offset)
                 else:
-                    max_temperature_list.append(self.scenario.behavior.target_temperature_array_max[i])
+                    max_temperature_list.append(self.target_temperature_array_max[i])
                     min_temperature_list.append(indoor_temp - temperature_offset)
             else:  # if no cooling than temperature can be higher than max:
                 max_temperature_list.append(indoor_temp + temperature_offset)
@@ -477,17 +487,17 @@ class OperationModel(ABC):
         """
         # calculate the heating demand in reference mode:
         max_heating_demand = self.Q_RoomHeating.max()
-        max_dhw_demand = self.scenario.behavior.hot_water_demand.max()
+        max_dhw_demand = self.HotWaterProfil.max()
         # round to the next 500 W
         max_thermal_power = np.ceil((max_heating_demand + max_dhw_demand) / 500) * 500
         # distinguish between electric heating systems and conventional ones:
-        if self.scenario.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
+        if self.boiler_type in ["Air_HP", "Ground_HP", "Electric"]:
             # calculate the design condition COP
             worst_COP = OperationModel.calc_cop(
-                outside_temperature=[min(self.scenario.region.temperature)],  # get coldest hour of the year
-                supply_temperature=self.scenario.building.supply_temperature,
-                efficiency=self.scenario.boiler.carnot_efficiency_factor,
-                source=self.scenario.boiler.type,
+                outside_temperature=[min(self.T_outside)],  # get coldest hour of the year
+                supply_temperature=self.supply_temperature,
+                efficiency=self.carnot_efficiency_factor,
+                source=self.boiler_type,
             )
             max_electric_power_float = max_thermal_power / worst_COP
             # round the maximum electric power to the next 100 W:
@@ -496,32 +506,24 @@ class OperationModel(ABC):
         else:
             # if the heating system is conventional the carnot efficiency factor of the system is treated as the
             # efficiency of the system itself:
-            max_thermal_power_float = max_thermal_power / self.scenario.boiler.carnot_efficiency_factor
+            max_thermal_power_float = max_thermal_power / self.carnot_efficiency_factor
             # round the maximum electric power to the next 100 W:
             max_thermal_power = np.ceil(max_thermal_power_float / 100) * 100
             return max_thermal_power
 
     def generate_solar_gain_rate(self):
-        outside_temperature = self.scenario.region.temperature
-        shading_threshold_temperature = self.scenario.behavior.shading_threshold_temperature
-        shading_solar_reduction_rate = self.scenario.behavior.shading_solar_reduction_rate
-        solar_gain_rate = np.ones(len(outside_temperature), )
-        for i in range(0, len(outside_temperature)):
-            if outside_temperature[i] >= shading_threshold_temperature:
-                solar_gain_rate[i] = 1 - shading_solar_reduction_rate
+        solar_gain_rate = np.ones(len(self.T_outside), )
+        for i in range(0, len(self.T_outside)):
+            if self.T_outside[i] >= self.shading_threshold_temperature:
+                solar_gain_rate[i] = 1 - self.shading_solar_reduction_rate
         return solar_gain_rate
 
     def calculate_solar_gain(self) -> np.array:
         """return: 8760h solar gains, calculated with solar radiation and the effective window area."""
-
-        area_window_east_west = self.scenario.building.effective_window_area_west_east
-        area_window_south = self.scenario.building.effective_window_area_south
-        area_window_north = self.scenario.building.effective_window_area_north
-
-        Q_solar_north = np.outer(np.array(self.scenario.region.radiation_north), area_window_north)
-        Q_solar_east = np.outer(np.array(self.scenario.region.radiation_east), area_window_east_west / 2)
-        Q_solar_south = np.outer(np.array(self.scenario.region.radiation_south), area_window_south)
-        Q_solar_west = np.outer(np.array(self.scenario.region.radiation_west), area_window_east_west / 2)
+        Q_solar_north = np.outer(np.array(self.radiation_north), self.effective_window_area_north)
+        Q_solar_east = np.outer(np.array(self.radiation_east), self.effective_window_area_west_east / 2)
+        Q_solar_south = np.outer(np.array(self.radiation_south), self.effective_window_area_sout)
+        Q_solar_west = np.outer(np.array(self.radiation_west), self.effective_window_area_west_east / 2)
 
         solar_gain_rate = self.generate_solar_gain_rate()
         Q_solar = (Q_solar_north + Q_solar_south + Q_solar_east + Q_solar_west).squeeze() * solar_gain_rate
@@ -533,24 +535,22 @@ class OperationModel(ABC):
         when not at home (unlimited if not at home because this is endogenously derived)
         """
         upper_discharge_bound_array = []
-        for i, status in enumerate(self.scenario.behavior.vehicle_at_home):
+        for i, status in enumerate(self.vehicle_at_home):
             if round(status) == 1:  # when vehicle at home, discharge power is limited
-                upper_discharge_bound_array.append(
-                    self.scenario.vehicle.discharge_power_max
-                )
+                upper_discharge_bound_array.append(self.vehicle_discharge_power_max)
             else:  # when vehicle is not at home discharge power is limited to max capacity of vehicle
-                upper_discharge_bound_array.append(self.scenario.vehicle.capacity)
+                upper_discharge_bound_array.append(self.vehicle_capacity)
         return np.array(upper_discharge_bound_array)
 
     def test_vehicle_profile(self) -> None:
         # test if the vehicle driving profile can be achieved by vehicle capacity:
         counter = 0
-        for i, status in enumerate(self.scenario.behavior.vehicle_at_home):
+        for i, status in enumerate(self.vehicle_at_home):
             # add vehicle demand while driving up:
             if round(status) == 0:
-                counter += self.scenario.behavior.vehicle_demand[i]
+                counter += self.vehicle_demand[i]
                 # check if counter exceeds capacity:
-                assert counter <= self.scenario.vehicle.capacity, (
+                assert counter <= self.vehicle.capacity, (
                     "the driving profile exceeds the total capacity of "
                     "the EV. The EV will run out of electricity before "
                     "returning home."
@@ -558,5 +558,45 @@ class OperationModel(ABC):
             else:  # vehicle returns home -> counter is set to 0
                 counter = 0
 
+    @staticmethod
+    def split_data(vector)->list:
+        # split the vector into 36 hour pieces however the "new data" will always be available at 12o'clock
+        # therefore the perfect foresight is effectively 36 hours, being updated every 24 hours
+        # split the data into 36 hour pieces starting at hour 0, 12, 36, 60, 84, ...
+        splited_vector = [vector[0:12]] + [vector[i:i+24] for i in np.arange(12, 8760, 24)]
+        return splited_vector
+
     def return_splitted_scenarios(self):
-        """This function returns a list containing OperationModel"""
+        """This function returns a list containing OperationModel
+        This operation is very inefficient. It would be better to have seperated classes for all the input data of the model and classes only for the logic."""
+        new_class = {}
+        list_of_classes = [copy.deepcopy(self) for _ in range(366)]
+        for key, value in self.__dict__.items():
+                if isinstance(value, Iterable) and not isinstance(value, str):
+                    # slice it into 366 pieces:
+                    splitted_value = self.split_data(value)
+                    for i, split_class in enumerate(list_of_classes):
+                        setattr(split_class, key, splitted_value[i])
+
+
+
+        array_attributes = [attr for attr in dir(self) if isinstance(getattr(self, attr), )]
+        
+
+        return 
+    
+    def iterate_subset(self, horizon, stride):
+        start_index = 0
+        end_index = round(horizon/self.timestep)
+        max_index = 8760
+        while end_index < max_index:
+            data_slice = slice(start_index, end_index)
+            yield(
+                data_slice, self[data_slice]
+            )
+            start_index = min(start_index + round(stride / self.timestep), max_index)
+            end_index = min(end_index + round(stride / self.timestep), max_index)
+
+
+    def __getitem__(self, index: slice):
+        return self   # return die Klasse selbst mit jedem array gesliced und dem rest nicht gesliced
