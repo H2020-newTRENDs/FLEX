@@ -9,7 +9,7 @@ from models.operation.model_base import OperationModel
 class OptInstance:
     def __init__(self, instance_length: int):
         self.instance_length = instance_length
-
+    
     # @performance_counter
     def create_instance(self):
         model = self.setup_model()
@@ -490,16 +490,23 @@ class OptOperationModel(OperationModel):
         self.prepare_input_data_for_rolling_horizon()
         logger = logging.getLogger(f"{self.scenario.config.project_name}")
         logger.info("starting solving Opt model.")
-        instance_length = instance.instance_length
-        opt_instance = OptConfig(self, instance_length=instance_length).config_instance(instance)
+        
+        sub_instances = self.return_splitted_scenarios()
+
+        opt_instance = OptConfig(self, instance_length=24).config_instance(instance)
+        
+        
+        
         results = pyo.SolverFactory("gurobi").solve(opt_instance, tee=False)
+        
+        
         if results.solver.termination_condition == TerminationCondition.optimal:
             opt_instance.solutions.load_from(results)
             logger.info(f"OptCost: {round(opt_instance.total_operation_cost_rule(), 2)}")
             solved = True
         else:
-            print(f'Infeasible Scenario Warning!!!!!!!!!!!!!!!!!!!!!! --> ID_Scenario = {self.scenario.scenario_id}')
-            logger.warning(f'Infeasible Scenario Warning!!!!!!!!!!!!!!!!!!!!!! --> ID_Scenario = {self.scenario.scenario_id}')
+            print(f'Infeasible Scenario Warning!!!!!!!!!!!!!!!!!!!!!! --> ID_Scenario = {self.model.scenario_id}')
+            logger.warning(f'Infeasible Scenario Warning!!!!!!!!!!!!!!!!!!!!!! --> ID_Scenario = {self.model.scenario_id}')
             solved = False
         return opt_instance, solved
 
@@ -508,7 +515,6 @@ class OptConfig:
 
     def __init__(self, model: 'OperationModel', instance_length: int):
         self.model = model
-        self.scenario = model.scenario
         self.instance_length = instance_length
 
     # @performance_counter
@@ -531,9 +537,9 @@ class OptConfig:
     def config_static_params(self, instance):
         instance.CPWater = self.model.CPWater
         # building parameters:
-        instance.Am = self.scenario.building.Am_factor
-        instance.Hve = self.scenario.building.Hve
-        instance.Htr_w = self.scenario.building.Htr_w
+        instance.Am = self.Am_factor
+        instance.Hve = self.Hve
+        instance.Htr_w = self.Htr_w
         # parameters that have to be calculated:
         instance.Atot = self.model.Atot
         instance.Qi = self.model.Qi
@@ -548,26 +554,26 @@ class OptConfig:
         instance.BuildingMassTemperatureStartValue = self.model.BuildingMassTemperatureStartValue
 
         # Battery parameters
-        instance.BatteryChargeEfficiency = self.scenario.battery.charge_efficiency
-        instance.BatteryDischargeEfficiency = self.scenario.battery.discharge_efficiency
+        instance.BatteryChargeEfficiency = self.model.battery_charge_efficiency
+        instance.BatteryDischargeEfficiency = self.model.battery_discharge_efficiency
 
         # EV parameters
-        instance.EVChargeEfficiency = self.scenario.vehicle.charge_efficiency
-        instance.EVDischargeEfficiency = self.scenario.vehicle.discharge_efficiency
-        instance.EVCapacity = self.scenario.vehicle.capacity
+        instance.EVChargeEfficiency = self.model.EVChargeEfficiency
+        instance.EVDischargeEfficiency = self.model.EVDischargeEfficiency
+        instance.EVCapacity = self.model.EVCapacity
 
         # Thermal storage heating parameters
-        instance.T_TankStart_heating = self.scenario.space_heating_tank.temperature_start
-        instance.M_WaterTank_heating = self.scenario.space_heating_tank.size
-        instance.U_LossTank_heating = self.scenario.space_heating_tank.loss
-        instance.T_TankSurrounding_heating = self.scenario.space_heating_tank.temperature_surrounding
+        instance.T_TankStart_heating = self.model.T_TankStart_heating
+        instance.M_WaterTank_heating = self.model.M_WaterTank_heating
+        instance.U_LossTank_heating = self.model.U_LossTank_heating
+        instance.T_TankSurrounding_heating = self.model.T_TankSurrounding_heating
         instance.A_SurfaceTank_heating = self.model.A_SurfaceTank_heating
 
         # Thermal storage DHW parameters
-        instance.T_TankStart_DHW = self.scenario.hot_water_tank.temperature_start
-        instance.M_WaterTank_DHW = self.scenario.hot_water_tank.size
-        instance.U_LossTank_DHW = self.scenario.hot_water_tank.loss
-        instance.T_TankSurrounding_DHW = self.scenario.hot_water_tank.temperature_surrounding
+        instance.T_TankStart_DHW = self.model.T_TankStart_DHW
+        instance.M_WaterTank_DHW = self.model.M_WaterTank_DHW
+        instance.U_LossTank_DHW = self.model.U_LossTank_DHW
+        instance.T_TankSurrounding_DHW = self.model.T_TankSurrounding_DHW
         instance.A_SurfaceTank_DHW = self.model.A_SurfaceTank_DHW
 
         # HP
@@ -585,7 +591,7 @@ class OptConfig:
             instance.BaseLoadProfile[t] = self.model.BaseLoadProfile[t-1]
             instance.PhotovoltaicProfile[t] = self.model.PhotovoltaicProfile[t-1]
 
-        if self.scenario.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
+        if self.model.boiler_type in ["Air_HP", "Ground_HP", "Electric"]:
             for t in range(1, self.instance_length + 1):
                 # unfix heat pump parameters:
                 instance.E_Heating_HP_out[t].fixed = False
@@ -658,22 +664,17 @@ class OptConfig:
 
     def config_prices(self, instance):
         for t in range(1, self.instance_length + 1):
-            instance.ElectricityPrice[t] = self.scenario.energy_price.electricity[t-1]
-            instance.FiT[t] = self.scenario.energy_price.electricity_feed_in[t-1]
-            if self.scenario.boiler.type not in ['Air_HP', 'Ground_HP', "Electric"]:
-                instance.FuelPrice[t] = self.scenario.energy_price.__dict__[self.scenario.boiler.type][t - 1]
+            instance.ElectricityPrice[t] = self.model.ElectricityPrice[t-1]
+            instance.FiT[t] = self.model.FiT[t-1]
+            if self.model.boiler_type not in ['Air_HP', 'Ground_HP', "Electric"]:
+                instance.FuelPrice[t] = self.model.fuel_price.__dict__[self.model.boiler_type][t - 1]
             else:
                 instance.FuelPrice[t] = 0
-
-    def config_grid(self, instance):
-        for t in range(1, self.instance_length + 1):
-            instance.Grid[t].setub(self.scenario.building.grid_power_max)
-            instance.Feed2Grid[t].setub(self.scenario.building.grid_power_max)
 
     def config_space_heating(self, instance):
         for t in range(1, self.instance_length + 1):
             instance.T_BuildingMass[t].setub(100)
-        if self.scenario.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
+        if self.model.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
             for t in range(1, self.instance_length + 1):
                 instance.E_Heating_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
         else:
@@ -682,7 +683,7 @@ class OptConfig:
                 instance.Q_DHW_Boiler_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
 
     def config_space_heating_tank(self, instance):
-        if self.scenario.space_heating_tank.size == 0:
+        if self.model.M_WaterTank_heating == 0:
             for t in range(1, self.instance_length + 1):
                 instance.Q_HeatingTank[t].setlb(0)
                 instance.Q_HeatingTank[t].setub(0)
@@ -697,18 +698,18 @@ class OptConfig:
                 instance.Q_HeatingTank_in[t].fixed = False
                 instance.Q_HeatingTank[t].fixed = False
                 instance.Q_HeatingTank[t].setlb(
-                    self.model.CPWater * self.scenario.space_heating_tank.size *
-                    (273.15 + self.scenario.space_heating_tank.temperature_min)
+                    self.model.CPWater * self.model.M_WaterTank_heating *
+                    (273.15 + self.model.space_heating_tank_temperature_min)
                 )
 
                 instance.Q_HeatingTank[t].setub(
-                    self.model.CPWater * self.scenario.space_heating_tank.size *
-                    (273.15 + self.scenario.space_heating_tank.temperature_max)
+                    self.model.CPWater * self.model.M_WaterTank_heating *
+                    (273.15 + self.model.space_heating_tank_temperature_max)
                 )
             instance.tank_energy_rule_heating.activate()
 
     def config_hot_water_tank(self, instance):
-        if self.scenario.hot_water_tank.size == 0:
+        if self.model.M_WaterTank_heating == 0:
             for t in range(1, self.instance_length + 1):
                 instance.Q_DHWTank_out[t].fix(0)
                 instance.Q_DHWTank_in[t].fix(0)
@@ -716,7 +717,7 @@ class OptConfig:
                 instance.Q_DHWTank[t].setub(0)
                 instance.Q_DHWTank[t].fix(0)
 
-                instance.E_DHW_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)  # TODO
+                instance.E_DHW_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
             instance.tank_energy_rule_DHW.deactivate()
         else:
             for t in range(1, self.instance_length + 1):
@@ -724,18 +725,18 @@ class OptConfig:
                 instance.Q_DHWTank_in[t].fixed = False
                 instance.Q_DHWTank[t].fixed = False
                 instance.Q_DHWTank[t].setlb(
-                    self.model.CPWater * self.scenario.hot_water_tank.size *
-                    (273.15 + self.scenario.hot_water_tank.temperature_min)
+                    self.model.CPWater * self.model.M_WaterTank_heating *
+                    (273.15 + self.model.hot_water_tank_temperature_min)
                 )
                 instance.Q_DHWTank[t].setub(
-                    self.model.CPWater * self.scenario.hot_water_tank.size *
-                    (273.15 + self.scenario.hot_water_tank.temperature_max)
+                    self.model.CPWater * self.model.M_WaterTank_DHW *
+                    (273.15 + self.model.hot_water_tank_temperature_max)
                 )
                 instance.E_DHW_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
             instance.tank_energy_rule_DHW.activate()
 
     def config_battery(self, instance):
-        if self.scenario.battery.capacity == 0:
+        if self.model.battery_capacity == 0:
             for t in range(1, self.instance_length + 1):
                 instance.Grid2Bat[t].fix(0)
                 instance.Bat2Load[t].fix(0)
@@ -748,10 +749,10 @@ class OptConfig:
             instance.BatSoC_rule.deactivate()
         else:
             # check if pv exists:
-            if self.scenario.pv.size > 0:
+            if self.model.pv_size > 0:
                 for t in range(1, self.instance_length + 1):
                     instance.PV2Bat[t].fixed = False
-                    instance.PV2Bat[t].setub(self.scenario.battery.charge_power_max)
+                    instance.PV2Bat[t].setub(self.model.battery_charge_power_max)
             else:
                 for t in range(1, self.instance_length + 1):
                     instance.PV2Bat[t].fix(0)
@@ -764,11 +765,11 @@ class OptConfig:
                 instance.BatCharge[t].fixed = False
                 instance.BatDischarge[t].fixed = False
                 # set upper bounds
-                instance.Grid2Bat[t].setub(self.scenario.battery.charge_power_max)
-                instance.Bat2Load[t].setub(self.scenario.battery.discharge_power_max)
-                instance.BatSoC[t].setub(self.scenario.battery.capacity)
-                instance.BatCharge[t].setub(self.scenario.battery.charge_power_max)
-                instance.BatDischarge[t].setub(self.scenario.battery.discharge_power_max)
+                instance.Grid2Bat[t].setub(self.model.battery_charge_power_max)
+                instance.Bat2Load[t].setub(self.model.battery_discharge_power_max)
+                instance.BatSoC[t].setub(self.model.battery_capacity)
+                instance.BatCharge[t].setub(self.model.battery_charge_power_max)
+                instance.BatDischarge[t].setub(self.model.battery_discharge_power_max)
             instance.BatCharge_rule.activate()
             instance.BatDischarge_rule.activate()
             instance.BatSoC_rule.activate()
@@ -782,7 +783,7 @@ class OptConfig:
             instance.T_Room[t].setlb(min_target_temperature[t - 1])
 
     def config_space_cooling_technology(self, instance):
-        if self.scenario.space_cooling_technology.power == 0:
+        if self.model.cooling_power == 0:
             for t in range(1, self.instance_length + 1):
                 instance.Q_RoomCooling[t].fix(0)
                 instance.E_RoomCooling[t].fix(0)
@@ -793,14 +794,14 @@ class OptConfig:
             for t in range(1, self.instance_length + 1):
                 instance.Q_RoomCooling[t].fixed = False
                 instance.E_RoomCooling[t].fixed = False
-                instance.Q_RoomCooling[t].setub(self.scenario.space_cooling_technology.power)
+                instance.Q_RoomCooling[t].setub(self.model.cooling_power)
                 instance.CoolingHourlyCOP[t] = self.model.CoolingHourlyCOP[t - 1]
 
             instance.E_RoomCooling_with_cooling_rule.activate()
 
     def config_vehicle(self, instance):
         max_discharge_ev = self.model.create_upper_bound_ev_discharge()
-        if self.scenario.vehicle.capacity == 0:  # no EV is implemented
+        if self.model.vehicle_capacity == 0:  # no EV is implemented
             for t in range(1, self.instance_length + 1):
                 instance.Grid2EV[t].fix(0)
                 instance.Bat2EV[t].fix(0)
@@ -816,7 +817,7 @@ class OptConfig:
             instance.EVSoC_rule.deactivate()
         else:
             # if there is a PV installed:
-            if self.scenario.pv.size > 0:
+            if self.model.pv_size > 0:
                 for t in range(1, self.instance_length + 1):
                     instance.PV2EV[t].fixed = False
             else:  # if there is no PV, EV can not be charged by it
@@ -835,8 +836,8 @@ class OptConfig:
 
             for t in range(1, self.instance_length + 1):
                 # set upper bounds
-                instance.EVSoC[t].setub(self.scenario.vehicle.capacity)
-                instance.EVCharge[t].setub(self.scenario.vehicle.charge_power_max)
+                instance.EVSoC[t].setub(self.model.vehicle_capacity)
+                instance.EVCharge[t].setub(self.model.vehicle_charge_power_max)
                 instance.EVDischarge[t].setub(max_discharge_ev[t - 1])
                 instance.EVDemandProfile[t] = self.model.EVDemandProfile[t-1]
                 # fix variables when EV is not at home:
@@ -849,7 +850,7 @@ class OptConfig:
                     instance.EV2Bat[t].fix(0)
 
             # in case there is a stationary battery available:
-            if self.scenario.battery.capacity > 0:
+            if self.model.battery_capacity > 0:
                 if self.model.EVOptionV2B == 0:
                     for t in range(1, self.instance_length + 1):
                         instance.EV2Bat[t].fix(0)
@@ -868,7 +869,7 @@ class OptConfig:
             instance.EVSoC_rule.activate()
 
     def config_pv(self, instance):
-        if self.scenario.pv.size == 0:
+        if self.model.pv_size == 0:
             for t in range(1, self.instance_length + 1):
                 instance.PV2Load[t].fix(0)
                 instance.PV2Bat[t].fix(0)
@@ -878,7 +879,6 @@ class OptConfig:
             for t in range(1, self.instance_length + 1):
                 instance.PV2Load[t].fixed = False
                 instance.PV2Grid[t].fixed = False
-                # instance.PV2Load[t].setub(self.scenario.building.grid_power_max)
             instance.UseOfPV_rule.activate()
 
 

@@ -11,6 +11,8 @@ class OperationModel(ABC):
     def __init__(self, scenario: "OperationScenario"):
         self.CPWater = 4200 / 3600
         # save all the scenario variables that need to be used later as self variables so the scenario does not have to be copied explicitly because its large:
+        self.project_name = scenario.config.project_name
+        self.scenario_id = scenario.scenario_id
 
         # behviour parameters:
         self.HotWaterProfile = scenario.behavior.hot_water_demand
@@ -30,7 +32,6 @@ class OperationModel(ABC):
         self.radiation_west = scenario.region.radiation_west
         self.radiation_south = scenario.region.radiation_south
 
-
         self.Q_Solar = self.calculate_solar_gain()
         
         # EV parameters
@@ -39,13 +40,17 @@ class OperationModel(ABC):
         self.EVChargeEfficiency = scenario.vehicle.charge_efficiency
         self.EVDischargeEfficiency = scenario.vehicle.discharge_efficiency
         self.EVOptionV2B = scenario.vehicle.charge_bidirectional
+        self.vehicle_charge_power_max = scenario.vehicle.charge_power_max
         self.vehicle_discharge_power_max = scenario.vehicle.discharge_power_max
-        self.vehicle_capacity = scenario.vehicle.capacity
+        self.EVCapacity = scenario.vehicle.capacity
         self.vehicle_demand = scenario.behavior.vehicle_demand
 
         # Battery parameters
         self.battery_charge_efficiency = scenario.battery.charge_efficiency
         self.battery_discharge_efficiency = scenario.battery.discharge_efficiency
+        self.battery_charge_power_max = scenario.battery.charge_power_max
+        self.battery_discharge_power_max = scenario.battery.discharge_power_max
+        self.battery_capacity = scenario.battery.capacity
 
         # Heating Element
         self.HeatingElement_efficiency = scenario.heating_element.efficiency
@@ -74,11 +79,13 @@ class OperationModel(ABC):
         self.M_WaterTank_DHW = scenario.hot_water_tank.size
         self.U_LossTank_DHW = scenario.hot_water_tank.loss
         self.T_TankSurrounding_DHW = scenario.hot_water_tank.temperature_surrounding
+        self.hot_water_tank_temperature_min = scenario.hot_water_tank.temperature_min
+        self.hot_water_tank_temperature_max = scenario.hot_water_tank.temperature_max
         self.A_SurfaceTank_DHW = self.calculate_surface_area_from_volume(scenario.hot_water_tank.size)
         self.Q_TankEnergyMin_DHW = self.CPWater * scenario.hot_water_tank.size * \
-                                   (273.15 + scenario.hot_water_tank.temperature_min)
+                                   (273.15 + self.hot_water_tank_temperature_min)
         self.Q_TankEnergyMax_DHW = self.CPWater * scenario.hot_water_tank.size * \
-                                   (273.15 + scenario.hot_water_tank.temperature_max)
+                                   (273.15 + self.hot_water_tank_temperature_max)
 
         # Thermal tank parameters and space heating
         self.SpaceHeatingHourlyCOP = self.calc_cop(
@@ -96,13 +103,15 @@ class OperationModel(ABC):
         self.T_TankStart_heating = scenario.space_heating_tank.temperature_start
         self.M_WaterTank_heating = scenario.space_heating_tank.size
         self.U_LossTank_heating = scenario.space_heating_tank.loss
-        self.T_TankSurrounding_heating = (scenario.space_heating_tank.temperature_surrounding)
+        self.T_TankSurrounding_heating = scenario.space_heating_tank.temperature_surrounding
+        self.space_heating_tank_temperature_min = scenario.space_heating_tank.temperature_min
+        self.space_heating_tank_temperature_max = scenario.space_heating_tank.temperature_max
         self.A_SurfaceTank_heating = self.calculate_surface_area_from_volume(scenario.space_heating_tank.size)
         self.SpaceHeating_MaxBoilerPower = self.generate_maximum_electric_or_thermal_power()
         self.Q_TankEnergyMin_heating = self.CPWater * scenario.space_heating_tank.size * \
-                                       (273.15 + scenario.space_heating_tank.temperature_min)
+                                       (273.15 + self.space_heating_tank_temperature_min)
         self.Q_TankEnergyMax_heating = self.CPWater * scenario.space_heating_tank.size * \
-                                       (273.15 + scenario.space_heating_tank.temperature_max)
+                                       (273.15 + self.space_heating_tank_temperature_max)
         
         # Cooling parameters:
         self.CoolingCOP = scenario.space_cooling_technology.efficiency
@@ -111,10 +120,12 @@ class OperationModel(ABC):
 
         # PV parameters:
         self.PhotovoltaicProfile = scenario.pv.generation
+        self.pv_size = scenario.pv.size
 
         # energy price parameters:
         self.ElectricityPrice = scenario.energy_price.electricity  # C/Wh
         self.FiT = scenario.energy_price.electricity_feed_in  # C/Wh
+        self.fuel_price = scenario.energy_price.fuel
 
         # building parameters:
         self.Am_factor = scenario.building.Am_factor
@@ -539,7 +550,7 @@ class OperationModel(ABC):
             if round(status) == 1:  # when vehicle at home, discharge power is limited
                 upper_discharge_bound_array.append(self.vehicle_discharge_power_max)
             else:  # when vehicle is not at home discharge power is limited to max capacity of vehicle
-                upper_discharge_bound_array.append(self.vehicle_capacity)
+                upper_discharge_bound_array.append(self.EVCapacity)
         return np.array(upper_discharge_bound_array)
 
     def test_vehicle_profile(self) -> None:
