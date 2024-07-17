@@ -8,13 +8,13 @@ import sys
 two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 # Add this directory to sys.path
 sys.path.insert(0, two_levels_up)
-from flex_operation.scenario import OperationScenario
-from flex_operation.model_opt import OptInstance, OptOperationModel
-from flex_operation.model_ref import RefOperationModel
-from flex_operation.data_collector import RefDataCollector, OptDataCollector
-from flex.db import create_db_conn
+from models.operation.scenario import OperationScenario
+from models.operation.model_opt import OptInstance, OptOperationModel
+from models.operation.model_ref import RefOperationModel
+from models.operation.data_collector import RefDataCollector, OptDataCollector
+from utils.db import create_db_conn
 
-from flex_operation.constants import OperationTable
+from models.operation.constants import OperationTable
 
 
 class MotherVisualization:

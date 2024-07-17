@@ -13,9 +13,9 @@ import plotly.figure_factory as ff
 two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 # Add this directory to sys.path
 sys.path.insert(0, two_levels_up)
-from scenario import OperationScenario, MotherOperationScenario
+from models.operation.scenario import OperationScenario, MotherOperationScenario
 from flex_operation.Visualization_class import MotherVisualization
-from flex.config import Config
+from utils.config import Config
 
 # -----------------------------------------------------------------------------------------------------------
 class PlotlyVisualize(MotherVisualization):
@@ -322,8 +322,8 @@ class PlotlyVisualize(MotherVisualization):
 if __name__ == "__main__":
 
     # create scenario:
-    scenario_id = 1716  # 598
-    cfg = Config(project_name="ECEMF_T4.3_Murcia_2030_H")
+    scenario_id = 1  # 
+    cfg = Config(project_name="Test_bed")
     mother_tables = MotherOperationScenario(config=cfg)
     scenario = OperationScenario(scenario_id=scenario_id, config=cfg, tables=mother_tables)
     plotly_visualization = PlotlyVisualize(scenario=scenario)
