@@ -55,18 +55,18 @@ def run_opt_model(
     save_year: bool = True,
     save_month: bool = False,
     save_hour: bool = False,
-    hour_vars: Optional[List[str]] = None
+    hour_vars: Optional[List[str]] = None,
+    rolling_horizon: bool = False,
 ):
-    for rolling in [False, True]:
-        solved_model, solve_status = OptOperationModel(scenario).solve(full_instance=opt_instance, rolling_horizon=rolling)
-        if solve_status:
-            OptDataCollector(model=solved_model,
-                            scenario_id=scenario.scenario_id,
-                            config=config,
-                            save_year=save_year,
-                            save_month=save_month,
-                            save_hour=save_hour,
-                            hour_vars=hour_vars).run(rolling_horizon=True)
+    solved_model, solve_status = OptOperationModel(scenario).solve(full_instance=opt_instance, rolling_horizon=rolling_horizon)
+    if solve_status:
+        OptDataCollector(model=solved_model,
+                        scenario_id=scenario.scenario_id,
+                        config=config,
+                        save_year=save_year,
+                        save_month=save_month,
+                        save_hour=save_hour,
+                        hour_vars=hour_vars).run(rolling_horizon=rolling_horizon)
 
 
 def run_operation_model(config: "Config",
@@ -76,7 +76,8 @@ def run_operation_model(config: "Config",
                         save_year: bool = True,
                         save_month: bool = False,
                         save_hour: bool = False,
-                        hour_vars: List[str] = None):
+                        hour_vars: List[str] = None,
+                        rolling_horizon: bool = False):
 
     def align_progress(initial_scenario_ids):
 
@@ -121,7 +122,7 @@ def run_operation_model(config: "Config",
                           save_hour=save_hour, hour_vars=hour_vars)
         if run_opt:
             run_opt_model(opt_instance=opt_instance, scenario=scenario, config=config, save_year=save_year,
-                          save_month=save_month, save_hour=save_hour, hour_vars=hour_vars)
+                          save_month=save_month, save_hour=save_hour, hour_vars=hour_vars, rolling_horizon=rolling_horizon)
 
 
 def run_operation_model_parallel(

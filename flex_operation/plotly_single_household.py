@@ -10,12 +10,13 @@ import plotly.graph_objects as go
 import plotly.figure_factory as ff
 
 # Get the absolute path of the directory two levels up
-two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 # Add this directory to sys.path
 sys.path.insert(0, two_levels_up)
-from models.operation.scenario import OperationScenario, MotherOperationScenario
+from models.operation.scenario import OperationScenario
 from flex_operation.Visualization_class import MotherVisualization
 from utils.config import Config
+from utils.db import fetch_input_tables
 
 # -----------------------------------------------------------------------------------------------------------
 class PlotlyVisualize(MotherVisualization):
@@ -277,10 +278,7 @@ class PlotlyVisualize(MotherVisualization):
         )
         # save image to pdf or svg:
         image_name = "Electricity_price_and_Load_distribution.pdf"
-        path_to_image_folder = (
-                r"C:/Users/mascherbauer/PycharmProjects/NewTrends/Prosumager/_Refactor/project/PhilippTest/Figures/"
-                + image_name
-        )
+        path_to_image_folder = (self.scenario.config.figure / image_name)
         fig.write_image(path_to_image_folder)
         fig.show()
 
@@ -311,10 +309,7 @@ class PlotlyVisualize(MotherVisualization):
         fig.update_yaxes(title="probability", row=1, col=1)
         image_name = "Load_probability_distribution.pdf"
         # TODO make this path a variable that is dependent on the project
-        path_to_image_folder = (
-                r"C:/Users/mascherbauer/PycharmProjects/NewTrends/Prosumager/_Refactor/project/PhilippTest/Figures/"
-                + image_name
-        )
+        path_to_image_folder = (self.scenario.config.figure / image_name)
         fig.write_image(path_to_image_folder)
         fig.show()
 
@@ -323,11 +318,11 @@ if __name__ == "__main__":
 
     # create scenario:
     scenario_id = 1  # 
-    cfg = Config(project_name="Test_bed")
-    mother_tables = MotherOperationScenario(config=cfg)
-    scenario = OperationScenario(scenario_id=scenario_id, config=cfg, tables=mother_tables)
+    cfg = Config(project_name="Test_bed", project_path=r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects\Test_bed")
+    mother_tables = fetch_input_tables(cfg)
+    scenario = OperationScenario(scenario_id=scenario_id, config=cfg, input_tables=mother_tables)
     plotly_visualization = PlotlyVisualize(scenario=scenario)
     plotly_visualization.show_yearly_comparison_of_SEMS_reference()
     plotly_visualization.hourly_comparison_SEMS_reference()
-    plotly_visualization.investigate_resulting_load_profile()
+    # plotly_visualization.investigate_resulting_load_profile()
     # ---------------------------------------------------------------------------------------------------------

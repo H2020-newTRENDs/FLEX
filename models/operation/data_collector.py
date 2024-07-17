@@ -151,7 +151,7 @@ class OperationDataCollector(ABC):
         frame = frame.apply(pd.to_numeric, downcast='integer')
         return frame
 
-    def save_hour_result(self, rolling: bool):
+    def save_hour_result(self):
         result_hour_df = pd.DataFrame(self.hour_result)
         result_hour_df.insert(loc=0, column="ID_Scenario", value=self.scenario_id)
         result_hour_df.insert(loc=1, column="Hour", value=list(range(1, 8761)))
@@ -161,7 +161,7 @@ class OperationDataCollector(ABC):
         df_to_save = self.reduce_df_size(result_hour_df)
         write_parquet(
             data_frame=df_to_save,
-            file_name=self.get_hour_result_table_name() + f"_S{self.scenario_id}_{rolling}",
+            file_name=self.get_hour_result_table_name() + f"_S{self.scenario_id}",
             folder=self.output_folder
         )
 
@@ -189,7 +189,7 @@ class OperationDataCollector(ABC):
     def run(self, rolling_horizon: bool = True):
         self.collect_result()
         if self.save_hour:
-            self.save_hour_result(rolling_horizon)
+            self.save_hour_result()
         if self.save_month:
             self.save_month_result()
         if self.save_year:

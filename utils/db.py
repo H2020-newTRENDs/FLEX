@@ -65,7 +65,7 @@ class DB:
         """
         is used to save the results. Writes the dataframe into a parquet file with 'table_name_ID' as file name
         """
-        file_name = f"{table_name}_{scenario_ID}.parquet.gzip"
+        file_name = f"{table_name}_S{scenario_ID}.parquet.gzip"
         saving_path = folder / file_name
         table.to_parquet(path=saving_path, engine="auto", compression='gzip', index=False)
 
@@ -73,7 +73,7 @@ class DB:
         """
         Returns: dataframe containing the results for the table name and specific scenario ID
         """
-        file_name = f"{table_name}_{scenario_ID}.parquet.gzip"
+        file_name = f"{table_name}_S{scenario_ID}.parquet.gzip"
         path_to_file = folder / file_name
         if column_names:
             df = pd.read_parquet(path=path_to_file, engine="auto", columns=column_names)

@@ -13,8 +13,8 @@ from models.operation.model_opt import OptInstance, OptOperationModel
 from models.operation.model_ref import RefOperationModel
 from models.operation.data_collector import RefDataCollector, OptDataCollector
 from utils.db import create_db_conn
+from utils.tables import OutputTables, InputTables
 
-from models.operation.constants import OperationTable
 
 
 class MotherVisualization:
@@ -28,11 +28,12 @@ class MotherVisualization:
         ) = self.fetch_results_for_specific_scenario_id()
 
     def create_header(self) -> str:
+        building_id = self.scenario.input_tables[InputTables.OperationScenario.name].query(f'ID_Scenario == {self.scenario.scenario_id}')["ID_Building"][0]
         return (
             f"Scenario: {self.scenario.scenario_id}; \n "
             f"AC: {int(self.scenario.space_cooling_technology.power)} W; \n "
             f"Battery: {int(self.scenario.battery.capacity)} W; \n "
-            f"Building id: {self.scenario.component_scenario_ids['ID_Building']}; \n "
+            f"Building id: {building_id}; \n "
             f"Boiler: {self.scenario.boiler.type}; \n "
             f"DHW Tank: {self.scenario.hot_water_tank.size} l; \n "
             f"PV: {self.scenario.pv.size} kWp; \n "
@@ -56,9 +57,9 @@ class MotherVisualization:
                 continue
 
         # calculate the results and save them
-        hp_instance = OptInstance().create_instance()
+        hp_instance = OptInstance(instance_length=8760).create_instance()
         # solve model
-        opt_model = OptOperationModel(self.scenario).solve(hp_instance)
+        opt_model = OptOperationModel(self.scenario).solve(hp_instance, rolling_horizon=True)
         # datacollector save results to db
         OptDataCollector(model=opt_model, scenario_id=self.scenario.scenario_id, config=self.scenario.config).run()
 
@@ -74,21 +75,21 @@ class MotherVisualization:
         # check if scenario id is in results, if yes, load them instead of calculating them:
         hourly_results_reference_df = db.read_parquet(
             folder=self.scenario.config.output,
-            table_name=OperationTable.ResultRefHour,
+            table_name=OutputTables.OperationResult_RefHour.name,
             scenario_ID=self.scenario.scenario_id
         )
         yearly_results_reference_df = db.read_dataframe(
-            table_name=OperationTable.ResultRefYear,
+            table_name=OutputTables.OperationResult_RefYear.name,
             filter={"ID_Scenario": self.scenario.scenario_id}
         )
 
         hourly_results_optimization_df = db.read_parquet(
             folder=self.scenario.config.output,
-            table_name=OperationTable.ResultOptHour,
+            table_name=OutputTables.OperationResult_OptHour.name,
             scenario_ID=self.scenario.scenario_id,
         )
         yearly_results_optimization_df = db.read_dataframe(
-            table_name=OperationTable.ResultOptYear,
+            table_name=OutputTables.OperationResult_OptYear.name,
             filter={"ID_Scenario": self.scenario.scenario_id},
         )
         return (
