@@ -51,6 +51,7 @@ class OperationModel(ABC):
         self.battery_charge_power_max = scenario.battery.charge_power_max
         self.battery_discharge_power_max = scenario.battery.discharge_power_max
         self.battery_capacity = scenario.battery.capacity
+        self.BatterySOCStartValue = 0
 
         # Heating Element
         self.HeatingElement_efficiency = scenario.heating_element.efficiency

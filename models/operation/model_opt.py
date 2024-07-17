@@ -92,14 +92,13 @@ class OptInstance:
         m.A_SurfaceTank_heating = pyo.Param(mutable=True)
         m.M_WaterTank_heating = pyo.Param(mutable=True)
         m.T_TankSurrounding_heating = pyo.Param(mutable=True)
-        m.T_TankStart_heating = pyo.Param(mutable=True)
 
         # DHW tank
         m.U_LossTank_DHW = pyo.Param(mutable=True)
         m.A_SurfaceTank_DHW = pyo.Param(mutable=True)
         m.M_WaterTank_DHW = pyo.Param(mutable=True)
         m.T_TankSurrounding_DHW = pyo.Param(mutable=True)
-        m.T_TankStart_DHW = pyo.Param(mutable=True)
+        
 
         # battery
         m.BatteryChargeEfficiency = pyo.Param(mutable=True)
@@ -124,8 +123,14 @@ class OptInstance:
         m.Htr_3 = pyo.Param(mutable=True)
         m.PHI_ia = pyo.Param(mutable=True)
         m.Cm = pyo.Param(mutable=True)
-        m.BuildingMassTemperatureStartValue = pyo.Param(mutable=True)
 
+        # start values
+        m.BuildingMassTemperatureStartValue = pyo.Param(mutable=True)
+        m.BatterySOCStartValue = pyo.Param(mutable=True)
+        m.T_TankStart_DHW = pyo.Param(mutable=True)
+        m.T_TankStart_heating = pyo.Param(mutable=True)
+
+        
     @staticmethod
     def setup_variables(m):
         # space heating
@@ -401,7 +406,7 @@ class OptInstance:
 
         def calc_BatSoC(m, t):
             if t == 1:
-                return m.BatSoC[t] == 0 + m.BatCharge[t] * m.BatteryChargeEfficiency - \
+                return m.BatSoC[t] == m.BatterySOCStartValue + m.BatCharge[t] * m.BatteryChargeEfficiency - \
                        m.BatDischarge[t] * (1 + (1 - m.BatteryDischargeEfficiency))
             else:
                 return m.BatSoC[t] == m.BatSoC[t - 1] + m.BatCharge[t] * m.BatteryChargeEfficiency - \
@@ -476,7 +481,10 @@ class OptOperationModel(OperationModel):
     
     def update_initial_values(self, model, last_timestep_values):
         for var_name, value in last_timestep_values.items():
-            getattr(model, var_name)[1].value = value
+            try:
+                getattr(model, var_name)[1].value = value
+            except KeyError:
+                getattr(model, var_name).value = value
         return model
     
     def update_large_model(self, large_model, timestep_values, nr_iteration: int):
@@ -496,6 +504,16 @@ class OptOperationModel(OperationModel):
         for var in model.component_objects(pyo.Var, active=True):
             var_name = var.getname(fully_qualified=True)
             last_timestep_values[var_name] = pyo.value(var[timestep])
+            if var_name == "T_BuildingMass":
+                last_timestep_values["BuildingMassTemperatureStartValue"] = pyo.value(var[timestep])
+            elif var_name == "BatSoC":
+                last_timestep_values["BatterySOCStartValue"] = pyo.value(var[timestep])
+            elif var_name == "":
+                last_timestep_values["T_TankStart_heating"] = pyo.value(var[timestep])
+            elif var_name == "":
+                last_timestep_values["T_TankStart_DHW"] = pyo.value(var[timestep])
+                 
+
         return last_timestep_values
     
     def extract_first_x_values(self, model, nr_of_values: int):
@@ -628,6 +646,7 @@ class OptConfig:
         # Battery parameters
         instance.BatteryChargeEfficiency = self.model.battery_charge_efficiency
         instance.BatteryDischargeEfficiency = self.model.battery_discharge_efficiency
+        instance.BatterySOCStartValue = self.model.BatterySOCStartValue
 
         # EV parameters
         instance.EVChargeEfficiency = self.model.EVChargeEfficiency
