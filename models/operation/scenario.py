@@ -45,7 +45,7 @@ class OperationScenario:
         self.setup_region_weather_and_pv_generation()
         self.setup_energy_price()
         self.setup_behavior()
-        self.setup_vehicle_profiles()
+        # self.setup_vehicle_profiles()
 
     def get_component_scenario_ids(self) -> dict:
         scenario_df = self.input_tables[InputTables.OperationScenario.name]
@@ -90,7 +90,7 @@ class OperationScenario:
 
     def setup_appliance_electricity_demand_profile(self):
         behavior_df = self.input_tables[InputTables.OperationScenario_BehaviorProfile.name]
-        shape = behavior_df[f'appliance_electricity_dpt{self.building.id_demand_profile_type}'].to_numpy()
+        shape = behavior_df[f'appliance_electricity_demand_profile_{self.building.id_demand_profile_type}'].to_numpy()
         shape_sum = shape.sum()
         return np.array([
             self.building.appliance_electricity_demand_per_person * self.building.person_num * shape_item / shape_sum
@@ -99,7 +99,7 @@ class OperationScenario:
 
     def setup_hot_water_demand_profile(self):
         behavior_df = self.input_tables[InputTables.OperationScenario_BehaviorProfile.name]
-        shape = behavior_df[f'hot_water_dpt{self.building.id_demand_profile_type}'].to_numpy()
+        shape = behavior_df[f'hot_water_demand_profile_{self.building.id_demand_profile_type}'].to_numpy()
         shape_sum = shape.sum()
         return np.array([
             self.building.hot_water_demand_per_person * self.building.person_num * shape_item / shape_sum
@@ -123,7 +123,7 @@ class OperationScenario:
                     min_array[hour] = not_at_home_min
             return max_array, min_array
 
-        column = f"occupancy_dpt{self.building.id_demand_profile_type}"
+        column = f"occupancy_{self.building.id_demand_profile_type}"
         (
             self.behavior.target_temperature_array_max,
             self.behavior.target_temperature_array_min,

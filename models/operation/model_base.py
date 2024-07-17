@@ -107,7 +107,6 @@ class OperationModel(ABC):
         self.space_heating_tank_temperature_min = scenario.space_heating_tank.temperature_min
         self.space_heating_tank_temperature_max = scenario.space_heating_tank.temperature_max
         self.A_SurfaceTank_heating = self.calculate_surface_area_from_volume(scenario.space_heating_tank.size)
-        self.SpaceHeating_MaxBoilerPower = self.generate_maximum_electric_or_thermal_power()
         self.Q_TankEnergyMin_heating = self.CPWater * scenario.space_heating_tank.size * \
                                        (273.15 + self.space_heating_tank_temperature_min)
         self.Q_TankEnergyMax_heating = self.CPWater * scenario.space_heating_tank.size * \
@@ -153,7 +152,8 @@ class OperationModel(ABC):
         self.Q_RoomHeating, self.Q_RoomCooling, self.T_Room, self.T_BuildingMass = \
             self.calculate_heating_and_cooling_demand(thermal_start_temperature=self.BuildingMassTemperatureStartValue,
                                                       static=False)
-
+        self.SpaceHeating_MaxBoilerPower = self.generate_maximum_electric_or_thermal_power()
+        self.max_target_temperature, self.min_target_temperature = self.generate_target_indoor_temperature(temperature_offset=3)
 
     def calculate_surface_area_from_volume(self, volume: float) -> float:
         # V = h * pi * r2 -> h = V/(r2*pi), A = 2r*pi*h + 2pi*r2 -> A = 2r*pi*V/(r2*pi) + 2pi*r2 = 2V/r + 2pi*r2
@@ -498,7 +498,7 @@ class OperationModel(ABC):
         """
         # calculate the heating demand in reference mode:
         max_heating_demand = self.Q_RoomHeating.max()
-        max_dhw_demand = self.HotWaterProfil.max()
+        max_dhw_demand = self.HotWaterProfile.max()
         # round to the next 500 W
         max_thermal_power = np.ceil((max_heating_demand + max_dhw_demand) / 500) * 500
         # distinguish between electric heating systems and conventional ones:
@@ -546,7 +546,7 @@ class OperationModel(ABC):
         when not at home (unlimited if not at home because this is endogenously derived)
         """
         upper_discharge_bound_array = []
-        for i, status in enumerate(self.vehicle_at_home):
+        for i, status in enumerate(self.EVAtHomeProfile):
             if round(status) == 1:  # when vehicle at home, discharge power is limited
                 upper_discharge_bound_array.append(self.vehicle_discharge_power_max)
             else:  # when vehicle is not at home discharge power is limited to max capacity of vehicle
@@ -574,13 +574,12 @@ class OperationModel(ABC):
         # split the vector into 36 hour pieces however the "new data" will always be available at 12o'clock
         # therefore the perfect foresight is effectively 36 hours, being updated every 24 hours
         # split the data into 36 hour pieces starting at hour 0, 12, 36, 60, 84, ...
-        splited_vector = [vector[0:12]] + [vector[i:i+24] for i in np.arange(12, 8760, 24)]
+        splited_vector = [vector[0:24]] + [vector[i:i+36] for i in np.arange(12, 8760, 24)]
         return splited_vector
 
     def return_splitted_scenarios(self):
         """This function returns a list containing OperationModel
         This operation is very inefficient. It would be better to have seperated classes for all the input data of the model and classes only for the logic."""
-        new_class = {}
         list_of_classes = [copy.deepcopy(self) for _ in range(366)]
         for key, value in self.__dict__.items():
                 if isinstance(value, Iterable) and not isinstance(value, str):
@@ -588,26 +587,5 @@ class OperationModel(ABC):
                     splitted_value = self.split_data(value)
                     for i, split_class in enumerate(list_of_classes):
                         setattr(split_class, key, splitted_value[i])
-
-
-
-        array_attributes = [attr for attr in dir(self) if isinstance(getattr(self, attr), )]
-        
-
-        return 
+        return list_of_classes
     
-    def iterate_subset(self, horizon, stride):
-        start_index = 0
-        end_index = round(horizon/self.timestep)
-        max_index = 8760
-        while end_index < max_index:
-            data_slice = slice(start_index, end_index)
-            yield(
-                data_slice, self[data_slice]
-            )
-            start_index = min(start_index + round(stride / self.timestep), max_index)
-            end_index = min(end_index + round(stride / self.timestep), max_index)
-
-
-    def __getitem__(self, index: slice):
-        return self   # return die Klasse selbst mit jedem array gesliced und dem rest nicht gesliced

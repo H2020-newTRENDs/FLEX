@@ -156,7 +156,7 @@ class RefOperationModel(OperationModel):
         self.PV2EV = np.zeros(pv_surplus.shape)
         self.Bat2EV = np.zeros(pv_surplus.shape)
 
-        if self.vehicle_capacity > 0:
+        if self.EVCapacity > 0:
             self.EVDischarge = self.EVDemandProfile / self.EVDischargeEfficiency
 
             grid_demand_after_ev = np.copy(grid_demand)

@@ -1,5 +1,5 @@
 import os
-
+from pathlib import Path
 
 class Config:
 
@@ -7,9 +7,9 @@ class Config:
         self.root = os.path.abspath(os.curdir)
         self.project_name: str = project_name
         self.project_path: str = project_path
-        self.input = self.create_folder("input")
-        self.output = self.create_folder("output")
-        self.figure = self.create_folder("output/figure")
+        self.input = Path(self.create_folder("input"))
+        self.output = Path(self.create_folder("output"))
+        self.figure = Path(self.create_folder("output/figure"))
         self.task_id = None
         self.task_output = None
 

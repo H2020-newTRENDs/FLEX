@@ -57,15 +57,16 @@ def run_opt_model(
     save_hour: bool = False,
     hour_vars: Optional[List[str]] = None
 ):
-    opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
-    if solve_status:
-        OptDataCollector(model=opt_model,
-                         scenario_id=scenario.scenario_id,
-                         config=config,
-                         save_year=save_year,
-                         save_month=save_month,
-                         save_hour=save_hour,
-                         hour_vars=hour_vars).run()
+    for rolling in [False, True]:
+        solved_model, solve_status = OptOperationModel(scenario).solve(full_instance=opt_instance, rolling_horizon=rolling)
+        if solve_status:
+            OptDataCollector(model=solved_model,
+                            scenario_id=scenario.scenario_id,
+                            config=config,
+                            save_year=save_year,
+                            save_month=save_month,
+                            save_hour=save_hour,
+                            hour_vars=hour_vars).run(rolling_horizon=True)
 
 
 def run_operation_model(config: "Config",
@@ -111,7 +112,8 @@ def run_operation_model(config: "Config",
     if scenario_ids is None:
         scenario_ids = input_tables[InputTables.OperationScenario.name]["ID_Scenario"].to_list()
     scenario_ids = align_progress(scenario_ids)
-    opt_instance = OptInstance().create_instance()
+    opt_instance = OptInstance(instance_length=8760).create_instance()
+
     for scenario_id in tqdm(scenario_ids, desc=f"{config.project_name}"):
         scenario = OperationScenario(config=config, scenario_id=scenario_id, input_tables=input_tables)
         if run_ref:

@@ -1,8 +1,9 @@
+from typing import Iterable
 import numpy as np
 import pyomo.environ as pyo
 from pyomo.opt import TerminationCondition
 import logging
-
+from models.operation.constants import OperationResultVar
 from models.operation.model_base import OperationModel
 
 
@@ -56,7 +57,7 @@ class OptInstance:
 
         # heating
         # Boiler
-        m.Boiler_COP = pyo.Param(mutable=True)
+        m.Boiler_COP = pyo.Param(mutable=True, within=pyo.Any)
         m.Boiler_MaximalThermalPower = pyo.Param(mutable=True, within=pyo.Any)
         # COP of heat pump
         m.SpaceHeatingHourlyCOP = pyo.Param(m.t, mutable=True)
@@ -467,48 +468,119 @@ class OptInstance:
         return dictionary
 
 
-def split_data(vector: np.array)->list:
-    # split the vector into 36 hour pieces however the "new data" will always be available at 12o'clock
-    # therefore the perfect foresight is effectively 36 hours, being updated every 24 hours
-    # split the data into 36 hour pieces starting at hour 0, 12, 36, 60, 84, ...
-    split_indices = np.array([0, 12])
-    split_indices = np.append(split_indices, np.arange(36, 8760, 24))
-    splited_vector = [vector[i:i+24] for i in split_indices]
-    return splited_vector
-
-
-
 class OptOperationModel(OperationModel):
+    def get_indices(self):
+        indices = [(0, 24)]  # Start with the initial 24 elements
+        indices += [(i, i + 24) for i in np.arange(12, 8760, 24)]
+        return indices
+    
+    def update_initial_values(self, model, last_timestep_values):
+        for var_name, value in last_timestep_values.items():
+            getattr(model, var_name)[1].value = value
+        return model
+    
+    def update_large_model(self, large_model, timestep_values, nr_iteration: int):
+        indices = self.get_indices()[nr_iteration]
+        for var_name, value in timestep_values.items():
+            # getattr(large_model, var_name).extract_values().value() = value
+            large_var = getattr(large_model, var_name)            
+            if isinstance(value, Iterable) and len(value) != 1:
+                for t in range(len(value)):
+                    large_var[indices[0]+1+t].value = value[t]
+                else:
+                    large_var.value = value
+        return large_model
+    
+    def extract_timestep_values(self, model, timestep: int):
+        last_timestep_values = {}
+        for var in model.component_objects(pyo.Var, active=True):
+            var_name = var.getname(fully_qualified=True)
+            last_timestep_values[var_name] = pyo.value(var[timestep])
+        return last_timestep_values
+    
+    def extract_first_x_values(self, model, nr_of_values: int):
+        first_x_values = {}
+        for var in model.component_objects(pyo.Var, active=True):
+            var_name = var.getname(fully_qualified=True)
+            first_x_values[var_name] = [pyo.value(var[t]) for t in range(1, nr_of_values+1)]
 
-    def prepare_input_data_for_rolling_horizon(self):
-        self.scenario.return_splitted_list_for_rolling_horizon()
+        for param in model.component_objects(pyo.Param, active=True):
+            param_name = param.getname(fully_qualified=True) 
+            param_values = []
+            for t in sorted(param)[:nr_of_values]:
+                if param[t].is_constant():
+                    param_values.append(pyo.value(param[t]))
+                else:
+                    if param[t].value is not None:
+                        param_values.append(pyo.value(param[t]))
+            first_x_values[param_name] = param_values
+
         
-
+        return first_x_values
 
     # @performance_counter
-    def solve(self, instance):
-        self.prepare_input_data_for_rolling_horizon()
-        logger = logging.getLogger(f"{self.scenario.config.project_name}")
+    def solve(self, full_instance, rolling_horizon: bool):
+        logger = logging.getLogger(f"{self.project_name}")
         logger.info("starting solving Opt model.")
-        
-        sub_instances = self.return_splitted_scenarios()
+        solved = True
 
-        opt_instance = OptConfig(self, instance_length=24).config_instance(instance)
-        
-        
-        
-        results = pyo.SolverFactory("gurobi").solve(opt_instance, tee=False)
-        
-        
-        if results.solver.termination_condition == TerminationCondition.optimal:
-            opt_instance.solutions.load_from(results)
-            logger.info(f"OptCost: {round(opt_instance.total_operation_cost_rule(), 2)}")
-            solved = True
+        if rolling_horizon:
+            sub_instances = self.return_splitted_scenarios()
+            instance = OptInstance(instance_length=36).create_instance()
+            instance_12 = OptInstance(instance_length=12).create_instance()
+            instance_24 = OptInstance(instance_length=24).create_instance()
+            for i, sub_instance in enumerate(sub_instances):
+                if i == 0:
+                    opt_instance = OptConfig(model=sub_instance, instance_length=24).config_instance(instance_24)
+                    results = pyo.SolverFactory("gurobi").solve(opt_instance, tee=False)
+                    if results.solver.termination_condition != TerminationCondition.optimal:
+                        solved = False
+                        break
+                    opt_instance.solutions.load_from(results)
+                    # get timestep_values of 12 o'clock and use them as initial values for the next run:
+                    last_timestep_values = self.extract_timestep_values(model=opt_instance, timestep=12)
+
+                    # update the large model with the results:
+                    timestep_values = self.extract_first_x_values(model=opt_instance, nr_of_values=24)
+                    full_instance = self.update_large_model(large_model=full_instance, timestep_values=timestep_values, nr_iteration=i)
+
+                elif i == len(sub_instances)-1:  # here we need to initialize a new instance with 12 values as size
+                    opt_instance = OptConfig(model=sub_instance, instance_length=12).config_instance(instance_12)
+                    opt_instance = self.update_initial_values(model=opt_instance, last_timestep_values=last_timestep_values)
+                    results = pyo.SolverFactory("gurobi").solve(opt_instance, tee=False)
+                    if results.solver.termination_condition != TerminationCondition.optimal:
+                        solved = False
+                        break
+                    opt_instance.solutions.load_from(results)
+
+                    # load the results into the full 8760 model:
+                    timestep_values = self.extract_first_x_values(model=opt_instance, nr_of_values=12)
+                    full_instance = self.update_large_model(large_model=full_instance, timestep_values=timestep_values, nr_iteration=i)
+
+                else:
+                    opt_instance = OptConfig(model=sub_instance, instance_length=36).config_instance(instance)
+                    opt_instance = self.update_initial_values(model=opt_instance, last_timestep_values=last_timestep_values)
+                    results = pyo.SolverFactory("gurobi").solve(opt_instance, tee=False)
+                    if results.solver.termination_condition != TerminationCondition.optimal:
+                        solved = False
+                        break
+                    opt_instance.solutions.load_from(results)
+                    last_timestep_values = self.extract_timestep_values(model=opt_instance, timestep=24)
+
+                    # update the large model with the results:
+                    timestep_values = self.extract_first_x_values(model=opt_instance, nr_of_values=24)
+                    full_instance = self.update_large_model(large_model=full_instance, timestep_values=timestep_values, nr_iteration=i)
+                print(f"calculated day {i}")
+
         else:
-            print(f'Infeasible Scenario Warning!!!!!!!!!!!!!!!!!!!!!! --> ID_Scenario = {self.model.scenario_id}')
-            logger.warning(f'Infeasible Scenario Warning!!!!!!!!!!!!!!!!!!!!!! --> ID_Scenario = {self.model.scenario_id}')
-            solved = False
-        return opt_instance, solved
+            opt_instance = OptConfig(model=self, instance_length=8760).config_instance(full_instance)
+            results = pyo.SolverFactory("gurobi").solve(opt_instance, tee=False)
+            if results.solver.termination_condition != TerminationCondition.optimal:
+                        return None, False
+            else:
+                opt_instance.solutions.load_from(results)
+                full_instance = opt_instance
+        return full_instance, solved
 
 
 class OptConfig:
@@ -537,9 +609,9 @@ class OptConfig:
     def config_static_params(self, instance):
         instance.CPWater = self.model.CPWater
         # building parameters:
-        instance.Am = self.Am_factor
-        instance.Hve = self.Hve
-        instance.Htr_w = self.Htr_w
+        instance.Am = self.model.Am_factor
+        instance.Hve = self.model.Hve
+        instance.Htr_w = self.model.Htr_w
         # parameters that have to be calculated:
         instance.Atot = self.model.Atot
         instance.Qi = self.model.Qi
@@ -674,7 +746,7 @@ class OptConfig:
     def config_space_heating(self, instance):
         for t in range(1, self.instance_length + 1):
             instance.T_BuildingMass[t].setub(100)
-        if self.model.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
+        if self.model.boiler_type in ["Air_HP", "Ground_HP", "Electric"]:
             for t in range(1, self.instance_length + 1):
                 instance.E_Heating_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
         else:
@@ -776,11 +848,9 @@ class OptConfig:
 
     def config_room_temperature(self, instance):
         # in winter only 3°C increase to keep comfort level and in summer maximum reduction of 3°C
-        max_target_temperature, min_target_temperature = self.model.generate_target_indoor_temperature(
-            temperature_offset=3)
         for t in range(1, self.instance_length + 1):
-            instance.T_Room[t].setub(max_target_temperature[t - 1])
-            instance.T_Room[t].setlb(min_target_temperature[t - 1])
+            instance.T_Room[t].setub(self.model.max_target_temperature[t - 1])
+            instance.T_Room[t].setlb(self.model.min_target_temperature[t - 1])
 
     def config_space_cooling_technology(self, instance):
         if self.model.cooling_power == 0:
@@ -801,7 +871,7 @@ class OptConfig:
 
     def config_vehicle(self, instance):
         max_discharge_ev = self.model.create_upper_bound_ev_discharge()
-        if self.model.vehicle_capacity == 0:  # no EV is implemented
+        if self.model.EVCapacity == 0:  # no EV is implemented
             for t in range(1, self.instance_length + 1):
                 instance.Grid2EV[t].fix(0)
                 instance.Bat2EV[t].fix(0)
@@ -836,7 +906,7 @@ class OptConfig:
 
             for t in range(1, self.instance_length + 1):
                 # set upper bounds
-                instance.EVSoC[t].setub(self.model.vehicle_capacity)
+                instance.EVSoC[t].setub(self.model.EVCapacity)
                 instance.EVCharge[t].setub(self.model.vehicle_charge_power_max)
                 instance.EVDischarge[t].setub(max_discharge_ev[t - 1])
                 instance.EVDemandProfile[t] = self.model.EVDemandProfile[t-1]
@@ -883,4 +953,4 @@ class OptConfig:
 
 
 if __name__=="__main__":
-    split_data(np.arange(8760))
+    pass

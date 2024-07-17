@@ -66,7 +66,7 @@ class OperationDataCollector(ABC):
         ...
 
     @abstractmethod
-    def get_total_cost(self) -> float:
+    def get_total_cost(self, rolling_horizon: bool) -> float:
         ...
 
     @abstractmethod
@@ -151,7 +151,7 @@ class OperationDataCollector(ABC):
         frame = frame.apply(pd.to_numeric, downcast='integer')
         return frame
 
-    def save_hour_result(self):
+    def save_hour_result(self, rolling: bool):
         result_hour_df = pd.DataFrame(self.hour_result)
         result_hour_df.insert(loc=0, column="ID_Scenario", value=self.scenario_id)
         result_hour_df.insert(loc=1, column="Hour", value=list(range(1, 8761)))
@@ -161,7 +161,7 @@ class OperationDataCollector(ABC):
         df_to_save = self.reduce_df_size(result_hour_df)
         write_parquet(
             data_frame=df_to_save,
-            file_name=self.get_hour_result_table_name() + f"_S{self.scenario_id}",
+            file_name=self.get_hour_result_table_name() + f"_S{self.scenario_id}_{rolling}",
             folder=self.output_folder
         )
 
@@ -175,10 +175,10 @@ class OperationDataCollector(ABC):
             data_frame=df_to_save
         )
 
-    def save_year_result(self):
+    def save_year_result(self, rolling_horizon: bool):
         result_year_df = pd.DataFrame(self.year_result, index=[0])
         result_year_df.insert(loc=0, column="ID_Scenario", value=self.scenario_id)
-        result_year_df.insert(loc=1, column="TotalCost", value=self.get_total_cost())
+        result_year_df.insert(loc=1, column="TotalCost", value=self.get_total_cost(rolling_horizon))
         df_to_save = self.reduce_df_size(result_year_df)
 
         self.db.write_dataframe(
@@ -186,14 +186,14 @@ class OperationDataCollector(ABC):
             data_frame=df_to_save
         )
 
-    def run(self):
+    def run(self, rolling_horizon: bool = True):
         self.collect_result()
         if self.save_hour:
-            self.save_hour_result()
+            self.save_hour_result(rolling_horizon)
         if self.save_month:
             self.save_month_result()
         if self.save_year:
-            self.save_year_result()
+            self.save_year_result(rolling_horizon)
 
 
 class OptDataCollector(OperationDataCollector):
@@ -203,8 +203,15 @@ class OptDataCollector(OperationDataCollector):
         )
         return var_values
 
-    def get_total_cost(self) -> float:
-        total_cost = self.model.total_operation_cost_rule()
+    def get_total_cost(self, rolling_horizon: bool) -> float:
+        if rolling_horizon:  # recalculate the objective function
+            total_cost = sum(np.array(list(getattr(self.model, "Grid").extract_values().values())) * np.array(list(getattr(self.model, "ElectricityPrice").extract_values().values())) + 
+                            np.array(list(getattr(self.model, "Fuel").extract_values().values())) * np.array(list(getattr(self.model, "FuelPrice").extract_values().values())) - 
+                            np.array(list(getattr(self.model, "Feed2Grid").extract_values().values())) * np.array(list(getattr(self.model, "FiT").extract_values().values()))
+                            )
+                                                                                                                 
+        else:
+            total_cost = self.model.total_operation_cost_rule()
         return total_cost
 
     def get_hour_result_table_name(self) -> str:
@@ -222,7 +229,7 @@ class RefDataCollector(OperationDataCollector):
         var_values = np.array(self.model.__dict__[variable_name])
         return var_values
 
-    def get_total_cost(self) -> float:
+    def get_total_cost(self, rolling_horizon) -> float:
         total_cost = self.model.__dict__["TotalCost"].sum()
         return total_cost
 

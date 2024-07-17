@@ -1,5 +1,9 @@
 import os
+import sys
 
+# Add the project root to sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(project_root)
 from models.operation.main import run_operation_model
 from plotters.operation import household_load_balance
 from utils.config import Config

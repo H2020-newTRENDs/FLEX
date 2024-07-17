@@ -1,6 +1,8 @@
+import itertools
 import os
 from typing import TYPE_CHECKING, List, Dict
 from pathlib import Path
+import numpy as np
 
 import pandas as pd
 import sqlalchemy
@@ -158,6 +160,17 @@ def init_project_db(config: "Config"):
                 data_frame=df.dropna(axis=1, how="all").dropna(axis=0, how="all"),
                 if_exists="replace"
             )
+    if file_exists(InputTables.OperationScenario.name) is None:
+        print(f"Operation Scenario Table was not provided. Creating Operation Scenario Table through permutations.")
+        component_table_names = {}
+        for input_table in InputTables:
+            if "operation" in input_table.name.lower() and "component" in input_table.name.lower():
+                component_table_names[f"ID_{input_table.name.split('_')[-1]}"] = input_table.name
+        generate_operation_scenario_table(database=db, 
+                                          scenario_table_name=InputTables.OperationScenario.name, 
+                                          component_table_names=component_table_names,
+                                          exclude_from_permutation=None,
+                                          start_scenario_table=None)
 
 
 def fetch_input_tables(config: "Config") -> Dict[str, pd.DataFrame]:
@@ -166,3 +179,93 @@ def fetch_input_tables(config: "Config") -> Dict[str, pd.DataFrame]:
     for table_name in db.get_table_names():
         input_tables[table_name] = db.read_dataframe(table_name)
     return input_tables
+
+
+def generate_params_combination_df(params_values: Dict[str, List[int]],
+                                    excluded_keys: List[str] = None,
+                                    start_scenario_table: pd.DataFrame = None) -> pd.DataFrame:
+    """
+    The function creates a permutation of all the ID vectors in the params_values dictionary values. If excluded
+    keys are provided, these IDs will not be included in the permutation. For example if you have already pre-
+    defined the building parameters and you know which building IDs will have a battery storage you should exclude
+    building IDs and Battery IDs from the permutation.
+    :param start_scenario_table: This table should contain the ID names as column names of the IDs that are
+            excluded from the permutation. The table is the starting point of the permutations. All columns
+            within the table will be treated as a single value. We need this for example when we try to
+            have different PV systems on different building types. Then the table should contain ID_Building and
+            the corresponding ID_PV.
+    :param params_values: a dictionary containing the ID name as key and the IDs as list as values.
+    :param excluded_keys: a list of ID names which should be excluded from the permutation. At least 2!
+    :return: pandas DataFrame as Scenario ID table which has the Component IDs as column names
+    """
+    if excluded_keys:
+        # check if at least 2 excluded keys were provided:
+        assert len(excluded_keys) > 1, "at least 2 ID names have to be provided in the excluded key list"
+        # check if the exclude keys have the same length,
+        excluded_values = [params_values[k] for k in excluded_keys]
+        if start_scenario_table is not None:
+            start_scenario_table = start_scenario_table[excluded_keys]  # sort
+            excluded_lists = start_scenario_table[excluded_keys].values.tolist()
+        else:
+            if not all(len(element) == len(excluded_values[0]) for element in excluded_values):
+                assert "values of excluded keys provided dont have the same length"
+            # create a list of the excluded lists
+            excluded_lists = list(map(list, zip(*excluded_values)))
+        # define the first key and its value which is used in the permutation:
+        first_excluded_key = excluded_keys[0]
+        # create new dictionary where the excluded list is the first element of the first excluded key
+        new_dict = {first_excluded_key: excluded_lists}
+        for key, values in params_values.items():
+            if key not in excluded_keys:
+                new_dict[key] = values
+
+        keys, values = zip(*new_dict.items())
+        permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+        df = pd.DataFrame(permutations_dicts)
+        # expand the column with the excluded values with their key names:
+        df[excluded_keys] = df[first_excluded_key].apply(pd.Series)
+    else:
+        keys, values = zip(*params_values.items())
+        permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
+        df = pd.DataFrame(permutations_dicts)
+    return df
+
+
+def generate_operation_scenario_table(
+        database,
+        scenario_table_name: str,
+        component_table_names: Dict[str, str],
+        exclude_from_permutation: List[str] = None,
+        start_scenario_table: pd.DataFrame = None
+        ) -> None:
+    """
+    Creates the Scenario Table and saves it to the sqlite database.
+    :param exclude_from_permutation: a list of ID names (eg. ID_Boiler) that should be excluded from permutation
+    :param scenario_table_name: Name of the scenario table, default is OperationTable.Scenarios
+    :param component_table_names: dictionary containing the ID name (eg. ID_Boiler) and the Table name (eg.
+            OperationScenario_Component_Boiler)
+    """
+    database.drop_table(scenario_table_name)
+    scenario_df = generate_params_combination_df(
+        params_values=get_component_scenario_ids(database, component_table_names),
+        excluded_keys=exclude_from_permutation,
+        start_scenario_table=start_scenario_table,
+    )
+    scenario_ids = np.array(range(1, 1 + len(scenario_df)))
+    scenario_df.insert(loc=0, column="ID_Scenario", value=scenario_ids)
+    data_types = {name: sqlalchemy.types.Integer for name in scenario_df.columns}
+    database.write_dataframe(
+        scenario_table_name,
+        scenario_df,
+        data_types=data_types,
+        if_exists="replace",
+    )
+
+def get_component_scenario_ids(db, component_table_names: Dict[str, str]) -> Dict[str, List[int]]:
+    component_scenario_ids = {}
+    engine = db.get_engine().connect()
+    for id_name, table_name in component_table_names.items():
+        if engine.dialect.has_table(engine, table_name):
+            component_scenario_ids[id_name] = db.read_dataframe(table_name)[id_name].unique()
+    return component_scenario_ids
