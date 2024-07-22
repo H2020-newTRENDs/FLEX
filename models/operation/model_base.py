@@ -156,6 +156,8 @@ class OperationModel(ABC):
         self.SpaceHeating_MaxBoilerPower = self.generate_maximum_electric_or_thermal_power()
         self.max_target_temperature, self.min_target_temperature = self.generate_target_indoor_temperature(temperature_offset=3)
 
+        self.reference_Q_RoomHeating_binary = [1 if x>0 else 0 for x in self.Q_RoomHeating ]
+
     def calculate_surface_area_from_volume(self, volume: float) -> float:
         # V = h * pi * r2 -> h = V/(r2*pi), A = 2r*pi*h + 2pi*r2 -> A = 2r*pi*V/(r2*pi) + 2pi*r2 = 2V/r + 2pi*r2
         # derivative of area: 0 = 4pi*r - 4V/r2  -> V = pi*r3  -> r = sqrt^3(V/pi)

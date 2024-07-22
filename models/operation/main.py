@@ -77,7 +77,7 @@ def run_operation_model(config: "Config",
                         save_month: bool = False,
                         save_hour: bool = False,
                         hour_vars: List[str] = None,
-                        rolling_horizon: bool = False):
+                        ):
 
     def align_progress(initial_scenario_ids):
 
@@ -114,15 +114,17 @@ def run_operation_model(config: "Config",
         scenario_ids = input_tables[InputTables.OperationScenario.name]["ID_Scenario"].to_list()
     scenario_ids = align_progress(scenario_ids)
     opt_instance = OptInstance(instance_length=8760).create_instance()
-
+    rolling = True
     for scenario_id in tqdm(scenario_ids, desc=f"{config.project_name}"):
+        if scenario_id > 9:
+            rolling = False
         scenario = OperationScenario(config=config, scenario_id=scenario_id, input_tables=input_tables)
         if run_ref:
             run_ref_model(scenario=scenario, config=config, save_year=save_year, save_month=save_month,
                           save_hour=save_hour, hour_vars=hour_vars)
         if run_opt:
             run_opt_model(opt_instance=opt_instance, scenario=scenario, config=config, save_year=save_year,
-                          save_month=save_month, save_hour=save_hour, hour_vars=hour_vars, rolling_horizon=rolling_horizon)
+                          save_month=save_month, save_hour=save_hour, hour_vars=hour_vars, rolling_horizon=rolling)
 
 
 def run_operation_model_parallel(

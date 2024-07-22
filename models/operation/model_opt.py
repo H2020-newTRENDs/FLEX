@@ -130,6 +130,9 @@ class OptInstance:
         m.T_TankStart_DHW = pyo.Param(mutable=True)
         m.T_TankStart_heating = pyo.Param(mutable=True)
 
+        # from the reference model the thermal mass temperature to identify the "value" of the preheated building mass at the end of the optimization
+        m.reference_BuildingMassTemperature = pyo.Param(m.t, mutable=True)
+        m.reference_Q_RoomHeating_binary = pyo.Param(m.t, mutable=True)
         
     @staticmethod
     def setup_variables(m):
@@ -457,11 +460,41 @@ class OptInstance:
         def calc_SupplyOfLoads(m, t):
             return m.Load[t] == m.Grid2Load[t] + m.PV2Load[t] + m.Bat2Load[t] + m.EV2Load[t]
         m.SupplyOfLoads_rule = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
+    
 
+    
     @staticmethod
     def setup_objective(m):
         def minimize_cost(m):
-            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t)
+            nr_timesteps = max(m.t)
+            average_price = sum(m.ElectricityPrice[t] for t in m.t) / nr_timesteps
+            average_outisde_temperature = sum(m.T_outside[t] for t in m.t) / nr_timesteps
+            average_heating_COP = sum(m.SpaceHeatingHourlyCOP[t] for t in m.t) / nr_timesteps
+            solar_gains = 0
+
+
+            # calculate the value of a pre-heated thermal mass:
+            # Equ. C.2
+            PHI_m = m.Am / m.Atot * (0.5 * m.Qi + solar_gains)
+            # Equ. C.3
+            PHI_st = (1 - m.Am / m.Atot - m.Htr_w / 9.1 / m.Atot) * (0.5 * m.Qi + solar_gains)
+            # T_sup = T_outside because incoming air for heating and cooling ist not pre-heated/cooled
+            T_sup = average_outisde_temperature
+
+                    
+            # difference between the building mass temperature of the same timestep in the reference model:
+            PHI_mtot = (m.T_BuildingMass[nr_timesteps] - m.reference_BuildingMassTemperature[nr_timesteps]) * ((m.Cm / 3600) - 0.5 * (m.Htr_3 + m.Htr_em)) 
+            
+            # Equ. C.5
+            Q_RoomHeating = (((PHI_mtot - PHI_m - m.Htr_em * average_outisde_temperature) *  m.Htr_2 / m.Htr_3 - PHI_st - m.Htr_w * average_outisde_temperature) / m.Htr_1 - T_sup) * m.Hve - m.PHI_ia  #- m.Q_RoomCooling[t] 
+            # Equ. C.4
+            # equivalent electricity of the heat pump when the thermal mass is hotter than in the reference model at the end of the time horizon
+            # including binary variable to restrain the model from pre-heating in summer where there is no value in pre heating
+            E_Heating_HP_out = Q_RoomHeating / average_heating_COP * 0.875 * m.reference_Q_RoomHeating_binary[nr_timesteps]   # 0. 8 accounting for the thermal losses that can not easily be estimated
+
+                
+            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t) - m.BatSoC[nr_timesteps] * average_price * m.BatteryDischargeEfficiency - E_Heating_HP_out * average_price # monetizing battery storage with average electricity price and discharge efficiency
+                                               
             return rule
         m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
 
@@ -868,6 +901,8 @@ class OptConfig:
     def config_room_temperature(self, instance):
         # in winter only 3°C increase to keep comfort level and in summer maximum reduction of 3°C
         for t in range(1, self.instance_length + 1):
+            instance.reference_BuildingMassTemperature[t] = self.model.T_BuildingMass[t-1]
+            instance.reference_Q_RoomHeating_binary[t] = self.model.reference_Q_RoomHeating_binary[t-1]
             instance.T_Room[t].setub(self.model.max_target_temperature[t - 1])
             instance.T_Room[t].setlb(self.model.min_target_temperature[t - 1])
 

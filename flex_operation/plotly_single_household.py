@@ -324,5 +324,5 @@ if __name__ == "__main__":
     plotly_visualization = PlotlyVisualize(scenario=scenario)
     plotly_visualization.show_yearly_comparison_of_SEMS_reference()
     plotly_visualization.hourly_comparison_SEMS_reference()
-    # plotly_visualization.investigate_resulting_load_profile()
+    plotly_visualization.investigate_resulting_load_profile()
     # ---------------------------------------------------------------------------------------------------------
