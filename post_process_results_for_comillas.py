@@ -1763,23 +1763,18 @@ def plot_peaks_over_different_scenarios(scenarios: list[ECEMFFigures]):
     plt.savefig(scen.path_2_figure / "Peak_demand_single_houses_no_outliers.png")
     plt.close()
 
-def plot_peak_day_profile_comparison_between_scenarios(scenarios: list[ECEMFFigures]):
-    small_df_dict = {}
-    for scen in scenarios:
-        demand_dict_max_demand, feed_dict_max_demand, demand_dict_max_feed, feed_dict_max_feed = scen.get_max_day_feed_and_demand_sum()
-        for policy_year_scen, profiles in demand_dict_max_demand.items():
-            if "baseline" in policy_year_scen:
-                continue  # exclude baseline because its the same as 2020
-            small_df_dict[policy_year_scen] = profiles.sum(axis=1) / 1_000 / 1_000  # MW, baseline will be always the same and gets overwritten
 
-    small_df = pd.DataFrame.from_dict(small_df_dict, orient="index").T.reset_index().rename(columns={"index": "hours"}).melt(value_name="load in (MW)", id_vars="hours")
-    small_df["policy scenario"] = small_df["variable"].apply(lambda x: "weak policy" if "weak" in x.lower() else "strong policy")
-    small_df["prosumager scenario"] = small_df["variable"].apply(lambda x: "High Prosumager" if "high" in x.lower() else ("Medium Prosumager" if "medium" in x.lower() else "Low Prosumager"))
-    small_df["year"] = small_df["variable"].apply(lambda x: x[-4:])
+def re_work_df(dictionary):
+    df = pd.DataFrame.from_dict(dictionary, orient="index").T.reset_index().rename(columns={"index": "hours"}).melt(value_name="load in (MW)", id_vars="hours")
+    df["policy scenario"] = df["variable"].apply(lambda x: "weak policy" if "weak" in x.lower() else "strong policy")
+    df["prosumager scenario"] = df["variable"].apply(lambda x: "High Prosumager" if "high" in x.lower() else ("Medium Prosumager" if "medium" in x.lower() else "Low Prosumager"))
+    df["year"] = df["variable"].apply(lambda x: x[-4:])
+    return df
     
+def create_plot(df, demand_or_feed: str, scen):
     years_to_plot = ["2030", "2040", "2050"]
-    df_2020 = small_df[small_df['year'] == "2020"].iloc[:24, :]  # 2020 is always the same because its the baseline
-    df_other_years = small_df[small_df['year'].isin(years_to_plot)]
+    df_2020 = df[df['year'] == "2020"].iloc[:24, :]  # 2020 is always the same because its the baseline
+    df_other_years = df[df['year'].isin(years_to_plot)]
     palette = sns.color_palette("tab10")
     matplotlib.rc("font", **{"size": 38})
     # Create a figure with subplots
@@ -1805,8 +1800,38 @@ def plot_peak_day_profile_comparison_between_scenarios(scenarios: list[ECEMFFigu
         ax.legend(handles, labels, loc='upper left', ncol=len(labels)//4,)# bbox_to_anchor=(0.475, 0.87))
 
     plt.tight_layout()
-    plt.savefig(scen.path_2_figure / "Peak_demand_profile_comparison.svg")
+    plt.savefig(scen.path_2_figure / f"Peak_{demand_or_feed}_profile_comparison.svg")
+    print(f"Peak_{demand_or_feed}_profile_comparison.svg  saved")
     plt.close()
+
+
+def plot_peak_day_profile_comparison_between_scenarios(scenarios: list[ECEMFFigures]):
+    peak_demand_dict = {}
+    peak_feed_dict = {}
+    for scen in scenarios:
+        demand_dict_max_demand, feed_dict_max_demand, demand_dict_max_feed, feed_dict_max_feed = scen.get_max_day_feed_and_demand_sum()
+        for policy_year_scen, profiles in demand_dict_max_demand.items():
+            if "baseline" in policy_year_scen:
+                continue  # exclude baseline because its the same as 2020
+            peak_demand_dict[policy_year_scen] = profiles.sum(axis=1) / 1_000 / 1_000  # MW, baseline will be always the same and gets overwritten
+
+        for policy_year_scen, profiles in feed_dict_max_feed.items():
+            if "baseline" in policy_year_scen:
+                continue  # exclude baseline because its the same as 2020
+            peak_feed_dict[policy_year_scen] = profiles.sum(axis=1) / 1_000 / 1_000  # MW, baseline will be always the same and gets overwritten
+    
+    df_demand = re_work_df(peak_demand_dict)
+    df_feed = re_work_df(peak_feed_dict)
+    # plot the peak demand day:
+    create_plot(df_demand, demand_or_feed="demand", scen=scen)
+    # plot the peak feed day
+    create_plot(df_feed, demand_or_feed="feed", scen=scen)
+    df_demand.to_csv(scen.path_2_figure / "peak_demand_day.csv", index=False)
+    df_feed.to_csv(scen.path_2_figure / "peak_feed_day.csv", index=False)
+
+
+
+
         
             
 def plot_peak_day_comparison_between_scenarios(scenarios: list[ECEMFFigures]):
