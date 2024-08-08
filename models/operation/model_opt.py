@@ -135,6 +135,7 @@ class OptInstance:
         # from the reference model the thermal mass temperature to identify the "value" of the preheated building mass at the end of the optimization
         m.reference_BuildingMassTemperature = pyo.Param(m.t, mutable=True)
         m.reference_Q_RoomHeating_binary = pyo.Param(m.t, mutable=True)
+        m.thermal_mass_loss_factor = pyo.Param(m.t, mutable=True)
         
     @staticmethod
     def setup_variables(m):
@@ -493,20 +494,20 @@ class OptInstance:
             # Equ. C.4
             # equivalent electricity of the heat pump when the thermal mass is hotter than in the reference model at the end of the time horizon
             # including binary variable to restrain the model from pre-heating in summer where there is no value in pre heating
-            thermal_mass_value = Q_RoomHeating / average_heating_COP * 0.875 * m.reference_Q_RoomHeating_binary[nr_timesteps]   # 0. 8 accounting for the thermal losses that can not easily be estimated
+            thermal_mass_value = Q_RoomHeating / average_heating_COP * (1-m.thermal_mass_loss_factor[nr_timesteps]) * m.reference_Q_RoomHeating_binary[nr_timesteps]
 
             # monetize battery 
             battery_value =  m.BatSoC[nr_timesteps] * m.BatteryDischargeEfficiency
             
             # monetize DHW tank
-            DHW_loss_value = m.U_LossTank_DHW * m.A_SurfaceTank_DHW * (m.Q_DHWTank[nr_timesteps] / (m.M_WaterTank_DHW * m.CPWater) - (m.T_TankSurrounding_DHW + 273.15)) * 8  # because its estimated that the storage will be used 8 hours before discharged
-            DHW_tank_value = (m.Q_DHWTank[nr_timesteps] - m.Q_TankEnergyMin_DHW) / average_dhw_tank_COP * DHW_loss_value
+            # DHW_loss_value = m.U_LossTank_DHW * m.A_SurfaceTank_DHW * (m.Q_DHWTank[nr_timesteps] / (m.M_WaterTank_DHW * m.CPWater) - (m.T_TankSurrounding_DHW + 273.15)) * 8  # because its estimated that the storage will be used 8 hours before discharged
+            # DHW_tank_value = (m.Q_DHWTank[nr_timesteps] - m.Q_TankEnergyMin_DHW) / average_dhw_tank_COP * DHW_loss_value
             
             # monetize heating tank
-            heating_loss_value = m.U_LossTank_heating * m.A_SurfaceTank_heating * (m.Q_heatingTank[nr_timesteps] / (m.M_WaterTank_heating * m.CPWater) - (m.T_TankSurrounding_heating + 273.15)) * 8
-            heating_tank_value =  (m.Q_heatingTank[nr_timesteps] - m.Q_TankEnergyMin_heating) / average_heating_tank_COP * heating_loss_value
+            # heating_loss_value = m.U_LossTank_heating * m.A_SurfaceTank_heating * (m.Q_HeatingTank[nr_timesteps] / (m.M_WaterTank_heating * m.CPWater) - (m.T_TankSurrounding_heating + 273.15)) * 8
+            # heating_tank_value =  (m.Q_HeatingTank[nr_timesteps] - m.Q_TankEnergyMin_heating) / average_heating_tank_COP * heating_loss_value
                 
-            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t) - (battery_value + thermal_mass_value + DHW_tank_value + heating_tank_value) * average_price   # monetizing battery storage with average electricity price and discharge efficiency
+            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t) - (battery_value + thermal_mass_value) * average_price   # DHW_tank_value + heating_tank_value  monetizing battery storage with average electricity price and discharge efficiency
                                                
             return rule
         m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
@@ -729,6 +730,8 @@ class OptConfig:
             instance.HotWaterProfile[t] = self.model.HotWaterProfile[t-1]
             instance.BaseLoadProfile[t] = self.model.BaseLoadProfile[t-1]
             instance.PhotovoltaicProfile[t] = self.model.PhotovoltaicProfile[t-1]
+            instance.thermal_mass_loss_factor[t] = self.model.thermal_mass_loss_factor[t-1]
+
 
         if self.model.boiler_type in ["Air_HP", "Ground_HP", "Electric"]:
             for t in range(1, self.instance_length + 1):

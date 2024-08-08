@@ -4,7 +4,20 @@ import numpy as np
 from typing import Union
 from models.operation.scenario import OperationScenario
 import copy
-import pydantic
+import pandas as pd
+
+building_id_to_name = {
+    4: "EZFH 1 B" ,
+    5: "EZFH 1 S" ,
+    1: "EZFH 5 B" ,
+    2: "EZFH 5 S" ,
+    3: "EZFH 9 B" ,
+    8: "MFH 1 B",
+    9: "MFH 1 S",
+    6: "MFH 5 B",
+    7: "MFH 5 S",
+}
+
 
 class OperationModel(ABC):
 
@@ -156,7 +169,40 @@ class OperationModel(ABC):
         self.SpaceHeating_MaxBoilerPower = self.generate_maximum_electric_or_thermal_power()
         self.max_target_temperature, self.min_target_temperature = self.generate_target_indoor_temperature(temperature_offset=3)
 
-        self.reference_Q_RoomHeating_binary = [1 if x>0 else 0 for x in self.Q_RoomHeating ]
+        self.reference_Q_RoomHeating_binary = [1 if x>0 else 0 for x in self.Q_RoomHeating]
+
+        self.calculate_thermal_mass_loss_factor_based_on_outside_temp(scenario)
+
+    def calculate_thermal_mass_loss_factor_based_on_outside_temp(self, scenario):
+        df = pd.read_csv(scenario.config.input / "thermal_mass_loss_based_on_outside_temperature.csv", sep=";")
+
+        scen_table = scenario.input_tables["OperationScenario"]
+        building_id = scen_table.loc[scen_table["ID_Scenario"]==self.scenario_id, "ID_Building"].values[0]
+        
+        b_df = df.loc[df["Building ID"]==building_id_to_name[building_id], :].copy()
+        loss_array = b_df["loss"].values
+        max_temp = b_df["outside temperature"].max()
+        loss_max_temp = b_df.loc[b_df["outside temperature"]==max_temp, "loss"].values[0]
+        min_temp = b_df["outside temperature"].min()
+        loss_min_temp = b_df.loc[b_df["outside temperature"]==min_temp, "loss"].values[0]
+
+        loss_vector = []
+        for x in self.T_outside:
+            if x > max_temp:
+                loss_vector.append(loss_max_temp + (x-max_temp)/100 + 0.02)  # plus a penalty if the temperature is much higher
+            elif x < min_temp:
+                loss_vector.append(loss_min_temp + 0.015)
+            else:
+            # interpolate
+                diff_array = np.abs(b_df["outside temperature"].values - x)
+                smallest_indices = np.argpartition(diff_array, 2)[:2]
+                closest_losses = loss_array[smallest_indices]
+                closest_diffs = diff_array[smallest_indices]
+                weighted_sum = (closest_losses * closest_diffs).sum()
+                loss_vector.append(weighted_sum + 0.015)
+
+        self.thermal_mass_loss_factor = loss_vector
+
 
     def calculate_surface_area_from_volume(self, volume: float) -> float:
         # V = h * pi * r2 -> h = V/(r2*pi), A = 2r*pi*h + 2pi*r2 -> A = 2r*pi*V/(r2*pi) + 2pi*r2 = 2V/r + 2pi*r2
