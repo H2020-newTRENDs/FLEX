@@ -93,6 +93,7 @@ class OptInstance:
         m.M_WaterTank_heating = pyo.Param(mutable=True)
         m.T_TankSurrounding_heating = pyo.Param(mutable=True)
         m.Q_TankEnergyMin_heating = pyo.Param(mutable=True)
+        m.space_heating_tank_temperature_max = pyo.Param(mutable=True)
 
         # DHW tank
         m.U_LossTank_DHW = pyo.Param(mutable=True)
@@ -500,14 +501,14 @@ class OptInstance:
             battery_value =  m.BatSoC[nr_timesteps] * m.BatteryDischargeEfficiency
             
             # monetize DHW tank
-            # DHW_loss_value = m.U_LossTank_DHW * m.A_SurfaceTank_DHW * (m.Q_DHWTank[nr_timesteps] / (m.M_WaterTank_DHW * m.CPWater) - (m.T_TankSurrounding_DHW + 273.15)) * 8  # because its estimated that the storage will be used 8 hours before discharged
-            # DHW_tank_value = (m.Q_DHWTank[nr_timesteps] - m.Q_TankEnergyMin_DHW) / average_dhw_tank_COP * DHW_loss_value
+            # DHW_loss_tank = 0.97  # m.U_LossTank_DHW * m.A_SurfaceTank_DHW * (m.Q_DHWTank[nr_timesteps] / (m.M_WaterTank_DHW * m.CPWater) - (m.T_TankSurrounding_DHW + 273.15)) * 8  # because its estimated that the storage will be used 8 hours before discharged
+            # DHW_tank_value = (m.Q_DHWTank[nr_timesteps] - m.Q_TankEnergyMin_DHW) / average_dhw_tank_COP * DHW_loss_tank
             
             # monetize heating tank
-            heating_loss_value = m.U_LossTank_heating * m.A_SurfaceTank_heating * (m.Q_HeatingTank[nr_timesteps] / (m.M_WaterTank_heating * m.CPWater) - (m.T_TankSurrounding_heating + 273.15)) * 8
-            heating_tank_value =  (m.Q_HeatingTank[nr_timesteps] - m.Q_TankEnergyMin_heating) / average_heating_tank_COP * heating_loss_value
+            # heating_loss_tank = 1  # m.U_LossTank_heating * m.A_SurfaceTank_heating * (m.space_heating_tank_temperature_max - m.T_TankSurrounding_heating) * 3 / m.Q_TankEnergyMin_heating
+            # heating_tank_value =  (m.Q_HeatingTank[nr_timesteps] - m.Q_TankEnergyMin_heating) / average_heating_tank_COP  * heating_loss_tank * m.reference_Q_RoomHeating_binary[nr_timesteps]
                 
-            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t) - (battery_value + thermal_mass_value + heating_tank_value ) * average_price   # DHW_tank_value  monetizing battery storage with average electricity price and discharge efficiency
+            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t) - (battery_value + thermal_mass_value ) * average_price   # DHW_tank_value  heating_tank_value monetizing battery storage with average electricity price and discharge efficiency
                                                
             return rule
         m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
@@ -555,11 +556,12 @@ class OptOperationModel(OperationModel):
                 last_timestep_values["BuildingMassTemperatureStartValue"] = pyo.value(var[timestep])
             elif var_name == "BatSoC":
                 last_timestep_values["BatterySOCStartValue"] = pyo.value(var[timestep])
-            elif var_name == "":
-                last_timestep_values["T_TankStart_heating"] = pyo.value(var[timestep])
-            elif var_name == "":
-                last_timestep_values["T_TankStart_DHW"] = pyo.value(var[timestep])
-                 
+            elif var_name == "Q_HeatingTank" and model.M_WaterTank_heating.value != 0:
+                last_timestep_values["T_TankStart_heating"] = pyo.value(var[timestep]) / (model.M_WaterTank_heating.value * model.CPWater.value) - 273.15
+            elif var_name == "Q_DHWTank" and model.M_WaterTank_DHW.value != 0:
+                last_timestep_values["T_TankStart_DHW"] = pyo.value(var[timestep]) / (model.M_WaterTank_DHW.value * model.CPWater.value) - 273.15
+            elif var_name == "BatSoC":
+                last_timestep_values["BatterySOCStartValue"] = pyo.value(var[timestep])             
 
         return last_timestep_values
     
@@ -707,6 +709,7 @@ class OptConfig:
         instance.T_TankSurrounding_heating = self.model.T_TankSurrounding_heating
         instance.A_SurfaceTank_heating = self.model.A_SurfaceTank_heating
         instance.Q_TankEnergyMin_heating = self.model.Q_TankEnergyMin_heating
+        instance.space_heating_tank_temperature_max = self.model.space_heating_tank_temperature_max
 
         # Thermal storage DHW parameters
         instance.T_TankStart_DHW = self.model.T_TankStart_DHW
