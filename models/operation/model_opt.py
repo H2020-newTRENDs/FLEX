@@ -504,10 +504,10 @@ class OptInstance:
             # DHW_tank_value = (m.Q_DHWTank[nr_timesteps] - m.Q_TankEnergyMin_DHW) / average_dhw_tank_COP * DHW_loss_value
             
             # monetize heating tank
-            # heating_loss_value = m.U_LossTank_heating * m.A_SurfaceTank_heating * (m.Q_HeatingTank[nr_timesteps] / (m.M_WaterTank_heating * m.CPWater) - (m.T_TankSurrounding_heating + 273.15)) * 8
-            # heating_tank_value =  (m.Q_HeatingTank[nr_timesteps] - m.Q_TankEnergyMin_heating) / average_heating_tank_COP * heating_loss_value
+            heating_loss_value = m.U_LossTank_heating * m.A_SurfaceTank_heating * (m.Q_HeatingTank[nr_timesteps] / (m.M_WaterTank_heating * m.CPWater) - (m.T_TankSurrounding_heating + 273.15)) * 8
+            heating_tank_value =  (m.Q_HeatingTank[nr_timesteps] - m.Q_TankEnergyMin_heating) / average_heating_tank_COP * heating_loss_value
                 
-            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t) - (battery_value + thermal_mass_value) * average_price   # DHW_tank_value + heating_tank_value  monetizing battery storage with average electricity price and discharge efficiency
+            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t) - (battery_value + thermal_mass_value + heating_tank_value ) * average_price   # DHW_tank_value  monetizing battery storage with average electricity price and discharge efficiency
                                                
             return rule
         m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
@@ -851,7 +851,7 @@ class OptConfig:
             instance.tank_energy_rule_heating.activate()
 
     def config_hot_water_tank(self, instance):
-        if self.model.M_WaterTank_heating == 0:
+        if self.model.M_WaterTank_DHW == 0:
             for t in range(1, self.instance_length + 1):
                 instance.Q_DHWTank_out[t].fix(0)
                 instance.Q_DHWTank_in[t].fix(0)
