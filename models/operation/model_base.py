@@ -172,6 +172,9 @@ class OperationModel(ABC):
         self.reference_Q_RoomHeating_binary = [1 if x>0 else 0 for x in self.Q_RoomHeating]
 
         self.calculate_thermal_mass_loss_factor_based_on_outside_temp(scenario)
+        self.add_thermal_heating_tank_loss_factor(scenario)
+        self.add_thermal_dhw_tank_loss_factor(scenario)
+        self.add_price_quantile_values_for_thermal_mass(scenario)
 
     def calculate_thermal_mass_loss_factor_based_on_outside_temp(self, scenario):
         df = pd.read_csv(scenario.config.input / "thermal_mass_loss_based_on_outside_temperature.csv", sep=";")
@@ -199,9 +202,35 @@ class OperationModel(ABC):
                 closest_losses = loss_array[smallest_indices]
                 closest_diffs = diff_array[smallest_indices]
                 weighted_sum = (closest_losses * closest_diffs).sum()
-                loss_vector.append(weighted_sum + 0.015)
+                loss_vector.append(weighted_sum)
 
         self.thermal_mass_loss_factor = loss_vector
+    
+    def get_building_id(self, scenario):
+        scen_table = scenario.input_tables["OperationScenario"]
+        building_id = scen_table.loc[scen_table["ID_Scenario"]==self.scenario_id, "ID_Building"].values[0]
+        return building_id
+
+    def add_price_quantile_values_for_thermal_mass(self, scenario):
+        df = pd.read_csv(scenario.config.input / "price_quantile_values_thermal_mass.csv", sep=";")
+        building_id = self.get_building_id(scenario)
+        self.price_quantile_for_charging_thermal_mass = df.loc[df["ID_Building"]==building_id_to_name[building_id], "price quantile for charging"].values[0]
+
+    def add_thermal_heating_tank_loss_factor(self, scenario):
+        if self.M_WaterTank_heating != 0:
+            df = pd.read_csv(scenario.config.input / "Heating_tank_loss_values.csv", sep=";")
+            building_id = self.get_building_id(scenario)
+            self.heating_tank_loss_factor = df.loc[df["ID_Building"]==building_id_to_name[building_id], "xi_heating_tank"].values[0]
+        else:
+            self.heating_tank_loss_factor = 1
+
+    def add_thermal_dhw_tank_loss_factor(self, scenario):
+        if self.M_WaterTank_DHW != 0:
+            df = pd.read_csv(scenario.config.input / "DHW_tank_loss_values.csv", sep=";")
+            building_id = self.get_building_id(scenario)
+            self.dhw_tank_loss_factor = df.loc[df["ID_Building"]==building_id_to_name[building_id], "xi_dhw_tank"].values[0]  
+        else:
+            self.dhw_tank_loss_factor = 1
 
 
     def calculate_surface_area_from_volume(self, volume: float) -> float:

@@ -51,6 +51,7 @@ class OptInstance:
         # solar gains:
         m.Q_Solar = pyo.Param(m.t, mutable=True)
         m.ElectricityPrice = pyo.Param(m.t, mutable=True)
+        m.price_quantile_for_charging_thermal_mass = pyo.Param(mutable=True)  # not time depend, has to be calculated outside
         m.FuelPrice = pyo.Param(m.t, mutable=True)
         # Feed in Tariff of Photovoltaic
         m.FiT = pyo.Param(m.t, mutable=True)
@@ -508,7 +509,7 @@ class OptInstance:
             # monetize heating tank
             # heating_tank_value =  (m.Q_HeatingTank[nr_timesteps] - m.Q_TankEnergyMin_heating) / average_heating_tank_COP  * (1-m.heating_tank_loss_factor) * m.reference_Q_RoomHeating_binary[nr_timesteps]
                 
-            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t) - (battery_value + thermal_mass_value) * average_price   # DHW_tank_value  heating_tank_value monetizing battery storage with average electricity price and discharge efficiency
+            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t) - thermal_mass_value * m.price_quantile_for_charging_thermal_mass   # DHW_tank_value  heating_tank_value monetizing battery storage with average electricity price and discharge efficiency
                                                
             return rule
         m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
@@ -810,6 +811,10 @@ class OptConfig:
             instance.heating_element_rule.activate()
 
     def config_prices(self, instance):
+        sorted_price = sorted(self.model.ElectricityPrice)
+        lower_quantile = sorted_price[:int(self.instance_length*self.model.price_quantile_for_charging_thermal_mass)]
+        instance.price_quantile_for_charging_thermal_mass = sum(lower_quantile) / len(lower_quantile)
+
         for t in range(1, self.instance_length + 1):
             instance.ElectricityPrice[t] = self.model.ElectricityPrice[t-1]
             instance.FiT[t] = self.model.FiT[t-1]

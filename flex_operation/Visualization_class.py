@@ -28,7 +28,7 @@ class MotherVisualization:
         ) = self.fetch_results_for_specific_scenario_id()
 
     def create_header(self) -> str:
-        building_id = self.scenario.input_tables[InputTables.OperationScenario.name].query(f'ID_Scenario == {self.scenario.scenario_id}')["ID_Building"][0]
+        building_id = self.scenario.input_tables[InputTables.OperationScenario.name].query(f'ID_Scenario == {self.scenario.scenario_id}')["ID_Building"].values[0]
         return (
             f"Scenario: {self.scenario.scenario_id}; \n "
             f"AC: {int(self.scenario.space_cooling_technology.power)} W; \n "
