@@ -171,10 +171,19 @@ class OperationModel(ABC):
 
         self.reference_Q_RoomHeating_binary = [1 if x>0 else 0 for x in self.Q_RoomHeating]
 
+        self.load_dual_variables(scenario)
+
         self.calculate_thermal_mass_loss_factor_based_on_outside_temp(scenario)
         self.add_thermal_heating_tank_loss_factor(scenario)
         self.add_thermal_dhw_tank_loss_factor(scenario)
         self.add_price_quantile_values_for_thermal_mass(scenario)
+
+    def load_dual_variables(self, scenario):
+        # df = pd.read_csv(scenario.config.input / "dual_variables.csv", sep=";").query(f"ID_Building == {self.get_building_id(scenario=scenario)}")
+        self.dual_battery = 0  #df["dual variable Battery SOC"].values
+        self.dual_heating_tank = 0  #df["dual variable heating tank SOC"].values
+        self.dual_dhw_tank = 0  # df["dual variable DHW tank SOC"].values
+        self.dual_thermal_mass = 0  #df["dual variable thermal mass"].values        
 
     def calculate_thermal_mass_loss_factor_based_on_outside_temp(self, scenario):
         df = pd.read_csv(scenario.config.input / "thermal_mass_loss_based_on_outside_temperature.csv", sep=";")
@@ -194,7 +203,7 @@ class OperationModel(ABC):
             if x > max_temp:
                 loss_vector.append(loss_max_temp + (x-max_temp)/100 + 0.02)  # plus a penalty if the temperature is much higher
             elif x < min_temp:
-                loss_vector.append(loss_min_temp + 0.015)
+                loss_vector.append(loss_min_temp)
             else:
             # interpolate
                 diff_array = np.abs(b_df["outside temperature"].values - x)
@@ -206,13 +215,13 @@ class OperationModel(ABC):
 
         self.thermal_mass_loss_factor = loss_vector
     
-    def get_building_id(self, scenario):
+    def get_building_id(self, scenario) -> int:
         scen_table = scenario.input_tables["OperationScenario"]
         building_id = scen_table.loc[scen_table["ID_Scenario"]==self.scenario_id, "ID_Building"].values[0]
         return building_id
 
     def add_price_quantile_values_for_thermal_mass(self, scenario):
-        df = pd.read_csv(scenario.config.input / "price_quantile_values_thermal_mass.csv", sep=";")
+        df = pd.read_csv(scenario.config.input / "price_quantile_values_thermal_mass_unweighted.csv", sep=";")
         building_id = self.get_building_id(scenario)
         self.price_quantile_for_charging_thermal_mass = df.loc[df["ID_Building"]==building_id_to_name[building_id], "price quantile for charging"].values[0]
 

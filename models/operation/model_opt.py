@@ -56,6 +56,12 @@ class OptInstance:
         # Feed in Tariff of Photovoltaic
         m.FiT = pyo.Param(m.t, mutable=True)
 
+        # dual variables from csv file:
+        m.dual_battery = pyo.Param(mutable=True)
+        m.dual_heating_tank =pyo.Param(mutable=True)
+        m.dual_dhw_tank = pyo.Param(mutable=True)
+        m.dual_thermal_mass = pyo.Param(mutable=True)
+
         # heating
         # Boiler
         m.Boiler_COP = pyo.Param(mutable=True, within=pyo.Any)
@@ -254,7 +260,7 @@ class OptInstance:
         def room_temperature_rc(m, t):
             if t == 1:
                 Tm_start = m.BuildingMassTemperatureStartValue
-            else:
+            else:                
                 Tm_start = m.T_BuildingMass[t - 1]
             # Equ. C.3
             PHI_st = (1 - m.Am / m.Atot - m.Htr_w / 9.1 / m.Atot) * (
@@ -324,7 +330,7 @@ class OptInstance:
                     m.Q_HeatingElement_heat[t]
             )
 
-        m.calc_use_of_HP_power_DHW_rule = pyo.Constraint(
+        m.calc_use_of_HP_power_heating_rule = pyo.Constraint(
             m.t, rule=calc_supply_of_space_heating_HP
         )
 
@@ -469,7 +475,6 @@ class OptInstance:
         m.SupplyOfLoads_rule = pyo.Constraint(m.t, rule=calc_SupplyOfLoads)
     
 
-    
     @staticmethod
     def setup_objective(m):
         def minimize_cost(m):
@@ -491,15 +496,16 @@ class OptInstance:
 
                     
             # difference between the building mass temperature of the same timestep in the reference model:
-            PHI_mtot = (m.T_BuildingMass[nr_timesteps] - m.reference_BuildingMassTemperature[nr_timesteps]) * ((m.Cm / 3600) - 0.5 * (m.Htr_3 + m.Htr_em)) 
+            # PHI_mtot = (m.T_BuildingMass[nr_timesteps] - m.reference_BuildingMassTemperature[nr_timesteps]) * ((m.Cm / 3600) - 0.5 * (m.Htr_3 + m.Htr_em)) 
             
             # Equ. C.5
-            Q_RoomHeating = (((PHI_mtot - PHI_m - m.Htr_em * average_outisde_temperature) *  m.Htr_2 / m.Htr_3 - PHI_st - m.Htr_w * average_outisde_temperature) / m.Htr_1 - T_sup) * m.Hve - m.PHI_ia  #- m.Q_RoomCooling[t] 
+            # Q_RoomHeating = (((PHI_mtot - PHI_m - m.Htr_em * average_outisde_temperature) *  m.Htr_2 / m.Htr_3 - PHI_st - m.Htr_w * average_outisde_temperature) / m.Htr_1 - T_sup) * m.Hve - m.PHI_ia  #- m.Q_RoomCooling[t] 
+            
             # Equ. C.4
             # equivalent electricity of the heat pump when the thermal mass is hotter than in the reference model at the end of the time horizon
             # including binary variable to restrain the model from pre-heating in summer where there is no value in pre heating
-            thermal_mass_value = Q_RoomHeating / average_heating_COP * (1-m.thermal_mass_loss_factor[nr_timesteps]) * m.reference_Q_RoomHeating_binary[nr_timesteps]
-
+            # thermal_mass_value = Q_RoomHeating / average_heating_COP * (1-m.thermal_mass_loss_factor[nr_timesteps]) * m.reference_Q_RoomHeating_binary[nr_timesteps]
+            thermal_mass_value = (m.T_BuildingMass[nr_timesteps] - m.reference_BuildingMassTemperature[nr_timesteps]) * m.dual_thermal_mass * m.reference_Q_RoomHeating_binary[nr_timesteps]
             # monetize battery 
             battery_value =  m.BatSoC[nr_timesteps] * m.BatteryDischargeEfficiency
             
@@ -509,8 +515,8 @@ class OptInstance:
             # monetize heating tank
             # heating_tank_value =  (m.Q_HeatingTank[nr_timesteps] - m.Q_TankEnergyMin_heating) / average_heating_tank_COP  * (1-m.heating_tank_loss_factor) * m.reference_Q_RoomHeating_binary[nr_timesteps]
                 
-            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t) - thermal_mass_value * m.price_quantile_for_charging_thermal_mass   # DHW_tank_value  heating_tank_value monetizing battery storage with average electricity price and discharge efficiency
-                                               
+            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t) + thermal_mass_value    # DHW_tank_value  heating_tank_value monetizing battery storage with average electricity price and discharge efficiency
+            
             return rule
         m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
 
@@ -528,12 +534,19 @@ class OptOperationModel(OperationModel):
         indices += [(i, i + 24) for i in np.arange(12, 8760, 24)]
         return indices
     
-    def update_initial_values(self, model, last_timestep_values):
+    def update_initial_values(self, model, last_timestep_values, duals_dict: dict):
         for var_name, value in last_timestep_values.items():
             try:
                 getattr(model, var_name)[1].value = value
             except KeyError:
                 getattr(model, var_name).value = value
+        
+        for dual_name, dual_value in duals_dict.items():
+            if not np.isnan(dual_value):
+                try:
+                    getattr(model, dual_name).value = dual_value
+                except:
+                    print(f"setting duals didnt work for {dual_name}")
         return model
     
     def update_large_model(self, large_model, timestep_values, nr_iteration: int):
@@ -562,8 +575,7 @@ class OptOperationModel(OperationModel):
             elif var_name == "Q_DHWTank" and model.M_WaterTank_DHW.value != 0:
                 last_timestep_values["T_TankStart_DHW"] = pyo.value(var[timestep]) / (model.M_WaterTank_DHW.value * model.CPWater.value) - 273.15
             elif var_name == "BatSoC":
-                last_timestep_values["BatterySOCStartValue"] = pyo.value(var[timestep])             
-
+                last_timestep_values["BatterySOCStartValue"] = pyo.value(var[timestep]) 
         return last_timestep_values
     
     def extract_first_x_values(self, model, nr_of_values: int):
@@ -585,6 +597,37 @@ class OptOperationModel(OperationModel):
 
         
         return first_x_values
+    
+    def get_dual_variables(self, inst: OptInstance) -> dict:
+        binary_heating = inst.reference_Q_RoomHeating_binary.extract_values()
+        shadow_battery = []
+        shadow_dhw = []
+        shadow_tank = []
+        shadow_thermal_mass = []
+        if inst.BatSoC_rule.active:
+            for t in inst.t:
+                if t <= 24:  # dont take the later value as they distort the mean when they go to 0
+                    shadow_battery.append(inst.dual[inst.BatSoC_rule[t]])
+        if inst.tank_energy_rule_DHW.active:
+             for t in inst.t:
+                if t <= 24: 
+                    shadow_dhw.append(inst.dual[inst.tank_energy_rule_DHW[t]])
+        if inst.tank_energy_rule_heating.active:
+             for t in inst.t:  
+                if t <= 24: 
+                    shadow_tank.append(inst.dual[inst.tank_energy_rule_heating[t]])
+        if inst.thermal_mass_temperature_rule.active:
+             for t in inst.t:  
+                if t <= 24: 
+                    shadow_thermal_mass.append(inst.dual[inst.thermal_mass_temperature_rule[t]]*binary_heating[t])
+        
+        dual_variables = {}
+        dual_variables["dual_battery"] = np.array(shadow_battery).mean()
+        dual_variables["dual_dhw_tank"] = np.array(shadow_dhw).mean()
+        dual_variables["dual_heating_tank"] = np.array(shadow_tank).mean()
+        dual_variables["dual_thermal_mass"] = np.array(shadow_thermal_mass).mean()
+        return dual_variables
+        
 
     # @performance_counter
     def solve(self, full_instance, rolling_horizon: bool):
@@ -597,9 +640,13 @@ class OptOperationModel(OperationModel):
             instance = OptInstance(instance_length=36).create_instance()
             instance_12 = OptInstance(instance_length=12).create_instance()
             instance_24 = OptInstance(instance_length=24).create_instance()
+            thermal_duals_for_plot = []
             for i, sub_instance in enumerate(sub_instances):
                 if i == 0:
                     opt_instance = OptConfig(model=sub_instance, instance_length=24).config_instance(instance_24)
+                    if hasattr(opt_instance, 'dual'):
+                        opt_instance.del_component('dual')
+                    opt_instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
                     results = pyo.SolverFactory("gurobi").solve(opt_instance, tee=False)
                     if results.solver.termination_condition != TerminationCondition.optimal:
                         solved = False
@@ -607,14 +654,19 @@ class OptOperationModel(OperationModel):
                     opt_instance.solutions.load_from(results)
                     # get timestep_values of 12 o'clock and use them as initial values for the next run:
                     last_timestep_values = self.extract_timestep_values(model=opt_instance, timestep=12)
-
+                    # get the dual variables from the solved run:
+                    duals = self.get_dual_variables(inst=opt_instance)
+                    thermal_duals_for_plot.append(duals["dual_thermal_mass"])
                     # update the large model with the results:
                     timestep_values = self.extract_first_x_values(model=opt_instance, nr_of_values=24)
                     full_instance = self.update_large_model(large_model=full_instance, timestep_values=timestep_values, nr_iteration=i)
 
                 elif i == len(sub_instances)-1:  # here we need to initialize a new instance with 12 values as size
                     opt_instance = OptConfig(model=sub_instance, instance_length=12).config_instance(instance_12)
-                    opt_instance = self.update_initial_values(model=opt_instance, last_timestep_values=last_timestep_values)
+                    if hasattr(opt_instance, 'dual'):
+                        opt_instance.del_component('dual')
+                    opt_instance = self.update_initial_values(model=opt_instance, last_timestep_values=last_timestep_values, duals_dict=duals)
+                    opt_instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
                     results = pyo.SolverFactory("gurobi").solve(opt_instance, tee=False)
                     if results.solver.termination_condition != TerminationCondition.optimal:
                         solved = False
@@ -627,14 +679,20 @@ class OptOperationModel(OperationModel):
 
                 else:
                     opt_instance = OptConfig(model=sub_instance, instance_length=36).config_instance(instance)
-                    opt_instance = self.update_initial_values(model=opt_instance, last_timestep_values=last_timestep_values)
+                    opt_instance = self.update_initial_values(model=opt_instance, last_timestep_values=last_timestep_values, duals_dict=duals)
+                    if hasattr(opt_instance, 'dual'):
+                        opt_instance.del_component('dual')
+                    opt_instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
                     results = pyo.SolverFactory("gurobi").solve(opt_instance, tee=False)
                     if results.solver.termination_condition != TerminationCondition.optimal:
                         solved = False
                         break
                     opt_instance.solutions.load_from(results)
+                    # get timestep_values of 12 o'clock and use them as initial values for the next run:
                     last_timestep_values = self.extract_timestep_values(model=opt_instance, timestep=24)
-
+                    # get the dual variables from the solved run:
+                    duals = self.get_dual_variables(inst=opt_instance)
+                    thermal_duals_for_plot.append(duals["dual_thermal_mass"])
                     # update the large model with the results:
                     timestep_values = self.extract_first_x_values(model=opt_instance, nr_of_values=24)
                     full_instance = self.update_large_model(large_model=full_instance, timestep_values=timestep_values, nr_iteration=i)
@@ -642,12 +700,69 @@ class OptOperationModel(OperationModel):
 
         else:
             opt_instance = OptConfig(model=self, instance_length=8760).config_instance(full_instance)
+            opt_instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
             results = pyo.SolverFactory("gurobi").solve(opt_instance, tee=False)
             if results.solver.termination_condition != TerminationCondition.optimal:
                         return None, False
             else:
                 opt_instance.solutions.load_from(results)
                 full_instance = opt_instance
+                # shadow_battery = []
+                # shadow_dhw = []
+                # shadow_tank = []
+                # shadow_thermal_mass = []
+                # shadow_price = {}
+                # for t in opt_instance.t:
+                #     # shadow_battery.append(opt_instance.dual[opt_instance.BatSoC_rule[t]])
+                #     # shadow_dhw.append(opt_instance.dual[opt_instance.tank_energy_rule_DHW[t]])
+                #     # shadow_tank.append(opt_instance.dual[opt_instance.tank_energy_rule_heating[t]])
+                #     shadow_thermal_mass.append(opt_instance.dual[opt_instance.thermal_mass_temperature_rule[t]])
+                # shadow_price["dual variable Battery SOC"] = shadow_battery 
+                # shadow_price["dual variable DHW tank SOC"] = shadow_dhw
+                # shadow_price["dual variable heating tank SOC"] = shadow_tank
+                # shadow_price["dual variable thermal mass"] = shadow_thermal_mass
+                # import pandas as pd
+                # from pathlib import Path
+                # import matplotlib.pyplot as plt
+                # import matplotlib
+                # matplotlib.rc("font", **{"size": 28})
+                # plt.plot(shadow_battery, label="dual variable battery SOC constraint", color="orange")
+                # plt.plot(shadow_dhw, label="dual variable DHW tank SOC constraint", color="blue")
+                # plt.plot(shadow_tank, label="dual variable heating tank SOC constraint", color="red")
+                # outside_temp = np.array(list(full_instance.T_outside.extract_values().values()))
+                # first_12_mean = np.array(shadow_thermal_mass)[:12].mean()
+                # middle_means = np.array(shadow_thermal_mass)[12:-12].reshape(-1, 24).mean(axis=1)
+                # last_12_mean = np.array(shadow_thermal_mass)[-12:].mean()
+                # perfect_shadow = np.concatenate(([first_12_mean], middle_means, [last_12_mean]))
+                # ref_T_building_mass = np.array(self.T_BuildingMass).reshape(-1, 24).mean(axis=1)
+                # np.corrcoef(outside_temp.reshape(-1, 24).mean(axis=1), thermal_duals_for_plot)
+                # np.corrcoef(outside_temp.reshape(-1, 24).mean(axis=1), perfect_shadow[:-1])
+                
+                # plt.plot(perfect_shadow, color="red", label="dual with perfect foresight")
+                # ax = plt.gca()
+                # ax.plot(thermal_duals_for_plot, color="blue", label="duals with rolling horizon")
+                # ax.legend()
+
+                # ax2 = ax.twinx()
+                # ax3 = ax.twinx()
+                # ax2.plot(outside_temp.reshape(-1, 24).mean(axis=1), color="grey", label="outside temperature")
+                # ax2.plot(ref_T_building_mass, color="green", label="reference building mass temperature")
+                # # ax3.plot(self.ElectricityPrice.reshape(-1, 24).mean(axis=1), color="yellow", label="electricity price")
+                # plt.ylabel("dual variables for the thermal mass")
+                # plt.legend()
+
+                # plt.tight_layout()
+                # plt.savefig(Path(r"C:\Users\mascherbauer\PycharmProjects\Z_Testing\Diss Graphiken")/"dual_variables_thermal_mass_rolling_vs_forecast.svg")
+
+                # df_shadow = pd.DataFrame.from_dict(shadow_price, orient="index").T
+                # df_shadow.loc[:, "ID_Building"] = self.scenario_id - 9
+                # path_to_file = Path(r"C:\Users\mascherbauer\PycharmProjects\FLEX\projects\Test_bed\input") / f"dual_variables.csv"
+                # if path_to_file.exists():
+                #     df = pd.read_csv(path_to_file, sep=";")
+                #     pd.concat([df_shadow, df], axis=0).to_csv(path_to_file, sep=";", index=False)
+                # else:
+                #     df_shadow.to_csv(path_to_file, sep=";", index=False)
+                    
         return full_instance, solved
 
 
@@ -738,6 +853,12 @@ class OptConfig:
             instance.PhotovoltaicProfile[t] = self.model.PhotovoltaicProfile[t-1]
             instance.thermal_mass_loss_factor[t] = self.model.thermal_mass_loss_factor[t-1]
 
+        # dual variables from previous run:
+        instance.dual_battery = self.model.dual_battery
+        instance.dual_heating_tank = self.model.dual_heating_tank
+        instance.dual_dhw_tank = self.model.dual_dhw_tank
+        instance.dual_thermal_mass = self.model.dual_thermal_mass
+
 
         if self.model.boiler_type in ["Air_HP", "Ground_HP", "Electric"]:
             for t in range(1, self.instance_length + 1):
@@ -764,7 +885,7 @@ class OptConfig:
             # activate heat pump functions
             instance.max_HP_power_rule.activate()
             instance.bypass_DHW_HP_rule.activate()
-            instance.calc_use_of_HP_power_DHW_rule.activate()
+            instance.calc_use_of_HP_power_heating_rule.activate()
 
         else:  # fuel based boiler instead of heat pump
             for t in range(1, self.instance_length + 1):
@@ -790,7 +911,7 @@ class OptConfig:
             # deactivate heat pump functions
             instance.max_HP_power_rule.deactivate()
             instance.bypass_DHW_HP_rule.deactivate()
-            instance.calc_use_of_HP_power_DHW_rule.deactivate()
+            instance.calc_use_of_HP_power_heating_rule.deactivate()
 
     def config_heating_element(self, instance):
         if self.model.HeatingElement_efficiency > 0:
@@ -812,7 +933,11 @@ class OptConfig:
 
     def config_prices(self, instance):
         sorted_price = sorted(self.model.ElectricityPrice)
-        lower_quantile = sorted_price[:int(self.instance_length*self.model.price_quantile_for_charging_thermal_mass)]
+        index = int(self.instance_length*self.model.price_quantile_for_charging_thermal_mass)
+        if index==0:
+            index = 1 
+        lower_quantile = sorted_price[:index]
+
         instance.price_quantile_for_charging_thermal_mass = sum(lower_quantile) / len(lower_quantile)
 
         for t in range(1, self.instance_length + 1):
