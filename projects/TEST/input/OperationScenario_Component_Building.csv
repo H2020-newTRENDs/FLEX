@@ -1,0 +1,2 @@
+ID_Building,type,construction_period_start,construction_period_end,Af,Hop,Htr_w,Hve,CM_factor,Am_factor,internal_gains,effective_window_area_west_east,effective_window_area_south,effective_window_area_north,supply_temperature,hwb,hwb_norm,grid_power_max,person_num,building_num,appliance_electricity_demand_per_person,hot_water_demand_per_person,id_demand_profile_type
+1,SFH,1880,1918,183.7941742,455.1456299,120.4909897,51.9916954,398415.375,3.5,3.75,7.443215847,4.893605709,1.370757937,51.88262601,206.512085,257.6414185,99999999,4.096741675,272420.8438,1280004.445,1249167.063,1

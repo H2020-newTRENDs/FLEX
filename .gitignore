@@ -165,3 +165,4 @@ output/
 projects/*
 !projects/main.py
 !projects/analysis
+!projects/TEST
