@@ -114,10 +114,13 @@ def run_operation_model(config: "Config",
         scenario_ids = input_tables[InputTables.OperationScenario.name]["ID_Scenario"].to_list()
     scenario_ids = align_progress(scenario_ids)
     opt_instance = OptInstance(instance_length=8760).create_instance()
-    rolling = True
     for scenario_id in tqdm(scenario_ids, desc=f"{config.project_name}"):
-        if scenario_id > 9:
-            rolling = False
+        # if scenario_id > 9 and scenario_id < 19:
+        #     rolling = False
+        # elif scenario_id > 45:
+        #     rolling = False
+        # else:
+        rolling = True
         scenario = OperationScenario(config=config, scenario_id=scenario_id, input_tables=input_tables)
         if run_ref:
             run_ref_model(scenario=scenario, config=config, save_year=save_year, save_month=save_month,

@@ -663,6 +663,28 @@ class OperationModel(ABC):
         # split the data into 36 hour pieces starting at hour 0, 12, 36, 60, 84, ...
         splited_vector = [vector[0:24]] + [vector[i:i+36] for i in np.arange(12, 8760, 24)]
         return splited_vector
+    
+    @staticmethod
+    def split_data_with_forecast(vector, e_price: bool)->list:
+        if e_price:
+            # add the first 3 days also to the end so we have a "forecast" until the last day:
+            splited_vector = []
+            splited_vector.append(list(vector[:24]) + list(vector[:24]) + list(vector[:24]))  # 3 times the first day
+            for i in np.arange(12, 8760, 24):
+                second_part = list(vector[i:i+36])
+                third_part = list(vector[i:i+24])
+                if i == 8760-12:
+                    splited_vector.append(list(vector[-12:]))
+                elif i == 8760-36:
+                    splited_vector.append(list(vector[-36:]))
+                elif i == 8760-60:
+                    splited_vector.append(list(vector[-60:-24]) + list(vector[-48:-24]))
+                else:
+                    splited_vector.append(second_part + third_part + third_part)
+
+        else:
+            splited_vector = [vector[0:72]] + [vector[i:i+84] for i in np.arange(12, 8760, 24)]
+        return splited_vector
 
     def return_splitted_scenarios(self):
         """This function returns a list containing OperationModel
@@ -676,3 +698,18 @@ class OperationModel(ABC):
                         setattr(split_class, key, splitted_value[i])
         return list_of_classes
     
+    def return_splitted_scenarios_with_forecast(self):
+        """This function returns a list containing OperationModel. The OperationModel always contains 3 days with a perfect weather forecast and with the price profile repeating from the first day."""
+        list_of_classes = [copy.deepcopy(self) for _ in range(366)]
+        for key, value in self.__dict__.items():
+            if isinstance(value, Iterable) and not isinstance(value, str):
+                # slice it into 366 pieces:
+                if key == "ElectricityPrice":
+                    splitted_value = self.split_data_with_forecast(value, e_price=False) 
+                else:
+                    splitted_value = self.split_data_with_forecast(value, e_price=False)
+                
+                for i, split_class in enumerate(list_of_classes):
+                    setattr(split_class, key, splitted_value[i])
+
+        return list_of_classes
