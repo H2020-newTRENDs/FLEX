@@ -16,6 +16,7 @@ import math
 import re
 import os
 import sys
+import matplotlib
 
 # Get the absolute path of the directory two levels up
 two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -728,11 +729,15 @@ class CompareModels:
 
         sns.barplot(data=melted_df, x="Building", y="heat demand (kWh/m$^2$)", hue="model",
                     palette=["blue", self.orange, "green"])
+        
         ax = plt.gca()
         ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
         ax.get_yaxis().set_major_formatter(
             ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
-        plt.title("heat demand")
+        legend = ax.legend()
+        legend.set_title(None)
+        ax.set_xlabel("")
+        plt.tight_layout()
         plt.savefig(self.figure_path / f"Yearly_heat_demand_comparison_normalized.svg")
         plt.close()
 
@@ -1090,21 +1095,26 @@ class CompareModels:
         temp_5R1C = self.read_indoor_temp(table_name=OperationTable.ResultOptHour.value,
                                           prize_scenario=price_id,
                                           cooling=False)[building].to_numpy()
-        fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(6, 5),
-                                       gridspec_kw={'height_ratios': [2, 1]})
+        
+        matplotlib.rcParams.update({'font.size': 24}) 
+        fig, ax1= plt.subplots(nrows=1, ncols=1, 
+                                    #    sharex=True, 
+                                       figsize=(8, 5),
+                                    #    gridspec_kw={'height_ratios': [2, 1]}
+                                       )
 
         x_axis = np.arange(8760)
         ax1.plot(x_axis, floor_demand_ida, label="IDA ICE with floor heating optimized", color="lawngreen")
         ax1.plot(x_axis, ideal_demand_ida, label="IDA ICE with ideal heating optimized", color="green")
         ax1.plot(x_axis, opt_demand_5R1C, label="5R1C optimized", color="firebrick")
-        ax1.set_title(f"heat demand {building} for price {price_id[-1]}")
+        ax1.set_title(f"{building} in price scenario {int(price_id[-1])-1}")
         ax1.set_ylabel("heat demand (kWh)")
         ax1.legend()
 
-        ax2.plot(x_axis, elec_price, label="electricity price", color="gold")
-        ax2.set_ylabel("electricity price (cent/kWh)")
-        ax2.set_xlabel("hours")
-        ax2.legend()
+        # ax2.plot(x_axis, elec_price, label="electricity price", color="gold")
+        # ax2.set_ylabel("electricity price (cent/kWh)")
+        # ax2.set_xlabel("hours")
+        # ax2.legend()
 
         plt.tight_layout()
         fig.savefig(self.figure_path / f"Single_building_year_{building}.svg")
@@ -1113,7 +1123,7 @@ class CompareModels:
         # week plot
         week_number = 5
         x_axis = np.arange(24 * 7 * week_number, 24 * 7 * (week_number + 1))
-        fig2, (ax3, ax4, ax5) = plt.subplots(nrows=3, ncols=1, sharex=True, figsize=(8, 8))
+        fig2, (ax3, ax5) = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(12, 8))
         ax3.plot(x_axis, floor_demand_ida[x_axis], label="IDA ICE with floor heating optimized", color="lawngreen")
         ax3.plot(x_axis, ideal_demand_ida[x_axis], label="IDA ICE with ideal heating optimized", color="green")
         ax3.plot(x_axis, opt_demand_5R1C[x_axis], label="5R1C optimized", color="firebrick")
@@ -1121,14 +1131,15 @@ class CompareModels:
         ax3.set_ylabel("heat demand (kWh)")
         ax3.legend()
 
-        ax4.plot(x_axis, elec_price[x_axis], label="electricity price", color="gold")
-        ax4.legend()
+        # ax4.plot(x_axis, elec_price[x_axis], label="electricity price", color="gold")
+        # ax4.legend()
+        
         ax5.plot(x_axis, temp_floor_ida[x_axis], label="IDA ICE with floor heating optimized", color="lawngreen")
         ax5.plot(x_axis, temp_ideal_ida[x_axis], label="IDA ICE with ideal heating optimized", color="green")
         ax5.plot(x_axis, temp_5R1C[x_axis], label="5R1C optimized", color="firebrick")
-        ax5.set_title(f"indoor temperature {building} for price {price_id[-1]}")
+        # ax5.set_title(f"indoor temperature {building} for price {price_id[-1]}")
         ax5.set_ylabel("temperature (°C)")
-        ax5.legend()
+        # ax5.legend()
 
         ax5.set_xlim(x_axis[0], x_axis[-1])
         ax5.set_xticks(np.arange(x_axis[0], x_axis[-1], 24) + 12)
@@ -1140,7 +1151,7 @@ class CompareModels:
         plt.close()
 
     def run(self, price_scenarios: list, floor_heating: bool, cooling: bool):
-        self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
+        # self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
         self.subplots_relative(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
         self.subplots_yearly(prices=price_scenarios, cooling=cooling, floor_heating=floor_heating)
         # if cooling:
@@ -1169,8 +1180,8 @@ class CompareModels:
 
 if __name__ == "__main__":
     # CompareModels("5R1C_validation").show_elec_prices()
-    # CompareModels("5R1C_validation").show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price4",
-    #                                                                                          building="EZFH_5_B")
+    CompareModels("5R1C_validation").show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price4",
+                                                                                             building="EZFH_9_B")
     CompareModels("5R1C_validation").main()
 
     # TODO Cooling demand plot passt nicht
