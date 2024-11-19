@@ -24,6 +24,7 @@ from utils.db import fetch_input_tables
 from utils.tables import InputTables
 from utils.tables import OutputTables
 
+
 DB_RESULT_TABLES = [
         OutputTables.OperationResult_RefYear.name,
         OutputTables.OperationResult_OptYear.name,
