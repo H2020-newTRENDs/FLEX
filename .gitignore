@@ -446,3 +446,5 @@ flex/data/result/*.sqlite
 *.csv
 *.parquet.gzip
 *.gzip
+.*html
+
