@@ -107,7 +107,7 @@ def create_db_conn(config: "Config") -> DB:
 
 def init_project_db(config: "Config"):
     db = create_db_conn(config)
-    db.clear_database()
+    # db.clear_database()
 
     def file_exists(table_name: str):
         df = None
