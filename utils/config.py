@@ -1,12 +1,12 @@
-import os
+from pathlib import Path
 
 
 class Config:
 
     def __init__(self, project_name: str, project_path: str):
-        self.root = os.path.abspath(os.curdir)
+        self.root = Path().resolve()
         self.project_name: str = project_name
-        self.project_path: str = project_path
+        self.project_path: str = Path(project_path)
         self.input = self.create_folder("input")
         self.output = self.create_folder("output")
         self.figure = self.create_folder("output/figure")
@@ -14,16 +14,14 @@ class Config:
         self.task_output = None
 
     def create_folder(self, path: str):
-        path = os.path.join(self.project_path, path)
-        if not os.path.exists(path):
-            os.makedirs(path)
+        path = self.project_path / path
+        path.mkdir(exist_ok=True, parents=True)
         return path
 
     def set_task_id(self, task_id: int) -> "Config":
         self.task_id = task_id
-        self.task_output = os.path.join(self.output, f"task_{task_id}")
-        if not os.path.exists(self.task_output):
-            os.makedirs(self.task_output)
+        self.task_output = self.output / f"task_{task_id}"
+        self.task_output.mkdir(exist_ok=True, parents=True)
         return self
 
     def make_copy(self) -> "Config":
