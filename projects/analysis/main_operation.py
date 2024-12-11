@@ -125,8 +125,9 @@ def run_operation_model(config: "Config",
             run_ref_model(scenario=scenario, config=config, save_year=save_year, save_month=save_month,
                           save_hour=save_hour, hour_vars=hour_vars)
         if run_opt:
-            run_opt_model(opt_instance=opt_instance, scenario=scenario, config=config, save_year=save_year,
-                          save_month=save_month, save_hour=save_hour, hour_vars=hour_vars)
+            if scenario.boiler.type == "Air_HP" or scenario.battery.capacity > 0:
+                run_opt_model(opt_instance=opt_instance, scenario=scenario, config=config, save_year=save_year,
+                              save_month=save_month, save_hour=save_hour, hour_vars=hour_vars)
 
 
 def merge_year_month_tables(number_of_tasks, original_config):
@@ -206,8 +207,8 @@ def create_task_dbs(number_of_tasks, original_config):
 def delete_file(file_path):
     """Attempt to delete a file with retries on PermissionError."""
     max_attempts = 5
+    file_deleted = False
     for attempt in range(max_attempts):
-        file_deleted = False
         try:
             file_path.unlink()
             # print(f"File {file_path} deleted successfully.")

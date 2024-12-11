@@ -48,6 +48,7 @@ class DB:
         data_frame.to_sql(
             table_name,
             self.engine,
+            self.engine,
             index=False,
             dtype=data_types,
             if_exists=if_exists,
