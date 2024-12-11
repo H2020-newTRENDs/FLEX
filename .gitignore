@@ -165,3 +165,11 @@ output/
 projects/*
 !projects/main.py
 !projects/analysis
+*.svg
+*.xlsx
+*.csv
+activate
+*.ps1
+*.exe
+*.bat
+*.cfg
