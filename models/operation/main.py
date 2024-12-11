@@ -206,8 +206,8 @@ def create_task_dbs(number_of_tasks, original_config):
 def delete_file(file_path):
     """Attempt to delete a file with retries on PermissionError."""
     max_attempts = 5
-    file_deleted = False
     for attempt in range(max_attempts):
+        file_deleted = False
         try:
             file_path.unlink()
             # print(f"File {file_path} deleted successfully.")

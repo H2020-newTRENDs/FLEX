@@ -173,3 +173,8 @@ activate
 *.exe
 *.bat
 *.cfg
+*.svg
+*.png
+*.csv
+*.html
+*.xlsx
