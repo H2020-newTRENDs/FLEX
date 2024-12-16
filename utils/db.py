@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, List, Dict
 
 import pandas as pd
 import sqlalchemy
-
+import csv
 from utils.tables import InputTables
 
 if TYPE_CHECKING:
@@ -116,7 +116,15 @@ def init_project_db(config: "Config"):
         for ext, pd_read_func in extensions.items():
             file_path = os.path.join(config.input, table_name + ext)
             if os.path.exists(file_path):
-                df = pd_read_func(file_path)
+                if ext == ".csv":
+                    # Detect the separator for CSV
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        sample = f.read(1024)  # Read a sample to detect the delimiter
+                        sniffer = csv.Sniffer()
+                        delimiter = sniffer.sniff(sample).delimiter
+                    df = pd_read_func(file_path, delimiter=delimiter).dropna(how="all")
+                else:
+                    df = pd_read_func(file_path).dropna(how="all")
                 break
         return df
 
