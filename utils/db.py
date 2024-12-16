@@ -5,6 +5,7 @@ import pandas as pd
 import sqlalchemy
 import csv
 from utils.tables import InputTables
+from sqlalchemy.sql import text
 
 if TYPE_CHECKING:
     from utils.config import Config
@@ -90,7 +91,8 @@ class DB:
         condition = condition[0:-5]  # deleting last "and"
 
         query = f"DELETE FROM {table_name}" + condition
-        self.engine.execute(query)
+        with self.engine.connect() as conn:
+            conn.execute(text(query))
 
     def query(self, sql) -> pd.DataFrame:
         return pd.read_sql(sql, self.engine)

@@ -13,9 +13,12 @@ import plotly.figure_factory as ff
 two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 # Add this directory to sys.path
 sys.path.insert(0, two_levels_up)
-from scenario import OperationScenario, MotherOperationScenario
-from flex_operation.Visualization_class import MotherVisualization
-from flex.config import Config
+from models.operation.scenario import OperationScenario
+from plotters.operation.Visualization_class import MotherVisualization
+from utils.config import Config
+from projects.main import get_config
+from utils.db import fetch_input_tables
+
 
 # -----------------------------------------------------------------------------------------------------------
 class PlotlyVisualize(MotherVisualization):
@@ -322,10 +325,10 @@ class PlotlyVisualize(MotherVisualization):
 if __name__ == "__main__":
 
     # create scenario:
-    scenario_id = 1716  # 598
-    cfg = Config(project_name="ECEMF_T4.3_Murcia_2030_H")
-    mother_tables = MotherOperationScenario(config=cfg)
-    scenario = OperationScenario(scenario_id=scenario_id, config=cfg, tables=mother_tables)
+    scenario_id = 1  
+    cfg = get_config(project_name="electricity_price_check")
+    input_tables = fetch_input_tables(config=cfg)
+    scenario = OperationScenario(scenario_id=scenario_id, config=cfg, input_tables=input_tables)
     plotly_visualization = PlotlyVisualize(scenario=scenario)
     plotly_visualization.show_yearly_comparison_of_SEMS_reference()
     plotly_visualization.hourly_comparison_SEMS_reference()
