@@ -1,7 +1,7 @@
 from scipy.stats import norm
 import os
 import sys
-
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -321,16 +321,60 @@ class PlotlyVisualize(MotherVisualization):
         fig.write_image(path_to_image_folder)
         fig.show()
 
+def compare_variable_of_multiple_scenarios(var_name: str, cfg: Config, scenarios: list, input_tables, show_ref: bool, show_opt: bool):
+    fig = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]], shared_xaxes=True)
+    x_axis = np.arange(8760)
+    colormap = plt.cm.get_cmap("tab10", len(scenarios))     
+    color_map = {scen_id: f"rgba({int(colormap(i)[0]*255)}, {int(colormap(i)[1]*255)}, {int(colormap(i)[2]*255)}, 1)"
+             for i, scen_id in enumerate(scenarios)}
+    for scen_id in scenarios:
+        scenario = OperationScenario(scenario_id=scen_id, config=cfg, input_tables=input_tables)
+
+        (
+            hourly_results_reference_df,
+            yearly_results_reference_df,
+            hourly_results_optimization_df,
+            yearly_results_optimization_df,
+        ) = MotherVisualization(scenario=scenario).fetch_results_for_specific_scenario_id()
+
+        if show_ref:
+            fig.add_trace(
+                go.Scatter(x=x_axis, y=hourly_results_reference_df.loc[:, var_name], name=f"reference {scen_id}", line_dash="dash", line=dict(color=color_map[scen_id])), secondary_y=False
+            )
+        if show_opt:
+            fig.add_trace(
+                go.Scatter(x=x_axis, y=hourly_results_optimization_df.loc[:, var_name], name=f"optimized {scen_id}", line=dict(color=color_map[scen_id])), secondary_y=False
+            )
+
+        fig.add_trace(
+                go.Scatter(x=x_axis, y=hourly_results_optimization_df.loc[:, "ElectricityPrice"], name=f"price {scen_id}", line=dict(color=color_map[scen_id]), line_dash="dot"), secondary_y=True
+            )
+        
+    fig.update_yaxes(title="electricity prices", row=1, col=1, secondary_y=True)
+    fig.update_yaxes(title=var_name, secondary_y=False)
+    fig.show()
+
+
 
 if __name__ == "__main__":
+    scenario_2_compare = [1, 2, 3, 4]
+    cfg = get_config(project_name="electricity_price_check")
+    input_tables = fetch_input_tables(config=cfg)
+
+    compare_variable_of_multiple_scenarios(
+        var_name="Q_RoomHeating", 
+        cfg=cfg,
+        scenarios=scenario_2_compare,
+        input_tables=input_tables,
+        show_opt=True,
+        show_ref=True
+        )
 
     # create scenario:
     scenario_id = 1  
-    cfg = get_config(project_name="electricity_price_check")
-    input_tables = fetch_input_tables(config=cfg)
     scenario = OperationScenario(scenario_id=scenario_id, config=cfg, input_tables=input_tables)
-    plotly_visualization = PlotlyVisualize(scenario=scenario)
-    plotly_visualization.show_yearly_comparison_of_SEMS_reference()
-    plotly_visualization.hourly_comparison_SEMS_reference()
-    plotly_visualization.investigate_resulting_load_profile()
+    # plotly_visualization = PlotlyVisualize(scenario=scenario)
+    # plotly_visualization.show_yearly_comparison_of_SEMS_reference()
+    # plotly_visualization.hourly_comparison_SEMS_reference()
+    # plotly_visualization.investigate_resulting_load_profile()
     # ---------------------------------------------------------------------------------------------------------
