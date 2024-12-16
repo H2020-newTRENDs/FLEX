@@ -38,7 +38,7 @@ def run_ref_model(
     config: "Config",
     save_year: bool = True,
     save_month: bool = False,
-    save_hour: bool = False,
+    save_hour: bool = True,
     hour_vars: Optional[List[str]] = None
 ):
     ref_model = RefOperationModel(scenario).solve()
@@ -57,7 +57,7 @@ def run_opt_model(
     config: "Config",
     save_year: bool = True,
     save_month: bool = False,
-    save_hour: bool = False,
+    save_hour: bool = True,
     hour_vars: Optional[List[str]] = None
 ):
     opt_model, solve_status = OptOperationModel(scenario).solve(opt_instance)
@@ -110,7 +110,7 @@ def run_operation_model(config: "Config",
                         run_opt: bool = True,
                         save_year: bool = True,
                         save_month: bool = False,
-                        save_hour: bool = False,
+                        save_hour: bool = True,
                         hour_vars: List[str] = None):
 
     db = create_db_conn(config)
@@ -125,7 +125,7 @@ def run_operation_model(config: "Config",
             run_ref_model(scenario=scenario, config=config, save_year=save_year, save_month=save_month,
                           save_hour=save_hour, hour_vars=hour_vars)
         if run_opt:
-            if scenario.boiler.type == "Air_HP" or scenario.battery.capacity > 0:
+            if scenario.boiler.type == "Air_HP" or scenario.boiler.type == "Ground_HP":
                 run_opt_model(opt_instance=opt_instance, scenario=scenario, config=config, save_year=save_year,
                               save_month=save_month, save_hour=save_hour, hour_vars=hour_vars)
 
@@ -242,8 +242,8 @@ def remove_task_folders(number_of_tasks, original_config):
     for task_id in range(1, number_of_tasks + 1):
         task_config = original_config.make_copy().set_task_id(task_id=task_id)
         # Ensure that the connection to the SQLite database is closed
-        engine = create_db_conn(task_config)
-        engine.dispose()  # dispose all connections
+        db = create_db_conn(task_config)
+        db.engine.dispose()  # dispose all connections
     delete_result_task_folders(original_config)
 
 

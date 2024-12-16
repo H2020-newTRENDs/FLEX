@@ -28,77 +28,43 @@ def delete_result_task_folders(conf):
 
 if __name__ == "__main__":
     country_list = [
-            # "AUT",  #songmin 2040
-            # "BEL", #songmin 2040
+            "AUT",  
+            "BEL", 
             # "POL",
-            # "CYP",  # songmin 2040
+            # "CYP", 
             # "PRT",
             # "DNK",
             # "FRA",
-            # "CZE",  #songmin2040
-            # "DEU",  #songmin 2040
+            # "CZE",  
+            # "DEU", 
             # "HRV",
             # "HUN",
-            "ITA",  # 2050 fehlt
-            "LUX",
-            "NLD",
-            "SVK",
-            "SVN",
-            'IRL',
-            # 'ESP',  # 2050 fehlt
+            # "ITA",  
+            # "LUX",
+            # "NLD",
+            # "SVK",
+            # "SVN",
+            # 'IRL',
+            # 'ESP',  
             # 'SWE',
             # 'GRC',
-            # 'LVA',  # 2050 fehlt
+            # 'LVA',  
             # 'LTU',
             # 'MLT',
             # 'ROU',
-            # 'BGR',  # songmin 2040
+            # 'BGR',  
             # 'FIN',
             # 'EST',
         ]
 
-    years = [2040]#2030, 2040]
-    deletion_went_wrong = []
-    for country in country_list:
-        for year in years:
-            # if country == "AUT" and year == 2020:
-            #     cfg = get_config(f"{country}_{year}")
-            #     generate_summary.gen_summary_year(cfg)
-            #     # Iterate through each item in the directory
-            #     for item in Path(cfg.output).iterdir():
-            #         # Check if the item is a file
-            #         if item.is_file():
-            #             # Check the file extension and delete if it's not .csv or .parquet
-            #             if item.suffix not in ['.csv', '.sqlite']:
-            #                 print(f"Deleting: {item.name}")
-            #                 item.unlink()  # Delete the file
-            #         elif item.is_dir():
-            #             print(f"Deleting directory and all contents: {item}")
-            #             shutil.rmtree(item)
-            #     continue
-            cfg = get_config(f"{country}_{year}")
+    years = [2023]#2030, 2040]
+    # for country in country_list:
+    #     for year in years:
+    #         cfg = get_config(f"{country}_{year}")
 
-    # run model and plotter
-            run_flex_operation_model(cfg, task_number=20)
-    # run_flex_operation_plotter(cfg)
+    #         run_flex_operation_model(cfg, task_number=2)
 
-    # generate summary
-            generate_summary.gen_summary_year(cfg)
-            generate_summary.gen_summary_hour(cfg)
-            # process_summary.compare_hwb_diff()
-            try:
-                delete_result_files(cfg)
-            except:
-                deletion_went_wrong.append(cfg)
-                print(f"{country} {year} deletion of files did not work. Delete manually!")
-            try:
-                delete_result_task_folders(cfg)
-            except:
-                print(f"taskfolders for {country} {year} were not deleted")
+    cfg = get_config("electricity_price_check")
+    run_flex_operation_model(cfg, task_number=1)
 
-    print(deletion_went_wrong)
-
-    # process summary
-    # process_summary.concat_summary()
-    # process_summary.process_summary_year()
-    # process_summary.process_summary_hour()
+          
