@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     #         run_flex_operation_model(cfg, task_number=2)
 
-    cfg = get_config("electricity_price_check")
+    cfg = get_config("AUT_2030")
     run_flex_operation_model(cfg, task_number=1)
 
           
