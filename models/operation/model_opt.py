@@ -645,15 +645,11 @@ class OptConfig:
             else:
                 instance.FuelPrice[t] = 0
 
-    def config_grid(self, instance):
-        for t in range(1, 8761):
-            instance.Grid[t].setub(self.scenario.building.grid_power_max)
-            instance.Feed2Grid[t].setub(self.scenario.building.grid_power_max)
 
     def config_space_heating(self, instance):
         for t in range(1, 8761):
             instance.T_BuildingMass[t].setub(100)
-        if self.scenario.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
+        if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
             for t in range(1, 8761):
                 instance.E_Heating_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
         else:

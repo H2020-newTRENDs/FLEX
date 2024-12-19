@@ -1,11 +1,11 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
-
+import logging
 from utils.db import create_db_conn
-from projects.main import get_config
+from projects.main import get_config, Config
 
-from flex_operation import components
+from models.operation import components
 import multiprocessing
 import shutil
 import sqlalchemy
@@ -44,14 +44,20 @@ COUNTRY_LIST = [
 
 YEARS = [2020, 2030, 2040, 2050]
 
+# Ensure the log directory exists
+log_file_path = Path(__file__).parent / "create_inputs_logfile.log"
+log_level = logging.INFO
+# Configure the logger
+logging.basicConfig(
+    level=log_level,
+    format="%(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(log_file_path),  # Write logs to the file
+        logging.StreamHandler()             # Optionally output logs to the console
+    ]
+)
+LOGGER = logging.getLogger(__name__)
 
-
-
-
-
-
-
-logger = get_logger(__name__)
 
 def get_european_countries_dict() -> dict:
     EUROPEAN_COUNTRIES = {
@@ -177,7 +183,6 @@ def create_building_id_table(df: pd.DataFrame) -> pd.DataFrame:
     """ creates the operationScenario_component_building dataframe that can be the excel input"""
     columns = list(components.Building.__dataclass_fields__) + ["number_buildings_heat_pump_air",
                                                                 "number_buildings_heat_pump_ground",
-                                                                "number_buildings_electricity",
                                                                 "number_of_buildings"]
     building_table = pd.DataFrame(columns=["ID_Building"] + columns, index=range(len(df)))
     # insert building ID
@@ -194,9 +199,10 @@ def create_building_id_table(df: pd.DataFrame) -> pd.DataFrame:
         if name in df.columns.to_list():
             building_table.loc[:, name] = df.loc[:, name]
 
-    # insert the grid power max:
-    building_table.loc[:, "grid_power_max"] = 50_000_000
-
+    appliance_electricity_demand_per_person_EU
+    # appliance_electricity_demand_per_person
+    # hot_water_demand_per_person
+    # id_demand_profile_type
     return building_table
 
 
@@ -554,11 +560,9 @@ def create_behavior_component_file(country: str, year: int, source_path: Path) -
     return df
 
 
-def load_reduced_building_parquet_file(year: int, country: str, source_path: Path) -> pd.DataFrame:
+def load_buildings(year: int, country: str, cfg: Config) -> pd.DataFrame:
 
-    project_name = f"{country}_{year}"
-    config = get_config(project_name=project_name)
-    invert_file = config.input / f"INVERT_{country}_{year}.csv"
+    invert_file = cfg.input / f"INVERT_{country}_{year}.csv"
     df = pd.read_csv(invert_file, sep=",")
     int_columns = ["construction_period_start", "construction_period_end", "building_categories_index",
                    "number_of_floors"]
@@ -568,40 +572,35 @@ def load_reduced_building_parquet_file(year: int, country: str, source_path: Pat
 
     # round the number of buildings
     df[["number_buildings_heat_pump_air", "number_buildings_heat_pump_ground"]] = df[["number_buildings_heat_pump_air", "number_buildings_heat_pump_ground"]].astype(float).round()
-    # we are ignoring PV installations in this analysis, drop the PV columns:
-    pv_columns = [c for c in df.columns if "PV_number" in c]
-    df.drop(columns=pv_columns, inplace=True)
+
     # filter out buildings that have no hp installations
     df_hp = df.loc[(df["number_buildings_heat_pump_air"] != 0) &  (df["number_buildings_heat_pump_ground"] != 0), :].copy()  # filter out buildings without electric heating
 
-    # there are a lot of building archetypes with less than 10 heat pumps, more than half of of all:
-    df_low = df_hp[(df_hp["number_buildings_heat_pump_air"]<=10) & (df_hp["number_buildings_heat_pump_ground"]<=10)]
-    
     df_reduced = reduce_number_of_buildings(df_hp)  # reduce the number of buildings by merging similar ones
-
-
 
     # set the number of 0 m2 PV to the number of heating systems minus the other PV installations
     pv_columns = [name for name in df_reduced.columns if "PV" in name if not "number_of_0_m2" in name]
     df_reduced["PV_number_of_0_m2"] = df_reduced["number_buildings_heat_pump_air"] + \
-                                      df_reduced["number_buildings_heat_pump_ground"] + \
-                                      df_reduced["number_buildings_electricity"] - df_reduced[pv_columns].sum(axis=1)
+                                      df_reduced["number_buildings_heat_pump_ground"] - \
+                                      df_reduced[pv_columns].sum(axis=1)
     return df_reduced
 
 
 def create_input_excels(year: int,
                         country: str,
-                        project_prefix: str,
-                        source_path: Path,
                         force_copy: bool = False):
-    df_reduced = load_reduced_building_parquet_file(year, country, source_path)
+    
+    project_name = f"{country}_{year}"
+    config = get_config(project_name=project_name)
+
+    df_buildings = load_buildings(year, country, cfg=config)
+    
     # tables:
-    operation_scenario_component_pv = create_pv_id_table(df_reduced)
-    operation_scenario_building = create_building_id_table(df_reduced)
+    operation_scenario_component_pv = create_pv_id_table(df_buildings)
+    operation_scenario_building = create_building_id_table(df_buildings)
     region_scenario_table = create_operation_region_file(year, country)
-    weather_scenario_table = create_operation_weather_file(country)
-    energy_price_scenario_table = create_energy_price_scenario_file(country, year, source_path)
-    operation_behavior_component = create_behavior_component_file(country, year, source_path)
+    energy_price_scenario_table = create_energy_price_scenario_file(country, year)
+    operation_behavior_component = create_behavior_component_file(country, year)
 
     # save the operation_scenario_component tables as excel:
     input_operation_path = Path(__file__).parent / "data" / "input_operation" / f"{project_prefix}_{country}_{year}"
@@ -800,7 +799,7 @@ def create_scenario_tables(country: str,
     logger.info(f"Creating Scenario Table for {country} {year}.")
 
     # load the parquet file:
-    df_reduced = load_reduced_building_parquet_file(year, country, source_path)
+    df_reduced = load_buildings(year, country, source_path)
     # create numbers for tests:
     test_numbers = {
         "air_numbers": round(df_reduced["number_buildings_heat_pump_air"].sum()),
@@ -885,7 +884,7 @@ def clear_result_files(country: str, year: int, project_prefix: str, source_path
             file.unlink()
 
 
-def main(country_list: list, years: list, minimum_number_buildings: int, project_prefix: str, source_path: Path):
+def main(country_list: list, years: list, minimum_number_buildings: int, project_prefix: str):
 
     # --------------------------------------------------------------------
     # # FOR DEBUGGING:
@@ -905,12 +904,13 @@ def main(country_list: list, years: list, minimum_number_buildings: int, project
     #         create_scenario_tables(country=country, year=year,
     #                                minimum_number_buildings=minimum_number_buildings)
 
+    create_input_excels(year=2030, country="AUT")
     answer = input(f"Delete the results of all scenarios? (y/n)")
     force_copy = True
     if answer.lower() == "y":
         logger.info("Dropping old results and creating new input...")
         # use multiprocessing to speed it up creating all the input data:
-        input_list = [(year, country, project_prefix, source_path, force_copy)
+        input_list = [(year, country, project_prefix, force_copy)
                       for year in years for country in country_list]
         number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
         Parallel(n_jobs=number_of_physical_cores)(delayed(create_input_excels)(*inst) for inst in input_list)
@@ -919,7 +919,7 @@ def main(country_list: list, years: list, minimum_number_buildings: int, project
         #     pool.starmap(create_input_excels, input_list)
 
          # create the individual scenario tables:
-        scenario_tables_pool_list = [(country, year, minimum_number_buildings, project_prefix, source_path)
+        scenario_tables_pool_list = [(country, year, minimum_number_buildings, project_prefix)
                                      for year in years for country in country_list]
         Parallel(n_jobs=number_of_physical_cores)(delayed(create_scenario_tables)(*inst) for inst in scenario_tables_pool_list)
 
@@ -964,7 +964,6 @@ if __name__ == "__main__":
     # country_list = [ 'ROU',]#'MLT','LTU', 'GRC']
     years = [2020, 2030, 2040, 2050]
     project_prefix = f""
-    source_path = Path(__file__).parent / "projects" / f""
     minimum_number_buildings = 1  # if a scenario has less buildings than that, it will be ignored
-    main(country_list, years, minimum_number_buildings, project_prefix, source_path)
+    main(country_list, years, minimum_number_buildings, project_prefix)
 
