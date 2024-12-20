@@ -170,12 +170,16 @@ def create_pv_id_table(df: pd.DataFrame) -> pd.DataFrame:
 
 def create_building_id_table(df: pd.DataFrame, year: int, country: str) -> pd.DataFrame:
     """ creates the operationScenario_component_building dataframe that can be the excel input"""
-    columns = list(components.Building.__dataclass_fields__) + ["number_buildings_heat_pump_air",
-                                                                "number_buildings_heat_pump_ground",
-                                                                "number_of_buildings"]
-    building_table = pd.DataFrame(columns=["ID_Building"] + columns, index=range(len(df)))
+    columns = list(components.Building.__dataclass_fields__) + [
+        "ID_Building",
+        "number_buildings_heat_pump_air",
+        "number_buildings_heat_pump_ground",
+        "number_of_buildings",
+        "ID_HotWaterTank",
+        "ID_SpaceHeatingTank"
+    ]
+    building_table = pd.DataFrame(columns=columns, index=range(len(df)))
     # insert building ID
-    building_table.loc[:, "ID_Building"] = building_table.index + 1
     building_table.loc[:, "type"] = df["building_categories_index"].map(get_sfh_mfh_dict())
 
     # rename the window areas in df
@@ -365,7 +369,7 @@ def reduce_number_of_buildings(df: pd.DataFrame) -> pd.DataFrame:
 
     # drop the nan rows because the number of buildings with the respective heating system is zero:
     return_df = big_df.dropna(axis=0).reset_index(drop=True)
-    return_df["index"] = return_df.index + 1
+    return_df["ID_Building"] = return_df.index + 1
     # set the building category index as int
     return_df["building_categories_index"] = return_df["building_categories_index"].apply(lambda x: int(round(x))).astype(int)
     # check:
@@ -525,7 +529,7 @@ def load_buildings(year: int, country: str, cfg: Config) -> pd.DataFrame:
     # filter out buildings that have no hp installations
     df_hp = df.loc[(df["number_buildings_heat_pump_air"] != 0) &  (df["number_buildings_heat_pump_ground"] != 0), :].copy()  # filter out buildings without electric heating
 
-    df_reduced = reduce_number_of_buildings(df_hp)  # reduce the number of buildings by merging similar ones
+    df_reduced = reduce_number_of_buildings(df_hp).drop(columns="index")  # reduce the number of buildings by merging similar ones
 
     # set the number of 0 m2 PV to the number of heating systems minus the other PV installations
     pv_columns = [name for name in df_reduced.columns if "PV" in name if not "number_of_0_m2" in name]
@@ -541,7 +545,6 @@ def create_boiler_table(year: int):
         2030: {"air": 0.37, "ground": 0.42},
         2040: {"air": 0.39, "ground": 0.44},
         2050: {"air": 0.41, "ground": 0.43},
-
     }
     df = pd.DataFrame(
         columns=["ID_Boiler", "type", "power_max",  "power_max_unit", "carnot_efficiency_factor", "fuel_boiler_efficiency"],
@@ -555,28 +558,66 @@ def create_boiler_table(year: int):
 def create_dhw_table(building_table: pd.DataFrame):
     # DHW Tank: 100 L per person
     liter_per_person = 100
-    building_table["DHW_size"] = building_table["person_num"] * liter_per_person
-    # limit the maximum size for the dhw Tanks in large buildings to 5000 liter
-    max_dhw_size = 5_000
-    building_table.loc[building_table["DHW_size"] > max_dhw_size, "DHW_size"] = max_dhw_size
-    building_table["DHW_size"].unique()
+    building_table["DHW_size"] = (building_table["person_num"] * liter_per_person).astype(float).round()
+    unique_sizes = building_table["DHW_size"].unique()
+    dhw_sizes = {i+1: unique_sizes[i] for i in range(len(unique_sizes))}
 
     df = pd.DataFrame(
         columns=["ID_HotWaterTank", "size", "size_unit", "loss",  "loss_unit", "temperature_start", "temperature_max", "temperature_min", "temperature_surrounding", "temperature_unit", "note"],
-        data=[
-            [1, 300, "L", 0.2, "W/m2K", 20, 55, 20, 20, "°C", "SFH"], 
-            [2, 700, "L", 0.2, "W/m2K", 20, 55, 20, 20, "°C", "MFH"], 
+        data=[ [i+1, dhw_sizes[i+1], "L", 0.2, "W/m2K", 20, 55, 20, 20, "°C", "SFH"] for i in range(len(unique_sizes)) ]
+    )
+
+    building_table["ID_HotWaterTank"] = building_table["DHW_size"].map({value: key for key, value in dhw_sizes.items()})
+    return df, building_table
+
+def create_heating_tank_table(building_table: pd.DataFrame):
+    # buffer tank: 1.25 l per square meter
+    liter_per_meter = 1.25
+    building_table["Tank_size"] = (building_table["Af"] * liter_per_meter).astype(float).round()
+    unique_sizes = building_table["Tank_size"].unique()
+    tank_sizes = {i+1: unique_sizes[i] for i in range(len(unique_sizes))}
+    df = pd.DataFrame(
+        columns=["ID_SpaceHeatingTank", "size", "size_unit", "loss",  "loss_unit", "temperature_start", "temperature_max", "temperature_min", "temperature_surrounding", "temperature_unit", "note"],
+        data=[ [i+1, tank_sizes[i+1], "L", 0.2, "W/m2K", 20, 55, 20, 20, "°C", "SFH"] for i in range(len(unique_sizes)) ]
+    )
+
+    building_table["ID_SpaceHeatingTank"] = building_table["Tank_size"].map({value: key for key, value in tank_sizes.items()})
+
+    return df, building_table
+
+def create_cooling_table():
+    df = pd.DataFrame(
+        columns=["ID_SpaceCoolingTechnology", "efficiency", "power", "power_unit"],
+        data=[ 
+            [1, 4, 0, "W"],
+            [1, 4, 1, "W"],
         ]
     )
     return df
 
-def create_heating_tank_table():
-    # 
+def create_EV_table():
     df = pd.DataFrame(
-        columns=["ID_HotWaterTank", "size", "size_unit", "loss",  "loss_unit", "temperature_start", "temperature_max", "temperature_min", "temperature_surrounding", "temperature_unit", "note"],
-        data=[
-            [1, 700, "L", 0.2, "W/m2K", 20, 45, 20, 20, "°C", "SFH"], 
-            [2, 1500, "L", 0.2, "W/m2K", 20, 45, 20, 20, "°C", "MFH"], 
+        columns=["type", "capacity"],  # rest is not needed because we dont use it
+        data=[ 
+            ["electric", 0,],
+        ]
+    )
+    return df
+
+def create_battery_table():
+    df = pd.DataFrame(
+        columns=["ID_Battery", "capacity", "capacity_unit", "charge_efficiency", "charge_power_max", "charge_power_max_unit", "discharge_efficiency", "discharge_power_max", "discharge_power_max_unit"],
+        data=[ 
+            [1, 0, "Wh", 0.95, 4500, "W", 0.95, 4500, "W",],
+        ]
+    )
+    return df
+
+def create_heating_element_table():
+    df = pd.DataFrame(
+        columns=["ID_HeatingElement", "power", "power_unit", "efficiency"],
+        data=[ 
+            [1, 0, "W", 1],
         ]
     )
     return df
@@ -602,24 +643,50 @@ def create_input_excels(year: int,
     
     # weather table is already correct
     # behavior table is already correct
+    # region is already correct and not needed
 
     # tables:
     operation_scenario_component_pv = create_pv_id_table(df_buildings)
-    operation_scenario_building = create_building_id_table(df_buildings, year=year, country=country)
     region_scenario_table = create_operation_region_file(year, country)
     energy_price_scenario_table = create_energy_price_scenario_file(country, year)
-    boiler_table = create_boiler_table()
-    dhw_table = create_dhw_table(df_buildings)
-    heating_tank_table = create_heating_tank_table(df_buildings)
+    boiler_table = create_boiler_table(year=year)
+    dhw_table, df_buildings = create_dhw_table(df_buildings)
+    heating_tank_table, df_buildings = create_heating_tank_table(df_buildings)
+    operation_scenario_building = create_building_id_table(df_buildings, year=year, country=country)
+    cooling_table = create_cooling_table()
+    battery_table = create_battery_table()
+    ev_table = create_EV_table()
+    heating_element_table = create_heating_element_table()
 
-
-    # save the excel files:
-    operation_scenario_component_pv.to_csv(config.input / "OperationScenario_Component_PV.xlsx", index=False, sep=";")
-    operation_scenario_building.to_csv(config.input / "OperationScenario_Component_Building.xlsx", index=False, sep=";")
-    region_scenario_table.to_csv(config.input / "OperationScenario_Component_Region.xlsx", index=False, sep=";")
-    energy_price_scenario_table.to_csv(config.input / "OperationScenario_EnergyPrice.xlsx", index=False, sep=";")
+    # save the csv files:
+    operation_scenario_component_pv.to_csv(config.input / "OperationScenario_Component_PV.csv", index=False, sep=";")
+    operation_scenario_building.to_csv(config.input / "OperationScenario_Component_Building.csv", index=False, sep=";")
+    region_scenario_table.to_csv(config.input / "OperationScenario_Component_Region.csv", index=False, sep=";")
+    energy_price_scenario_table.to_csv(config.input / "OperationScenario_EnergyPrice.csv", index=False, sep=";")
     boiler_table.to_csv(config.input / "OperationScenario_Component_Boiler.csv", index=False, sep=";")
+    dhw_table.to_csv(config.input / "OperationScenario_Component_HotWaterTank.csv", index=False, sep=";")
+    heating_tank_table.to_csv(config.input / "OperationScenario_Component_SpaceHeatingTank.csv", index=False, sep=";")
+    cooling_table.to_csv(config.input / "OperationScenario_Component_SpaceCoolingTechnology.csv", index=False, sep=";")
+    battery_table.to_csv(config.input / "OperationScenario_Component_Battery.csv", index=False, sep=";")
+    ev_table.to_csv(config.input / "OperationScenario_Component_Vehicle.csv", index=False, sep=";")
+    heating_element_table.to_csv(config.input / "OperationScenario_Component_HeatingElement.csv", index=False, sep=";")
 
+    # delete the same excel files:
+    excel_files = [
+        config.input / "OperationScenario_Component_PV.xlsx", 
+        config.input / "OperationScenario_Component_Building.xlsx",
+        config.input / "OperationScenario_Component_Region.xlsx",
+        config.input / "OperationScenario_EnergyPrice.xlsx",
+        config.input / "OperationScenario_Component_Boiler.xlsx",
+        config.input / "OperationScenario_Component_HotWaterTank.xlsx",
+        config.input / "OperationScenario_Component_SpaceHeatingTank.xlsx",
+        config.input / "OperationScenario_Component_SpaceCoolingTechnology.csv",
+        config.input / "OperationScenario_Component_Battery.csv",
+        config.input / "OperationScenario_Component_HeatingElement.csv",
+    ]
+    for file in excel_files:
+        if file.exists():
+            file.unlink()
 
 
 def map_heat_pump_to_scenario_table(scenario_df: pd.DataFrame, large_df: pd.DataFrame, test_numbers: dict):
