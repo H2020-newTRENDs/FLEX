@@ -12,37 +12,8 @@ import sqlalchemy
 from joblib import Parallel, delayed
 
 
-COUNTRY_LIST = [
-    "AUT",  
-    "BEL", 
-    # "POL",
-    # "CYP", 
-    # "PRT",
-    # "DNK",
-    # "FRA",
-    # "CZE",  
-    # "DEU", 
-    # "HRV",
-    # "HUN",
-    # "ITA",  
-    # "LUX",
-    # "NLD",
-    # "SVK",
-    # "SVN",
-    # 'IRL',
-    # 'ESP',  
-    # 'SWE',
-    # 'GRC',
-    # 'LVA',  
-    # 'LTU',
-    # 'MLT',
-    # 'ROU',
-    # 'BGR',  
-    # 'FIN',
-    # 'EST',
-]
+INPUT_FOLDER = Path().cwd() / "projects" / "AURESII_DATA"
 
-YEARS = [2020, 2030, 2040, 2050]
 
 # Ensure the log directory exists
 log_file_path = Path(__file__).parent / "create_inputs_logfile.log"
@@ -142,6 +113,24 @@ def get_sfh_mfh_dict() ->dict:
     }
     return SFH_MFH
 
+def appliance_electricity_demand_per_person_EU() -> pd.DataFrame:
+    consumption = load_european_consumption_df().query("type == 'lighting and electrical appliances'")
+    population = load_european_population_df()
+    df = pd.merge(consumption, population, on="country")
+    forecast = load_forecast_appliance_consumption_change()
+    merged = pd.merge(df, forecast.rename(columns={"Country": "country"}), on="country")
+    merged[["consumption 2020 (Wh)", "consumption 2030 (Wh)", "consumption 2040 (Wh)", "consumption 2050 (Wh)", ]] = merged[["2020", "2030", "2040", "2050"]].mul(merged["consumption (GWh)"] / merged["population"]*1_000 * 1_000 * 1_000, axis=0)
+    merged.drop(columns=["consumption (GWh)", "population", "2020", "2030", "2040", "2050"], inplace=True)
+    return merged
+
+
+def specific_DHW_per_person_EU() -> pd.DataFrame:
+    consumption = load_european_consumption_df().query("type == 'water heating'")
+    population = load_european_population_df()
+    df = pd.merge(consumption, population, on="country")
+    df["consumption (Wh)"] = df["consumption (GWh)"] / df["population"] * 1_000 * 1_000 * 1_000
+    df.drop(columns=["consumption (GWh)", "population"], inplace=True)
+    return df
 
 def load_invert_data(path_to_file: Path) -> pd.DataFrame:
     df = pd.read_parquet(path_to_file)
@@ -179,7 +168,7 @@ def create_pv_id_table(df: pd.DataFrame) -> pd.DataFrame:
     return pv_table
 
 
-def create_building_id_table(df: pd.DataFrame) -> pd.DataFrame:
+def create_building_id_table(df: pd.DataFrame, year: int, country: str) -> pd.DataFrame:
     """ creates the operationScenario_component_building dataframe that can be the excel input"""
     columns = list(components.Building.__dataclass_fields__) + ["number_buildings_heat_pump_air",
                                                                 "number_buildings_heat_pump_ground",
@@ -199,10 +188,14 @@ def create_building_id_table(df: pd.DataFrame) -> pd.DataFrame:
         if name in df.columns.to_list():
             building_table.loc[:, name] = df.loc[:, name]
 
-    appliance_electricity_demand_per_person_EU
-    # appliance_electricity_demand_per_person
-    # hot_water_demand_per_person
-    # id_demand_profile_type
+    appliance_demand = APPLICANCE_DEMAND_PER_PERSON.loc[APPLICANCE_DEMAND_PER_PERSON["country"]==get_european_countries_dict()[country], f"consumption {year} (Wh)"].values[0]
+    building_table.loc[:, "appliance_electricity_demand_per_person"] = appliance_demand
+
+    hot_water_demand = DHW_DEMAND_PER_PERSON.loc[DHW_DEMAND_PER_PERSON["country"]==get_european_countries_dict()[country], f"consumption (Wh)"].values[0]
+    building_table.loc[:, "hot_water_demand_per_person"] = hot_water_demand
+
+
+    building_table.drop(columns="id_demand_profile_type", inplace=True)
     return building_table
 
 
@@ -353,8 +346,8 @@ def reduce_number_of_buildings(df: pd.DataFrame) -> pd.DataFrame:
                                                    adding_names=adding_names)
 
         # set the number of heating systems for the specific buildings to zero except the main one:
-        air_hp[["number_buildings_heat_pump_ground", "number_buildings_electricity"]] = 0
-        ground_hp[["number_buildings_heat_pump_air", "number_buildings_electricity"]] = 0
+        air_hp["number_buildings_heat_pump_ground"] = 0
+        ground_hp["number_buildings_heat_pump_air"] = 0
 
         new_group = pd.concat([air_hp, ground_hp]).reset_index(drop=True)
         # sometimes the number of heating systems is zero: drop these columns
@@ -383,40 +376,21 @@ def reduce_number_of_buildings(df: pd.DataFrame) -> pd.DataFrame:
     return return_df
 
 
-def copy_input_operation_files(destination: Path, force_copy: bool = False):
-    source_files = ["OperationScenario_BehaviorProfile.xlsx",
-                    "OperationScenario_Component_Battery.xlsx",
-                    "OperationScenario_Component_Boiler.xlsx",
-                    "OperationScenario_Component_EnergyPrice.xlsx",
-                    "OperationScenario_Component_HeatingElement.xlsx",
-                    "OperationScenario_Component_HotWaterTank.xlsx",
-                    "OperationScenario_Component_SpaceCoolingTechnology.xlsx",
-                    "OperationScenario_Component_SpaceHeatingTank.xlsx",
-                    "OperationScenario_Component_Vehicle.xlsx",
-                    ]
-
-    for file in source_files:
-        source_file = Path(__file__).parent / "data" / "input_operation" / file
-        destination_file = destination / file
-        copy_file_to_folder(source_file, destination_file, force_copy)
-
-
 def create_operation_region_file(year: int, country: str) -> pd.DataFrame:
     columns = ["ID_Region", "code", "year"]
     df = pd.DataFrame(columns=columns, data=[[1, get_country_correction_code()[country], year]])
     return df
 
 
-
-
-def create_energy_price_scenario_file(country: str, year: int, source_path: Path) -> pd.DataFrame:
+def create_energy_price_scenario_file(country: str, year: int) -> pd.DataFrame:
     columns = ["region", "year", "id_hour", "electricity_1", "electricity_2", "electricity_feed_in_1", "unit"]
     price_df = pd.DataFrame(columns=columns)
+    grid_fees = 0.02 # cent/Wh
 
     if year > 2020:
-        # import electricity prices from AURES: shiny happy corresponds to newTrends and leviathan to no significant changes
+        # import electricity prices from AURES: shiny happy corresponds to newTrends and we add for elec 2 a fixed tarif
         df_newTrends = pd.read_excel(
-            source_path / Path("elec_prices_AURES.xlsx"),
+            INPUT_FOLDER / Path("elec_prices_AURES.xlsx"),
             engine="openpyxl",
             sheet_name=f"shiny happy {year}",
             header=3
@@ -430,25 +404,14 @@ def create_energy_price_scenario_file(country: str, year: int, source_path: Path
         elec_price_1 = df_newTrends_1[get_country_correction_code()[country]].astype(float).to_numpy() / 1_000 * 100 / 1_000
         price_df["electricity_1"] = elec_price_1
 
-        # save the leviathan variation as price 2:
-        df_oldTrends = pd.read_excel(
-            source_path / Path(r"elec_prices_AURES.xlsx"),
-            engine="openpyxl",
-            sheet_name=f"leviathan {year}",
-            header=3
-        ).dropna(axis=1).drop(0)
-        # replace "EPS" with nan and thenfrontfill:
-        df_oldTrends = df_oldTrends.replace("EPS", np.nan)
-        df_oldTrends = df_oldTrends.ffill().bfill()
-        # 24 hours of data are missing for the AURES prices, therefore we will repeat the last day
-        df_newTrends_2 = pd.concat([df_oldTrends, df_oldTrends.iloc[-24:, :]], axis=0).reset_index(drop=True)
-        # €/MWh -> €/kWh -> cent/kWh -> cent/Wh
-        elec_price_2 = df_newTrends_2[get_country_correction_code()[country]].astype(float).to_numpy() / 1_000 * 100 / 1_000
+        # save with additional  fixed tariff as price 2:
+       
+        elec_price_2 = elec_price_1 + grid_fees
         price_df["electricity_2"] = elec_price_2
 
     else:  # prices are taken from ENTSO-E from 2019
         df = pd.read_csv(  # price is in cent/kWh
-            source_path / Path(r"ENTSO-E_prices_europe_2019_newTrends.csv"),
+            INPUT_FOLDER / Path(r"ENTSO-E_prices_europe_2019_newTrends.csv"),
             sep=",",
             index_col=False
         )
@@ -458,9 +421,9 @@ def create_energy_price_scenario_file(country: str, year: int, source_path: Path
         # cent/kWh:
         # min_price = abs(np.floor(elec_price.min()))
         elec_price_positive = (elec_price) / 1_000  # cent/kWh->cent/Wh
-        # for 2020 only one price scenario exists therefore electricity_1 and electricity_2 will be identical
+        # for 2020
         price_df["electricity_1"] = elec_price_positive
-        price_df["electricity_2"] = elec_price_positive
+        price_df["electricity_2"] = elec_price_positive + grid_fees
 
     # fill the other columns of the file
     price_df["region"] = country
@@ -478,9 +441,9 @@ def filter_countries(df: pd.DataFrame) -> pd.DataFrame:
     return df[df["country"].isin(get_european_countries_dict().values())].reset_index(drop=True)
 
 
-def load_european_population_df(source_path: Path) -> pd.DataFrame:
+def load_european_population_df() -> pd.DataFrame:
     population = pd.read_excel(
-        source_path / Path(r"Europe_population_2020.xlsx"),
+        INPUT_FOLDER / Path(r"Europe_population_2020.xlsx"),
         sheet_name="Sheet 1",
         engine="openpyxl",
         skiprows=8,
@@ -492,18 +455,18 @@ def load_european_population_df(source_path: Path) -> pd.DataFrame:
     return population_df
 
 
-def load_forecast_appliance_consumption_change(source_path: Path) -> pd.DataFrame:
+def load_forecast_appliance_consumption_change() -> pd.DataFrame:
     forecast = pd.read_excel(
-        io=source_path / Path(r"FORECAST_Appliances_consumption.xlsx"),
+        io=INPUT_FOLDER / Path(r"FORECAST_Appliances_consumption.xlsx"),
         engine="openpyxl",
         sheet_name=0,
     )
     return forecast
 
 
-def load_european_consumption_df(source_path: Path) -> pd.DataFrame:
+def load_european_consumption_df() -> pd.DataFrame:
     consumption = pd.read_excel(
-        source_path / Path(r"Europe_residential_energy_consumption_2020.xlsx"),
+        INPUT_FOLDER / Path(r"Europe_residential_energy_consumption_2020.xlsx"),
         sheet_name="Sheet 1",
         engine="openpyxl",
         skiprows=9,
@@ -526,49 +489,35 @@ def load_european_consumption_df(source_path: Path) -> pd.DataFrame:
     return consumption_df
 
 
-def specific_DHW_per_person_EU(source_path: Path) -> pd.DataFrame:
-    consumption = load_european_consumption_df(source_path).query("type == 'water heating'")
-    population = load_european_population_df(source_path)
-    df = pd.merge(consumption, population, on="country")
-    df["consumption (Wh)"] = df["consumption (GWh)"] / df["population"] * 1_000 * 1_000 * 1_000
-    return df
-
-
-def appliance_electricity_demand_per_person_EU(year: int, source_path: Path) -> pd.DataFrame:
-    consumption = load_european_consumption_df(source_path).query("type == 'lighting and electrical appliances'")
-    population = load_european_population_df(source_path)
-    df = pd.merge(consumption, population, on="country")
-    forecast = load_forecast_appliance_consumption_change(source_path)
-    merged = pd.merge(df, forecast.rename(columns={"Country": "country"}), on="country")
-    merged["consumption (Wh)"] = merged["consumption (GWh)"] / merged["population"] * 1_000 * 1_000 * 1_000 * merged[str(year)]
-    return merged
-
-
-def create_behavior_component_file(country: str, year: int, source_path: Path) -> pd.DataFrame:
-    # copy behavior from main folder
-    original_file = Path(__file__).parent / "data" / "input_operation" / "OperationScenario_Component_Behavior.xlsx"
-    df = pd.read_excel(io=original_file, engine="openpyxl", sheet_name=0)
-    dhw_per_person = specific_DHW_per_person_EU(source_path).query(
-        f"country == '{get_european_countries_dict()[country]}'"
-    )["consumption (Wh)"]
-    electricity_per_person = appliance_electricity_demand_per_person_EU(year, source_path).query(
-        f"country == '{get_european_countries_dict()[country]}'"
-    )["consumption (Wh)"]
-    "FORECAST_Appliances_consumption.xlsx"
-    df["hot_water_demand_annual"] = float(dhw_per_person)
-    df["appliance_electricity_demand_annual"] = float(electricity_per_person)
-    return df
 
 
 def load_buildings(year: int, country: str, cfg: Config) -> pd.DataFrame:
 
     invert_file = cfg.input / f"INVERT_{country}_{year}.csv"
     df = pd.read_csv(invert_file, sep=",")
-    int_columns = ["construction_period_start", "construction_period_end", "building_categories_index",
-                   "number_of_floors"]
+    int_columns = [
+        "construction_period_start", 
+        "construction_period_end", 
+        "building_categories_index",
+        "number_of_floors"
+    ]
     df[int_columns] = df[int_columns].astype(int)
     # replace nan with 0:
     df = df.fillna(0)
+
+    # load old file:
+    old_file = cfg.input / "OperationScenario_Component_Building_old.csv"
+    df_old = pd.read_csv(old_file, sep=",")
+    df_old = df_old.query("id_demand_profile_type == 1").reset_index(drop=True)
+    df_old.Af = df_old.Af.round(5)
+    
+    # get the correct decimal person num from old df
+    df = pd.merge(
+        left=df, 
+        right=df_old[ [ "construction_period_start", "construction_period_end", "Af", "person_num"] ], 
+        on= [ "construction_period_start", "construction_period_end", "Af", ]
+    )
+    
 
     # round the number of buildings
     df[["number_buildings_heat_pump_air", "number_buildings_heat_pump_ground"]] = df[["number_buildings_heat_pump_air", "number_buildings_heat_pump_ground"]].astype(float).round()
@@ -586,44 +535,91 @@ def load_buildings(year: int, country: str, cfg: Config) -> pd.DataFrame:
     return df_reduced
 
 
+def create_boiler_table(year: int):
+    efficiencies = {
+        2020: {"air": 0.35, "ground": 0.4},
+        2030: {"air": 0.37, "ground": 0.42},
+        2040: {"air": 0.39, "ground": 0.44},
+        2050: {"air": 0.41, "ground": 0.43},
+
+    }
+    df = pd.DataFrame(
+        columns=["ID_Boiler", "type", "power_max",  "power_max_unit", "carnot_efficiency_factor", "fuel_boiler_efficiency"],
+        data=[
+            [1, "Air_HP", 1, "W", efficiencies[year]["air"], 0.9], 
+            [2, "Ground_HP", 1, "W", efficiencies[year]["ground"], 0.9], 
+        ]
+    )
+    return df
+
+def create_dhw_table(building_table: pd.DataFrame):
+    # DHW Tank: 100 L per person
+    liter_per_person = 100
+    building_table["DHW_size"] = building_table["person_num"] * liter_per_person
+    # limit the maximum size for the dhw Tanks in large buildings to 5000 liter
+    max_dhw_size = 5_000
+    building_table.loc[building_table["DHW_size"] > max_dhw_size, "DHW_size"] = max_dhw_size
+    building_table["DHW_size"].unique()
+
+    df = pd.DataFrame(
+        columns=["ID_HotWaterTank", "size", "size_unit", "loss",  "loss_unit", "temperature_start", "temperature_max", "temperature_min", "temperature_surrounding", "temperature_unit", "note"],
+        data=[
+            [1, 300, "L", 0.2, "W/m2K", 20, 55, 20, 20, "°C", "SFH"], 
+            [2, 700, "L", 0.2, "W/m2K", 20, 55, 20, 20, "°C", "MFH"], 
+        ]
+    )
+    return df
+
+def create_heating_tank_table():
+    # 
+    df = pd.DataFrame(
+        columns=["ID_HotWaterTank", "size", "size_unit", "loss",  "loss_unit", "temperature_start", "temperature_max", "temperature_min", "temperature_surrounding", "temperature_unit", "note"],
+        data=[
+            [1, 700, "L", 0.2, "W/m2K", 20, 45, 20, 20, "°C", "SFH"], 
+            [2, 1500, "L", 0.2, "W/m2K", 20, 45, 20, 20, "°C", "MFH"], 
+        ]
+    )
+    return df
+
+
+def change_name_of_old_building_file(cfg: Config):
+    # do this only once so the real old file is not overwritten:
+    file = cfg.input / "OperationScenario_Component_Building.csv"
+    old_file = cfg.input / "OperationScenario_Component_Building_old.csv"
+    if not old_file.exists():
+        file.rename(cfg.input / "OperationScenario_Component_Building_old.csv")
+
+
 def create_input_excels(year: int,
                         country: str,
                         force_copy: bool = False):
     
     project_name = f"{country}_{year}"
     config = get_config(project_name=project_name)
+    change_name_of_old_building_file(cfg=config)
 
     df_buildings = load_buildings(year, country, cfg=config)
     
+    # weather table is already correct
+    # behavior table is already correct
+
     # tables:
     operation_scenario_component_pv = create_pv_id_table(df_buildings)
-    operation_scenario_building = create_building_id_table(df_buildings)
+    operation_scenario_building = create_building_id_table(df_buildings, year=year, country=country)
     region_scenario_table = create_operation_region_file(year, country)
     energy_price_scenario_table = create_energy_price_scenario_file(country, year)
-    operation_behavior_component = create_behavior_component_file(country, year)
+    boiler_table = create_boiler_table()
+    dhw_table = create_dhw_table(df_buildings)
+    heating_tank_table = create_heating_tank_table(df_buildings)
 
-    # save the operation_scenario_component tables as excel:
-    input_operation_path = Path(__file__).parent / "data" / "input_operation" / f"{project_prefix}_{country}_{year}"
-    # create the folders:
-    create_dict_if_not_exists(input_operation_path)
+
     # save the excel files:
-    operation_scenario_component_pv.to_excel(input_operation_path / "OperationScenario_Component_PV.xlsx", index=False)
-    operation_scenario_building.to_excel(input_operation_path / "OperationScenario_Component_Building.xlsx",
-                                         index=False)
-    region_scenario_table.to_excel(input_operation_path / "OperationScenario_Component_Region.xlsx", index=False)
-    weather_scenario_table.to_excel(input_operation_path / "OperationScenario_RegionWeather.xlsx", index=False)
-    energy_price_scenario_table.to_excel(input_operation_path / "OperationScenario_EnergyPrice.xlsx", index=False)
-    operation_behavior_component.to_excel(input_operation_path / "OperationScenario_Component_Behavior.xlsx",
-                                          index=False)
+    operation_scenario_component_pv.to_csv(config.input / "OperationScenario_Component_PV.xlsx", index=False, sep=";")
+    operation_scenario_building.to_csv(config.input / "OperationScenario_Component_Building.xlsx", index=False, sep=";")
+    region_scenario_table.to_csv(config.input / "OperationScenario_Component_Region.xlsx", index=False, sep=";")
+    energy_price_scenario_table.to_csv(config.input / "OperationScenario_EnergyPrice.xlsx", index=False, sep=";")
+    boiler_table.to_csv(config.input / "OperationScenario_Component_Boiler.csv", index=False, sep=";")
 
-    # copy the other input excel files to each country from the input_operation folder:
-    copy_input_operation_files(destination=input_operation_path, force_copy=force_copy)
-
-    # create config class with different project names, for country and year:
-    cfg = Config(project_name=f"{project_prefix}_{country}_{year}")
-    # create a database (sqlite file) for every country and year:
-    ProjectDatabaseInit(cfg).load_operation_component_tables()
-    ProjectDatabaseInit(cfg).load_operation_profile_tables()
 
 
 def map_heat_pump_to_scenario_table(scenario_df: pd.DataFrame, large_df: pd.DataFrame, test_numbers: dict):
@@ -632,17 +628,14 @@ def map_heat_pump_to_scenario_table(scenario_df: pd.DataFrame, large_df: pd.Data
     # we dont consider buildings with heat pumps if there are less than 0 heat pumps in the stock
     id_air = large_df.query("number_buildings_heat_pump_air > 0")["index"].to_list()
     id_ground = large_df.query("number_buildings_heat_pump_ground > 0")["index"].to_list()
-    id_elec = large_df.query("number_buildings_electricity > 0")["index"].to_list()
 
     # compare the masks to see which IDs will be doubled:
     scenario_df.loc[scenario_df["ID_Building"].isin(id_air), "ID_Boiler"] = 1
     scenario_df.loc[scenario_df["ID_Building"].isin(id_ground), "ID_Boiler"] = 2
-    scenario_df.loc[scenario_df["ID_Building"].isin(id_elec), "ID_Boiler"] = 3
 
     # test numbers:
     assert test_numbers["air_numbers"] == round(scenario_df.query("ID_Boiler == 1")["number_of_buildings"].sum()) and \
            test_numbers["ground_numbers"] == round(scenario_df.query("ID_Boiler == 2")["number_of_buildings"].sum()) and \
-           test_numbers["elec_numbers"] == round(scenario_df.query("ID_Boiler == 3")["number_of_buildings"].sum()), \
         "number of buildings dont add up"
     return scenario_df
 
@@ -683,7 +676,6 @@ def add_tank_to_scenario_df(scenario_df: pd.DataFrame,
     new_scenario_table = pd.concat(tables_for_concat, axis=0).reset_index(drop=True)
     assert test_numbers["air_numbers"] == round(new_scenario_table.query("ID_Boiler == 1")["number_of_buildings"].sum()) and \
            test_numbers["ground_numbers"] == round(new_scenario_table.query("ID_Boiler == 2")["number_of_buildings"].sum()) and \
-           test_numbers["elec_numbers"] == round(new_scenario_table.query("ID_Boiler == 3")["number_of_buildings"].sum()), \
            "building numbers dont add up"
     return new_scenario_table
 
@@ -711,7 +703,6 @@ def tanks_to_scenario_table_per_building_type(scenario_df: pd.DataFrame, cfg: "C
     # check numbers:
     assert test_numbers["air_numbers"] == round(scenario_table_with_both_tanks.query("ID_Boiler == 1")["number_of_buildings"].sum()) and \
            test_numbers["ground_numbers"] == round(scenario_table_with_both_tanks.query("ID_Boiler == 2")["number_of_buildings"].sum()) and \
-           test_numbers["elec_numbers"] == round(scenario_table_with_both_tanks.query("ID_Boiler == 3")["number_of_buildings"].sum()), \
            "building numbers dont add up"
     # buildings with electric heating do not have a heating buffer storage, ID Boiler = 3 for electric heating
     id_boiler_3 = scenario_table_with_both_tanks.query("ID_Boiler == 3")
@@ -733,7 +724,6 @@ def tanks_to_scenario_table_per_building_type(scenario_df: pd.DataFrame, cfg: "C
     # check numbers:
     assert test_numbers["air_numbers"] == round(return_df.query("ID_Boiler == 1")["number_of_buildings"].sum()) and \
            test_numbers["ground_numbers"] == round(return_df.query("ID_Boiler == 2")["number_of_buildings"].sum()) and \
-           test_numbers["elec_numbers"] == round(return_df.query("ID_Boiler == 3")["number_of_buildings"].sum()), \
            "building numbers dont add up"
     return return_df
 
@@ -788,29 +778,29 @@ def create_scenario_tables(country: str,
                            year: int,
                            minimum_number_buildings: int,
                            project_prefix: str,
-                           source_path: Path,
                            ) -> None:
-    logger.info(f"clearing the log files for {country} {year}.")
+    LOGGER.info(f"clearing the log files for {country} {year}.")
     # create config class with different project names, for country and year:
-    cfg = Config(project_name=f"{project_prefix}_{country}_{year}")
-    clear_result_files(country, year, project_prefix=project_prefix, source_path=source_path)
-    ProjectDatabaseInit(cfg).drop_tables()  # drop result tables if they exist
+    cfg = get_config(project_name=f"{country}_{year}")
+    clear_result_files(cfg)
+    db = create_db_conn(config=cfg)
+    
+    db.clear_database()  # drop result tables if they exist
     # start creating the scenario tables
-    logger.info(f"Creating Scenario Table for {country} {year}.")
+    LOGGER.info(f"Creating Scenario Table for {country} {year}.")
 
-    # load the parquet file:
-    df_reduced = load_buildings(year, country, source_path)
+    # load the building df:
+    df_buildings = load_buildings(year, country, cfg=cfg)
     # create numbers for tests:
     test_numbers = {
-        "air_numbers": round(df_reduced["number_buildings_heat_pump_air"].sum()),
-        "ground_numbers": round(df_reduced["number_buildings_heat_pump_ground"].sum()),
-        "elec_numbers": round(df_reduced["number_buildings_electricity"].sum()),
+        "air_numbers": round(df_buildings["number_buildings_heat_pump_air"].sum()),
+        "ground_numbers": round(df_buildings["number_buildings_heat_pump_ground"].sum()),
     }
 
-    operation_scenario_component_pv = create_pv_id_table(df_reduced)
-    building_pv_table = map_pv_to_building_id(operation_scenario_component_pv, df_reduced)
+    operation_scenario_component_pv = create_pv_id_table(df_buildings)
+    building_pv_table = map_pv_to_building_id(operation_scenario_component_pv, df_buildings)
 
-    building_pv_hp_table = map_heat_pump_to_scenario_table(building_pv_table, df_reduced, test_numbers)
+    building_pv_hp_table = map_heat_pump_to_scenario_table(building_pv_table, df_buildings, test_numbers)
     battery_building_pv_hp_table = map_battery_to_scenario_table(building_pv_hp_table, cfg, year, test_numbers)
     scenario_table = tanks_to_scenario_table_per_building_type(scenario_df=battery_building_pv_hp_table,
                                                                cfg=cfg, test_numbers=test_numbers)
@@ -840,7 +830,6 @@ def create_scenario_tables(country: str,
     # check numbers:
     assert test_numbers["air_numbers"] == round(scenario_df.query("ID_Boiler == 1")["number_of_buildings"].sum()) and \
            test_numbers["ground_numbers"] == round(scenario_df.query("ID_Boiler == 2")["number_of_buildings"].sum()) and \
-           test_numbers["elec_numbers"] == round(scenario_df.query("ID_Boiler == 3")["number_of_buildings"].sum()), \
            "building numbers dont add up"
 
     # drop the scenarios where there are not more than 5 buildings:
@@ -870,16 +859,15 @@ def create_scenario_tables(country: str,
     )
 
 
-def clear_result_files(country: str, year: int, project_prefix: str, source_path: Path):
+def clear_result_files(config: Config):
     """
     deletes the content of the result folder
     Returns: None
 
     """
-    path = source_path.parent.parent / "data" / "output" / f"{project_prefix}_{country}_{year}"
     extensions = ["*.log", "*.csv", "*.xlsx", "*.parquet.gzip"]
     for ext in extensions:
-        files = path.glob(ext)
+        files = config.output.glob(ext)
         for file in files:
             file.unlink()
 
@@ -905,10 +893,11 @@ def main(country_list: list, years: list, minimum_number_buildings: int, project
     #                                minimum_number_buildings=minimum_number_buildings)
 
     create_input_excels(year=2030, country="AUT")
+    create_scenario_tables("AUT", 2030, minimum_number_buildings, project_prefix)
     answer = input(f"Delete the results of all scenarios? (y/n)")
     force_copy = True
     if answer.lower() == "y":
-        logger.info("Dropping old results and creating new input...")
+        LOGGER.info("Dropping old results and creating new input...")
         # use multiprocessing to speed it up creating all the input data:
         input_list = [(year, country, project_prefix, force_copy)
                       for year in years for country in country_list]
@@ -921,6 +910,7 @@ def main(country_list: list, years: list, minimum_number_buildings: int, project
          # create the individual scenario tables:
         scenario_tables_pool_list = [(country, year, minimum_number_buildings, project_prefix)
                                      for year in years for country in country_list]
+        
         Parallel(n_jobs=number_of_physical_cores)(delayed(create_scenario_tables)(*inst) for inst in scenario_tables_pool_list)
 
         # with multiprocessing.Pool(number_of_physical_cores) as pool:
@@ -929,6 +919,10 @@ def main(country_list: list, years: list, minimum_number_buildings: int, project
 
     # else:
     #     logger.info("stopped creating individual scenarios.")
+
+
+APPLICANCE_DEMAND_PER_PERSON = appliance_electricity_demand_per_person_EU()
+DHW_DEMAND_PER_PERSON = specific_DHW_per_person_EU()
 
 
 if __name__ == "__main__":

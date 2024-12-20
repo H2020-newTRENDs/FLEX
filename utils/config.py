@@ -7,9 +7,10 @@ class Config:
         self.root = Path().resolve()
         self.project_name: str = project_name
         self.project_path: Path = project_path
-        self.input = self.create_folder("input")
-        self.output = self.create_folder("output")
-        self.figure = self.create_folder("output/figure")
+        self.input: Path = self.create_folder("input")
+        self.output: Path = self.create_folder("output")
+        self.figure: Path = self.create_folder("output/figure")
+        self.sqlite_path: Path = self.output / f"{self.project_name}.sqlite"
         self.task_id = None
         self.task_output = None
 

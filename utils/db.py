@@ -32,8 +32,7 @@ class DB:
 
     def clear_database(self):
         for table_name in self.get_table_names():
-            with self.engine.connect() as conn:
-                result = conn.execute(sqlalchemy.text(f"drop table {table_name}"))
+            self.drop_table(table_name=table_name)
 
     def drop_table(self, table_name: str):
         with self.engine.connect() as conn:
