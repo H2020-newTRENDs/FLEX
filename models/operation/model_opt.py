@@ -645,10 +645,6 @@ class OptConfig:
             else:
                 instance.FuelPrice[t] = self.scenario.energy_price.gases[t - 1]
 
-    def config_grid(self, instance):
-        for t in range(1, 8761):
-            instance.Grid[t].setub(self.scenario.building.grid_power_max)
-            instance.Feed2Grid[t].setub(self.scenario.building.grid_power_max)
 
     def config_space_heating(self, instance):
         for t in range(1, 8761):
