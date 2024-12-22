@@ -80,14 +80,17 @@ class DatabaseInitializer:
     def generate_scenario_table(self, table_name: str):
         self.db.drop_table(table_name)
         logger.info(f"generating table -> {table_name}")
-        scenario_df = self.generate_params_combination_df(
-            self.get_component_scenario_ids()
-        )
-        scenario_ids = np.array(range(1, 1 + len(scenario_df)))
-        scenario_df.insert(
-            loc=0, column="ID_Scenario", value=scenario_ids
-        )
-        data_types = {name: sqlalchemy.types.Integer for name in scenario_df.columns}
+        if self.config.input_operation / "OperationScenario.xlsx":
+            scenario_df = pd.read_excel(self.config.input_operation / "OperationScenario.xlsx")
+        else:
+            scenario_df = self.generate_params_combination_df(
+                self.get_component_scenario_ids()
+            )
+            scenario_ids = np.array(range(1, 1 + len(scenario_df)))
+            scenario_df.insert(
+                loc=0, column="ID_Scenario", value=scenario_ids
+            )
+            data_types = {name: sqlalchemy.types.Integer for name in scenario_df.columns}
         self.db.write_dataframe(
             table_name,
             scenario_df,
