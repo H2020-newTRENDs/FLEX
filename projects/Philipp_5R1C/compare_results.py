@@ -135,6 +135,8 @@ class CompareModels:
         demand_df = pd.read_csv(self.input_path / Path(filename), sep=";")
         # rearrange the df:
         df = self.reorder_table(demand_df)
+        df["Hour"] = np.arange(1, 8761)
+        df.set_index("Hour", inplace=True)
         return df
 
     def read_daniel_cooling_demand(self, price: str):
@@ -1246,15 +1248,50 @@ class CompareModels:
         self.plot_relative_cooling_cost_reduction(prices=price_scenarios,
                                                   cooling=cooling)  # no floor heating with cooling
 
+    def compare_daily_peaks(self):
+        floor_heating = True
+        cooling = False
+        cop = self.read_COP(table_name=OperationTable.ResultRefHour.value)
+
+        dfs = []
+        for price in ["price2", "price3", "price4"]:
+            opt_5R1C = self.read_heat_demand(table_name=OperationTable.ResultOptHour.value, prize_scenario=price, cooling=False) / cop
+            opt_IDA_floor = self.read_daniel_heat_demand(price=price, cooling=False, floor_heating=True) / cop
+            opt_IDA_ideal = self.read_daniel_heat_demand(price=price, cooling=False, floor_heating=False) / cop
+            
+            opt_5R1C["type"] = "5R1C"
+            opt_IDA_floor["type"] = "IDA floor"
+            opt_IDA_ideal["type"] = "IDA ideal"
+            df = pd.concat([opt_5R1C, opt_IDA_floor, opt_IDA_ideal], axis=0)
+            df["price scenario"] = price[-1]
+            dfs.append(df)
+        big_df = pd.concat(dfs)
+
+        big_df["days"] = (big_df.index-1) // 24 + 1
+        maxes = big_df.groupby(["days", "price scenario", "type"]).max().reset_index()
+        plot_df = maxes.melt(id_vars=["days", "price scenario", "type"], value_name="peak demand", var_name="building")
+
+        sns.boxplot(
+            data=plot_df,
+            x="building",
+            y="peak demand",
+            hue="type"
+        )
+        plt.suptitle("daily peaks over all price scenario")
+        plt.tight_layout()
+        plt.savefig(self.figure_path / "daily_peaks_over_all_price_scenarios.png")
+        plt.show()
+
     def main(self):
         price_scenarios = ["basic", "price2", "price3", "price4"]
         # self.indoor_temp_to_csv(cooling=False)
         # self.indoor_temp_to_csv(cooling=True)# was only relevant for Daniel
 
-        self.shifted_electrity_demand()
-        self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
-        self.plot_yearly_heat_demand_floor_ideal_not_optimized()
-        self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
+        self.compare_daily_peaks()
+        # self.shifted_electrity_demand()
+        # self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
+        # self.plot_yearly_heat_demand_floor_ideal_not_optimized()
+        # self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
 
         # run through results: run takes scenarios, floor_heating, cooling as input
         # run it with floor heating and without cooling (not included in floor heating)
@@ -1269,8 +1306,8 @@ class CompareModels:
 
 if __name__ == "__main__":
     # CompareModels("5R1C_validation").show_elec_prices()
-    CompareModels("5R1C_validation").show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price4",
-                                                                                             building="EZFH_9_B")
+    # CompareModels("5R1C_validation").show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price4",
+    #                                                                                          building="EZFH_9_B")
     CompareModels("5R1C_validation").main()
 
     # TODO Cooling demand plot passt nicht
