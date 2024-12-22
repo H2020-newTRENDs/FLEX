@@ -207,14 +207,15 @@ def map_pv_to_building_id(component_pv: pd.DataFrame,
                           df: pd.DataFrame) -> pd.DataFrame:
     # the PV IDs are added after the permutations to the scenario table:
     column_names = [name for name in df.columns.to_list() if "PV" in name]
-    scenario = df[["index"] + column_names]
-    new_column_names = ["index"] + [
+    scenario = df[["ID_Building"] + column_names]
+    new_column_names = ["ID_Building"] + [
         str(int(component_pv.loc[component_pv.loc[:, "size"] == pv_area_to_kWp(name), "ID_PV"])) for name in column_names
     ]
     scenario.columns = new_column_names
-    scenario_df = scenario.melt(id_vars="index", var_name="ID_PV", value_name="number_of_buildings")
+    scenario_df = scenario.melt(id_vars="ID_Building", var_name="ID_PV", value_name="number_of_buildings")
     # drop the zeros:
-    scenario_df = scenario_df[scenario_df["number_of_buildings"] > 0].rename(columns={"index": "ID_Building"})
+    scenario_df = scenario_df[scenario_df["number_of_buildings"] > 0]
+
     # check numbers:
     assert round(scenario_df["number_of_buildings"].sum()) == round(df[column_names].sum().sum()), "numbers dont add up"
     return scenario_df.reset_index(drop=True)
@@ -493,8 +494,6 @@ def load_european_consumption_df() -> pd.DataFrame:
     return consumption_df
 
 
-
-
 def load_buildings(year: int, country: str, cfg: Config) -> pd.DataFrame:
 
     invert_file = cfg.input / f"INVERT_{country}_{year}.csv"
@@ -670,6 +669,7 @@ def create_input_excels(year: int,
     battery_table.to_csv(config.input / "OperationScenario_Component_Battery.csv", index=False, sep=";")
     ev_table.to_csv(config.input / "OperationScenario_Component_Vehicle.csv", index=False, sep=";")
     heating_element_table.to_csv(config.input / "OperationScenario_Component_HeatingElement.csv", index=False, sep=";")
+    LOGGER.info("created input csvs")
 
     # delete the same excel files:
     excel_files = [
@@ -693,8 +693,8 @@ def map_heat_pump_to_scenario_table(scenario_df: pd.DataFrame, large_df: pd.Data
     # ID 1 == Air_HP, ID 2 == Ground_HP
     scenario_df["ID_Boiler"] = 0
     # we dont consider buildings with heat pumps if there are less than 0 heat pumps in the stock
-    id_air = large_df.query("number_buildings_heat_pump_air > 0")["index"].to_list()
-    id_ground = large_df.query("number_buildings_heat_pump_ground > 0")["index"].to_list()
+    id_air = large_df.query("number_buildings_heat_pump_air > 0")["ID_Building"].to_list()
+    id_ground = large_df.query("number_buildings_heat_pump_ground > 0")["ID_Building"].to_list()
 
     # compare the masks to see which IDs will be doubled:
     scenario_df.loc[scenario_df["ID_Building"].isin(id_air), "ID_Boiler"] = 1
@@ -747,12 +747,20 @@ def add_tank_to_scenario_df(scenario_df: pd.DataFrame,
     return new_scenario_table
 
 
-def tanks_to_scenario_table_per_building_type(scenario_df: pd.DataFrame, cfg: "Config",
-                                              test_numbers: dict) -> pd.DataFrame:
+def tanks_to_scenario_table_per_building_type(scenario_df: pd.DataFrame, 
+                                              cfg: "Config",
+                                              test_numbers: dict,
+                                              building_table: pd.DataFrame) -> pd.DataFrame:
+    building_table.loc[:, "type"] = building_table["building_categories_index"].map(get_sfh_mfh_dict())
     # load the building table to get the building ID with corresponding building type:
-    building_table = DatabaseInitializer(cfg).db.read_dataframe(OperationScenarioComponent.Building.table_name)
     table_to_map = building_table.loc[:, ["ID_Building", "type"]]
     building_types = list(table_to_map.loc[:, "type"].unique())
+
+    # load tanks TODO add the tanks like the PV
+    _, dhw_building_table = create_dhw_table(building_table)
+    _, buffer_tank_table = create_heating_tank_table(building_table)
+
+    
     # add both tanks after each other:
     scenario_table_with_dhw_tank = add_tank_to_scenario_df(scenario_df=scenario_df,
                                                            tank_table_name="OperationScenario_Component_HotWaterTank",
@@ -812,33 +820,9 @@ def drop_scenarios_with_low_number_of_buildings(min_number_buildings: int,
     return new_table
 
 
-def map_battery_to_scenario_table(scenario_df, cfg: Config, year: int, test_numbers: dict):
-    db = DB(config=cfg)
-    battery_df = db.read_dataframe(OperationScenarioComponent.Battery.table_name)
-    # buildings with PV are distinguished in buildings with Battery and without
-    # buildings without PV are not added
-    no_pv_buildings = scenario_df.query("ID_PV == 1").copy()
-    no_pv_buildings["ID_Battery"] = 1
-    pv_buildings = scenario_df.query("ID_PV != 1").copy()
-    pv_building_list = []
-    for battery_id in battery_df["ID_Battery"]:
-        part_table = pv_buildings.copy()
-        part_table["ID_Battery"] = battery_id
-        if battery_id == 1:
-            technology_penetration = 1 - get_battery_penetration()[year]
-            part_table["number_of_buildings"] = part_table["number_of_buildings"] * technology_penetration
-        else:
-            technology_penetration = get_battery_penetration()[year]
-            part_table["number_of_buildings"] = part_table["number_of_buildings"] * technology_penetration
-        pv_building_list.append(part_table)
-    new_scenario = pd.concat([no_pv_buildings] + pv_building_list)
-    # check numbers
-    assert test_numbers["air_numbers"] == round(new_scenario.query("ID_Boiler == 1")["number_of_buildings"].sum()) and \
-           test_numbers["ground_numbers"] == round(
-        new_scenario.query("ID_Boiler == 2")["number_of_buildings"].sum()) and \
-           test_numbers["elec_numbers"] == round(new_scenario.query("ID_Boiler == 3")["number_of_buildings"].sum()), \
-        "building numbers dont add up"
-    return new_scenario.reset_index(drop=True)
+def map_battery_to_scenario_table(scenario_df: pd.DataFrame):
+    scenario_df["ID_Battery"] = 1
+    return scenario_df
 
 
 def create_scenario_tables(country: str,
@@ -868,9 +852,11 @@ def create_scenario_tables(country: str,
     building_pv_table = map_pv_to_building_id(operation_scenario_component_pv, df_buildings)
 
     building_pv_hp_table = map_heat_pump_to_scenario_table(building_pv_table, df_buildings, test_numbers)
-    battery_building_pv_hp_table = map_battery_to_scenario_table(building_pv_hp_table, cfg, year, test_numbers)
+    battery_building_pv_hp_table = map_battery_to_scenario_table(building_pv_hp_table)
     scenario_table = tanks_to_scenario_table_per_building_type(scenario_df=battery_building_pv_hp_table,
-                                                               cfg=cfg, test_numbers=test_numbers)
+                                                               cfg=cfg, 
+                                                               test_numbers=test_numbers,
+                                                               building_table=df_buildings)
 
     engine = DatabaseInitializer(config=cfg).db.get_engine().connect()
     for key, value in OperationScenarioComponent.__dict__.items():
@@ -893,6 +879,10 @@ def create_scenario_tables(country: str,
 
     # add a scenario ID to the table:
     scenario_df = scenario_table.reset_index().rename(columns={"index": "ID_Scenario"})
+    
+    # add id_demand_profile_type column as its always 1
+    
+
     scenario_df.loc[:, "ID_Scenario"] = scenario_df.index + 1
     # check numbers:
     assert test_numbers["air_numbers"] == round(scenario_df.query("ID_Boiler == 1")["number_of_buildings"].sum()) and \
