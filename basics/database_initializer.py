@@ -90,7 +90,7 @@ class DatabaseInitializer:
             scenario_df.insert(
                 loc=0, column="ID_Scenario", value=scenario_ids
             )
-            data_types = {name: sqlalchemy.types.Integer for name in scenario_df.columns}
+        data_types = {name: sqlalchemy.types.Integer for name in scenario_df.columns}
         self.db.write_dataframe(
             table_name,
             scenario_df,

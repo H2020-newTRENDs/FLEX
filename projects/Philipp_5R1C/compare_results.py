@@ -89,7 +89,7 @@ class CompareModels:
         if cooling:
             cooling_id = 1
         else:
-            cooling_id = 2
+            cooling_id = 2  # TODO achtung später hab ich nur noch ohne kühung
         ids = self.scenario_table.loc[(self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price) &
                                       (self.scenario_table.loc[:, "ID_SpaceCoolingTechnology"] == cooling_id),
                                       "ID_Scenario"]
@@ -1288,7 +1288,7 @@ class CompareModels:
         # self.indoor_temp_to_csv(cooling=True)# was only relevant for Daniel
 
         self.compare_daily_peaks()
-        # self.shifted_electrity_demand()
+        self.shifted_electrity_demand()
         # self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
         # self.plot_yearly_heat_demand_floor_ideal_not_optimized()
         # self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
@@ -1296,9 +1296,9 @@ class CompareModels:
         # run through results: run takes scenarios, floor_heating, cooling as input
         # run it with floor heating and without cooling (not included in floor heating)
         # run it with ideal heating system including end excluding cooling:
-        self.run(price_scenarios, floor_heating=True, cooling=False)
-        self.run(price_scenarios, floor_heating=False, cooling=False)
-        self.run(price_scenarios, floor_heating=False, cooling=True)
+        # self.run(price_scenarios, floor_heating=True, cooling=False)
+        # self.run(price_scenarios, floor_heating=False, cooling=False)
+        # self.run(price_scenarios, floor_heating=False, cooling=True)
 
         # self.show_plotly_comparison(prices=price_scenarios, cooling=True, floor_heating=True)
 

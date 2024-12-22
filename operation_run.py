@@ -27,7 +27,7 @@ def run_scenarios(scenario_ids):
     opt_instance = OptInstance().create_instance()
     mother_operation = MotherOperationScenario(config=config)
     config.input_operation
-    
+
     for scenario_id in scenario_ids:
         logger.info(f"FlexOperation --> Scenario = {scenario_id}.")
 
@@ -38,7 +38,7 @@ def run_scenarios(scenario_ids):
 
 if __name__ == "__main__":
 
-    SCENARIO_IDS = np.arange(1, 73)
+    SCENARIO_IDS = np.arange(1, 37)
     run_scenarios(SCENARIO_IDS)
 
 
