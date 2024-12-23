@@ -625,7 +625,7 @@ def change_name_of_old_building_file(cfg: Config):
 
 def create_input_excels(year: int,
                         country: str,
-                        force_copy: bool = False):
+                    ):
     
     project_name = f"{country}_{year}"
     config = get_config(project_name=project_name)
@@ -760,8 +760,6 @@ def price_to_scenario_table(scen_df: pd.DataFrame):
 
 def create_scenario_tables(country: str,
                            year: int,
-                           minimum_number_buildings: int,
-                           project_prefix: str,
                            ) -> None:
     LOGGER.info(f"clearing the log files for {country} {year}.")
     # create config class with different project names, for country and year:
@@ -839,33 +837,18 @@ def main(country_list: list, years: list, minimum_number_buildings: int, project
     #         create_scenario_tables(country=country, year=year,
     #                                minimum_number_buildings=minimum_number_buildings)
 
-    create_input_excels(year=2030, country="AUT")
-    create_scenario_tables("AUT", 2030, minimum_number_buildings, project_prefix)
-    answer = input(f"Delete the results of all scenarios? (y/n)")
-    force_copy = True
-    if answer.lower() == "y":
-        LOGGER.info("Dropping old results and creating new input...")
-        # use multiprocessing to speed it up creating all the input data:
-        input_list = [(year, country, project_prefix, force_copy)
-                      for year in years for country in country_list]
-        number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
-        Parallel(n_jobs=number_of_physical_cores)(delayed(create_input_excels)(*inst) for inst in input_list)
+    # create_input_excels(year=2030, country="AUT")
+    # create_scenario_tables("AUT", 2030, minimum_number_buildings, project_prefix)
+    # use multiprocessing to speed it up creating all the input data:
+    input_list = [(year, country, project_prefix) for year in years for country in country_list]
+    number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
+    Parallel(n_jobs=number_of_physical_cores)(delayed(create_input_excels)(*inst) for inst in input_list)
 
-        # with multiprocessing.Pool(number_of_physical_cores) as pool:
-        #     pool.starmap(create_input_excels, input_list)
+    # create the individual scenario tables:
+    scenario_tables_pool_list = [(country, year) for year in years for country in country_list]
+    
+    Parallel(n_jobs=number_of_physical_cores)(delayed(create_scenario_tables)(*inst) for inst in scenario_tables_pool_list)
 
-         # create the individual scenario tables:
-        scenario_tables_pool_list = [(country, year, minimum_number_buildings, project_prefix)
-                                     for year in years for country in country_list]
-        
-        Parallel(n_jobs=number_of_physical_cores)(delayed(create_scenario_tables)(*inst) for inst in scenario_tables_pool_list)
-
-        # with multiprocessing.Pool(number_of_physical_cores) as pool:
-        #     pool.starmap(create_scenario_tables, scenario_tables_pool_list)
-
-
-    # else:
-    #     logger.info("stopped creating individual scenarios.")
 
 
 APPLICANCE_DEMAND_PER_PERSON = appliance_electricity_demand_per_person_EU()
