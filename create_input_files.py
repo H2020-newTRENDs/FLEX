@@ -17,6 +17,9 @@ INPUT_FOLDER = Path().cwd() / "projects" / "AURESII_DATA"
 
 # Ensure the log directory exists
 log_file_path = Path(__file__).parent / "create_inputs_logfile.log"
+# delete old logfile:
+if log_file_path.exists():
+    log_file_path.unlink()
 log_level = logging.INFO
 # Configure the logger
 logging.basicConfig(

@@ -29,7 +29,7 @@ def delete_result_task_folders(conf):
 if __name__ == "__main__":
     country_list = [
             "AUT",  
-            "BEL", 
+            # "BEL", 
             # "POL",
             # "CYP", 
             # "PRT",
@@ -57,7 +57,7 @@ if __name__ == "__main__":
             # 'EST',
         ]
 
-    years = [2023]#2030, 2040]
+    years = [2030]#2030, 2040]
     # for country in country_list:
     #     for year in years:
     #         cfg = get_config(f"{country}_{year}")
@@ -65,6 +65,6 @@ if __name__ == "__main__":
     #         run_flex_operation_model(cfg, task_number=2)
 
     cfg = get_config("AUT_2030")
-    run_flex_operation_model(cfg, task_number=1)
+    run_flex_operation_model(cfg, task_number=2)
 
           
