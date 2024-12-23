@@ -761,7 +761,6 @@ def price_to_scenario_table(scen_df: pd.DataFrame):
 def create_scenario_tables(country: str,
                            year: int,
                            ) -> None:
-    LOGGER.info(f"clearing the log files for {country} {year}.")
     # create config class with different project names, for country and year:
     cfg = get_config(project_name=f"{country}_{year}")
     clear_result_files(cfg)
@@ -817,7 +816,7 @@ def clear_result_files(config: Config):
             file.unlink()
 
 
-def main(country_list: list, years: list, minimum_number_buildings: int, project_prefix: str):
+def main(country_list: list, years: list):
 
     # --------------------------------------------------------------------
     # # FOR DEBUGGING:
@@ -840,7 +839,7 @@ def main(country_list: list, years: list, minimum_number_buildings: int, project
     # create_input_excels(year=2030, country="AUT")
     # create_scenario_tables("AUT", 2030, minimum_number_buildings, project_prefix)
     # use multiprocessing to speed it up creating all the input data:
-    input_list = [(year, country, project_prefix) for year in years for country in country_list]
+    input_list = [(year, country) for year in years for country in country_list]
     number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
     Parallel(n_jobs=number_of_physical_cores)(delayed(create_input_excels)(*inst) for inst in input_list)
 
@@ -887,7 +886,5 @@ if __name__ == "__main__":
     ]
     # country_list = [ 'ROU',]#'MLT','LTU', 'GRC']
     years = [2020, 2030, 2040, 2050]
-    project_prefix = f""
-    minimum_number_buildings = 1  # if a scenario has less buildings than that, it will be ignored
-    main(country_list, years, minimum_number_buildings, project_prefix)
+    main(country_list, years)
 
