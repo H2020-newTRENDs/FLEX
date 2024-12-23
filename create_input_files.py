@@ -209,7 +209,7 @@ def map_pv_to_building_id(component_pv: pd.DataFrame,
     column_names = [name for name in df.columns.to_list() if "PV" in name]
     scenario = df[["ID_Building"] + column_names]
     new_column_names = ["ID_Building"] + [
-        str(int(component_pv.loc[component_pv.loc[:, "size"] == pv_area_to_kWp(name), "ID_PV"])) for name in column_names
+        str(int(component_pv.loc[component_pv.loc[:, "size"] == pv_area_to_kWp(name), "ID_PV"].iloc[0])) for name in column_names
     ]
     scenario.columns = new_column_names
     scenario_df = scenario.melt(id_vars="ID_Building", var_name="ID_PV", value_name="number_of_buildings")
@@ -662,7 +662,7 @@ def create_input_excels(year: int,
     battery_table.to_csv(config.input / "OperationScenario_Component_Battery.csv", index=False, sep=";")
     ev_table.to_csv(config.input / "OperationScenario_Component_Vehicle.csv", index=False, sep=";")
     heating_element_table.to_csv(config.input / "OperationScenario_Component_HeatingElement.csv", index=False, sep=";")
-    LOGGER.info("created input csvs")
+    LOGGER.info(f"created input csvs for {country} {year}")
 
     # delete the same excel files:
     excel_files = [
@@ -837,7 +837,7 @@ def main(country_list: list, years: list):
     #                                minimum_number_buildings=minimum_number_buildings)
 
     # create_input_excels(year=2030, country="AUT")
-    # create_scenario_tables("AUT", 2030, minimum_number_buildings, project_prefix)
+    # create_scenario_tables("AUT", 2030)
     # use multiprocessing to speed it up creating all the input data:
     input_list = [(year, country) for year in years for country in country_list]
     number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
