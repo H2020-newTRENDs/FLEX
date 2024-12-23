@@ -649,7 +649,7 @@ class OptConfig:
     def config_space_heating(self, instance):
         for t in range(1, 8761):
             instance.T_BuildingMass[t].setub(100)
-        if self.scenario.boiler.type in ["Air_HP", "Ground_HP"]:
+        if self.scenario.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
             for t in range(1, 8761):
                 instance.E_Heating_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)
         else:
@@ -692,7 +692,7 @@ class OptConfig:
                 instance.Q_DHWTank[t].setub(0)
                 instance.Q_DHWTank[t].fix(0)
 
-                instance.E_DHW_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)  # TODO
+                instance.E_DHW_HP_out[t].setub(self.model.SpaceHeating_MaxBoilerPower)  
             instance.tank_energy_rule_DHW.deactivate()
         else:
             for t in range(1, 8761):

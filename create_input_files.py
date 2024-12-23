@@ -569,27 +569,20 @@ def create_dhw_table(building_table: pd.DataFrame):
     building_table["ID_HotWaterTank"] = building_table["DHW_size"].map({value: key for key, value in dhw_sizes.items()})
     return df, building_table
 
-def create_heating_tank_table(building_table: pd.DataFrame):
-    # buffer tank: 1.25 l per square meter
-    liter_per_meter = 1.25
-    building_table["Tank_size"] = (building_table["Af"] * liter_per_meter).astype(float).round()
-    unique_sizes = building_table["Tank_size"].unique()
-    tank_sizes = {i+1: unique_sizes[i] for i in range(len(unique_sizes))}
+def create_heating_tank_table():
+    # buffer tank: is calculated within the model with 30L per kW thermal power output
     df = pd.DataFrame(
         columns=["ID_SpaceHeatingTank", "size", "size_unit", "loss",  "loss_unit", "temperature_start", "temperature_max", "temperature_min", "temperature_surrounding", "temperature_unit", "note"],
-        data=[ [i+1, tank_sizes[i+1], "L", 0.2, "W/m2K", 20, 55, 20, 20, "°C", "SFH"] for i in range(len(unique_sizes)) ]
+        data=[[1, 1, "L", 0.2, "W/m2K", 20, 45, 20, 20, "°C", "SFH"]]
     )
-
-    building_table["ID_SpaceHeatingTank"] = building_table["Tank_size"].map({value: key for key, value in tank_sizes.items()})
-
-    return df, building_table
+    return df
 
 def create_cooling_table():
     df = pd.DataFrame(
         columns=["ID_SpaceCoolingTechnology", "efficiency", "power", "power_unit"],
         data=[ 
             [1, 4, 0, "W"],
-            [1, 4, 1, "W"],
+            [2, 4, 1, "W"],
         ]
     )
     return df
@@ -650,7 +643,7 @@ def create_input_excels(year: int,
     energy_price_scenario_table = create_energy_price_scenario_file(country, year)
     boiler_table = create_boiler_table(year=year)
     dhw_table, df_buildings = create_dhw_table(df_buildings)
-    heating_tank_table, df_buildings = create_heating_tank_table(df_buildings)
+    heating_tank_table = create_heating_tank_table()
     operation_scenario_building = create_building_id_table(df_buildings, year=year, country=country)
     cooling_table = create_cooling_table()
     battery_table = create_battery_table()
@@ -680,9 +673,9 @@ def create_input_excels(year: int,
         config.input / "OperationScenario_Component_Boiler.xlsx",
         config.input / "OperationScenario_Component_HotWaterTank.xlsx",
         config.input / "OperationScenario_Component_SpaceHeatingTank.xlsx",
-        config.input / "OperationScenario_Component_SpaceCoolingTechnology.csv",
-        config.input / "OperationScenario_Component_Battery.csv",
-        config.input / "OperationScenario_Component_HeatingElement.csv",
+        config.input / "OperationScenario_Component_SpaceCoolingTechnology.xlsx",
+        config.input / "OperationScenario_Component_Battery.xlsx",
+        config.input / "OperationScenario_Component_HeatingElement.xlsx",
     ]
     for file in excel_files:
         if file.exists():
@@ -707,100 +700,27 @@ def map_heat_pump_to_scenario_table(scenario_df: pd.DataFrame, large_df: pd.Data
     return scenario_df
 
 
-def add_tank_to_scenario_df(scenario_df: pd.DataFrame,
-                            tank_table_name: str,
-                            building_types: list,
-                            building_table: pd.DataFrame,
-                            cfg: Config,
-                            test_numbers: dict) -> pd.DataFrame:
-    # load the heating tank table
-    tank_table = DatabaseInitializer(cfg).db.read_dataframe(tank_table_name)
-    # get the names of the columns for ID and building type from tank table
-    name_id = [name for name in list(tank_table.columns) if "ID" in name][0]
-    name_building_type = [name for name in list(tank_table.columns) if "type" in name][0]
-    if name_building_type == None or len(name_building_type) == 0:
-        logger.warning("No building type defined in the tank excel.")
-
-    tables_for_concat = []
-    # iterate through tank IDs and create a copy of each scenario table with the new tank ID added:
-    for i, row in tank_table.iterrows():
-        tank_id = row[name_id]
-        building_type_to_merge_to = row[name_building_type]
-        technology_penetration = row["percentage_technology_penetration"]
-        new_table = scenario_df.copy()
-        if building_type_to_merge_to in building_types:
-            ids_to_merge = building_table.loc[building_table.loc[:, "type"] == building_type_to_merge_to, "ID_Building"]
-            new_table = new_table.loc[new_table.loc[:, "ID_Building"].isin(ids_to_merge)]
-            new_table.loc[:, name_id] = tank_id
-            new_table["number_of_buildings"] = new_table["number_of_buildings"] * technology_penetration
-            tables_for_concat.append(new_table)
-            del new_table
-        else:  # type is not in table so tank will be used for all buildings:
-            new_table.loc[:, name_id] = tank_id
-            new_table["number_of_buildings"] = new_table["number_of_buildings"] * technology_penetration
-            tables_for_concat.append(new_table)
-            del new_table
-    new_scenario_table = pd.concat(tables_for_concat, axis=0).reset_index(drop=True)
-    assert test_numbers["air_numbers"] == round(new_scenario_table.query("ID_Boiler == 1")["number_of_buildings"].sum()) and \
-           test_numbers["ground_numbers"] == round(new_scenario_table.query("ID_Boiler == 2")["number_of_buildings"].sum()) and \
-           "building numbers dont add up"
-    return new_scenario_table
-
-
 def tanks_to_scenario_table_per_building_type(scenario_df: pd.DataFrame, 
                                               cfg: "Config",
                                               test_numbers: dict,
                                               building_table: pd.DataFrame) -> pd.DataFrame:
     building_table.loc[:, "type"] = building_table["building_categories_index"].map(get_sfh_mfh_dict())
-    # load the building table to get the building ID with corresponding building type:
-    table_to_map = building_table.loc[:, ["ID_Building", "type"]]
-    building_types = list(table_to_map.loc[:, "type"].unique())
 
-    # load tanks TODO add the tanks like the PV
+    # load tanks 
     _, dhw_building_table = create_dhw_table(building_table)
-    _, buffer_tank_table = create_heating_tank_table(building_table)
+    to_merge = dhw_building_table[["ID_Building", "ID_HotWaterTank"]]
+    scenario_table_with_dhw_tank = pd.merge(left=scenario_df, right=to_merge, on="ID_Building")
 
-    
-    # add both tanks after each other:
-    scenario_table_with_dhw_tank = add_tank_to_scenario_df(scenario_df=scenario_df,
-                                                           tank_table_name="OperationScenario_Component_HotWaterTank",
-                                                           building_types=building_types,
-                                                           building_table=building_table,
-                                                           cfg=cfg,
-                                                           test_numbers=test_numbers)
+    # the buffer tank size is determined in the model and here only 1 ID is given
+    scenario_table_with_both_tanks = scenario_table_with_dhw_tank.copy()
+    scenario_table_with_both_tanks["ID_SpaceHeatingTank"] = 1
 
-    scenario_table_with_both_tanks = add_tank_to_scenario_df(scenario_df=scenario_table_with_dhw_tank,
-                                                             tank_table_name="OperationScenario_Component_SpaceHeatingTank",
-                                                             building_types=building_types,
-                                                             building_table=building_table,
-                                                             cfg=cfg,
-                                                             test_numbers=test_numbers)
     # check numbers:
     assert test_numbers["air_numbers"] == round(scenario_table_with_both_tanks.query("ID_Boiler == 1")["number_of_buildings"].sum()) and \
            test_numbers["ground_numbers"] == round(scenario_table_with_both_tanks.query("ID_Boiler == 2")["number_of_buildings"].sum()) and \
            "building numbers dont add up"
-    # buildings with electric heating do not have a heating buffer storage, ID Boiler = 3 for electric heating
-    id_boiler_3 = scenario_table_with_both_tanks.query("ID_Boiler == 3")
-    id_boiler_3_keep = id_boiler_3.query(f"ID_SpaceHeatingTank in {[1]}")
-    id_boiler_3_delete = id_boiler_3.query(f"ID_SpaceHeatingTank in {[2, 3]}")
-    # delete each row and add the number of buildings to the respective scenario without space heating tank
-    id_space_heating_tank = 1  # this id is fixed
-    id_to_gather = ["ID_Building", "ID_PV", "ID_Battery", "ID_HotWaterTank"]
-    for i, row in id_boiler_3_delete.iterrows():
-        ids = row[id_to_gather].to_dict()
-        number_of_buildings = row["number_of_buildings"]
-        # add the number to  the keep df:
-        id_boiler_3_keep.loc[
-            (id_boiler_3_keep[list(ids)] == pd.Series(ids)).all(axis=1), "number_of_buildings"] += number_of_buildings
 
-    # now delete the id_boiler_3  from the scenarios and add the id_boiler keep
-    return_df = pd.concat([scenario_table_with_both_tanks.query("ID_Boiler != 3"), id_boiler_3_keep]).reset_index(
-        drop=True)
-    # check numbers:
-    assert test_numbers["air_numbers"] == round(return_df.query("ID_Boiler == 1")["number_of_buildings"].sum()) and \
-           test_numbers["ground_numbers"] == round(return_df.query("ID_Boiler == 2")["number_of_buildings"].sum()) and \
-           "building numbers dont add up"
-    return return_df
+    return scenario_table_with_both_tanks
 
 
 def drop_scenarios_with_low_number_of_buildings(min_number_buildings: int,
@@ -824,6 +744,19 @@ def map_battery_to_scenario_table(scenario_df: pd.DataFrame):
     scenario_df["ID_Battery"] = 1
     return scenario_df
 
+def cooling_to_scenario_table(scen_df: pd.DataFrame):
+    copy_df = scen_df.copy()
+    scen_df["ID_SpaceCoolingTechnology"] = 1
+    copy_df["ID_SpaceCoolingTechnology"] = 2
+    df = pd.concat([scen_df, copy_df], axis=0)
+    return df
+
+def price_to_scenario_table(scen_df: pd.DataFrame):
+    scen_copy = scen_df.copy()
+    scen_df["ID_EnergyPrice"] = 1
+    scen_copy["ID_EnergyPrice"] = 2
+    df = pd.concat([scen_df, scen_copy], axis=0)
+    return df
 
 def create_scenario_tables(country: str,
                            year: int,
@@ -853,67 +786,24 @@ def create_scenario_tables(country: str,
 
     building_pv_hp_table = map_heat_pump_to_scenario_table(building_pv_table, df_buildings, test_numbers)
     battery_building_pv_hp_table = map_battery_to_scenario_table(building_pv_hp_table)
-    scenario_table = tanks_to_scenario_table_per_building_type(scenario_df=battery_building_pv_hp_table,
+    battery_building_pv_hp_tanks_table = tanks_to_scenario_table_per_building_type(scenario_df=battery_building_pv_hp_table,
                                                                cfg=cfg, 
                                                                test_numbers=test_numbers,
                                                                building_table=df_buildings)
+    
+    battery_building_pv_hp_tanks_cooling_table = cooling_to_scenario_table(scen_df=battery_building_pv_hp_tanks_table)
 
-    engine = DatabaseInitializer(config=cfg).db.get_engine().connect()
-    for key, value in OperationScenarioComponent.__dict__.items():
-        if key == "Building" or key == "PV" or key == "Boiler" or key == "SpaceHeatingTank" or key == "HotWaterTank" or key == "Battery":
-            continue
-        else:
-            if isinstance(value, OperationComponentInfo):
-                # add the scenarios to the scenario table
-                # load the IDs from the database tables
-                if engine.dialect.has_table(engine, value.table_name):
-                    new_ids = DatabaseInitializer(cfg).db.read_dataframe(value.table_name)[value.id_name].unique()
-                    # create a list of tables that will be merged below each other with the new IDs attached as column:
-                    part_tables = [pd.concat([scenario_table, pd.Series(index=range(len(scenario_table)),
-                                                                        name=value.id_name,
-                                                                        data=np.full(shape=(len(scenario_table)),
-                                                                                     fill_value=id))],
-                                             axis=1) for id in new_ids]
-                    # concat the tables from the list into the new scenario table:
-                    scenario_table = pd.concat(part_tables, axis=0).reset_index(drop=True)
+    scenario_table = price_to_scenario_table(scen_df=battery_building_pv_hp_tanks_cooling_table)
+    # add the rest of the IDs which are just 1:
+    scenario_table["ID_HeatingElement"] = 1
+    scenario_table["ID_Region"] = 1
+    scenario_table["ID_Behavior"] = 1
 
     # add a scenario ID to the table:
-    scenario_df = scenario_table.reset_index().rename(columns={"index": "ID_Scenario"})
-    
-    # add id_demand_profile_type column as its always 1
-    
-
+    scenario_df = scenario_table.reset_index(drop=True)
     scenario_df.loc[:, "ID_Scenario"] = scenario_df.index + 1
-    # check numbers:
-    assert test_numbers["air_numbers"] == round(scenario_df.query("ID_Boiler == 1")["number_of_buildings"].sum()) and \
-           test_numbers["ground_numbers"] == round(scenario_df.query("ID_Boiler == 2")["number_of_buildings"].sum()) and \
-           "building numbers dont add up"
 
-    # drop the scenarios where there are not more than 5 buildings:
-    new_scenario_table_with_numbers = drop_scenarios_with_low_number_of_buildings(
-        min_number_buildings=minimum_number_buildings,
-        scenario_table=scenario_df,
-    )
-
-    # drop numbers for scenario table in sqlite
-    new_scenario_table_sqlite = new_scenario_table_with_numbers.drop(columns=["number_of_buildings"])
-    # numbers df:
-    numbers_df = new_scenario_table_with_numbers.loc[:, ["ID_Scenario", "number_of_buildings"]]
-
-    # save the scenario table to the sqlite database:
-    data_types = {name: sqlalchemy.types.Integer for name in new_scenario_table_sqlite.columns}
-    ProjectDatabaseInit(cfg).db.write_dataframe(
-        table_name=OperationTable.Scenarios,
-        data_frame=new_scenario_table_sqlite,
-        data_types=data_types,
-        if_exists="replace"
-    )
-    # save numbers df to sqlite database:
-    ProjectDatabaseInit(cfg).db.write_dataframe(
-        table_name="ScenarioNumbers",
-        data_frame=numbers_df,
-        if_exists="replace"
-    )
+    scenario_df.to_csv(cfg.input / "OperationScenario.csv", sep=";", index=False)
 
 
 def clear_result_files(config: Config):
