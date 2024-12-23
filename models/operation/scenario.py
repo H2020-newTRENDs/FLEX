@@ -70,7 +70,7 @@ class OperationScenario:
         self.region.radiation_south = df["radiation_south"].to_numpy()
         self.region.radiation_east = df["radiation_east"].to_numpy()
         self.region.radiation_west = df["radiation_west"].to_numpy()
-        self.pv.generation = df[f"pv_generation_{self.pv.orientation}"].to_numpy() * self.pv.size
+        self.pv.generation = df[f"pv_generation_optimal"].to_numpy() * self.pv.size
 
     def setup_energy_price(self):
         df = self.input_tables[InputTables.OperationScenario_EnergyPrice.name]

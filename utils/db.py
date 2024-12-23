@@ -121,7 +121,10 @@ def init_project_db(config: "Config"):
                     with open(file_path, 'r', encoding='utf-8') as f:
                         sample = f.read(1024)  # Read a sample to detect the delimiter
                         sniffer = csv.Sniffer()
-                        delimiter = sniffer.sniff(sample).delimiter
+                        try:
+                            delimiter = sniffer.sniff(sample).delimiter
+                        except:
+                            delimiter = ";"
                     df = pd_read_func(file_path, delimiter=delimiter).dropna(how="all")
                 else:
                     df = pd_read_func(file_path).dropna(how="all")

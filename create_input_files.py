@@ -444,6 +444,16 @@ def create_energy_price_scenario_file(country: str, year: int) -> pd.DataFrame:
 
     return price_df
 
+def create_energy_price_id_file():
+    df = pd.DataFrame(
+        columns=["ID_EnergyPrice", "id_electricity", "id_electricity_feed_in", "price_unit"],
+        data=[
+            [1, 1, 1, "cent/Wh"], 
+            [2, 2, 1, "cent/Wh"], 
+        ]
+    )
+    return df
+
 
 def filter_countries(df: pd.DataFrame) -> pd.DataFrame:
     return df[df["country"].isin(get_european_countries_dict().values())].reset_index(drop=True)
@@ -643,7 +653,8 @@ def create_input_excels(year: int,
     # tables:
     operation_scenario_component_pv = create_pv_id_table(df_buildings)
     region_scenario_table = create_operation_region_file(year, country)
-    energy_price_scenario_table = create_energy_price_scenario_file(country, year)
+    energy_price_table = create_energy_price_scenario_file(country, year)
+    energy_price_scenario_table = create_energy_price_id_file()
     boiler_table = create_boiler_table(year=year)
     dhw_table, df_buildings = create_dhw_table(df_buildings)
     heating_tank_table = create_heating_tank_table()
@@ -657,7 +668,7 @@ def create_input_excels(year: int,
     operation_scenario_component_pv.to_csv(config.input / "OperationScenario_Component_PV.csv", index=False, sep=";")
     operation_scenario_building.to_csv(config.input / "OperationScenario_Component_Building.csv", index=False, sep=";")
     region_scenario_table.to_csv(config.input / "OperationScenario_Component_Region.csv", index=False, sep=";")
-    energy_price_scenario_table.to_csv(config.input / "OperationScenario_EnergyPrice.csv", index=False, sep=";")
+    energy_price_table.to_csv(config.input / "OperationScenario_EnergyPrice.csv", index=False, sep=";")
     boiler_table.to_csv(config.input / "OperationScenario_Component_Boiler.csv", index=False, sep=";")
     dhw_table.to_csv(config.input / "OperationScenario_Component_HotWaterTank.csv", index=False, sep=";")
     heating_tank_table.to_csv(config.input / "OperationScenario_Component_SpaceHeatingTank.csv", index=False, sep=";")
@@ -665,6 +676,7 @@ def create_input_excels(year: int,
     battery_table.to_csv(config.input / "OperationScenario_Component_Battery.csv", index=False, sep=";")
     ev_table.to_csv(config.input / "OperationScenario_Component_Vehicle.csv", index=False, sep=";")
     heating_element_table.to_csv(config.input / "OperationScenario_Component_HeatingElement.csv", index=False, sep=";")
+    energy_price_scenario_table.to_csv("OperationScenario_Component_EnergyPrice.csv", sep=";", index=False)
     LOGGER.info(f"created input csvs for {country} {year}")
 
     # delete the same excel files:
@@ -679,6 +691,7 @@ def create_input_excels(year: int,
         config.input / "OperationScenario_Component_SpaceCoolingTechnology.xlsx",
         config.input / "OperationScenario_Component_Battery.xlsx",
         config.input / "OperationScenario_Component_HeatingElement.xlsx",
+        config.input / "OperationScenario_Component_EnergyPrice.xlsx",
     ]
     for file in excel_files:
         if file.exists():
