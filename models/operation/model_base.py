@@ -89,8 +89,8 @@ class OperationModel(ABC):
         thermal_power = self.SpaceHeating_MaxBoilerPower * self.worst_COP
         # overwrite whatever was given as input
         tanksize = thermal_power / 1_000 * 30
-        self.scenario.space_heating_tank.size = tanksize
-        return tanksize
+        self.scenario.space_heating_tank.size = tanksize[0]
+        return tanksize[0]
 
     def setup_heating_element_params(self):
         self.HeatingElement_efficiency = self.scenario.heating_element.efficiency
@@ -143,11 +143,13 @@ class OperationModel(ABC):
     def setup_ev_params(self):
         self.EVDemandProfile = self.scenario.behavior.vehicle_demand
         self.EVAtHomeProfile = self.scenario.behavior.vehicle_at_home
-        self.EVChargeEfficiency = self.scenario.vehicle.charge_efficiency
-        self.EVDischargeEfficiency = self.scenario.vehicle.discharge_efficiency
-        self.EVOptionV2B = self.scenario.vehicle.charge_bidirectional
-        # if self.scenario.vehicle.capacity > 0:
-        #     self.test_vehicle_profile()  # test if vehicle makes model infeasible
+        self.EVChargeEfficiency = 0
+        self.EVDischargeEfficiency = 0
+        self.EVOptionV2B = 0
+        self.EVcapacity = 0
+
+        if self.scenario.vehicle.capacity > 0:
+            self.test_vehicle_profile()  # test if vehicle makes model infeasible
 
     def setup_energy_price_params(self):
         self.ElectricityPrice = self.scenario.energy_price.electricity  # C/Wh

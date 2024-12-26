@@ -602,9 +602,9 @@ def create_cooling_table():
 
 def create_EV_table():
     df = pd.DataFrame(
-        columns=["type", "capacity"],  # rest is not needed because we dont use it
+        columns=["ID_Vehicle", "type", "capacity"],  # rest is not needed because we dont use it
         data=[ 
-            ["electric", 0,],
+            [1, "electric", 0,],
         ]
     )
     return df
@@ -635,6 +635,15 @@ def change_name_of_old_building_file(cfg: Config):
     if not old_file.exists():
         file.rename(cfg.input / "OperationScenario_Component_Building_old.csv")
 
+def create_behavior_table(cfg: Config):
+    # TODO copy the behavior profiles from the "testbed" and then check if the total demand is 
+    # correctly taken from the "building table", same with appliance demand
+    path_2_testbed_behavior = Path(r"C:\Users\mascherbauer\OneDrive\PycharmProjects\FLEX\projects\Test_bed\input") / "OperationScenario_BehaviorProfile.xlsx"
+    destination = cfg.input / "OperationScenario_BehaviorProfile.xlsx"
+    # copy file
+    shutil.copy(src=path_2_testbed_behavior, dst=destination)
+
+
 
 def create_input_excels(year: int,
                         country: str,
@@ -647,7 +656,6 @@ def create_input_excels(year: int,
     df_buildings = load_buildings(year, country, cfg=config)
     
     # weather table is already correct
-    # behavior table is already correct
     # region is already correct and not needed
 
     # tables:
@@ -663,6 +671,7 @@ def create_input_excels(year: int,
     battery_table = create_battery_table()
     ev_table = create_EV_table()
     heating_element_table = create_heating_element_table()
+    create_behavior_table(cfg=config) # copys the input file from testbed because the other one is for a single house
 
     # save the csv files:
     operation_scenario_component_pv.to_csv(config.input / "OperationScenario_Component_PV.csv", index=False, sep=";")
@@ -676,7 +685,7 @@ def create_input_excels(year: int,
     battery_table.to_csv(config.input / "OperationScenario_Component_Battery.csv", index=False, sep=";")
     ev_table.to_csv(config.input / "OperationScenario_Component_Vehicle.csv", index=False, sep=";")
     heating_element_table.to_csv(config.input / "OperationScenario_Component_HeatingElement.csv", index=False, sep=";")
-    energy_price_scenario_table.to_csv("OperationScenario_Component_EnergyPrice.csv", sep=";", index=False)
+    energy_price_scenario_table.to_csv(config.input / "OperationScenario_Component_EnergyPrice.csv", sep=";", index=False)
     LOGGER.info(f"created input csvs for {country} {year}")
 
     # delete the same excel files:
@@ -692,6 +701,7 @@ def create_input_excels(year: int,
         config.input / "OperationScenario_Component_Battery.xlsx",
         config.input / "OperationScenario_Component_HeatingElement.xlsx",
         config.input / "OperationScenario_Component_EnergyPrice.xlsx",
+        config.input / "OperationScenario_BehaviorProfile.csv", # only file where the csv (orig) needs to be deleted
     ]
     for file in excel_files:
         if file.exists():
@@ -744,7 +754,7 @@ def drop_scenarios_with_low_number_of_buildings(min_number_buildings: int,
                                                 ) -> pd.DataFrame:
     # now we have a lot of scenarios where some scenarios do not even represent a whole building (0.5 buildings etc)
     new_table = scenario_table[scenario_table['number_of_buildings'] > min_number_buildings].reset_index(drop=True)
-    logger.warning(
+    LOGGER.warning(
         f"{round(scenario_table[scenario_table['number_of_buildings'] < min_number_buildings]['number_of_buildings'].sum())} "
         f"out of {round(scenario_table['number_of_buildings'].sum())}"
         f" Buildings are ignored and \n"
@@ -811,6 +821,7 @@ def create_scenario_tables(country: str,
     scenario_table["ID_HeatingElement"] = 1
     scenario_table["ID_Region"] = 1
     scenario_table["ID_Behavior"] = 1
+    scenario_table["ID_Vehicle"] = 1
 
     # add a scenario ID to the table:
     scenario_df = scenario_table.reset_index(drop=True)
