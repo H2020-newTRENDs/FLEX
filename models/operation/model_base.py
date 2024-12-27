@@ -133,7 +133,19 @@ class OperationModel(ABC):
     def setup_space_cooling_params(self):
         self.CoolingCOP = self.scenario.space_cooling_technology.efficiency
         self.CoolingHourlyCOP = (np.ones(8760, ) * self.CoolingCOP)
+        self.scenario.space_cooling_technology.power = self.calculate_max_cooling_power()
 
+    def calculate_max_cooling_power(self):
+        if self.scenario.space_cooling_technology.power > 0:
+            # calculate the cooling demand in reference mode:
+            max_cooling_demand = self.Q_RoomCooling.max()
+            # round to the next 500 W
+            max_cooling_power = np.ceil(max_cooling_demand / 500) * 500
+
+            return max_cooling_power
+        else:
+            return 0
+        
     def setup_pv_params(self):
         self.PhotovoltaicProfile = self.scenario.pv.generation
 
