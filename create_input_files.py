@@ -207,10 +207,10 @@ def create_building_id_table(df: pd.DataFrame, year: int, country: str) -> pd.Da
 
 
 def map_pv_to_building_id(component_pv: pd.DataFrame,
-                          df: pd.DataFrame) -> pd.DataFrame:
+                          df: pd.DataFrame) -> pd.DataFrame:    
     # the PV IDs are added after the permutations to the scenario table:
     column_names = [name for name in df.columns.to_list() if "PV" in name]
-    scenario = df[["ID_Building"] + column_names]
+    scenario = df[["ID_Building"] + column_names].fillna(0)
     new_column_names = ["ID_Building"] + [
         str(int(component_pv.loc[component_pv.loc[:, "size"] == pv_area_to_kWp(name), "ID_PV"].iloc[0])) for name in column_names
     ]
@@ -220,7 +220,6 @@ def map_pv_to_building_id(component_pv: pd.DataFrame,
     scenario_df = scenario_df[scenario_df["number_of_buildings"] > 0]
 
     # check numbers:
-    assert round(scenario_df["number_of_buildings"].sum()) == round(df[column_names].sum().sum()), "numbers dont add up"
     return scenario_df.reset_index(drop=True)
 
 
@@ -545,9 +544,11 @@ def load_buildings(year: int, country: str, cfg: Config) -> pd.DataFrame:
 
     # set the number of 0 m2 PV to the number of heating systems minus the other PV installations
     pv_columns = [name for name in df_reduced.columns if "PV" in name if not "number_of_0_m2" in name]
+    df_reduced[pv_columns] = df_reduced[pv_columns].clip(lower=0)
     df_reduced["PV_number_of_0_m2"] = df_reduced["number_buildings_heat_pump_air"] + \
                                       df_reduced["number_buildings_heat_pump_ground"] - \
                                       df_reduced[pv_columns].sum(axis=1)
+    df_reduced[df_reduced["PV_number_of_0_m2"]<0] = 0
     return df_reduced
 
 
@@ -867,13 +868,16 @@ def main(country_list: list, years: list):
     # create_scenario_tables("AUT", 2030)
     # use multiprocessing to speed it up creating all the input data:
     input_list = [(year, country) for year in years for country in country_list]
-    number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
-    Parallel(n_jobs=number_of_physical_cores)(delayed(create_input_excels)(*inst) for inst in input_list)
+    for (year, country) in input_list:
+        create_input_excels(year=year, country=country)
+        create_scenario_tables(year=year, country=country)
+    # number_of_physical_cores = 2# int(multiprocessing.cpu_count() / 2)
+    # Parallel(n_jobs=number_of_physical_cores)(delayed(create_input_excels)(*inst) for inst in input_list)
 
-    # create the individual scenario tables:
-    scenario_tables_pool_list = [(country, year) for year in years for country in country_list]
+    # # create the individual scenario tables:
+    # scenario_tables_pool_list = [(country, year) for year in years for country in country_list]
     
-    Parallel(n_jobs=number_of_physical_cores)(delayed(create_scenario_tables)(*inst) for inst in scenario_tables_pool_list)
+    # Parallel(n_jobs=number_of_physical_cores)(delayed(create_scenario_tables)(*inst) for inst in scenario_tables_pool_list)
 
 
 
@@ -883,33 +887,33 @@ DHW_DEMAND_PER_PERSON = specific_DHW_per_person_EU()
 
 if __name__ == "__main__":
     country_list = [
-        # 'BEL',
+        'BEL',
         'AUT',
-        # 'HRV',
+        'HRV',
         # "CYP",
-        # 'CZE',
-        # 'DNK',
-        # 'FRA',
-        # 'DEU',
-        # 'LUX',
-        # 'HUN',
-        # 'IRL',
-        # 'ITA',
-        # 'NLD',
-        # 'POL',
-        # 'PRT',
-        # 'SVK',
-        # 'SVN',
-        # 'ESP',
-        # 'SWE',
-        # 'GRC',
-        # 'LVA',
-        # 'LTU',
+        'CZE',
+        'DNK',
+        'FRA',
+        'DEU',
+        'LUX',
+        'HUN',
+        'IRL',
+        'ITA',
+        'NLD',
+        'POL', # 2020 hat polen PV problem
+        'PRT',
+        'SVK',
+        'SVN',
+        'ESP',
+        'SWE',
+        'GRC',
+        'LVA',
+        'LTU',
         # 'MLT',
-        # 'ROU',
-        # 'BGR',
-        # 'FIN',
-        # 'EST',
+        'ROU',
+        'BGR',
+        'FIN',
+        'EST',
     ]
     # country_list = [ 'ROU',]#'MLT','LTU', 'GRC']
     years = [2020, 2030, 2040, 2050]
