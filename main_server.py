@@ -62,7 +62,7 @@ if __name__ == "__main__":
         for year in years:
             cfg = get_config(f"{country}_{year}")
 
-            run_flex_operation_model(cfg, task_number=1)
+            run_flex_operation_model(cfg, task_number=10)
 
     # cfg = get_config("AUT_2030")
     # run_flex_operation_model(cfg, task_number=1)

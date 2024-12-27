@@ -1,5 +1,5 @@
 from pathlib import Path
-
+import copy
 
 class Config:
 
@@ -26,8 +26,5 @@ class Config:
         return self
 
     def make_copy(self) -> "Config":
-        rk = self.__class__(self.project_name, self.project_path)
-        for k, v in self.__dict__.items():
-            rk.__dict__[k] = v
-        return rk
+        return copy.deepcopy(self)
 
