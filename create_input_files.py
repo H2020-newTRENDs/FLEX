@@ -519,20 +519,26 @@ def load_buildings(year: int, country: str, cfg: Config) -> pd.DataFrame:
     df[int_columns] = df[int_columns].astype(int)
     # replace nan with 0:
     df = df.fillna(0)
+    df.Af = df.Af.round(4)
+
 
     # load old file:
     old_file = cfg.input / "OperationScenario_Component_Building_old.csv"
     df_old = pd.read_csv(old_file, sep=",")
     df_old = df_old.query("id_demand_profile_type == 1").reset_index(drop=True)
-    df_old.Af = df_old.Af.round(5)
-    
+    df_old[["construction_period_start", "construction_period_end"]] = df_old[["construction_period_start", "construction_period_end"]].astype(int)
+    df_old.Af = df_old.Af.round(4)
+    assert len(df_old) == len(df)
+    person_num_df = df_old[[ "Af", "person_num"]].copy().drop_duplicates(subset=["Af"])
+
     # get the correct decimal person num from old df
     df = pd.merge(
         left=df, 
-        right=df_old[ [ "construction_period_start", "construction_period_end", "Af", "person_num"] ], 
-        on= [ "construction_period_start", "construction_period_end", "Af", ]
+        right=person_num_df, 
+        on= [ "Af", ],
+        how="left"
     )
-    
+    assert len(df_old) == len(df)
 
     # round the number of buildings
     df[["number_buildings_heat_pump_air", "number_buildings_heat_pump_ground"]] = df[["number_buildings_heat_pump_air", "number_buildings_heat_pump_ground"]].astype(float).round()
@@ -867,7 +873,7 @@ def main(country_list: list, years: list):
     # create_input_excels(year=2030, country="AUT")
     # create_scenario_tables("AUT", 2030)
     # use multiprocessing to speed it up creating all the input data:
-    input_list = [(year, country) for year in years for country in country_list]
+    input_list = [(year, country) for country in country_list for year in years ]
     for (year, country) in input_list:
         create_input_excels(year=year, country=country)
         create_scenario_tables(year=year, country=country)
@@ -887,9 +893,9 @@ DHW_DEMAND_PER_PERSON = specific_DHW_per_person_EU()
 
 if __name__ == "__main__":
     country_list = [
-        'BEL',
-        'AUT',
-        'HRV',
+        # 'BEL',
+        # 'AUT',
+        # 'HRV',
         # "CYP",
         'CZE',
         'DNK',
