@@ -890,13 +890,29 @@ def main(country_list: list, years: list):
 APPLICANCE_DEMAND_PER_PERSON = appliance_electricity_demand_per_person_EU()
 DHW_DEMAND_PER_PERSON = specific_DHW_per_person_EU()
 
+def copy_data_to_server(countries, years):
+    server_path = Path(r"X:\projects4\workspace_philippm\FLEX\projects")
+    lokal_path = Path(r"C:\Users\mascherbauer\OneDrive\PycharmProjects\FLEX\projects")
+
+    for country in countries:
+        for year in years:
+            source_folder = lokal_path / f"{country}_{year}" / "input" 
+            destination = server_path / f"{country}_{year}" / "input" 
+            destination.mkdir(exist_ok=True, parents=True)
+            for file in source_folder.iterdir():
+                if (destination/file.name).exists():
+                    print(f"overwriting {file.name} to {country}_{year}")
+                else:
+                    print(f"copying {file.name} to {country}_{year}")
+
+                shutil.copy(src=file, dst=destination / file.name)
 
 if __name__ == "__main__":
     country_list = [
-        # 'BEL',
-        # 'AUT',
-        # 'HRV',
-        # "CYP",
+        'BEL',
+        'AUT',
+        'HRV',
+        "CYP",
         'CZE',
         'DNK',
         'FRA',
@@ -923,5 +939,7 @@ if __name__ == "__main__":
     ]
     # country_list = [ 'ROU',]#'MLT','LTU', 'GRC']
     years = [2020, 2030, 2040, 2050]
-    main(country_list, years)
+    # main(country_list, years)
+
+    copy_data_to_server(countries=country_list, years=years)
 
