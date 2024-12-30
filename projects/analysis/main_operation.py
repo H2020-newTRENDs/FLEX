@@ -157,7 +157,7 @@ def move_hour_parquets(number_of_tasks, original_config):
                             os.path.join(task_config.output, file_name))
 
 
-def split_scenarios(number_of_tasks, original_config):
+def split_scenarios(number_of_tasks, original_config: Config):
     total_scenario_num = len(create_db_conn(original_config).read_dataframe(InputTables.OperationScenario.name))
     task_scenario_num = math.ceil(total_scenario_num / number_of_tasks)
     for task_id in range(1, number_of_tasks + 1):

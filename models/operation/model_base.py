@@ -76,13 +76,14 @@ class OperationModel(ABC):
         self.T_TankStart_heating = self.scenario.space_heating_tank.temperature_start
         self.U_LossTank_heating = self.scenario.space_heating_tank.loss
         self.T_TankSurrounding_heating = (self.scenario.space_heating_tank.temperature_surrounding)
-        self.A_SurfaceTank_heating = self.calculate_surface_area_from_volume(self.scenario.space_heating_tank.size)
         self.SpaceHeating_MaxBoilerPower = self.generate_maximum_electric_or_thermal_power()
         self.Q_TankEnergyMin_heating = self.CPWater * self.scenario.space_heating_tank.size * \
                                        (273.15 + self.scenario.space_heating_tank.temperature_min)
         self.Q_TankEnergyMax_heating = self.CPWater * self.scenario.space_heating_tank.size * \
                                        (273.15 + self.scenario.space_heating_tank.temperature_max)
         self.M_WaterTank_heating = self.setup_space_heating_tank_size()
+        self.A_SurfaceTank_heating = self.calculate_surface_area_from_volume(self.scenario.space_heating_tank.size)
+
 
     def setup_space_heating_tank_size(self):
         # Rule: 30L per kW thermal power output
@@ -132,7 +133,19 @@ class OperationModel(ABC):
     def setup_space_cooling_params(self):
         self.CoolingCOP = self.scenario.space_cooling_technology.efficiency
         self.CoolingHourlyCOP = (np.ones(8760, ) * self.CoolingCOP)
+        self.scenario.space_cooling_technology.power = self.calculate_max_cooling_power()
 
+    def calculate_max_cooling_power(self):
+        if self.scenario.space_cooling_technology.power > 0:
+            # calculate the cooling demand in reference mode:
+            max_cooling_demand = self.Q_RoomCooling.max()
+            # round to the next 500 W
+            max_cooling_power = np.ceil(max_cooling_demand / 500) * 500
+
+            return max_cooling_power
+        else:
+            return 0
+        
     def setup_pv_params(self):
         self.PhotovoltaicProfile = self.scenario.pv.generation
 
