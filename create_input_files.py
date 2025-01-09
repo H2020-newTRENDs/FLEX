@@ -519,20 +519,26 @@ def load_buildings(year: int, country: str, cfg: Config) -> pd.DataFrame:
     df[int_columns] = df[int_columns].astype(int)
     # replace nan with 0:
     df = df.fillna(0)
+    df.Af = df.Af.round(4)
+
 
     # load old file:
     old_file = cfg.input / "OperationScenario_Component_Building_old.csv"
     df_old = pd.read_csv(old_file, sep=",")
     df_old = df_old.query("id_demand_profile_type == 1").reset_index(drop=True)
-    df_old.Af = df_old.Af.round(5)
-    
+    df_old[["construction_period_start", "construction_period_end"]] = df_old[["construction_period_start", "construction_period_end"]].astype(int)
+    df_old.Af = df_old.Af.round(4)
+    assert len(df_old) == len(df)
+    person_num_df = df_old[[ "Af", "person_num"]].copy().drop_duplicates(subset=["Af"])
+
     # get the correct decimal person num from old df
     df = pd.merge(
         left=df, 
-        right=df_old[ [ "construction_period_start", "construction_period_end", "Af", "person_num"] ], 
-        on= [ "construction_period_start", "construction_period_end", "Af", ]
+        right=person_num_df, 
+        on= [ "Af", ],
+        how="left"
     )
-    
+    assert len(df_old) == len(df)
 
     # round the number of buildings
     df[["number_buildings_heat_pump_air", "number_buildings_heat_pump_ground"]] = df[["number_buildings_heat_pump_air", "number_buildings_heat_pump_ground"]].astype(float).round()
@@ -867,10 +873,10 @@ def main(country_list: list, years: list):
     create_input_excels(year=2020, country="AUT")
     create_scenario_tables("AUT", 2030)
     # use multiprocessing to speed it up creating all the input data:
-    input_list = [(year, country) for year in years for country in country_list]
-    # for (year, country) in input_list:
-        # create_input_excels(year=year, country=country)
-        # create_scenario_tables(year=year, country=country)
+    input_list = [(year, country) for country in country_list for year in years ]
+    for (year, country) in input_list:
+        create_input_excels(year=year, country=country)
+        create_scenario_tables(year=year, country=country)
     # number_of_physical_cores = 2# int(multiprocessing.cpu_count() / 2)
     # Parallel(n_jobs=number_of_physical_cores)(delayed(create_input_excels)(*inst) for inst in input_list)
 
@@ -884,13 +890,29 @@ def main(country_list: list, years: list):
 APPLICANCE_DEMAND_PER_PERSON = appliance_electricity_demand_per_person_EU()
 DHW_DEMAND_PER_PERSON = specific_DHW_per_person_EU()
 
+def copy_data_to_server(countries, years):
+    server_path = Path(r"X:\projects4\workspace_philippm\FLEX\projects")
+    lokal_path = Path(r"C:\Users\mascherbauer\OneDrive\PycharmProjects\FLEX\projects")
+
+    for country in countries:
+        for year in years:
+            source_folder = lokal_path / f"{country}_{year}" / "input" 
+            destination = server_path / f"{country}_{year}" / "input" 
+            destination.mkdir(exist_ok=True, parents=True)
+            for file in source_folder.iterdir():
+                if (destination/file.name).exists():
+                    print(f"overwriting {file.name} to {country}_{year}")
+                else:
+                    print(f"copying {file.name} to {country}_{year}")
+
+                shutil.copy(src=file, dst=destination / file.name)
 
 if __name__ == "__main__":
     country_list = [
         'BEL',
         'AUT',
         'HRV',
-        # "CYP",
+        "CYP",
         'CZE',
         'DNK',
         'FRA',
@@ -917,5 +939,7 @@ if __name__ == "__main__":
     ]
     # country_list = [ 'ROU',]#'MLT','LTU', 'GRC']
     years = [2020, 2030, 2040, 2050]
-    main(country_list, years)
+    # main(country_list, years)
+
+    copy_data_to_server(countries=country_list, years=years)
 
