@@ -123,9 +123,15 @@ def init_project_db(config: "Config"):
                         sniffer = csv.Sniffer()
                         try:
                             delimiter = sniffer.sniff(sample).delimiter
-                        except:
+                        except csv.Error:
+                            delimiter = ";"
+                        if delimiter not in [",", ";"]:
                             delimiter = ";"
                     df = pd_read_func(file_path, delimiter=delimiter).dropna(how="all")
+                    if df.shape[1] == 1:
+                        delimiter = ","
+                    df = pd_read_func(file_path, delimiter=delimiter).dropna(how="all")
+                    
                 else:
                     df = pd_read_func(file_path).dropna(how="all")
                 break

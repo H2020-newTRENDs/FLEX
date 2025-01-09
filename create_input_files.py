@@ -864,13 +864,13 @@ def main(country_list: list, years: list):
     #         create_scenario_tables(country=country, year=year,
     #                                minimum_number_buildings=minimum_number_buildings)
 
-    # create_input_excels(year=2030, country="AUT")
-    # create_scenario_tables("AUT", 2030)
+    create_input_excels(year=2020, country="AUT")
+    create_scenario_tables("AUT", 2030)
     # use multiprocessing to speed it up creating all the input data:
     input_list = [(year, country) for year in years for country in country_list]
-    for (year, country) in input_list:
-        create_input_excels(year=year, country=country)
-        create_scenario_tables(year=year, country=country)
+    # for (year, country) in input_list:
+        # create_input_excels(year=year, country=country)
+        # create_scenario_tables(year=year, country=country)
     # number_of_physical_cores = 2# int(multiprocessing.cpu_count() / 2)
     # Parallel(n_jobs=number_of_physical_cores)(delayed(create_input_excels)(*inst) for inst in input_list)
 
