@@ -880,8 +880,8 @@ def main(country_list: list, years: list):
     #         create_scenario_tables(country=country, year=year,
     #                                minimum_number_buildings=minimum_number_buildings)
 
-    # create_input_excels(year=2030, country="AUT")
-    # create_scenario_tables("AUT", 2030)
+    create_input_excels(year=2020, country="AUT")
+    create_scenario_tables("AUT", 2030)
     # use multiprocessing to speed it up creating all the input data:
     input_list = [(year, country) for country in country_list for year in years ]
     for (year, country) in input_list:
