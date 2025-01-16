@@ -916,6 +916,13 @@ def copy_data_to_server(countries, years):
                     print(f"copying {file.name} to {country}_{year}")
 
                 shutil.copy(src=file, dst=destination / file.name)
+                if file.suffix == ".csv":
+                    old_suffix = ".xlsx"
+                else:
+                    old_suffix = ".csv"
+                dest_file_other = destination / file.name.replace(file.suffix, old_suffix)
+                if dest_file_other.exists():
+                    dest_file_other.unlink()
 
 if __name__ == "__main__":
     country_list = [
@@ -949,7 +956,7 @@ if __name__ == "__main__":
     ]
     # country_list = [ 'ROU',]#'MLT','LTU', 'GRC']
     years = [2020, 2030, 2040, 2050]
-    main(country_list, years)
+    # main(country_list, years)
 
-    # copy_data_to_server(countries=country_list, years=years)
+    copy_data_to_server(countries=country_list, years=years)
 
