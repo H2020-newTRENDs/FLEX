@@ -177,7 +177,6 @@ def create_building_id_table(df: pd.DataFrame, year: int, country: str) -> pd.Da
         "ID_Building",
         "number_buildings_heat_pump_air",
         "number_buildings_heat_pump_ground",
-        "number_of_buildings",
         "ID_HotWaterTank",
         "ID_SpaceHeatingTank"
     ]
@@ -201,8 +200,8 @@ def create_building_id_table(df: pd.DataFrame, year: int, country: str) -> pd.Da
     hot_water_demand = DHW_DEMAND_PER_PERSON.loc[DHW_DEMAND_PER_PERSON["country"]==get_european_countries_dict()[country], f"consumption (Wh)"].values[0]
     building_table.loc[:, "hot_water_demand_per_person"] = hot_water_demand
 
-
-    building_table.drop(columns="id_demand_profile_type", inplace=True)
+    building_table["number_of_buildings"] = building_table["number_buildings_heat_pump_air"] + building_table["number_buildings_heat_pump_ground"]
+    building_table.drop(columns=["id_demand_profile_type", "number_buildings_heat_pump_air", "number_buildings_heat_pump_ground"], inplace=True)
     return building_table
 
 
@@ -545,8 +544,9 @@ def load_buildings(year: int, country: str, cfg: Config) -> pd.DataFrame:
 
     # filter out buildings that have no hp installations
     df_hp = df.loc[(df["number_buildings_heat_pump_air"] != 0) &  (df["number_buildings_heat_pump_ground"] != 0), :].copy()  # filter out buildings without electric heating
-
+    # df_hp["hp_number"] = df["number_buildings_heat_pump_air"] + df["number_buildings_heat_pump_ground"]
     df_reduced = reduce_number_of_buildings(df_hp).drop(columns="index")  # reduce the number of buildings by merging similar ones
+    # df_reduced["hp_number"] = df_reduced["number_buildings_heat_pump_air"] + df_reduced["number_buildings_heat_pump_ground"]
 
     # set the number of 0 m2 PV to the number of heating systems minus the other PV installations
     pv_columns = [name for name in df_reduced.columns if "PV" in name if not "number_of_0_m2" in name]
@@ -650,7 +650,14 @@ def create_behavior_table(cfg: Config):
     # copy file
     shutil.copy(src=path_2_testbed_behavior, dst=destination)
 
-
+def create_behavior_component_table():
+    df = pd.DataFrame(
+        columns= ["ID_Behavior", "id_household_type", "target_temperature_at_home_max", "target_temperature_at_home_min", "target_temperature_not_at_home_max", "target_temperature_not_at_home_min", "shading_solar_reduction_rate", "shading_threshold_temperature", "temperature_unit"],
+        data=[ 
+            [1, 1, 27, 20, 27, 20, 0.5, 30, "°C"],
+        ]
+    )
+    return df
 
 def create_input_excels(year: int,
                         country: str,
@@ -678,6 +685,7 @@ def create_input_excels(year: int,
     battery_table = create_battery_table()
     ev_table = create_EV_table()
     heating_element_table = create_heating_element_table()
+    behavior_component_table = create_behavior_component_table()
     create_behavior_table(cfg=config) # copys the input file from testbed because the other one is for a single house
 
     # save the csv files:
@@ -693,6 +701,7 @@ def create_input_excels(year: int,
     ev_table.to_csv(config.input / "OperationScenario_Component_Vehicle.csv", index=False, sep=";")
     heating_element_table.to_csv(config.input / "OperationScenario_Component_HeatingElement.csv", index=False, sep=";")
     energy_price_scenario_table.to_csv(config.input / "OperationScenario_Component_EnergyPrice.csv", sep=";", index=False)
+    behavior_component_table.to_csv(config.input / "OperationScenario_Component_Behavior.csv", sep=";", index=False)
     LOGGER.info(f"created input csvs for {country} {year}")
 
     # delete the same excel files:
@@ -709,6 +718,7 @@ def create_input_excels(year: int,
         config.input / "OperationScenario_Component_HeatingElement.xlsx",
         config.input / "OperationScenario_Component_EnergyPrice.xlsx",
         config.input / "OperationScenario_BehaviorProfile.csv", # only file where the csv (orig) needs to be deleted
+        config.input / "OperationScenario_Component_Behavior.xlsx", 
     ]
     for file in excel_files:
         if file.exists():
@@ -912,7 +922,7 @@ if __name__ == "__main__":
         'BEL',
         'AUT',
         'HRV',
-        "CYP",
+        # "CYP",
         'CZE',
         'DNK',
         'FRA',
@@ -939,7 +949,7 @@ if __name__ == "__main__":
     ]
     # country_list = [ 'ROU',]#'MLT','LTU', 'GRC']
     years = [2020, 2030, 2040, 2050]
-    # main(country_list, years)
+    main(country_list, years)
 
-    copy_data_to_server(countries=country_list, years=years)
+    # copy_data_to_server(countries=country_list, years=years)
 
