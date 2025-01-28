@@ -1,5 +1,11 @@
 from scipy.stats import norm
-from models.operation.scenario import OperationScenario
+import sys
+import os
+
+# Add the project root dynamically
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
+
+from models.operation.scenario import OperationScenario, MotherOperationScenario
 from models.operation.visualization.Visualization_class import MotherVisualization
 from config import config
 from models.operation.enums import OperationTable
@@ -311,8 +317,8 @@ class PlotlyVisualize(MotherVisualization):
 if __name__ == "__main__":
 
     # create scenario:
-    scenario_id = 2
-    scenario = OperationScenario(scenario_id=scenario_id, config=config)
+    scenario_id = 249
+    scenario = OperationScenario(scenario_id=scenario_id, config=config, tables=MotherOperationScenario(config=config))
     plotly_visualization = PlotlyVisualize(scenario=scenario)
     plotly_visualization.show_yearly_comparison_of_SEMS_reference()
     plotly_visualization.hourly_comparison_SEMS_reference()
