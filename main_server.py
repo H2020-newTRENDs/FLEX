@@ -40,7 +40,7 @@ def run_only_ref_model_and_change_indoor_set_temp_until_correct(config):
     change = 0
     change_step = 0.5
     diff_list = [100]
-    while percentage_diff > abs(0.03):
+    while abs(percentage_diff) > 0.03:
         df = pd.read_csv(config.input /  "OperationScenario_Component_Behavior.csv", sep=";")
         indoor_set_temp = indoor_set_temp + change
         df["target_temperature_at_home_min"] = indoor_set_temp
@@ -79,7 +79,7 @@ def run_only_ref_model_and_change_indoor_set_temp_until_correct(config):
 
         diff_list.append(diff)
         if diff < 0:
-            change = change_step
+            change = abs(change_step)
         else:
             change = -change_step
 
@@ -91,11 +91,11 @@ def summarize_indoor_set_temps(country_list):
     for country in country_list:
         cfg = get_config(f"{country}_{2020}")
         df = pd.read_csv(cfg.input /  "OperationScenario_Component_Behavior.csv", sep=";")
-        indoor_temp = df["target_temperature_at_home_min"]
-        df = pd.DataFrame({"country": [country], "indoor_temp": [indoor_temp]})
+        indoor_temp = df["target_temperature_at_home_min"].values[0]
+        df = pd.DataFrame(data={"country": [country], "indoor_temp": [indoor_temp]})
         dfs.append(df)
 
-    df = pd.concat(dfs)
+    df = pd.concat(dfs, axis=0)
     
     sns.barplot(data=df, 
                 x="country", 
@@ -105,6 +105,13 @@ def summarize_indoor_set_temps(country_list):
     plt.xticks(rotation=90)
     plt.tight_layout()
     plt.savefig(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/testing/Country_level_prosumaging/figures") / "Corrected_indoor_set_temps.png")
+
+    # copy Operation_component file into other input folders:
+    for country in country_list:
+        cfg = get_config(f"{country}_{2020}")
+        for year in [2030, 2040, 2050]:
+            cfg_year = get_config(f"{country}_{year}")
+            shutil.copy(cfg.input / "OperationScenario_Component_Behavior.csv", cfg_year.input / "OperationScenario_Component_Behavior.csv")
 
 
 
@@ -116,7 +123,7 @@ if __name__ == "__main__":
             "AUT",  
             "BEL", 
             "POL",
-            # "CYP", 
+            # # "CYP", 
             "PRT",
             "DNK", 
             "FRA", 
@@ -146,9 +153,9 @@ if __name__ == "__main__":
     for country in country_list:
         for year in years:
             cfg = get_config(f"{country}_{year}")
+            # run_only_ref_model_and_change_indoor_set_temp_until_correct(cfg)
 
             # run_flex_operation_model(cfg, task_number=20)
-            run_only_ref_model_and_change_indoor_set_temp_until_correct(cfg)
 
     summarize_indoor_set_temps(country_list)
     # cfg = get_config("AUT_2030")
