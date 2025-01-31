@@ -33,7 +33,7 @@ def delete_result_task_folders(conf):
 def run_only_ref_model_and_change_indoor_set_temp_until_correct(config):
     # invert heating demand (hwb):
     invert = pd.read_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/testing/Country_level_prosumaging") / "hwb_Invert_HP_heated_buildings.csv")
-    target_hwb = invert.loc[(invert["year"] == 2020) & (invert["country"] == config.project_name.split("_")[0]) , "avg_hwb"].values[0]
+    target_hwb = invert.loc[(invert["year"] == int(config.project_name.split("_")[1])) & (invert["country"] == config.project_name.split("_")[0]) , "avg_hwb"].values[0]
     # change the indoor set temperature
     percentage_diff = 1
     indoor_set_temp = 20
@@ -73,7 +73,7 @@ def run_only_ref_model_and_change_indoor_set_temp_until_correct(config):
         percentage_diff = diff / target_hwb
         print(f"set temp: {indoor_set_temp}")
         print(f"Percentage diff: {percentage_diff} in {config.project_name}")
-        if abs(diff)>abs(diff_list[-1]):
+        if abs(diff)>=abs(diff_list[-1]):
             change_step = change_step / 2
             print(f"Change step decreased to {change_step}")
 
@@ -89,17 +89,19 @@ def summarize_indoor_set_temps(country_list):
 
     dfs = []
     for country in country_list:
-        cfg = get_config(f"{country}_{2020}")
-        df = pd.read_csv(cfg.input /  "OperationScenario_Component_Behavior.csv", sep=";")
-        indoor_temp = df["target_temperature_at_home_min"].values[0]
-        df = pd.DataFrame(data={"country": [country], "indoor_temp": [indoor_temp]})
-        dfs.append(df)
+        for year in [2020, 2030, 2040, 2050]:
+            cfg = get_config(f"{country}_{year}")
+            df = pd.read_csv(cfg.input /  "OperationScenario_Component_Behavior.csv", sep=";")
+            indoor_temp = df["target_temperature_at_home_min"].values[0]
+            df = pd.DataFrame(data={"country": [country], "indoor_temp": [indoor_temp]})
+            dfs.append(df)
 
     df = pd.concat(dfs, axis=0)
     
     sns.barplot(data=df, 
                 x="country", 
-                y="indoor_temp"
+                y="indoor_temp",
+                hue="year"
                 )
     plt.ylabel("Indoor set temperature corrected")
     plt.xticks(rotation=90)
@@ -107,11 +109,11 @@ def summarize_indoor_set_temps(country_list):
     plt.savefig(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/testing/Country_level_prosumaging/figures") / "Corrected_indoor_set_temps.png")
 
     # copy Operation_component file into other input folders:
-    for country in country_list:
-        cfg = get_config(f"{country}_{2020}")
-        for year in [2030, 2040, 2050]:
-            cfg_year = get_config(f"{country}_{year}")
-            shutil.copy(cfg.input / "OperationScenario_Component_Behavior.csv", cfg_year.input / "OperationScenario_Component_Behavior.csv")
+    # for country in country_list:
+    #     cfg = get_config(f"{country}_{2020}")
+    #     for year in [2030, 2040, 2050]:
+    #         cfg_year = get_config(f"{country}_{year}")
+    #         shutil.copy(cfg.input / "OperationScenario_Component_Behavior.csv", cfg_year.input / "OperationScenario_Component_Behavior.csv")
 
 
 
@@ -149,11 +151,11 @@ if __name__ == "__main__":
             'EST',
         ]
 
-    years = [2020]#, 2030,  2040, 2050]#2030, 2040]
+    years = [2020, 2030,  2040, 2050]#2030, 2040]
     for country in country_list:
         for year in years:
             cfg = get_config(f"{country}_{year}")
-            # run_only_ref_model_and_change_indoor_set_temp_until_correct(cfg)
+            run_only_ref_model_and_change_indoor_set_temp_until_correct(cfg)
 
             # run_flex_operation_model(cfg, task_number=20)
 
