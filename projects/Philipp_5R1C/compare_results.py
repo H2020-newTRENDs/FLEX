@@ -87,9 +87,9 @@ class CompareModels:
 
     def grab_scenario_ids_for_price(self, id_price: int, cooling: bool) -> list:
         if cooling:
-            cooling_id = 1
+            cooling_id = 2
         else:
-            cooling_id = 2  # TODO achtung später hab ich nur noch ohne kühung
+            cooling_id = 1  # TODO achtung später hab ich nur noch ohne kühung
         ids = self.scenario_table.loc[(self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price) &
                                       (self.scenario_table.loc[:, "ID_SpaceCoolingTechnology"] == cooling_id),
                                       "ID_Scenario"]
@@ -1300,7 +1300,7 @@ class CompareModels:
         # self.run(price_scenarios, floor_heating=False, cooling=False)
         # self.run(price_scenarios, floor_heating=False, cooling=True)
 
-        # self.show_plotly_comparison(prices=price_scenarios, cooling=True, floor_heating=True)
+        self.show_plotly_comparison(prices=price_scenarios, cooling=True, floor_heating=True)
 
 
 
