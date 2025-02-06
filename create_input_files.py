@@ -234,15 +234,15 @@ def copy_file_to_folder(source: Path, destination: Path, force_copy: bool = Fals
     if force_copy:
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(source, destination)
-        logger.info(f"copied {source.name} to \n {destination}")
+        LOGGER.info(f"copied {source.name} to \n {destination}")
     else:
         # Check if the destination file already exists
         if destination.exists():
-            logger.info(f"{destination} already exists. Skipping copy operation.")
+            LOGGER.info(f"{destination} already exists. Skipping copy operation.")
             return
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(source, destination)
-        logger.info(f"copied {source.name} to \n {destination}")
+        LOGGER.info(f"copied {source.name} to \n {destination}")
 
 
 def calc_mean(data: dict) -> float:
