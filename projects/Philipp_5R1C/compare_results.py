@@ -87,9 +87,9 @@ class CompareModels:
 
     def grab_scenario_ids_for_price(self, id_price: int, cooling: bool) -> list:
         if cooling:
-            cooling_id = 2
+            cooling_id = 1
         else:
-            cooling_id = 1  # TODO achtung später hab ich nur noch ohne kühung
+            cooling_id = 2  # TODO achtung später hab ich nur noch ohne kühung
         ids = self.scenario_table.loc[(self.scenario_table.loc[:, "ID_EnergyPrice"] == id_price) &
                                       (self.scenario_table.loc[:, "ID_SpaceCoolingTechnology"] == cooling_id),
                                       "ID_Scenario"]
@@ -966,7 +966,7 @@ class CompareModels:
     def show_plotly_comparison(self, prices: list, cooling: bool, floor_heating: bool):
         # ref heat demand is always the same
         heat_demand_ref = self.read_heat_demand(table_name=OperationTable.ResultRefHour.value,
-                                                prize_scenario="basic",
+                                                prize_scenario=prices[0],
                                                 cooling=cooling)
         # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
         heat_demand_IDA_ref = self.read_daniel_heat_demand(price="basic", cooling=cooling, floor_heating=floor_heating)
@@ -1284,11 +1284,13 @@ class CompareModels:
 
     def main(self):
         price_scenarios = ["basic", "price2", "price3", "price4"]
+        price_scenarios = ["price2"]
+
         # self.indoor_temp_to_csv(cooling=False)
         # self.indoor_temp_to_csv(cooling=True)# was only relevant for Daniel
 
-        self.compare_daily_peaks()
-        self.shifted_electrity_demand()
+        # self.compare_daily_peaks()
+        # self.shifted_electrity_demand()
         # self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
         # self.plot_yearly_heat_demand_floor_ideal_not_optimized()
         # self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
@@ -1300,7 +1302,7 @@ class CompareModels:
         # self.run(price_scenarios, floor_heating=False, cooling=False)
         # self.run(price_scenarios, floor_heating=False, cooling=True)
 
-        self.show_plotly_comparison(prices=price_scenarios, cooling=True, floor_heating=True)
+        self.show_plotly_comparison(prices=price_scenarios, cooling=False, floor_heating=True)
 
 
 
