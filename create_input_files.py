@@ -192,7 +192,14 @@ def create_building_id_table(df: pd.DataFrame, year: int, country: str) -> pd.Da
                             "spec_int_gains_cool_watt": "internal_gains"})
     for name in columns:
         if name in df.columns.to_list():
-            building_table.loc[:, name] = df.loc[:, name]
+            try:
+                building_table.loc[:, name] = df.loc[:, name]
+            except ValueError as e:
+                if "Setting with non-unique columns is not allowed." in str(e):
+                    # Take first occurrence of duplicate column
+                    building_table.loc[:, name] = df.loc[:, df.columns.get_loc(name)].iloc[:,0]
+                else:
+                    raise e
 
     appliance_demand = APPLICANCE_DEMAND_PER_PERSON.loc[APPLICANCE_DEMAND_PER_PERSON["country"]==get_european_countries_dict()[country], f"consumption {year} (Wh)"].values[0]
     building_table.loc[:, "appliance_electricity_demand_per_person"] = appliance_demand
@@ -650,11 +657,15 @@ def create_behavior_table(cfg: Config):
     # copy file
     shutil.copy(src=path_2_testbed_behavior, dst=destination)
 
-def create_behavior_component_table():
+def create_behavior_component_table(country: str):
+    if country == "GRC":
+        indoor_set_tenp = 18
+    else:
+        indoor_set_tenp = 20
     df = pd.DataFrame(
         columns= ["ID_Behavior", "id_household_type", "target_temperature_at_home_max", "target_temperature_at_home_min", "target_temperature_not_at_home_max", "target_temperature_not_at_home_min", "shading_solar_reduction_rate", "shading_threshold_temperature", "temperature_unit"],
         data=[ 
-            [1, 1, 27, 20, 27, 20, 0.5, 30, "°C"],
+            [1, 1, 27, indoor_set_tenp, 27, indoor_set_tenp, 0.5, 30, "°C"],
         ]
     )
     return df
@@ -685,7 +696,7 @@ def create_input_excels(year: int,
     battery_table = create_battery_table()
     ev_table = create_EV_table()
     heating_element_table = create_heating_element_table()
-    behavior_component_table = create_behavior_component_table()
+    behavior_component_table = create_behavior_component_table(country=country)
     create_behavior_table(cfg=config) # copys the input file from testbed because the other one is for a single house
 
     # save the csv files:
@@ -880,8 +891,8 @@ def main(country_list: list, years: list):
     #         create_scenario_tables(country=country, year=year,
     #                                minimum_number_buildings=minimum_number_buildings)
 
-    create_input_excels(year=2020, country="AUT")
-    create_scenario_tables("AUT", 2030)
+    # create_input_excels(year=2020, country="AUT")
+    # create_scenario_tables("AUT", 2030)
     # use multiprocessing to speed it up creating all the input data:
     input_list = [(year, country) for country in country_list for year in years ]
     for (year, country) in input_list:
@@ -926,37 +937,37 @@ def copy_data_to_server(countries, years):
 
 if __name__ == "__main__":
     country_list = [
-        'BEL',
-        'AUT',
-        'HRV',
-        # "CYP",
-        'CZE',
-        'DNK',
-        'FRA',
-        'DEU',
-        'LUX',
-        'HUN',
-        'IRL',
-        'ITA',
-        'NLD',
-        'POL', # 2020 hat polen PV problem
-        'PRT',
-        'SVK',
-        'SVN',
-        'ESP',
-        'SWE',
+        # 'BEL',
+        # 'AUT',
+        # 'HRV',
+        # # "CYP",
+        # 'CZE',
+        # 'DNK',
+        # 'FRA',
+        # 'DEU',
+        # 'LUX',
+        # 'HUN',
+        # 'IRL',
+        # 'ITA',
+        # 'NLD',
+        # 'POL', # 2020 hat polen PV problem
+        # 'PRT',
+        # 'SVK',
+        # 'SVN',
+        # 'ESP',
+        # 'SWE',
         'GRC',
-        'LVA',
-        'LTU',
-        # 'MLT',
-        'ROU',
-        'BGR',
-        'FIN',
-        'EST',
+        # 'LVA',
+        # 'LTU',
+        # # 'MLT',
+        # 'ROU',
+        # 'BGR',
+        # 'FIN',
+        # 'EST',
     ]
     # country_list = [ 'ROU',]#'MLT','LTU', 'GRC']
     years = [2020, 2030, 2040, 2050]
-    # main(country_list, years)
+    main(country_list, years)
 
     copy_data_to_server(countries=country_list, years=years)
 
