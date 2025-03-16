@@ -17,8 +17,11 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-from optimize_buffer_size import rewritten_5R1C_optimziation, find_6R2C_params, calculate_6R2C_with_specific_params
+from model_6R2C import rewritten_5R1C_optimziation, find_6R2C_params, calculate_6R2C_with_specific_params, optimize_6R2C_with_specific_params_without_target
 from pathlib import Path
+import json
+import pickle
+from datetime import datetime
 
 
 '''
@@ -153,37 +156,129 @@ def compare_IDA_ICE_6R2C_5R1C(model_6R2C: OptOperationModel, model_5R1C: OptOper
     fig.show()
 
 def check_results(orig_5R1C_model: OptOperationModel, target_indoor_temp: np.array, 
-                  Q_dict, T_room_dict, T_surface_dict, T_mass_dict, T_floor_dict):
+                  Q_dict, T_room_dict, T_surface_dict, T_mass_dict, T_floor_dict, best_param=None):
+    IDA_ICE_heating = load_IDA_ICE_heating(scenario_id=scenario_id)
+
     
     fig = make_subplots(rows=5, cols=1, shared_xaxes=True, subplot_titles=["T_Room", "Q_Heating", "T_Mass", "T_surface", "T_floor"])
     x_axis = np.arange(8760)
 
     # T_Room
-    fig.add_trace(go.Scatter(x=x_axis, y=target_indoor_temp, mode='lines', name="IDA ICE"), row=1, col=1)
+    fig.add_trace(go.Scatter( x=x_axis, y=target_indoor_temp, mode='lines', name="IDA ICE", line=dict(color='red', width=2, dash='dash') ), row=1, col=1)
     fig.add_trace(go.Scatter(x=x_axis, y=np.array(list(orig_5R1C_model.T_Room.extract_values().values())), mode='lines', name="5R1C"), row=1, col=1)
     for name, T_room in T_room_dict.items():
-        fig.add_trace(go.Scatter(x=x_axis, y=T_room, mode='lines', name=name), row=1, col=1)
+        if name == best_param:
+            fig.add_trace(go.Scatter(x=x_axis, y=T_room, mode='lines', name=f"{name} (Best)", 
+                                    line=dict(color='black', width=2)), row=1, col=1)
+        else:
+            fig.add_trace(go.Scatter(x=x_axis, y=T_room, mode='lines', name=name), row=1, col=1)
 
 
     # Q_RoomHeating
     fig.add_trace(go.Scatter(x=x_axis, y=np.array(list(orig_5R1C_model.Q_RoomHeating.extract_values().values())), mode='lines', name="5R1C"), row=2, col=1)
+    fig.add_trace(go.Scatter( x=x_axis, y=IDA_ICE_heating, mode='lines', name="IDA ICE", line=dict(color='red', width=2, dash='dash'), opacity=0.8 ), row=2, col=1)
+
     for name, Q_RoomHeating in Q_dict.items():
-        fig.add_trace(go.Scatter(x=x_axis, y=Q_RoomHeating, mode='lines', name=name), row=2, col=1)
+        if name == best_param:
+            fig.add_trace(go.Scatter(x=x_axis, y=Q_RoomHeating, mode='lines', name=f"{name} (Best)", 
+                                    line=dict(color='black', width=2)), row=2, col=1)
+        else:
+            fig.add_trace(go.Scatter(x=x_axis, y=Q_RoomHeating, mode='lines', name=name), row=2, col=1)
 
     # T_BuildingMass
     fig.add_trace(go.Scatter(x=x_axis, y=np.array(list(orig_5R1C_model.T_BuildingMass.extract_values().values())), mode='lines', name="5R1C"), row=3, col=1)
     for name, T_mass in T_mass_dict.items():
-        fig.add_trace(go.Scatter(x=x_axis, y=T_mass, mode='lines', name=name), row=3, col=1)
+        if name == best_param:
+            fig.add_trace(go.Scatter(x=x_axis, y=T_mass, mode='lines', name=f"{name} (Best)", 
+                                    line=dict(color='black', width=2)), row=3, col=1)
+        else:
+            fig.add_trace(go.Scatter(x=x_axis, y=T_mass, mode='lines', name=name), row=3, col=1)
 
     # T_surface
     for name, T_surface in T_surface_dict.items():
-        fig.add_trace(go.Scatter(x=x_axis, y=T_surface, mode='lines', name=name), row=4, col=1)
+        if name == best_param:
+            fig.add_trace(go.Scatter(x=x_axis, y=T_surface, mode='lines', name=f"{name} (Best)", 
+                                    line=dict(color='black', width=2)), row=4, col=1)
+        else:
+            fig.add_trace(go.Scatter(x=x_axis, y=T_surface, mode='lines', name=name), row=4, col=1)
 
     # T_floor
     for name, T_floor in T_floor_dict.items():
-        fig.add_trace(go.Scatter(x=x_axis, y=T_floor, mode='lines', name=name), row=5, col=1)
+        if name == best_param:
+            fig.add_trace(go.Scatter(x=x_axis, y=T_floor, mode='lines', name=f"{name} (Best)", 
+                                    line=dict(color='black', width=2)), row=5, col=1)
+        else:
+            fig.add_trace(go.Scatter(x=x_axis, y=T_floor, mode='lines', name=name), row=5, col=1)
         
     fig.show()
+
+def calc_mean_squared_error_temperature(result_df: pd.DataFrame, scenario_id):
+    IDA_ICE_indoor_temp = load_IDA_ICE_indoor_temp(scenario_id=scenario_id)
+    T_room_df = result_df.loc[result_df["type"] == "T_Room"]
+
+    # Calculate MSE for each parameter combination
+    mse_results = {}
+    
+    # Iterate through each column (except 'type')
+    for column in T_room_df.columns:
+        if column != 'type':
+            # Calculate MSE between IDA_ICE_heating and this column
+            squared_errors = (IDA_ICE_indoor_temp - T_room_df[column].values) ** 2
+            mse = np.mean(squared_errors)
+            mse_results[column] = mse
+    
+    # Find the best parameter set (lowest MSE)
+    best_param = min(mse_results, key=mse_results.get)
+    print("\nMean Squared Errors (T_Room):")
+    for param, mse in sorted(mse_results.items(), key=lambda x: x[1]):
+        print(f"{param}: {mse:.2f}")
+    
+    print(f"\nBest parameter set: {best_param} with MSE = {mse_results[best_param]:.2f}")
+    return mse_results, best_param
+
+
+def calc_mean_squared_error_heating(result_df: pd.DataFrame, scenario_id):
+    IDA_ICE_heating = load_IDA_ICE_heating(scenario_id=scenario_id)
+
+    # Filter for Q_RoomHeating_6R2C rows
+    heating_df = result_df[result_df["type"] == "Q_RoomHeating_6R2C"]
+    
+    # Calculate MSE for each parameter combination
+    mse_results = {}
+    
+    # Iterate through each column (except 'type')
+    for column in heating_df.columns:
+        if column != 'type':
+            # Calculate MSE between IDA_ICE_heating and this column
+            squared_errors = (IDA_ICE_heating - heating_df[column].values) ** 2
+            mse = np.mean(squared_errors)
+            mse_results[column] = mse
+    
+    # Find the best parameter set (lowest MSE)
+    best_param = min(mse_results, key=mse_results.get)
+    
+    print("\nMean Squared Errors (Q_RoomHeating):")
+    for param, mse in sorted(mse_results.items(), key=lambda x: x[1]):
+        print(f"{param}: {mse:.2f}")
+    
+    print(f"\nBest parameter set: {best_param} with MSE = {mse_results[best_param]:.2f}")
+    
+    return mse_results, best_param
+
+
+
+def read_6R2C_results(variable, scenario_id, results_dir=None):
+    """Read results from 6R2C model comparison dataset"""
+    if results_dir is None:
+        results_dir = Path(__file__).parent / "model_results" / f"comparison_data_{scenario_id}"
+    
+    file_path = results_dir / f"{variable}.csv"
+    if not file_path.exists():
+        raise ValueError(f"No data found for {variable} in {results_dir}")
+    
+    df = pd.read_csv(file_path)
+    return df
+
 
 if __name__ == "__main__":
     # init = ProjectOperationInit(
@@ -192,6 +287,11 @@ if __name__ == "__main__":
     #         scenario_components=OperationScenarioComponent,
     #     )
     # init.main()
+
+    # TODO find a way to determine the parameters for all buildings
+    # TODO Run 6R2C with best parameters and compare results in cost savings, shifted energy etc.
+    # add to diss and paper
+
 
     scenario_id = 5
     mother_operation = MotherOperationScenario(config=config)
@@ -204,7 +304,7 @@ if __name__ == "__main__":
     orig_5R1C_model, solve_status = OptOperationModel(scenario).solve(orig_opt_instance)
 
     # water per square meter floor heating is asumed to be between 1 and 5 liters:
-    Cf_list = [x*scenario.building.Af*list(orig_5R1C_model.CPWater.extract_values().values())[0]*3600 for x in range(1, 6)]
+    Cf_list = [x*scenario.building.Af*list(orig_5R1C_model.CPWater.extract_values().values())[0]*3600 for x in range(4, 11)]
     # Heat transfer resistance (W/K) between floor and indoor air temp is assumed to be between 1 and 10 W/K per square meter of floor heating
     # In literature (https://doi.org/10.1016/j.enbuild.2013.07.065) H_f is between 8 and 11 (measured)
     H_f_list = [x*scenario.building.Af for x in range(5, 15)]
@@ -214,69 +314,67 @@ if __name__ == "__main__":
     T_Room_dict = {}
     T_mass_dict = {}
     T_floor_dict = {}
-
     
     for c, Cf in enumerate(Cf_list):
         for h, H_f in enumerate(H_f_list):
-
             model_6C2C, solved = calculate_6R2C_with_specific_params(model=OptOperationModel(scenario), Htr_f=H_f, Cf=Cf, target_indoor_temp=target_indoor_temp)
             if solved:
-                solved_dict[f"Cf:{c}, Hf: {h}"] = (Cf, H_f)
-                Q_RoomHeating_6R2C_dict[f"Cf:{c}, Hf: {H_f}"] = np.array(list(model_6C2C.Q_RoomHeating.extract_values().values()))
-                T_surface_dict[f"Cf:{c}, Hf: {h}"] = np.array(list(model_6C2C.T_surface.extract_values().values()))
-                T_Room_dict[f"Cf:{c}, Hf: {h}"] = np.array(list(model_6C2C.T_Room.extract_values().values()))
-                T_mass_dict[f"Cf:{c}, Hf: {h}"] = np.array(list(model_6C2C.T_BuildingMass.extract_values().values()))
-                T_floor_dict[f"Cf:{c}, Hf: {h}"] = np.array(list(model_6C2C.T_floor.extract_values().values()))
+                cf_per_square_meter = Cf / (scenario.building.Af*list(orig_5R1C_model.CPWater.extract_values().values())[0]*3600)
+                hf_per_square_meter = H_f / (scenario.building.Af)
+                solved_dict[f"Cf:{round(cf_per_square_meter)}, Hf: {round(hf_per_square_meter)}"] = (Cf, H_f)
+                Q_RoomHeating_6R2C_dict[f"Cf:{round(cf_per_square_meter)}, Hf: {round(hf_per_square_meter)}"] = np.array(list(model_6C2C.Q_RoomHeating.extract_values().values()))
+                T_surface_dict[f"Cf:{round(cf_per_square_meter)}, Hf: {round(hf_per_square_meter)}"] = np.array(list(model_6C2C.T_surface.extract_values().values()))
+                T_Room_dict[f"Cf:{round(cf_per_square_meter)}, Hf: {round(hf_per_square_meter)}"] = np.array(list(model_6C2C.T_Room.extract_values().values()))
+                T_mass_dict[f"Cf:{round(cf_per_square_meter)}, Hf: {round(hf_per_square_meter)}"] = np.array(list(model_6C2C.T_BuildingMass.extract_values().values()))
+                T_floor_dict[f"Cf:{round(cf_per_square_meter)}, Hf: {round(hf_per_square_meter)}"] = np.array(list(model_6C2C.T_floor.extract_values().values()))
+                
+
+
     
     # now iterate over Cf_list and H_f_list and see which results in the best results
-    df = pd.DataFrame.from_dict({
-    "Q_RoomHeating_6R2C": Q_RoomHeating_6R2C_dict,
-    "T_surface": T_surface_dict,
-    "T_Room": T_Room_dict,
-    "T_mass": T_mass_dict,
-    "T_floor": T_floor_dict
-    })
-    df.to_csv(path=Path(__file__).parent / "6R1C_results.csv", index=False)
+    Q_df = pd.DataFrame.from_dict(Q_RoomHeating_6R2C_dict)
+    Q_df["type"] = "Q_RoomHeating_6R2C"
+    T_room_df = pd.DataFrame.from_dict(T_Room_dict)
+    T_room_df["type"] = "T_Room"
+    T_mass_df = pd.DataFrame.from_dict(T_mass_dict)
+    T_mass_df["type"] = "T_mass"
+    T_floor_df = pd.DataFrame.from_dict(T_floor_dict)
+    T_floor_df["type"] = "T_floor"
 
-    check_results(
-        orig_5R1C_model=orig_5R1C_model,
-        target_indoor_temp=target_indoor_temp,
-        Q_dict=Q_RoomHeating_6R2C_dict,
-        T_room_dict=T_Room_dict,
-        T_surface_dict=T_surface_dict,
-        T_mass_dict=T_mass_dict,
-        T_floor_dict=T_floor_dict
+    df = pd.concat([Q_df, T_room_df, T_mass_df, T_floor_df])
+    df.to_csv(Path(__file__).parent / "6R1C_results.csv", index=False, sep=";")
+    # df = pd.read_csv(Path(__file__).parent / "6R1C_results.csv", sep=";")
+    # Calculate mean squared error for heating demand
+    mse_results, best_param = calc_mean_squared_error_heating(df, scenario_id)
+    
+    # check_results(
+    #     orig_5R1C_model=orig_5R1C_model,
+    #     target_indoor_temp=target_indoor_temp,
+    #     Q_dict=Q_RoomHeating_6R2C_dict,
+    #     T_room_dict=T_Room_dict,
+    #     T_surface_dict=T_surface_dict,
+    #     T_mass_dict=T_mass_dict,
+    #     T_floor_dict=T_floor_dict,
+    #     best_param=best_param
+    # )
+
+    best_Cf, best_Hf = solved_dict[best_param]
+    print(f"Best parameters: Cf={best_Cf}, Hf={best_Hf}")
+
+    new_6R2C_model, solve_status = optimize_6R2C_with_specific_params_without_target(
+        model=OptOperationModel(scenario),
+        Htr_f=best_Hf,
+        Cf=best_Cf
+    )
+    compare_IDA_ICE_6R2C_5R1C(
+        model_6R2C=new_6R2C_model,
+        model_5R1C=orig_5R1C_model,
+        scenario_id=scenario_id
     )
 
 
 
 
-
-
-
-    # fig = make_subplots(rows=1, cols=1, shared_xaxes=True, subplot_titles=["T_Room_Dual", "T_ThermalMass_Dual", "Sum of Duals (mass, air, surface temp)"])
-    # x_axis = np.arange(8760)
-    # dual_values = []  # Store dual values for this constraint
-
-    # for constraint in orig_5R1C_model.component_objects(pyo.Constraint, active=True):
-    #     print(f"\nConstraint: {constraint.name}")
-        
-    #     dual = np.array([orig_5R1C_model.dual[constraint[t]] for t in range(1, 8761)])
-    #     dual_values.append(dual)
-       
-                    
-    #     fig.add_trace(go.Scatter(
-    #         x=x_axis, 
-    #         y=dual, 
-    #         mode='lines', name=constraint.name), row=1, col=1)
-    # fig.add_trace(go.Scatter(
-    # x=x_axis, 
-    # y=np.array(dual_values).sum(axis=0), 
-    # mode='lines', name="Total"), row=1, col=1)
-    # fig.show()
-
-    # plot_comparison_of_main_chars(orig_model=orig_5R1C_model, new_model=new_5R1C_model)
-    # show_important_dual_variables(orig_model=orig_5R1C_model, new_model=new_5R1C_model)
 
 
 

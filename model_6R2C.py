@@ -344,20 +344,15 @@ def find_6R2C_params(
     m.lower_room_temp_constraint = pyo.Constraint(m.t, rule=set_lower_room_temp_bound)
 
     def set_upper_room_temp_bound(m, t):
-        return m.T_Room[t] <= m.upper_room_temperature[t] 
+            return m.T_Room[t] <= m.upper_room_temperature[t] 
     m.upper_room_temp_constraint = pyo.Constraint(m.t, rule=set_upper_room_temp_bound)
 
 
-    def minimize_cost(m):
-        rule = sum(m.E_Heating_HP_out[t] * m.ElectricityPrice[t] for t in m.t)
+    def minimize_heat_demand_error(m):
+        # Minimize the sum of absolute deviations while keeping the model linear
+        rule = sum(m.pos_deviation[t] + m.neg_deviation[t] for t in m.t)
         return rule
-    m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
-
-    # def minimize_heat_demand_error(m):
-    #     rule = sum(m.target_indoor_temperature[t] - m.T_Room[t] for t in m.t)
-    #     return rule
-    # m.total_operation_cost_rule = pyo.Objective(rule=minimize_heat_demand_error, sense=pyo.minimize)
-
+    m.total_operation_cost_rule = pyo.Objective(rule=minimize_heat_demand_error, sense=pyo.minimize)
 
     m.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 
@@ -482,11 +477,25 @@ def calculate_6R2C_with_specific_params(
             return m.T_Room[t] <= m.upper_room_temperature[t] 
     m.upper_room_temp_constraint = pyo.Constraint(m.t, rule=set_upper_room_temp_bound)
 
+    # # # Add auxiliary variables for positive and negative deviations
+    # m.pos_deviation = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    # m.neg_deviation = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    
+    # # Constraints to define the deviations
+    # def deviation_constraint(m, t):
+    #     return m.target_indoor_temperature[t] - m.T_Room[t] == m.pos_deviation[t] - m.neg_deviation[t]  # try with Q_RoomHeating difference
+    # m.deviation_constraint = pyo.Constraint(m.t, rule=deviation_constraint)
+
+    # def minimize_indoor_temperature_error(m):
+    #     # Minimize the sum of absolute deviations while keeping the model linear
+    #     rule = sum(m.pos_deviation[t] + m.neg_deviation[t] for t in m.t)
+    #     return rule
+    # m.total_operation_cost_rule = pyo.Objective(rule=minimize_indoor_temperature_error, sense=pyo.minimize)
 
     def minimize_cost(m):
-        rule = sum(m.E_Heating_HP_out[t] * m.ElectricityPrice[t] for t in m.t)
-        return rule
+        return sum(m.E_Heating_HP_out[t] * m.ElectricityPrice[t] for t in m.t)
     m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
+    
 
     m.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 
@@ -501,6 +510,123 @@ def calculate_6R2C_with_specific_params(
         solve_status=False
         print("model could not be solved!")
         return None, solve_status
+
+
+
+def optimize_6R2C_with_specific_params_without_target(
+    model: OperationModel,
+    Htr_f: float,
+    Cf: float,
+
+):
+    m = pyo.ConcreteModel()
+    m.t = pyo.Set(initialize=np.arange(1, 8761))  
+    # set up parameters
+    m.T_outside = pyo.Param(m.t, initialize={t: model.T_outside[t-1] for t in m.t})
+    m.Q_Solar = pyo.Param(m.t, initialize={t: model.Q_Solar[t-1] for t in m.t})
+    m.CPWater = pyo.Param(initialize=model.CPWater)
+    m.ElectricityPrice = pyo.Param(m.t, initialize={t: model.ElectricityPrice[t-1] for t in m.t})
+
+    m.SpaceHeatingHourlyCOP = pyo.Param(m.t, initialize={t: model.SpaceHeatingHourlyCOP[t-1] for t in m.t})
+    max_temp, min_temp = model.generate_target_indoor_temperature(temperature_offset=3)
+    m.lower_room_temperature = pyo.Param(m.t, initialize={t: min_temp[t-1] for t in m.t})
+    m.upper_room_temperature = pyo.Param(m.t, initialize={t: max_temp[t-1] for t in m.t})
+
+    # building parameters
+    m.Am = pyo.Param(initialize=model.Am)
+    m.Atot = pyo.Param(initialize=model.Atot)
+    m.Qi = pyo.Param(initialize=model.Qi)
+    m.Htr_w = pyo.Param(initialize=model.Htr_w)
+    m.Htr_em = pyo.Param(initialize=model.Htr_em)
+    m.Htr_ms = pyo.Param(initialize=model.Htr_ms)
+    m.Htr_is = pyo.Param(initialize=model.Htr_is)
+    m.Hve = pyo.Param(initialize=model.Hve)
+    m.PHI_ia = pyo.Param(initialize=model.PHI_ia)
+    m.Cm = pyo.Param(initialize=model.Cm)
+    m.BuildingMassTemperatureStartValue = pyo.Param(initialize=model.BuildingMassTemperatureStartValue)
+
+    # set up variables
+    m.T_surface = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.T_Room = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.T_BuildingMass = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.E_Heating_HP_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.reference_Q_RoomHeating = pyo.Param(m.t, initialize={t: model.Q_RoomHeating[t-1] for t in m.t}) # just used to determine summer and winter time for contraint
+
+    # # floor heating
+
+    m.Cf = pyo.Param(initialize=Cf)
+    m.Htr_f = pyo.Param(initialize=Htr_f)
+
+    m.T_floor = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 45))
+    m.FloorTemperatureStartValue = pyo.Param(initialize=25)  # 25°C
+    
+
+    def calc_supply_of_space_heating(m, t):
+        return m.Q_RoomHeating[t] == m.E_Heating_HP_out[t] * m.SpaceHeatingHourlyCOP[t]
+    m.calc_supply_of_space_heating_rule = pyo.Constraint( m.t, rule=calc_supply_of_space_heating )
+
+
+    def air_temperature(m, t):
+        return m.T_Room[t] * (m.Htr_is + m.Hve + m.Htr_f) == (m.T_surface[t]*m.Htr_is + m.Hve*m.T_outside[t] + m.PHI_ia + m.T_floor[t]*m.Htr_f)             
+    m.room_temperature_rule = pyo.Constraint(m.t, rule=air_temperature)
+
+    def floor_temperature(m, t):
+        if t == 1:
+            Tf_start = m.FloorTemperatureStartValue
+        else:
+            Tf_start = m.T_floor[t - 1]
+        return m.T_floor[t] * (m.Cf/3600 + 0.5*m.Htr_f) == (m.Htr_f*m.T_Room[t] + m.Q_RoomHeating[t] + Tf_start * (m.Cf/3600 - 0.5*m.Htr_f))                
+    m.floor_temperature_rule = pyo.Constraint(m.t, rule=floor_temperature)
+
+    def surface_temperature(m, t):
+        if t == 1:
+            Tm_start = m.BuildingMassTemperatureStartValue
+        else:
+            Tm_start = m.T_BuildingMass[t - 1]
+        T_m = (m.T_BuildingMass[t] + Tm_start) / 2
+        PHI_st = (1 - m.Am / m.Atot - m.Htr_w / 9.1 / m.Atot) * (0.5 * m.Qi + m.Q_Solar[t])
+        return m.T_surface[t] == (m.Htr_is*m.T_Room[t] + m.Htr_ms * T_m + m.Htr_w * m.T_outside[t] + PHI_st) / (m.Htr_is+m.Htr_ms+m.Htr_w)
+    m.surface_temperature_rule = pyo.Constraint(m.t, rule=surface_temperature)
+
+
+    def thermal_mass_temperature_rc(m, t):
+        if t == 1:
+            Tm_start = m.BuildingMassTemperatureStartValue
+        else:
+            Tm_start = m.T_BuildingMass[t - 1]
+        
+        PHI_m = m.Am / m.Atot * (0.5 * m.Qi + m.Q_Solar[t])
+        return m.T_BuildingMass[t] == (Tm_start * (m.Cm/3600 - 0.5*(m.Htr_ms + m.Htr_em)) + PHI_m + m.Htr_ms * m.T_surface[t] + m.Htr_em * m.T_outside[t]) / \
+                                        (m.Cm/3600 + 0.5*m.Htr_ms + 0.5 * m.Htr_em)
+    m.thermal_mass_temperature_rule = pyo.Constraint(m.t, rule=thermal_mass_temperature_rc)
+
+
+    def set_lower_room_temp_bound(m, t):
+        return m.T_Room[t] >= m.lower_room_temperature[t]
+    m.lower_room_temp_constraint = pyo.Constraint(m.t, rule=set_lower_room_temp_bound)
+
+    def set_upper_room_temp_bound(m, t):
+        return m.T_Room[t] <= m.upper_room_temperature[t] 
+    m.upper_room_temp_constraint = pyo.Constraint(m.t, rule=set_upper_room_temp_bound)
+
+    def minimize_cost(m):
+        return sum(m.E_Heating_HP_out[t] * m.ElectricityPrice[t] for t in m.t)
+    m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
+    
+    m.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
+    solver = pyo.SolverFactory("gurobi")    
+    results = solver.solve(m, tee=True)
+    if results.solver.termination_condition == TerminationCondition.optimal:
+        solve_status=True
+        m.solutions.load_from(results)
+        return m, solve_status
+
+    else:
+        solve_status=False
+        print("model could not be solved!")
+        return None, solve_status
+
 
 if __name__ == "__main__":
     pass

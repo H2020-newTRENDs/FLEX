@@ -19,7 +19,7 @@ import sys
 import matplotlib
 
 # Get the absolute path of the directory two levels up
-two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 # Add this directory to sys.path
 sys.path.insert(0, two_levels_up)
 from basics.db import DB

@@ -1,0 +1,81 @@
+# ids for drop down menus:
+ALL_COUNTRIES_DROP_DOWN = "all-countries-drop-down"
+ALL_YEARS_DROP_DOWN = "all-years-drop-down"
+COUNTRY_BUILDING_NUMBER_DROP_DOWN = "country-building-number-drop-down"
+YEAR_BUILDING_NUMBER_DROP_DOWN = "year-building-number-drop-down"
+
+# ids for drop down menus
+COUNTRY_DROP_DOWN = "country-drop-down"
+YEAR_DROP_DOWN = "year-drop-down"
+BATTERY_DROP_DOWN = "battery-drop-down"
+BUILDING_DROP_DOWN = "building-drop-down"
+BOILER_DROP_DOWN = "boiler-drop-down"
+ENERGY_PRICE_DROP_DOWN = "energy-price-drop-down"
+HEATING_ELEMENT_DROP_DOWN = "heating-element-drop-down"
+HOT_WATER_TANK_DROP_DOWN = "hot-water-tank-drop-down"
+PV_DROP_DOWN = "pv-drop-down"
+SPACE_COOLING_DROP_DOWN = "space-cooling-drop-down"
+SPACE_HEATING_TANK_DROP_DOWN = "space-heating-tank-drop-down"
+VEHICLE_DROP_DOWN = "vehicle-drop-down"
+X_AXIS_DROP_DOWN = "x-axis-drop-down"
+Y_AXIS_DROP_DOWN = "y-axis-drop-down"
+COUNTRY_DROP_DOWN_GENERATION_SHIFT = "country-drop-down-generation-shift"
+COST_DROP_DOWN = "cost-drop-down"
+SLICE_GENERATION_SHIFT_YEAR_DROP_DOWN = "slice-generation-shift-year-drop-down"
+
+# check lists
+HOURLY_COLUMN_CHECK_LIST = "hourly-column-check-list"
+
+# ids for buttons:
+SELECT_ALL_COUNTRIES_BUTTON = "select-all-countries-button"
+SELECT_ALL_YEARS_BUTTON = "select-all-years-button"
+BATTERY_BUTTON = "ID_Battery"
+BOILER_BUTTON = "ID_Boiler"
+HEATING_ELEMENT_BUTTON = "ID_HeatingElement"
+HOT_WATER_TANK_BUTTON = "ID_HotWaterTank"
+PV_BUTTON = "ID_PV"
+SPACE_COOLING_BUTTON = "ID_SpaceCoolingTechnology"
+SPACE_HEATING_TANK_BUTTON = "ID_SpaceHeatingTank"
+VEHICLE_BUTTON = "ID_Vehicle"
+SAVE_EUROPE_MAP_GIF_BUTTON = "save-europe-map-gif-button"
+SAVE_EUROPE_MAP_CSV_BUTTON = "save_europe-map-csv-button"
+SAVE_DEMAND_PROFILE_CSV_BUTTON = "save-demand-profile-csv-button"
+SAVE_SLICE_GENERATION_SHIFT_BUTTON = "save-slice-generation-shift-button"
+
+# ids for figures:
+EU27_P2P_CHART = "Eu27-p2p-chart"
+EU27_LOAD_FACTOR_CHART = "Eu27-load-factor-chart"
+HOURLY_PROFILES_CHART = "hourly-profiles-chart"
+EU27_PV_SELF_CONSUMPTION = "Eu27-pv-self-consumption"
+EU27_SHIFTED_ELECTRICITY = "Eu27-shifted-electricity"
+NUMBER_OF_BUILDINGS_CHART = "number-of-buildings-chart"
+BUILDING_AGE_DISTRIBUTION_CHART = "building-age-distribution-chart"
+HUGE_SUBPLOT_CHART = "huge-subplot-chart"
+YEARLY_RESULT_CHART = "yearly-result-chart"
+AGGREGATED_LOAD_PROFILE_CHART = "aggregated-load-profile-chart"
+GENERATION_SHIFT_CHART = "generation-shift-chart"
+COST_REDUCTION = "cost-reduction-chart"
+ELECTRICITY_CONSUMPTION_DIFFERENCE = "electricity-consumption-difference"
+SLICE_GENERATION_SHIFT_FIGURE = "slice-generation-shift-figure"
+
+SHARE_MFH_SFH = "share-mfh-sfh"
+SHARE_BATTERY = "share-battery"
+SHARE_DHW_STORAGE = "share-dhw-storage"
+SHARE_HEATING_STORAGE = "share-heating-storage"
+SHARE_PV = "share-pv"
+SHARE_HEATING_ELEMENT = "share-heating-element"
+SHARE_BOILER = "share-boiler"
+SHARE_SPACE_COOLING = "share-space-cooling"
+SHARE_VEHICLE = "share-vehicle"
+
+# ids for the european map
+EUROPE_MAP_CHART = "europe-map-chart"
+EU_MAP_DROP_DOWN = "eu-map-drop-down"
+EU_MAP_SPECIFICS_DROP_DOWN = "eu-map-specifics-drop-down"
+
+# ids for number inputs
+SLICE_DEMAND_SHIFT_START_INPUT = "slice-demand-shift-start-input"
+SLICE_DEMAND_SHIFT_START_INPUT_OUTPUT = "slice-demand-shift-start-input-output"
+SLICE_DEMAND_SHIFT_END_INPUT = "slice-demand-shift-end-input"
+SLICE_DEMAND_SHIFT_END_INPUT_OUTPUT = "slice-demand-shift-end-input-output"
+

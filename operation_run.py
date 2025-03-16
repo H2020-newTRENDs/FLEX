@@ -339,6 +339,11 @@ def load_target_indoor_temp(scenario_id: int):
     df.columns = [key  for key, value in CM.building_names.items() for x in df.columns if value==x ]
     return df[scenario_id].to_numpy()
 
+def load_5R1C_heating_opt_heating(scenario_id: int):
+    CM = CompareModels(config.project_name)
+    heat_demand = CM.read_heat_demand(table_name="OperationResult_OptimizationHour", prize_scenario="price2", cooling=False)
+    heat_demand.columns = [key  for key, value in CM.building_names.items() for x in heat_demand.columns if value==x ]
+    return heat_demand[scenario_id].to_numpy()
 
 
 def objective(vars, target_heating, scenario: OperationScenario):
@@ -360,7 +365,7 @@ def run_ref_with_set_temp_from_opt_and_change_Cm_factor(scenario_ids):
         Hve_start = scenario.building.Hve
         Hop_start = scenario.building.Hop
         orig_heating, _, room_temp_orig, _ = calculate_heating_and_cooling_demand(Cm_factor=start_Cm_factor, Htr_w= Htr_w_start, Hve=Hve_start, Hop=Hop_start, scenario=scenario)
-
+        orig_heating_5r1c = load_5R1C_heating_opt_heating(scenario_id)
 
         logger.info(f"Optimizing Cm_factor for --> Scenario = {scenario_id}.")
         print("start Cm factor: ", start_Cm_factor)
@@ -369,11 +374,11 @@ def run_ref_with_set_temp_from_opt_and_change_Cm_factor(scenario_ids):
         variables = [start_Cm_factor, Htr_w_start, Hve_start, Hop_start]
         parameters = [target_heating, scenario]
         result = minimize(objective, x0=variables, args=(target_heating, scenario), method="L-BFGS-B")
-        result = minimize(objective, 
-                               x0=variables, 
-                               args=(target_heating, scenario),
-                               verbose=2
-                               )
+        # result = minimize(objective, 
+        #                        x0=variables, 
+        #                        args=(target_heating, scenario),
+        #                        verbose=2
+        #                        )
 
         print(f"Cm factor: {result.x[0]}")
         print(f"Htr_w: {result.x[1]}")

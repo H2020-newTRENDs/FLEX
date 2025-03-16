@@ -1,11 +1,14 @@
 from abc import ABC
+
 import numpy as np
 from typing import Union
-from models.operation.scenario import OperationScenario
+from flex_operation.scenario import OperationScenario
 
 
 class OperationModel(ABC):
+
     def __init__(self, scenario: "OperationScenario"):
+        self.hot_water_supply_temperature = 55  # same for all buildings
         self.scenario = scenario
         self.CPWater = 4200 / 3600
         self.setup_operation_model_params()
@@ -76,7 +79,7 @@ class OperationModel(ABC):
         self.U_LossTank_heating = self.scenario.space_heating_tank.loss
         self.T_TankSurrounding_heating = (self.scenario.space_heating_tank.temperature_surrounding)
         self.A_SurfaceTank_heating = self.calculate_surface_area_from_volume(self.scenario.space_heating_tank.size)
-        self.SpaceHeating_MaxBoilerPower = self.generate_maximum_electric_or_thermal_power()
+        self.SpaceHeating_HeatPumpMaximalElectricPower = self.generate_maximum_electric_heat_pump_power()
         self.Q_TankEnergyMin_heating = self.CPWater * self.scenario.space_heating_tank.size * \
                                        (273.15 + self.scenario.space_heating_tank.temperature_min)
         self.Q_TankEnergyMax_heating = self.CPWater * self.scenario.space_heating_tank.size * \
@@ -89,13 +92,13 @@ class OperationModel(ABC):
     def setup_hot_water_params(self):
         self.HotWaterHourlyCOP = self.calc_cop(
             outside_temperature=self.scenario.region.temperature,
-            supply_temperature=self.scenario.building.supply_temperature,
+            supply_temperature=self.hot_water_supply_temperature,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
             source=self.scenario.boiler.type,
         )
         self.HotWaterHourlyCOP_tank = self.calc_cop(
             outside_temperature=self.scenario.region.temperature,
-            supply_temperature=self.scenario.building.supply_temperature + 10,
+            supply_temperature=self.hot_water_supply_temperature + 10,
             efficiency=self.scenario.boiler.carnot_efficiency_factor,
             source=self.scenario.boiler.type,
         )
@@ -413,7 +416,8 @@ class OperationModel(ABC):
             else:  # if no cooling than temperature can be higher than max:
                 max_temperature_list.append(indoor_temp + temperature_offset)
                 min_temperature_list.append(indoor_temp - temperature_offset)
-        return np.array(max_temperature_list), np.array(min_temperature_list)
+        return np.array(max_temperature_list), np.array(
+            min_temperature_list)
 
     @staticmethod
     def calc_cop(
@@ -468,39 +472,29 @@ class OperationModel(ABC):
         COP[COP < 1] = 1
         return COP
 
-    def generate_maximum_electric_or_thermal_power(self) -> float:
+    def generate_maximum_electric_heat_pump_power(self):
         """
         Calculates the necessary HP power for each building through the 5R1C reference model.
         The maximum heating power then will be rounded to the next 500 W.
-        Then we divide the thermal power by the worst COP of the HP which is calculated at design conditions
-        (coldest day) and the respective source and supply temperature. For conventional boilers the thermal power
-        is provided as output
+        Then we divide the thermal power by the worst COP of the HP which is calculated at design conditions (-12°C)
+        and the respective source and supply temperature.
         """
         # calculate the heating demand in reference mode:
         max_heating_demand = self.Q_RoomHeating.max()
         max_dhw_demand = self.scenario.behavior.hot_water_demand.max()
         # round to the next 500 W
         max_thermal_power = np.ceil((max_heating_demand + max_dhw_demand) / 500) * 500
-        # distinguish between electric heating systems and conventional ones:
-        if self.scenario.boiler.type in ["Air_HP", "Ground_HP", "Electric"]:
-            # calculate the design condition COP
-            worst_COP = OperationModel.calc_cop(
-                outside_temperature=[min(self.scenario.region.temperature)],  # get coldest hour of the year
-                supply_temperature=self.scenario.building.supply_temperature,
-                efficiency=self.scenario.boiler.carnot_efficiency_factor,
-                source=self.scenario.boiler.type,
-            )
-            max_electric_power_float = max_thermal_power / worst_COP
-            # round the maximum electric power to the next 100 W:
-            max_electric_power = np.ceil(max_electric_power_float[0] / 100) * 100
-            return max_electric_power
-        else:
-            # if the heating system is conventional the carnot efficiency factor of the system is treated as the
-            # efficiency of the system itself:
-            max_thermal_power_float = max_thermal_power / self.scenario.boiler.carnot_efficiency_factor
-            # round the maximum electric power to the next 100 W:
-            max_thermal_power = np.ceil(max_thermal_power_float / 100) * 100
-            return max_thermal_power
+        # calculate the design condition COP (-12°C)
+        worst_COP = OperationModel.calc_cop(
+            outside_temperature=[min(self.scenario.region.temperature)],  # get coldest hour of the year
+            supply_temperature=self.scenario.building.supply_temperature,
+            efficiency=self.scenario.boiler.carnot_efficiency_factor,
+            source=self.scenario.boiler.type,
+        )
+        max_electric_power_float = max_thermal_power / worst_COP
+        # round the maximum electric power to the next 100 W:
+        max_electric_power = np.ceil(max_electric_power_float[0] / 100) * 100 + 3_000
+        return max_electric_power
 
     def generate_solar_gain_rate(self):
         outside_temperature = self.scenario.region.temperature
