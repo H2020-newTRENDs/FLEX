@@ -1290,7 +1290,7 @@ class CompareModels:
         # self.indoor_temp_to_csv(cooling=True)# was only relevant for Daniel
 
         # self.compare_daily_peaks()
-        # self.shifted_electrity_demand()
+        self.shifted_electrity_demand()
         # self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
         # self.plot_yearly_heat_demand_floor_ideal_not_optimized()
         # self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)

@@ -374,7 +374,7 @@ def calculate_6R2C_with_specific_params(
     model: OperationModel,
     Htr_f: float,
     Cf: float,
-    target_indoor_temp,
+    target_indoor_temp: np.array = None,
 
 ):
     m = pyo.ConcreteModel()
@@ -386,10 +386,11 @@ def calculate_6R2C_with_specific_params(
     m.T_outside = pyo.Param(m.t, initialize={t: model.T_outside[t-1] for t in m.t})
     m.Q_Solar = pyo.Param(m.t, initialize={t: model.Q_Solar[t-1] for t in m.t})
     m.CPWater = pyo.Param(initialize=model.CPWater)
-    m.ElectricityPrice = pyo.Param(m.t, initialize={t: model.ElectricityPrice[t-1] for t in m.t})
+    m.ElectricityPrice = pyo.Param(m.t, initialize={t: 100 for t in m.t})
 
-    m.SpaceHeatingHourlyCOP = pyo.Param(m.t, initialize={t: model.SpaceHeatingHourlyCOP[t-1] for t in m.t})
+    m.SpaceHeatingHourlyCOP = pyo.Param(m.t, initialize={t: 3 for t in m.t}) # set it to a constant to "simulate" IDA ICE behavior
     max_temp, min_temp = model.generate_target_indoor_temperature(temperature_offset=3)
+
     m.lower_room_temperature = pyo.Param(m.t, initialize={t: min_temp[t-1] for t in m.t})
     m.upper_room_temperature = pyo.Param(m.t, initialize={t: max_temp[t-1] for t in m.t})
 
@@ -420,7 +421,7 @@ def calculate_6R2C_with_specific_params(
     m.Htr_f = pyo.Param(initialize=Htr_f)
 
     m.T_floor = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 45))
-    m.FloorTemperatureStartValue = pyo.Param(initialize=25)  # 25°C
+    m.FloorTemperatureStartValue = pyo.Param(initialize=30)  # 25°C
     
 
     def calc_supply_of_space_heating(m, t):
@@ -465,7 +466,7 @@ def calculate_6R2C_with_specific_params(
 
     def set_lower_room_temp_bound(m, t):
         if m.reference_Q_RoomHeating[t] > 0:
-            return m.T_Room[t] >= m.target_indoor_temperature[t] - 0.3
+            return m.T_Room[t] >= m.target_indoor_temperature[t]
         else:
             return m.T_Room[t] >= m.lower_room_temperature[t]
     m.lower_room_temp_constraint = pyo.Constraint(m.t, rule=set_lower_room_temp_bound)
@@ -476,21 +477,6 @@ def calculate_6R2C_with_specific_params(
         else:
             return m.T_Room[t] <= m.upper_room_temperature[t] 
     m.upper_room_temp_constraint = pyo.Constraint(m.t, rule=set_upper_room_temp_bound)
-
-    # # # Add auxiliary variables for positive and negative deviations
-    # m.pos_deviation = pyo.Var(m.t, within=pyo.NonNegativeReals)
-    # m.neg_deviation = pyo.Var(m.t, within=pyo.NonNegativeReals)
-    
-    # # Constraints to define the deviations
-    # def deviation_constraint(m, t):
-    #     return m.target_indoor_temperature[t] - m.T_Room[t] == m.pos_deviation[t] - m.neg_deviation[t]  # try with Q_RoomHeating difference
-    # m.deviation_constraint = pyo.Constraint(m.t, rule=deviation_constraint)
-
-    # def minimize_indoor_temperature_error(m):
-    #     # Minimize the sum of absolute deviations while keeping the model linear
-    #     rule = sum(m.pos_deviation[t] + m.neg_deviation[t] for t in m.t)
-    #     return rule
-    # m.total_operation_cost_rule = pyo.Objective(rule=minimize_indoor_temperature_error, sense=pyo.minimize)
 
     def minimize_cost(m):
         return sum(m.E_Heating_HP_out[t] * m.ElectricityPrice[t] for t in m.t)
@@ -513,10 +499,11 @@ def calculate_6R2C_with_specific_params(
 
 
 
-def optimize_6R2C_with_specific_params_without_target(
+def optimize_6R2C(
     model: OperationModel,
     Htr_f: float,
     Cf: float,
+    simulation: bool = False
 
 ):
     m = pyo.ConcreteModel()
@@ -525,9 +512,14 @@ def optimize_6R2C_with_specific_params_without_target(
     m.T_outside = pyo.Param(m.t, initialize={t: model.T_outside[t-1] for t in m.t})
     m.Q_Solar = pyo.Param(m.t, initialize={t: model.Q_Solar[t-1] for t in m.t})
     m.CPWater = pyo.Param(initialize=model.CPWater)
-    m.ElectricityPrice = pyo.Param(m.t, initialize={t: model.ElectricityPrice[t-1] for t in m.t})
+    if simulation:  # because the optimization uses the capacity of the floor to efectively shift demand we with the COP we set the COP constant too
+        m.ElectricityPrice = pyo.Param(m.t, initialize={t: 100 for t in m.t})
+        m.SpaceHeatingHourlyCOP = pyo.Param(m.t, initialize={t: 3 for t in m.t})
 
-    m.SpaceHeatingHourlyCOP = pyo.Param(m.t, initialize={t: model.SpaceHeatingHourlyCOP[t-1] for t in m.t})
+    else:
+        m.ElectricityPrice = pyo.Param(m.t, initialize={t: model.ElectricityPrice[t-1] for t in m.t})
+        m.SpaceHeatingHourlyCOP = pyo.Param(m.t, initialize={t: model.SpaceHeatingHourlyCOP[t-1] for t in m.t})
+
     max_temp, min_temp = model.generate_target_indoor_temperature(temperature_offset=3)
     m.lower_room_temperature = pyo.Param(m.t, initialize={t: min_temp[t-1] for t in m.t})
     m.upper_room_temperature = pyo.Param(m.t, initialize={t: max_temp[t-1] for t in m.t})
@@ -626,6 +618,7 @@ def optimize_6R2C_with_specific_params_without_target(
         solve_status=False
         print("model could not be solved!")
         return None, solve_status
+
 
 
 if __name__ == "__main__":
