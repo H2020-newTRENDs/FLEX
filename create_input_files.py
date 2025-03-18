@@ -897,8 +897,6 @@ def main(country_list: list, years: list):
 
 
 
-APPLICANCE_DEMAND_PER_PERSON = appliance_electricity_demand_per_person_EU()
-DHW_DEMAND_PER_PERSON = specific_DHW_per_person_EU()
 
 def copy_data_to_server(countries, years):
     server_path = Path(r"X:\projects4\workspace_philippm\FLEX\projects")
@@ -924,7 +922,30 @@ def copy_data_to_server(countries, years):
                 if dest_file_other.exists():
                     dest_file_other.unlink()
 
+def change_electricity_price_and_weather_data_to_SECURES():
+    """
+    laod the weather files in each repo (2030 and 2050), no data for 2040.
+    Exchange the temparature profile
+
+    """
+    df = pd.read_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/projects/AUT_2020/input") / "OperationScenario_RegionWeather.csv")
+    df2 = pd.read_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/dump") / "Timeseries_48.208_16.395_SA3_1kWp_crystSi_14_0deg_-90deg_2019_2019.csv", sep=";")
+
+    
+    sec_temperature = pd.read_csv(Path(r"/home/users/pmascherbauer/Downloads/Future_RCP45/NUTS2_Europe") / "T2M_NUTS2_Europe_mean_rcp45_hourly_2001-2050.csv", sep=",", index_col=0)
+    sec_temperature.index = pd.to_datetime(sec_temperature.index, format="%Y-%m-%d-%H")
+    temp_2020 = sec_temperature[sec_temperature.index.year == 2020]
+
+    sec_irradiance =  pd.read_csv(Path(r"/home/users/pmascherbauer/Downloads/Future_RCP45/NUTS2_Europe") / "GLO_NUTS2_Europe_mean_rcp45_hourly_2001-2050.csv", sep=",", index_col=0)
+    sec_irradiance.index = pd.to_datetime(sec_irradiance.index, format="%Y-%m-%d-%H")
+
+    x = df.loc[["temperature", ""]]
+
 if __name__ == "__main__":
+    change_electricity_price_and_weather_data_to_SECURES()
+    
+    APPLICANCE_DEMAND_PER_PERSON = appliance_electricity_demand_per_person_EU()
+    DHW_DEMAND_PER_PERSON = specific_DHW_per_person_EU()
     country_list = [
         'BEL',
         'AUT',
@@ -958,5 +979,5 @@ if __name__ == "__main__":
     years = [2020, 2030, 2040, 2050]
     # main(country_list, years)
 
-    copy_data_to_server(countries=country_list, years=years)
+    # copy_data_to_server(countries=country_list, years=years)
 

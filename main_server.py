@@ -93,28 +93,23 @@ def summarize_indoor_set_temps(country_list):
             cfg = get_config(f"{country}_{year}")
             df = pd.read_csv(cfg.input /  "OperationScenario_Component_Behavior.csv", sep=";")
             indoor_temp = df["target_temperature_at_home_min"].values[0]
-            df = pd.DataFrame(data={"country": [country], "indoor_temp": [indoor_temp]})
+            df = pd.DataFrame(data={"country": [country], "indoor_temp": [indoor_temp], "year": [year]})
             dfs.append(df)
 
     df = pd.concat(dfs, axis=0)
-    
+    order = df.groupby("country")["indoor_temp"].mean().sort_values(ascending=True).index
     sns.barplot(data=df, 
                 x="country", 
                 y="indoor_temp",
-                hue="year"
+                hue="year",
+                palette=sns.color_palette(),
+                order=order
                 )
+    plt.ylim(14, 25)
     plt.ylabel("Indoor set temperature corrected")
     plt.xticks(rotation=90)
     plt.tight_layout()
     plt.savefig(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/testing/Country_level_prosumaging/figures") / "Corrected_indoor_set_temps.png")
-
-    # copy Operation_component file into other input folders:
-    # for country in country_list:
-    #     cfg = get_config(f"{country}_{2020}")
-    #     for year in [2030, 2040, 2050]:
-    #         cfg_year = get_config(f"{country}_{year}")
-    #         shutil.copy(cfg.input / "OperationScenario_Component_Behavior.csv", cfg_year.input / "OperationScenario_Component_Behavior.csv")
-
 
 
 
@@ -125,7 +120,7 @@ if __name__ == "__main__":
             "AUT",  
             "BEL", 
             "POL",
-            # # "CYP", 
+            # "CYP", 
             "PRT",
             "DNK", 
             "FRA", 
@@ -155,7 +150,7 @@ if __name__ == "__main__":
     for country in country_list:
         for year in years:
             cfg = get_config(f"{country}_{year}")
-            run_only_ref_model_and_change_indoor_set_temp_until_correct(cfg)
+            # run_only_ref_model_and_change_indoor_set_temp_until_correct(cfg)
 
             # run_flex_operation_model(cfg, task_number=20)
 
