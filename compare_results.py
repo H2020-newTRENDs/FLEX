@@ -19,7 +19,7 @@ import sys
 import matplotlib
 
 # Get the absolute path of the directory two levels up
-two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 # Add this directory to sys.path
 sys.path.insert(0, two_levels_up)
 from basics.db import DB
@@ -966,7 +966,7 @@ class CompareModels:
     def show_plotly_comparison(self, prices: list, cooling: bool, floor_heating: bool):
         # ref heat demand is always the same
         heat_demand_ref = self.read_heat_demand(table_name=OperationTable.ResultRefHour.value,
-                                                prize_scenario="basic",
+                                                prize_scenario=prices[0],
                                                 cooling=cooling)
         # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
         heat_demand_IDA_ref = self.read_daniel_heat_demand(price="basic", cooling=cooling, floor_heating=floor_heating)
@@ -1284,10 +1284,12 @@ class CompareModels:
 
     def main(self):
         price_scenarios = ["basic", "price2", "price3", "price4"]
+        price_scenarios = ["price2"]
+
         # self.indoor_temp_to_csv(cooling=False)
         # self.indoor_temp_to_csv(cooling=True)# was only relevant for Daniel
 
-        self.compare_daily_peaks()
+        # self.compare_daily_peaks()
         self.shifted_electrity_demand()
         # self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
         # self.plot_yearly_heat_demand_floor_ideal_not_optimized()
@@ -1300,7 +1302,7 @@ class CompareModels:
         # self.run(price_scenarios, floor_heating=False, cooling=False)
         # self.run(price_scenarios, floor_heating=False, cooling=True)
 
-        # self.show_plotly_comparison(prices=price_scenarios, cooling=True, floor_heating=True)
+        self.show_plotly_comparison(prices=price_scenarios, cooling=False, floor_heating=True)
 
 
 
