@@ -414,7 +414,7 @@ def calculate_6R2C_with_specific_params(
     m.E_Heating_HP_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
     m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
     m.reference_Q_RoomHeating = pyo.Param(m.t, initialize={t: model.Q_RoomHeating[t-1] for t in m.t}) # just used to determine summer and winter time for contraint
-
+    m.reference_T_Room = pyo.Param(m.t, initialize={t: model.T_Room[t-1] for t in m.t}) # just used to determine summer and winter time for contraint
     # # floor heating
 
     m.Cf = pyo.Param(initialize=Cf)
@@ -466,13 +466,17 @@ def calculate_6R2C_with_specific_params(
 
     def set_lower_room_temp_bound(m, t):
         if m.reference_Q_RoomHeating[t] > 0:
+            return m.T_Room[t] >= m.target_indoor_temperature[t]   
+        elif m.reference_Q_RoomHeating[t] == 0 and m.target_indoor_temperature[t] > m.lower_room_temperature[t]:
             return m.T_Room[t] >= m.target_indoor_temperature[t]
         else:
-            return m.T_Room[t] >= m.lower_room_temperature[t]
+            return m.T_Room[t] >= m.lower_room_temperature[t] 
     m.lower_room_temp_constraint = pyo.Constraint(m.t, rule=set_lower_room_temp_bound)
 
     def set_upper_room_temp_bound(m, t):
-        if m.reference_Q_RoomHeating[t] > 0:
+        if m.reference_Q_RoomHeating[t] > 0 and m.target_indoor_temperature[t] > m.upper_room_temperature[t]:
+            return m.T_Room[t] <= m.target_indoor_temperature[t] + 0.3
+        elif m.reference_Q_RoomHeating[t] == 0 and m.target_indoor_temperature[t] > m.upper_room_temperature[t]:
             return m.T_Room[t] <= m.target_indoor_temperature[t] + 0.3
         else:
             return m.T_Room[t] <= m.upper_room_temperature[t] 
@@ -486,7 +490,7 @@ def calculate_6R2C_with_specific_params(
     m.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 
     solver = pyo.SolverFactory("gurobi")    
-    results = solver.solve(m, tee=True)
+    results = solver.solve(m, tee=False)
     if results.solver.termination_condition == TerminationCondition.optimal:
         solve_status=True
         m.solutions.load_from(results)
