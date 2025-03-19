@@ -116,18 +116,11 @@ def load_IDA_ICE_indoor_temp(scenario_id: int):
     df.columns = [name_to_id[col] for col in df.columns]
     return df[scenario_id].to_numpy()
 
-def load_IDA_ICE_indoor_temp_all():
-    CM = CompareModels(config.project_name)
-    df = CM.read_indoor_temp_daniel(price="price2", cooling=False, floor_heating=True)
-    name_to_id = {value: key for key, value in CM.building_names.items()}
-    df.columns = [name_to_id[col] for col in df.columns]
-    return df
-
 def load_IDA_ICE_heating(scenario_id: int) -> np.array:
     CM = CompareModels(config.project_name)
     df = CM.read_daniel_heat_demand(price="price2", cooling=False, floor_heating=True)
-    # df.columns = [key  for key, value in CM.building_names.items() for x in df.columns if value==x]
-
+    name_to_id = {value: key for key, value in CM.building_names.items()}
+    df.columns = [name_to_id[col] for col in df.columns]
     return df[scenario_id].to_numpy()
 
 
