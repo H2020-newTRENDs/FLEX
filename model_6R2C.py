@@ -548,6 +548,7 @@ def optimize_6R2C(
     m.E_Heating_HP_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
     m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
     m.reference_Q_RoomHeating = pyo.Param(m.t, initialize={t: model.Q_RoomHeating[t-1] for t in m.t}) # just used to determine summer and winter time for contraint
+    m.Q_max = pyo.Param(initialize=model.SpaceHeating_MaxBoilerPower)
 
     # # floor heating
 
@@ -557,6 +558,9 @@ def optimize_6R2C(
     m.T_floor = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 45))
     m.FloorTemperatureStartValue = pyo.Param(initialize=25)  # 25°C
     
+    def max_HP_power(m, t):
+        return m.Q_RoomHeating[t] <= m.Q_max
+    m.max_hp_power_rule = pyo.Constraint(m.t, rule=max_HP_power)
 
     def calc_supply_of_space_heating(m, t):
         return m.Q_RoomHeating[t] == m.E_Heating_HP_out[t] * m.SpaceHeatingHourlyCOP[t]

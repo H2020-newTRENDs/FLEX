@@ -297,7 +297,7 @@ if __name__ == "__main__":
     # TODO Run 6R2C with best parameters and compare results in cost savings, shifted energy etc.
     # add to diss and paper
     Cf_Hf_dict = {}
-    for scenario_id in range(3, 10):
+    for scenario_id in range(1, 10):
         mother_operation = MotherOperationScenario(config=config)
         orig_opt_instance = OptInstance().create_instance()
         scenario = OperationScenario(scenario_id=scenario_id, config=config, tables=mother_operation)
@@ -308,23 +308,20 @@ if __name__ == "__main__":
         
         model_5R1C = OptOperationModel(scenario)
         optimized_5R1C_model, solve_status = model_5R1C.solve(orig_opt_instance)
-        
-        df = load_IDA_ICE_indoor_temp_all()
-        fig = make_subplots(rows=1, cols=1, shared_xaxes=True, subplot_titles=["T_Room"])
-        x_axis = np.arange(8760)
-        # fig.add_trace(go.Scatter( x=x_axis, y=model_5R1C.T_Room, mode='lines', name="reference Troom", line=dict(color='black', width=2, dash='dash')), row=1, col=1)
-        fig.add_trace(go.Scatter( x=x_axis, y=np.array(list(optimized_5R1C_model.T_Room.extract_values().values())), mode='lines', name="5R1C Troom",  line=dict(color='black', width=2, dash='dash')), row=1, col=1)
-        for column in df.columns:
 
-            fig.add_trace(go.Scatter( x=x_axis, y=df[column].to_numpy().flatten(), mode='lines', name=f"{column}",  ), row=1, col=1)
-        fig.show()
+        # fig = make_subplots(rows=1, cols=1, shared_xaxes=True, subplot_titles=["T_Room"])
+        # x_axis = np.arange(8760)
+        # # fig.add_trace(go.Scatter( x=x_axis, y=model_5R1C.T_Room, mode='lines', name="reference Troom", line=dict(color='black', width=2, dash='dash')), row=1, col=1)
+        # fig.add_trace(go.Scatter( x=x_axis, y=np.array(list(optimized_5R1C_model.T_Room.extract_values().values())), mode='lines', name="5R1C Troom",  line=dict(color='black', width=2, dash='dash')), row=1, col=1)
+        # fig.add_trace(go.Scatter( x=x_axis, y=target_indoor_temp, mode='lines', name=f"IDA ICE",  ), row=1, col=1)
+        # fig.show()
 
 
         # water per square meter floor heating is asumed to be between 1 and 5 liters:
-        Cf_list = [x*scenario.building.Af*4200 for x in np.arange(0.5, 1.5, 0.5)] #11
+        Cf_list = [x*scenario.building.Af*4200 for x in np.arange(0.5, 11.5, 0.5)] #11
         # Heat transfer resistance (W/K) between floor and indoor air temp is assumed to be between 1 and 10 W/K per square meter of floor heating
         # In literature (https://doi.org/10.1016/j.enbuild.2013.07.065) H_f is between 8 and 11 (measured)
-        H_f_list = [x*scenario.building.Af for x in np.arange(6, 6.5, 0.5)] #15
+        H_f_list = [x*scenario.building.Af for x in np.arange(6, 15.5, 0.5)] #15
 
         mse_heating_dict, heating_solved, df_heating_dict = run_for_different_Cf_and_Hf(Cf_list, H_f_list)
 
@@ -371,7 +368,7 @@ if __name__ == "__main__":
     output_dir.mkdir(parents=True, exist_ok=True)
     
     # Save using pickle
-    with open(output_dir / "Cf_Hf_dict.pkl", 'wb') as f:
+    with open(output_dir / f"Cf_Hf_dict_{scenario_id}.pkl", 'wb') as f:
         pickle.dump(Cf_Hf_dict, f)
     
     print(f"Saved Cf_Hf_dict to {output_dir / f'Cf_Hf_dict_{scenario_id}.pkl'}")
