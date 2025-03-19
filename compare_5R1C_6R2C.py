@@ -19,6 +19,8 @@ import plotly.graph_objects as go
 from model_6R2C import rewritten_5R1C_optimziation, find_6R2C_params, calculate_6R2C_with_specific_params, optimize_6R2C
 from pathlib import Path
 from compare_results import CompareModels
+import tqdm
+import pickle  # Added for saving dictionary
 
 
 
@@ -110,13 +112,22 @@ def show_important_dual_variables(orig_model, new_model):
 def load_IDA_ICE_indoor_temp(scenario_id: int):
     CM = CompareModels(config.project_name)
     df = CM.read_indoor_temp_daniel(price="price2", cooling=False, floor_heating=True)
-    df.columns = [key  for key, value in CM.building_names.items() for x in df.columns if value==x]
+    name_to_id = {value: key for key, value in CM.building_names.items()}
+    df.columns = [name_to_id[col] for col in df.columns]
     return df[scenario_id].to_numpy()
+
+def load_IDA_ICE_indoor_temp_all():
+    CM = CompareModels(config.project_name)
+    df = CM.read_indoor_temp_daniel(price="price2", cooling=False, floor_heating=True)
+    name_to_id = {value: key for key, value in CM.building_names.items()}
+    df.columns = [name_to_id[col] for col in df.columns]
+    return df
 
 def load_IDA_ICE_heating(scenario_id: int) -> np.array:
     CM = CompareModels(config.project_name)
     df = CM.read_daniel_heat_demand(price="price2", cooling=False, floor_heating=True)
-    df.columns = [key  for key, value in CM.building_names.items() for x in df.columns if value==x]
+    # df.columns = [key  for key, value in CM.building_names.items() for x in df.columns if value==x]
+
     return df[scenario_id].to_numpy()
 
 
@@ -132,7 +143,7 @@ def compare_IDA_ICE_6R2C_5R1C(model_6R2C: OptOperationModel, model_5R1C: OptOper
 
     T_BuildingMass_5R1C = np.array(list(model_5R1C.T_BuildingMass.extract_values().values()))
     T_BuildingMass_6R2C = np.array(list(model_6R2C.T_BuildingMass.extract_values().values()))
-    T_Floor_6R2C = np.array(list(model_6R2C.T_floor.extract_values().values()))
+    # T_Floor_6R2C = np.array(list(model_6R2C.T_floor.extract_values().values()))
 
     x_axis = np.arange(8760)
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, subplot_titles=["T_Room", "Q_RoomHeating", "T_BuildingMass"])
@@ -148,7 +159,7 @@ def compare_IDA_ICE_6R2C_5R1C(model_6R2C: OptOperationModel, model_5R1C: OptOper
 
     fig.add_trace(go.Scatter(x=x_axis, y=T_BuildingMass_6R2C, mode='lines', name="6R2C mass"), row=3, col=1)
     fig.add_trace(go.Scatter(x=x_axis, y=T_BuildingMass_5R1C, mode='lines', name="5R1C mass"), row=3, col=1)
-    fig.add_trace(go.Scatter(x=x_axis, y=T_Floor_6R2C, mode='lines', name="6R2C floor temperature"), row=3, col=1)
+    # fig.add_trace(go.Scatter(x=x_axis, y=T_Floor_6R2C, mode='lines', name="6R2C floor temperature"), row=3, col=1)
 
 
     fig.show()
@@ -260,7 +271,7 @@ def run_for_different_Cf_and_Hf(Cf_list, H_f_list):
     mse_heating_dict = {}
     heating_solved = {}
     df_heating_dict = {}
-    for c, Cf in enumerate(Cf_list):
+    for Cf in tqdm.tqdm(Cf_list):
         for h, H_f in enumerate(H_f_list):
             # first we give a target indoor temp and solve by havin heating as a variable:
             model_6R2C_temp, solved = calculate_6R2C_with_specific_params(model=OptOperationModel(scenario), Htr_f=H_f, Cf=Cf, 
@@ -292,8 +303,8 @@ if __name__ == "__main__":
     # TODO find a way to determine the parameters for all buildings
     # TODO Run 6R2C with best parameters and compare results in cost savings, shifted energy etc.
     # add to diss and paper
-
-    for scenario_id in range(1, 10):
+    Cf_Hf_dict = {}
+    for scenario_id in range(3, 10):
         mother_operation = MotherOperationScenario(config=config)
         orig_opt_instance = OptInstance().create_instance()
         scenario = OperationScenario(scenario_id=scenario_id, config=config, tables=mother_operation)
@@ -304,23 +315,35 @@ if __name__ == "__main__":
         
         model_5R1C = OptOperationModel(scenario)
         optimized_5R1C_model, solve_status = model_5R1C.solve(orig_opt_instance)
+        
+        df = load_IDA_ICE_indoor_temp_all()
+        fig = make_subplots(rows=1, cols=1, shared_xaxes=True, subplot_titles=["T_Room"])
+        x_axis = np.arange(8760)
+        # fig.add_trace(go.Scatter( x=x_axis, y=model_5R1C.T_Room, mode='lines', name="reference Troom", line=dict(color='black', width=2, dash='dash')), row=1, col=1)
+        fig.add_trace(go.Scatter( x=x_axis, y=np.array(list(optimized_5R1C_model.T_Room.extract_values().values())), mode='lines', name="5R1C Troom",  line=dict(color='black', width=2, dash='dash')), row=1, col=1)
+        for column in df.columns:
+
+            fig.add_trace(go.Scatter( x=x_axis, y=df[column].to_numpy().flatten(), mode='lines', name=f"{column}",  ), row=1, col=1)
+        fig.show()
+
 
         # water per square meter floor heating is asumed to be between 1 and 5 liters:
-        Cf_list = [x*scenario.building.Af*4200 for x in range(4, 11)] #11
+        Cf_list = [x*scenario.building.Af*4200 for x in np.arange(0.5, 1.5, 0.5)] #11
         # Heat transfer resistance (W/K) between floor and indoor air temp is assumed to be between 1 and 10 W/K per square meter of floor heating
         # In literature (https://doi.org/10.1016/j.enbuild.2013.07.065) H_f is between 8 and 11 (measured)
-        H_f_list = [x*scenario.building.Af for x in range(6, 15)] #15
+        H_f_list = [x*scenario.building.Af for x in np.arange(6, 6.5, 0.5)] #15
 
         mse_heating_dict, heating_solved, df_heating_dict = run_for_different_Cf_and_Hf(Cf_list, H_f_list)
 
         best_heating_key, min_mse_heating = min(mse_heating_dict.items(), key=lambda x: x[1])
         results_target_heating = df_heating_dict[best_heating_key]    
-        # check_results(orig_5R1C_model=optimized_5R1C_model, target_indoor_temp=target_indoor_temp, df_dict=df_heating_dict, best_param=best_heating_key, target_heating=target_heating)
+        check_results(orig_5R1C_model=optimized_5R1C_model, target_indoor_temp=target_indoor_temp, df_dict=df_heating_dict, best_param=best_heating_key, target_heating=target_heating)
 
 
         # use the results from runs with target room temperature instead
         best_key = best_heating_key
         best_Cf, best_Hf = heating_solved[best_key]
+        Cf_Hf_dict[scenario_id] = (best_Cf, best_Hf)
         new_6R2C_model, solve_status = optimize_6R2C(
             model=OptOperationModel(scenario),
             Htr_f=best_Hf,
@@ -340,8 +363,8 @@ if __name__ == "__main__":
         results_6R2C_final_simulation["E_Heating_HP_out"] = results_6R2C_final_simulation["Q_RoomHeating"] / results_6R2C_final["SpaceHeatingHourlyCOP"]
 
         # save results to csv:
-        results_6R2C_final_simulation.to_csv(Path(r"C:\Users\mascherbauer\OneDrive\PycharmProjects\FLEX\data\output\5R1C_6R2C") / f"Scenario_{scenario_id}_reference.csv")
-        results_6R2C_final.to_csv(Path(r"C:\Users\mascherbauer\OneDrive\PycharmProjects\FLEX\data\output\5R1C_6R2C") / f"Scenario_{scenario_id}_optimzation.csv")
+        results_6R2C_final_simulation.to_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / f"Scenario_{scenario_id}_reference.csv")
+        results_6R2C_final.to_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / f"Scenario_{scenario_id}_optimzation.csv")
         
         
         compare_IDA_ICE_6R2C_5R1C(
@@ -349,6 +372,25 @@ if __name__ == "__main__":
             model_5R1C=optimized_5R1C_model,
             scenario_id=scenario_id
     )
+    
+    # Save the Cf_Hf_dict for future use
+    output_dir = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Save using pickle
+    with open(output_dir / "Cf_Hf_dict.pkl", 'wb') as f:
+        pickle.dump(Cf_Hf_dict, f)
+    
+    print(f"Saved Cf_Hf_dict to {output_dir / f'Cf_Hf_dict_{scenario_id}.pkl'}")
+    
+    # Example of how to load this in another script:
+
+    
+    # Load the saved dictionary
+    # with open(Path(r"C:\Users\mascherbauer\OneDrive\PycharmProjects\FLEX\data\output\5R1C_6R2C") / "Cf_Hf_dict.pkl", 'rb') as f:
+    #     Cf_Hf_dict = pickle.load(f)
+    
+
     
     # check_results(
     #     orig_5R1C_model=orig_5R1C_model,
@@ -360,19 +402,3 @@ if __name__ == "__main__":
     #     T_floor_dict=T_floor_dict,
     #     best_param=best_param
     # )
-
-
-
-
-  
-
-
-
-
-
-
-
-
-
-
-
