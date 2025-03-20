@@ -361,25 +361,28 @@ if __name__ == "__main__":
             model_6R2C=new_6R2C_model,
             model_5R1C=optimized_5R1C_model,
             scenario_id=scenario_id
-    )
+        )
     
-    # Save the Cf_Hf_dict for future use
-    output_dir = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C")
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Save using pickle
-    with open(output_dir / f"Cf_Hf_dict_{scenario_id}.pkl", 'wb') as f:
-        pickle.dump(Cf_Hf_dict, f)
-    
-    print(f"Saved Cf_Hf_dict to {output_dir / f'Cf_Hf_dict_{scenario_id}.pkl'}")
-    
-    # Example of how to load this in another script:
+        # Save the Cf_Hf_dict for future use
+        output_dir = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C/")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        cf_hf_dict_path = output_dir / "Cf_Hf_dict.pkl"
+        
+        # Save using pickle
+        if cf_hf_dict_path.exists():
+            try:
+                with open(cf_hf_dict_path, 'rb') as f:
+                    Cf_Hf_dict = pickle.load(f)
+                print(f"Loaded existing Cf_Hf_dict from {cf_hf_dict_path}")
+                Cf_Hf_dict[scenario_id] = (best_Cf, best_Hf)
+            except Exception as e:
+                print(f"{e}")
+        else:
+            Cf_Hf_dict[scenario_id] = (best_Cf, best_Hf)
 
-    
-    # Load the saved dictionary
-    # with open(Path(r"C:\Users\mascherbauer\OneDrive\PycharmProjects\FLEX\data\output\5R1C_6R2C") / "Cf_Hf_dict.pkl", 'rb') as f:
-    #     Cf_Hf_dict = pickle.load(f)
-    
+        with open(cf_hf_dict_path, 'wb') as f:
+            pickle.dump(Cf_Hf_dict, f)
+
 
     
     # check_results(
