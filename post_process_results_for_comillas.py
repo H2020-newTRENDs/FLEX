@@ -456,7 +456,7 @@ class ECEMFPostProcess:
         scenario_table = database.read_dataframe(table_name="OperationScenario", column_names=["ID_Scenario", "ID_Building", "ID_Boiler"])
         merged = pd.merge(scenario_table, building_table, on="ID_Building")
         electric_heating_ids = merged.loc[(merged.loc[:, "ID_Boiler"] == 1) & (merged.loc[:, "type"] == "MFH"), "ID_Scenario"].to_list()
-        hp_ids = merged.loc[(merged.loc[:, "ID_Boiler"].isin([2,3])), "ID_Scenario"].to_list()
+        hp_ids = merged.loc[merged.loc[:, "ID_Boiler"].isin([2,3]), "ID_Scenario"].to_list()
         
         with ThreadPoolExecutor() as executor:
             futures = [
