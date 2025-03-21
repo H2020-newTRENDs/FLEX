@@ -286,12 +286,12 @@ def run_for_different_Cf_and_Hf(Cf_list, H_f_list):
 
         
 if __name__ == "__main__":
-    init = ProjectOperationInit(
-            config=config,
-            input_folder=config.input_operation,
-            scenario_components=OperationScenarioComponent,
-        )
-    init.main()
+    # init = ProjectOperationInit(
+    #         config=config,
+    #         input_folder=config.input_operation,
+    #         scenario_components=OperationScenarioComponent,
+    #     )
+    # init.main()
 
     # TODO find a way to determine the parameters for all buildings
     # TODO Run 6R2C with best parameters and compare results in cost savings, shifted energy etc.
@@ -327,20 +327,12 @@ if __name__ == "__main__":
 
         best_heating_key, min_mse_heating = min(mse_heating_dict.items(), key=lambda x: x[1])
         results_target_heating = df_heating_dict[best_heating_key]    
-        check_results(orig_5R1C_model=optimized_5R1C_model, target_indoor_temp=target_indoor_temp, df_dict=df_heating_dict, best_param=best_heating_key, target_heating=target_heating)
+        # check_results(orig_5R1C_model=optimized_5R1C_model, target_indoor_temp=target_indoor_temp, df_dict=df_heating_dict, best_param=best_heating_key, target_heating=target_heating)
 
 
         # use the results from runs with target room temperature instead
         best_key = best_heating_key
         best_Cf, best_Hf = heating_solved[best_key]
-        Cf_Hf_dict[scenario_id] = (best_Cf, best_Hf)
-        new_6R2C_model, solve_status = optimize_6R2C(
-            model=OptOperationModel(scenario),
-            Htr_f=best_Hf,
-            Cf=best_Cf
-        )
-        results_6R2C_final = extract_results_from_model(new_6R2C_model)
-        
         new_6R2C_simulation, solve_status = optimize_6R2C(
             model=OptOperationModel(scenario),
             Htr_f=best_Hf,
@@ -348,6 +340,25 @@ if __name__ == "__main__":
             simulation=True
         )
         results_6R2C_final_simulation = extract_results_from_model(new_6R2C_simulation, values_to_extract=["Q_RoomHeating", "T_surface", "T_Room", "T_BuildingMass", "T_floor", "T_outside"])
+        # integrate Q_max into 6R2C:
+        model1 = OptOperationModel(scenario)
+        # TODO either set the max heating to the max of IDA ICE to make it comparable or leave it (usually is restricted by room temperature anyways) but for comparison of Peak Consumption!
+        new_6R2C_model, solve_status = optimize_6R2C(
+            model=model1,
+            Htr_f=best_Hf,
+            Cf=best_Cf
+        )
+        results_6R2C_final = extract_results_from_model(new_6R2C_model)
+
+        Q_max = target_heating.max()
+        model1.SpaceHeating_MaxBoilerPower = Q_max
+        new_6R2C_model_higher_Q_max, solve_status = optimize_6R2C(
+            model=model1,
+            Htr_f=best_Hf,
+            Cf=best_Cf
+        )
+        results_6R2C_final_higher_Q_max = extract_results_from_model(new_6R2C_model_higher_Q_max)
+
         # electricity demand of HP have to be recalculated because of the wrong static COP
         results_6R2C_final_simulation["ElectricityPrice"] = results_6R2C_final["ElectricityPrice"]
         results_6R2C_final_simulation["E_Heating_HP_out"] = results_6R2C_final_simulation["Q_RoomHeating"] / results_6R2C_final["SpaceHeatingHourlyCOP"]
@@ -355,13 +366,15 @@ if __name__ == "__main__":
         # save results to csv:
         results_6R2C_final_simulation.to_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / f"Scenario_{scenario_id}_reference.csv")
         results_6R2C_final.to_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / f"Scenario_{scenario_id}_optimzation.csv")
+        results_6R2C_final_higher_Q_max.to_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / f"Scenario_{scenario_id}_optimzation_high_Q_max.csv")
+
         
         
-        compare_IDA_ICE_6R2C_5R1C(
-            model_6R2C=new_6R2C_model,
-            model_5R1C=optimized_5R1C_model,
-            scenario_id=scenario_id
-        )
+        # compare_IDA_ICE_6R2C_5R1C(
+        #     model_6R2C=new_6R2C_model,
+        #     model_5R1C=optimized_5R1C_model,
+        #     scenario_id=scenario_id
+        # )
     
         # Save the Cf_Hf_dict for future use
         output_dir = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C/")

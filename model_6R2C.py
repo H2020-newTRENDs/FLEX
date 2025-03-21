@@ -519,10 +519,12 @@ def optimize_6R2C(
     if simulation:  # because the optimization uses the capacity of the floor to efectively shift demand we with the COP we set the COP constant too
         m.ElectricityPrice = pyo.Param(m.t, initialize={t: 100 for t in m.t})
         m.SpaceHeatingHourlyCOP = pyo.Param(m.t, initialize={t: 3 for t in m.t})
+        # in simulation no Q_max
 
     else:
         m.ElectricityPrice = pyo.Param(m.t, initialize={t: model.ElectricityPrice[t-1] for t in m.t})
         m.SpaceHeatingHourlyCOP = pyo.Param(m.t, initialize={t: model.SpaceHeatingHourlyCOP[t-1] for t in m.t})
+        m.E_max = pyo.Param(initialize=model.SpaceHeating_MaxBoilerPower)
 
     max_temp, min_temp = model.generate_target_indoor_temperature(temperature_offset=3)
     m.lower_room_temperature = pyo.Param(m.t, initialize={t: min_temp[t-1] for t in m.t})
@@ -548,19 +550,18 @@ def optimize_6R2C(
     m.E_Heating_HP_out = pyo.Var(m.t, within=pyo.NonNegativeReals)
     m.Q_RoomHeating = pyo.Var(m.t, within=pyo.NonNegativeReals)
     m.reference_Q_RoomHeating = pyo.Param(m.t, initialize={t: model.Q_RoomHeating[t-1] for t in m.t}) # just used to determine summer and winter time for contraint
-    m.Q_max = pyo.Param(initialize=model.SpaceHeating_MaxBoilerPower)
 
-    # # floor heating
-
+    # floor heating
     m.Cf = pyo.Param(initialize=Cf)
     m.Htr_f = pyo.Param(initialize=Htr_f)
 
     m.T_floor = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 45))
     m.FloorTemperatureStartValue = pyo.Param(initialize=25)  # 25°C
     
-    def max_HP_power(m, t):
-        return m.Q_RoomHeating[t] <= m.Q_max
-    m.max_hp_power_rule = pyo.Constraint(m.t, rule=max_HP_power)
+    if not simulation:
+        def max_HP_power(m, t):
+            return m.Q_RoomHeating[t] <= m.E_max * m.SpaceHeatingHourlyCOP[t]
+        m.max_hp_power_rule = pyo.Constraint(m.t, rule=max_HP_power)
 
     def calc_supply_of_space_heating(m, t):
         return m.Q_RoomHeating[t] == m.E_Heating_HP_out[t] * m.SpaceHeatingHourlyCOP[t]
