@@ -1895,7 +1895,7 @@ if __name__ == "__main__":
     # Murcia Scenarios
     baseline_murcia = {
         "year": 2020,
-        "region": "Murcia",
+        "region": "Murcia2",
         "building_scenario": "H",
         "pv_installation_percentage": 0.015,
         "dhw_storage_percentage": 0.5,
@@ -1918,7 +1918,7 @@ if __name__ == "__main__":
             pr = "P-high"
         scenario_high_eff = {
             "year": [2020, 2030, 2040],
-            "region": "Murcia",
+            "region": "Murcia2",
             "building_scenario": "H",
             "pv_installation_percentage": [0.015, 0.15, 0.4, 0.6],
             "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
@@ -1933,8 +1933,8 @@ if __name__ == "__main__":
             "prosumager_percentage": prosumager_shares,
             "baseline": baseline_murcia
         }
-        ECEMFPostProcess(scenario_high_eff, scenario_name=f"Strong_policy_for_comillas_{pr}", baseline=baseline_murcia).create_output_csv()
-
+        ECEMFFigures(scenario_high_eff, scenario_name=f"Strong_policy_for_comillas{pr}")
+        
 
 
 
