@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import random
+from typing import List
 
 random.seed(42)
 from typing import List
@@ -388,13 +389,14 @@ class ECEMFPostProcess:
             return_dict[scen_id] = list_of_scenarios.count(scen_id)
         return return_dict
 
-    def worker(self, id_building, id_scenario, prosumager, db, electric_heating_ids) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
+    def worker(self, id_building, id_scenario, prosumager, db, electric_heating_ids, hp_ids) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
 
         result_matrix_demand = pd.DataFrame(index=range(8760), columns=[id_building])
         result_matrix_feed2grid = pd.DataFrame(index=range(8760), columns=[id_building])
         result_matrix_e_cooling = pd.DataFrame(index=range(8760), columns=[id_building])
-        result_matrix_e_hp_heating = pd.DataFrame(index=range(8760), columns=[id_building])
+        result_matrix_e_heating = pd.DataFrame(index=range(8760), columns=[id_building])
         result_matrix_q_heating = pd.DataFrame(index=range(8760), columns=[id_building])
+        result_matrix_hp_output = pd.DataFrame(index=range(8760), columns=[id_building])
 
         if prosumager == 0:
             ref_loads = db.read_parquet(
@@ -411,10 +413,16 @@ class ECEMFPostProcess:
             else:
                 result_matrix_demand.loc[:, id_building] = ref_loads["Grid"].to_numpy()
                 result_matrix_q_heating.loc[:, id_building] = ref_loads["Q_RoomHeating"].to_numpy()
+            if id_scenario in hp_ids:
+                result_matrix_hp_output.loc[:, id_building] = ref_loads["E_Heating_HP_out"].to_numpy()
+            else:
+                result_matrix_hp_output.loc[:, id_building] = np.zeros(shape=(8760,))
+
+
           
             result_matrix_feed2grid.loc[:, id_building] = ref_loads["Feed2Grid"].to_numpy()
             result_matrix_e_cooling.loc[:, id_building] = ref_loads["E_RoomCooling"].to_numpy()
-            result_matrix_e_hp_heating.loc[:, id_building] = ref_loads["E_Heating_HP_out"].to_numpy()
+            result_matrix_e_heating.loc[:, id_building] = ref_loads["E_Heating_HP_out"].to_numpy()
 
         else:
             opt_loads = db.read_parquet(
@@ -429,12 +437,17 @@ class ECEMFPostProcess:
             else:
                 result_matrix_demand.loc[:, id_building] = opt_loads["Grid"].to_numpy()
                 result_matrix_q_heating.loc[:, id_building] = opt_loads["Q_RoomHeating"].to_numpy()
+            if id_scenario in hp_ids:
+                result_matrix_hp_output.loc[:, id_building] = opt_loads["E_Heating_HP_out"].to_numpy()
+            else:
+                result_matrix_hp_output.loc[:, id_building] = np.zeros(shape=(8760,))
+
             
             result_matrix_feed2grid.loc[:, id_building] = opt_loads["Feed2Grid"].to_numpy()
             result_matrix_e_cooling.loc[:, id_building] = opt_loads["E_RoomCooling"].to_numpy()
-            result_matrix_e_hp_heating.loc[:, id_building] = opt_loads["E_Heating_HP_out"].to_numpy()
+            result_matrix_e_heating.loc[:, id_building] = opt_loads["E_Heating_HP_out"].to_numpy()
 
-        return result_matrix_demand, result_matrix_feed2grid, result_matrix_e_hp_heating, result_matrix_e_cooling, result_matrix_q_heating
+        return result_matrix_demand, result_matrix_feed2grid, result_matrix_e_heating, result_matrix_e_cooling, result_matrix_q_heating, result_matrix_hp_output
 
     def calculate_total_load_profiles(self, total_df: pd.DataFrame):
         database = DB(path=self.path_to_results / f"{self.data_base_name}.sqlite")
@@ -443,10 +456,11 @@ class ECEMFPostProcess:
         scenario_table = database.read_dataframe(table_name="OperationScenario", column_names=["ID_Scenario", "ID_Building", "ID_Boiler"])
         merged = pd.merge(scenario_table, building_table, on="ID_Building")
         electric_heating_ids = merged.loc[(merged.loc[:, "ID_Boiler"] == 1) & (merged.loc[:, "type"] == "MFH"), "ID_Scenario"].to_list()
+        hp_ids = merged.loc[(merged.loc[:, "ID_Boiler"].isin([2,3])), "ID_Scenario"].to_list()
         
         with ThreadPoolExecutor() as executor:
             futures = [
-                executor.submit(self.worker, id_building, id_scenario, prosumager_value, database, electric_heating_ids)
+                executor.submit(self.worker, id_building, id_scenario, prosumager_value, database, electric_heating_ids, hp_ids)
                 for (id_building, id_scenario, prosumager_value) in list(zip(
                     total_df["ID_Building"], total_df["ID_Scenario"], total_df['ID_Prosumager'])
                 )
@@ -457,22 +471,26 @@ class ECEMFPostProcess:
             results_e_hp_heating = []
             results_q_heating = []
             results_cooling = []
+            results_hp = []
 
             for future in tqdm(as_completed(futures), total=len(futures), desc="calculating total load profiles"):
-                demand, feed2grid, heating_e_hp, cooling, heating_q = future.result()
+                demand, feed2grid, heating_e_hp, cooling, heating_q, result_matrix_hp_output = future.result()
                 results_demand.append(demand)
                 results_feed2grid.append(feed2grid)
                 results_e_hp_heating.append(heating_e_hp)
                 results_q_heating.append(heating_q)
                 results_cooling.append(cooling)
+                results_hp.append(result_matrix_hp_output)
+
 
         result_matrix_demand = pd.concat(results_demand, axis=1)
         result_matrix_feed2grid = pd.concat(results_feed2grid, axis=1)
         result_matrix_e_hp_heating = pd.concat(results_e_hp_heating, axis=1)
         result_matrix_cooling = pd.concat(results_cooling, axis=1)
         result_matrix_q_heating = pd.concat(results_q_heating, axis=1)
+        result_matrix_hp = pd.concat(results_hp, axis=1)
 
-        return result_matrix_demand, result_matrix_feed2grid, result_matrix_e_hp_heating, result_matrix_cooling, result_matrix_q_heating
+        return result_matrix_demand, result_matrix_feed2grid, result_matrix_e_hp_heating, result_matrix_cooling, result_matrix_q_heating, result_matrix_hp
 
     @staticmethod
     def find_net_peak_demand_day(data: pd.DataFrame) -> int:
@@ -1000,7 +1018,7 @@ class ECEMFPostProcess:
         # calculate the  scenario using the FLEX operation model:
         self.run_FLEX_model()
 
-        total_grid_demand, total_grid_feed, heating_e_hp, cooling, heating_q = self.calculate_total_load_profiles(
+        total_grid_demand, total_grid_feed, heating_e_hp, cooling, heating_q, result_matrix_hp = self.calculate_total_load_profiles(
             total_df=scenarios
         )
 
@@ -1010,12 +1028,14 @@ class ECEMFPostProcess:
         heating_e_hp.columns = heating_e_hp.columns.astype(str)
         cooling.columns = cooling.columns.astype(str)
         heating_q.columns = heating_q.columns.astype(str)
+        result_matrix_hp.columns = result_matrix_hp.columns.astype(str)
 
         total_grid_demand.to_parquet(self.data_output / f"Demand_{self.__file_name__()}.parquet.gzip")
         total_grid_feed.to_parquet(self.data_output / f"Feed_{self.__file_name__()}.parquet.gzip")
         heating_e_hp.to_parquet(self.data_output / f"Heating_hp_{self.__file_name__()}.parquet.gzip")
         cooling.to_parquet(self.data_output / f"Cooling_e_{self.__file_name__()}.parquet.gzip")
         heating_q.to_parquet(self.data_output / f"Heating_q_{self.__file_name__()}.parquet.gzip")
+        result_matrix_hp.to_csv(self.data_output / f"HP_demand_{self.__file_name__()}.csv", sep=";", index=False)
         # save the profiles to csv
         demand_start_hour, demand_end_hour = self.select_max_days(total_grid_demand)
         demand_max_demand_day = total_grid_demand.loc[demand_start_hour: demand_end_hour, :]
@@ -1725,7 +1745,7 @@ class ECEMFFigures:
             fig.write_html(fig_path / f"highest_peak_profiles.html")
 
 
-def plot_peaks_over_different_scenarios(scenarios: list[ECEMFFigures]):
+def plot_peaks_over_different_scenarios(scenarios: List[ECEMFFigures]):
     big_df_list = []
     for scen in scenarios:
         peak_dict = scen.return_peaks_of_all_houses()
@@ -1805,7 +1825,7 @@ def create_plot(df, demand_or_feed: str, scen):
     plt.close()
 
 
-def plot_peak_day_profile_comparison_between_scenarios(scenarios: list[ECEMFFigures]):
+def plot_peak_day_profile_comparison_between_scenarios(scenarios: List[ECEMFFigures]):
     peak_demand_dict = {}
     peak_feed_dict = {}
     for scen in scenarios:
@@ -1834,7 +1854,7 @@ def plot_peak_day_profile_comparison_between_scenarios(scenarios: list[ECEMFFigu
 
         
             
-def plot_peak_day_comparison_between_scenarios(scenarios: list[ECEMFFigures]):
+def plot_peak_day_comparison_between_scenarios(scenarios: List[ECEMFFigures]):
     big_df_list = []
     for scen in scenarios:
         small_df_dict = {}
@@ -1865,126 +1885,13 @@ def plot_peak_day_comparison_between_scenarios(scenarios: list[ECEMFFigures]):
     plt.close()
 
 if __name__ == "__main__":
-    # ECEMFBuildingComparison(region="Murcia").main()
-
+    
     # Battery is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating element is only installed in buildings with PV so the probability only refers to buildings with PV.
     # Heating buffer storage is only installed in buildings with HPs. Probability only refers to buildings with HP
     Low = [0, 0.05, 0.1, 0.2]
     Medium = [0, 0.1, 0.3, 0.5]
     High = [0, 0.15, 0.4, 0.8]
-
-    baseline_leeuwarden = {
-        "year": 2020,
-        "region": "Leeuwarden",
-        "building_scenario": "H",
-        "pv_installation_percentage": 0.02,
-        "dhw_storage_percentage": 0.5,
-        "buffer_storage_percentage": 0,
-        "heating_element_percentage": 0,
-        "air_hp_percentage": 0.04,
-        "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0.02,
-        "gases_percentage": 0.9,
-        "ac_percentage": 0.2,
-        "battery_percentage": 0.1,
-        "prosumager_percentage": 0,
-    }
-    building_scenario_leeuwarden_H = {
-        "year": [2020, 2030, 2040, 2050],
-        "region": "Leeuwarden",
-        "building_scenario": "H",
-        "pv_installation_percentage": 0.02,
-        "dhw_storage_percentage": 0.5,
-        "buffer_storage_percentage": 0,
-        "heating_element_percentage": 0,
-        "air_hp_percentage": 0.04,
-        "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0.02,
-        "gases_percentage": 0.9,
-        "ac_percentage": 0.2,
-        "battery_percentage": 0.1,
-        "prosumager_percentage": 0,
-        "baseline": baseline_leeuwarden
-    }
-    building_scenario_leeuwarden_M = {
-        "year": [2020, 2030, 2040, 2050],
-        "region": "Leeuwarden",
-        "building_scenario": "M",
-        "pv_installation_percentage": 0.02,
-        "dhw_storage_percentage": 0.5,
-        "buffer_storage_percentage": 0,
-        "heating_element_percentage": 0,
-        "air_hp_percentage": 0.04,
-        "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0.02,
-        "gases_percentage": 0.9,
-        "ac_percentage": 0.2,
-        "battery_percentage": 0.1,
-        "prosumager_percentage": 0,
-        "baseline": baseline_leeuwarden
-    }
-
-    # Leeuwarden Scenarios
-    # calculate a complete scenario run:
-    scenario_list_leeuwarden = []
-    for i, prosumager_shares in enumerate([Low, Medium, High]):
-        if i == 0:
-            pr = "P-low"
-        elif i == 1:
-            pr = "P-medium"
-        elif i == 2:
-            pr = "P-high" 
-        scenario_high_eff_leeuwarden = {
-            "year": [2020, 2030, 2040, 2050],
-            "region": "Leeuwarden",
-            "building_scenario": "H",
-            "pv_installation_percentage": [0.02, 0.15, 0.4, 0.6],
-            "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
-            "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
-            "heating_element_percentage": 0,
-            "air_hp_percentage": [0.04, 0.18, 0.5, 0.7],
-            "ground_hp_percentage": [0, 0.05, 0.1, 0.15],
-            "direct_electric_heating_percentage": [0.02, 0.03, 0.02, 0.01],
-            "gases_percentage": [0.9, 0.7, 0.34, 0.1],
-            "ac_percentage": [0.2, 0.3, 0.5, 0.7],
-            "battery_percentage": [0.1, 0.12, 0.2, 0.3],
-            "prosumager_percentage": prosumager_shares,
-            "baseline": baseline_leeuwarden
-        }
-
-        scenario_moderate_eff_leeuwarden = {
-            "year": [2020, 2030, 2040, 2050],
-            "region": "Leeuwarden",
-            "building_scenario": "M",
-            "pv_installation_percentage": [0.02, 0.1, 0.3, 0.5],
-            "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
-            "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
-            "heating_element_percentage": 0,
-            "air_hp_percentage": [0.04, 0.18, 0.45, 0.6],
-            "ground_hp_percentage": [0, 0.02, 0.06, 0.1],
-            "direct_electric_heating_percentage": [0.02, 0.03, 0.02, 0.02],
-            "gases_percentage": [0.9, 0.73, 0.43, 0.24],
-            "ac_percentage": [0.2, 0.35, 0.6, 0.8],
-            "battery_percentage": [0.1, 0.12, 0.16, 0.25],
-            "prosumager_percentage": prosumager_shares,
-            "baseline": baseline_leeuwarden
-        }
-        # complete scenarios
-        # ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
-        # ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
-        # append scenarios to list for later plots over all scenarios:
-        scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}"))
-        scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}"))
-    
-    plot_peak_day_profile_comparison_between_scenarios(scenarios=scenario_list_leeuwarden)
-    # plot_peak_day_comparison_between_scenarios(scenarios=scenario_list_leeuwarden)
-    # plot_peaks_over_different_scenarios(scenarios=scenario_list_leeuwarden)
-        
-    # building scenarios
-    # ECEMFFigures(scenario=building_scenario_leeuwarden_H, scenario_name="Buildings_strong_policy").create_figures()
-    # ECEMFFigures(scenario=building_scenario_leeuwarden_M, scenario_name="Buildings_weak_policy").create_figures()
-
     # Murcia Scenarios
     baseline_murcia = {
         "year": 2020,
@@ -2002,43 +1909,6 @@ if __name__ == "__main__":
         "battery_percentage": 0.1,
         "prosumager_percentage": 0,
     }
-    building_scenario_murcia_h = {
-        "year": [2020, 2030, 2040, 2050],
-        "region": "Murcia",
-        "building_scenario": "H",
-        "pv_installation_percentage": 0.015,
-        "dhw_storage_percentage": 0.5,
-        "buffer_storage_percentage": 0,
-        "heating_element_percentage": 0,
-        "air_hp_percentage": 0.2,
-        "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0.39,
-        "gases_percentage": 0.19,
-        "ac_percentage": 0.5,
-        "battery_percentage": 0.1,
-        "prosumager_percentage": 0,
-        "baseline": baseline_murcia
-    }
-    building_scenario_murcia_m = {
-        "year": [2020, 2030, 2040, 2050],
-        "region": "Murcia",
-        "building_scenario": "M",
-        "pv_installation_percentage": 0.015,
-        "dhw_storage_percentage": 0.5,
-        "buffer_storage_percentage": 0,
-        "heating_element_percentage": 0,
-        "air_hp_percentage": 0.2,
-        "ground_hp_percentage": 0,
-        "direct_electric_heating_percentage": 0.39,
-        "gases_percentage": 0.19,
-        "ac_percentage": 0.5,
-        "battery_percentage": 0.1,
-        "prosumager_percentage": 0,
-        "baseline": baseline_murcia
-    }
-
-    # calculate a complete scenario run:
-    scenario_list_murcia = []
     for i, prosumager_shares in enumerate([Low, Medium, High]):
         if i == 0:
             pr = "P-low"
@@ -2047,7 +1917,7 @@ if __name__ == "__main__":
         elif i == 2:
             pr = "P-high"
         scenario_high_eff = {
-            "year": [2020, 2030, 2040, 2050],
+            "year": [2020, 2030, 2040],
             "region": "Murcia",
             "building_scenario": "H",
             "pv_installation_percentage": [0.015, 0.15, 0.4, 0.6],
@@ -2063,33 +1933,228 @@ if __name__ == "__main__":
             "prosumager_percentage": prosumager_shares,
             "baseline": baseline_murcia
         }
+        ECEMFPostProcess(scenario_high_eff, scenario_name=f"Strong_policy_for_comillas_{pr}", baseline=baseline_murcia).create_output_csv()
 
-        scenario_moderate_eff = {
-            "year": [2020, 2030, 2040, 2050],
-            "region": "Murcia",
-            "building_scenario": "M",
-            "pv_installation_percentage": [0.015, 0.1, 0.3, 0.5],
-            "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
-            "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
-            "heating_element_percentage": 0,
-            "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
-            "ground_hp_percentage": [0, 0.01, 0.02, 0.03],
-            "direct_electric_heating_percentage": [0.39, 0.32, 0.2, 0.1],
-            "gases_percentage": [0.19, 0.16, 0.1, 0.05],
-            "ac_percentage": [0.5, 0.65, 0.8, 0.95],
-            "battery_percentage": [0.1, 0.12, 0.16, 0.25],
-            "prosumager_percentage": prosumager_shares,
-            "baseline": baseline_murcia
-        }
+
+
+
+
+    # baseline_leeuwarden = {
+    #     "year": 2020,
+    #     "region": "Leeuwarden",
+    #     "building_scenario": "H",
+    #     "pv_installation_percentage": 0.02,
+    #     "dhw_storage_percentage": 0.5,
+    #     "buffer_storage_percentage": 0,
+    #     "heating_element_percentage": 0,
+    #     "air_hp_percentage": 0.04,
+    #     "ground_hp_percentage": 0,
+    #     "direct_electric_heating_percentage": 0.02,
+    #     "gases_percentage": 0.9,
+    #     "ac_percentage": 0.2,
+    #     "battery_percentage": 0.1,
+    #     "prosumager_percentage": 0,
+    # }
+    # building_scenario_leeuwarden_H = {
+    #     "year": [2020, 2030, 2040, 2050],
+    #     "region": "Leeuwarden",
+    #     "building_scenario": "H",
+    #     "pv_installation_percentage": 0.02,
+    #     "dhw_storage_percentage": 0.5,
+    #     "buffer_storage_percentage": 0,
+    #     "heating_element_percentage": 0,
+    #     "air_hp_percentage": 0.04,
+    #     "ground_hp_percentage": 0,
+    #     "direct_electric_heating_percentage": 0.02,
+    #     "gases_percentage": 0.9,
+    #     "ac_percentage": 0.2,
+    #     "battery_percentage": 0.1,
+    #     "prosumager_percentage": 0,
+    #     "baseline": baseline_leeuwarden
+    # }
+    # building_scenario_leeuwarden_M = {
+    #     "year": [2020, 2030, 2040, 2050],
+    #     "region": "Leeuwarden",
+    #     "building_scenario": "M",
+    #     "pv_installation_percentage": 0.02,
+    #     "dhw_storage_percentage": 0.5,
+    #     "buffer_storage_percentage": 0,
+    #     "heating_element_percentage": 0,
+    #     "air_hp_percentage": 0.04,
+    #     "ground_hp_percentage": 0,
+    #     "direct_electric_heating_percentage": 0.02,
+    #     "gases_percentage": 0.9,
+    #     "ac_percentage": 0.2,
+    #     "battery_percentage": 0.1,
+    #     "prosumager_percentage": 0,
+    #     "baseline": baseline_leeuwarden
+    # }
+
+    # # Leeuwarden Scenarios
+    # # calculate a complete scenario run:
+    # scenario_list_leeuwarden = []
+    # for i, prosumager_shares in enumerate([Low, Medium, High]):
+    #     if i == 0:
+    #         pr = "P-low"
+    #     elif i == 1:
+    #         pr = "P-medium"
+    #     elif i == 2:
+    #         pr = "P-high" 
+    #     scenario_high_eff_leeuwarden = {
+    #         "year": [2020, 2030, 2040, 2050],
+    #         "region": "Leeuwarden",
+    #         "building_scenario": "H",
+    #         "pv_installation_percentage": [0.02, 0.15, 0.4, 0.6],
+    #         "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
+    #         "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
+    #         "heating_element_percentage": 0,
+    #         "air_hp_percentage": [0.04, 0.18, 0.5, 0.7],
+    #         "ground_hp_percentage": [0, 0.05, 0.1, 0.15],
+    #         "direct_electric_heating_percentage": [0.02, 0.03, 0.02, 0.01],
+    #         "gases_percentage": [0.9, 0.7, 0.34, 0.1],
+    #         "ac_percentage": [0.2, 0.3, 0.5, 0.7],
+    #         "battery_percentage": [0.1, 0.12, 0.2, 0.3],
+    #         "prosumager_percentage": prosumager_shares,
+    #         "baseline": baseline_leeuwarden
+    #     }
+
+    #     scenario_moderate_eff_leeuwarden = {
+    #         "year": [2020, 2030, 2040, 2050],
+    #         "region": "Leeuwarden",
+    #         "building_scenario": "M",
+    #         "pv_installation_percentage": [0.02, 0.1, 0.3, 0.5],
+    #         "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
+    #         "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
+    #         "heating_element_percentage": 0,
+    #         "air_hp_percentage": [0.04, 0.18, 0.45, 0.6],
+    #         "ground_hp_percentage": [0, 0.02, 0.06, 0.1],
+    #         "direct_electric_heating_percentage": [0.02, 0.03, 0.02, 0.02],
+    #         "gases_percentage": [0.9, 0.73, 0.43, 0.24],
+    #         "ac_percentage": [0.2, 0.35, 0.6, 0.8],
+    #         "battery_percentage": [0.1, 0.12, 0.16, 0.25],
+    #         "prosumager_percentage": prosumager_shares,
+    #         "baseline": baseline_leeuwarden
+    #     }
+    #     # complete scenarios
+    #     # ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}").create_figures()
+    #     # ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}").create_figures()
+    #     # append scenarios to list for later plots over all scenarios:
+    #     scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_moderate_eff_leeuwarden, scenario_name=f"Weak_policy_{pr}"))
+    #     scenario_list_leeuwarden.append(ECEMFFigures(scenario=scenario_high_eff_leeuwarden, scenario_name=f"Strong_policy_{pr}"))
+    
+    # plot_peak_day_profile_comparison_between_scenarios(scenarios=scenario_list_leeuwarden)
+    # # plot_peak_day_comparison_between_scenarios(scenarios=scenario_list_leeuwarden)
+    # # plot_peaks_over_different_scenarios(scenarios=scenario_list_leeuwarden)
+        
+    # # building scenarios
+    # # ECEMFFigures(scenario=building_scenario_leeuwarden_H, scenario_name="Buildings_strong_policy").create_figures()
+    # # ECEMFFigures(scenario=building_scenario_leeuwarden_M, scenario_name="Buildings_weak_policy").create_figures()
+
+    # # Murcia Scenarios
+    # baseline_murcia = {
+    #     "year": 2020,
+    #     "region": "Murcia",
+    #     "building_scenario": "H",
+    #     "pv_installation_percentage": 0.015,
+    #     "dhw_storage_percentage": 0.5,
+    #     "buffer_storage_percentage": 0,
+    #     "heating_element_percentage": 0,
+    #     "air_hp_percentage": 0.2,
+    #     "ground_hp_percentage": 0,
+    #     "direct_electric_heating_percentage": 0.39,
+    #     "gases_percentage": 0.19,
+    #     "ac_percentage": 0.5,
+    #     "battery_percentage": 0.1,
+    #     "prosumager_percentage": 0,
+    # }
+    # building_scenario_murcia_h = {
+    #     "year": [2020, 2030, 2040, 2050],
+    #     "region": "Murcia",
+    #     "building_scenario": "H",
+    #     "pv_installation_percentage": 0.015,
+    #     "dhw_storage_percentage": 0.5,
+    #     "buffer_storage_percentage": 0,
+    #     "heating_element_percentage": 0,
+    #     "air_hp_percentage": 0.2,
+    #     "ground_hp_percentage": 0,
+    #     "direct_electric_heating_percentage": 0.39,
+    #     "gases_percentage": 0.19,
+    #     "ac_percentage": 0.5,
+    #     "battery_percentage": 0.1,
+    #     "prosumager_percentage": 0,
+    #     "baseline": baseline_murcia
+    # }
+    # building_scenario_murcia_m = {
+    #     "year": [2020, 2030, 2040, 2050],
+    #     "region": "Murcia",
+    #     "building_scenario": "M",
+    #     "pv_installation_percentage": 0.015,
+    #     "dhw_storage_percentage": 0.5,
+    #     "buffer_storage_percentage": 0,
+    #     "heating_element_percentage": 0,
+    #     "air_hp_percentage": 0.2,
+    #     "ground_hp_percentage": 0,
+    #     "direct_electric_heating_percentage": 0.39,
+    #     "gases_percentage": 0.19,
+    #     "ac_percentage": 0.5,
+    #     "battery_percentage": 0.1,
+    #     "prosumager_percentage": 0,
+    #     "baseline": baseline_murcia
+    # }
+
+    # # calculate a complete scenario run:
+    # scenario_list_murcia = []
+    # for i, prosumager_shares in enumerate([Low, Medium, High]):
+    #     if i == 0:
+    #         pr = "P-low"
+    #     elif i == 1:
+    #         pr = "P-medium"
+    #     elif i == 2:
+    #         pr = "P-high"
+    #     scenario_high_eff = {
+    #         "year": [2020, 2030, 2040, 2050],
+    #         "region": "Murcia",
+    #         "building_scenario": "H",
+    #         "pv_installation_percentage": [0.015, 0.15, 0.4, 0.6],
+    #         "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
+    #         "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
+    #         "heating_element_percentage": 0,
+    #         "air_hp_percentage": [0.2, 0.35, 0.6, 0.8],
+    #         "ground_hp_percentage": [0, 0.02, 0.04, 0.06],
+    #         "direct_electric_heating_percentage": [0.39, 0.3, 0.2, 0.05],
+    #         "gases_percentage": [0.19, 0.15, 0.07, 0.02],
+    #         "ac_percentage": [0.5, 0.6, 0.8, 0.9],
+    #         "battery_percentage": [0.1, 0.12, 0.2, 0.3],
+    #         "prosumager_percentage": prosumager_shares,
+    #         "baseline": baseline_murcia
+    #     }
+
+    #     scenario_moderate_eff = {
+    #         "year": [2020, 2030, 2040, 2050],
+    #         "region": "Murcia",
+    #         "building_scenario": "M",
+    #         "pv_installation_percentage": [0.015, 0.1, 0.3, 0.5],
+    #         "dhw_storage_percentage": [0.5, 0.55, 0.6, 0.65],
+    #         "buffer_storage_percentage": [0, 0.05, 0.15, 0.25],
+    #         "heating_element_percentage": 0,
+    #         "air_hp_percentage": [0.2, 0.3, 0.5, 0.7],
+    #         "ground_hp_percentage": [0, 0.01, 0.02, 0.03],
+    #         "direct_electric_heating_percentage": [0.39, 0.32, 0.2, 0.1],
+    #         "gases_percentage": [0.19, 0.16, 0.1, 0.05],
+    #         "ac_percentage": [0.5, 0.65, 0.8, 0.95],
+    #         "battery_percentage": [0.1, 0.12, 0.16, 0.25],
+    #         "prosumager_percentage": prosumager_shares,
+    #         "baseline": baseline_murcia
+    #     }
         # complete scenarios
         # ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=f"Weak_policy_{pr}").create_figures()
         # ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").create_figures()
         # append scenarios to list for later plots over all scenarios:
-        scenario_list_murcia.append(ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=f"Weak_policy_{pr}"))
-        scenario_list_murcia.append(ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}"))
+        # scenario_list_murcia.append(ECEMFFigures(scenario=scenario_moderate_eff, scenario_name=f"Weak_policy_{pr}"))
+        # scenario_list_murcia.append(ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}"))
 
         # ECEMFFigures(scenario=scenario_high_eff, scenario_name=f"Strong_policy_{pr}").delete_all_results()
-    plot_peak_day_profile_comparison_between_scenarios(scenarios=scenario_list_murcia)
+    # plot_peak_day_profile_comparison_between_scenarios(scenarios=scenario_list_murcia)
     # plot_peak_day_comparison_between_scenarios(scenarios=scenario_list_murcia)
     # plot_peaks_over_different_scenarios(scenarios=scenario_list_murcia)
 
