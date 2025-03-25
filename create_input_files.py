@@ -188,7 +188,6 @@ def create_building_id_table(df: pd.DataFrame, year: int, country: str) -> pd.Da
     df = df.rename(columns={"average_effective_area_wind_west_east_red_cool": "effective_window_area_west_east",
                             "average_effective_area_wind_south_red_cool": "effective_window_area_south",
                             "average_effective_area_wind_north_red_cool": "effective_window_area_north",
-                            "number_of_persons_per_dwelling": "person_num",
                             "spec_int_gains_cool_watt": "internal_gains"})
     for name in columns:
         if name in df.columns.to_list():
@@ -396,31 +395,35 @@ def create_operation_region_file(year: int, country: str) -> pd.DataFrame:
 
 
 def create_energy_price_scenario_file(country: str, year: int) -> pd.DataFrame:
-    columns = ["region", "year", "id_hour", "electricity_1", "electricity_2", "electricity_feed_in_1", "unit"]
+    columns = ["region", "year", "id_hour", "electricity_1", "electricity_feed_in_1", "unit"]
     price_df = pd.DataFrame(columns=columns)
-    grid_fees = 0.02 # cent/Wh
 
     if year > 2020:
         # import electricity prices from AURES: shiny happy corresponds to newTrends and we add for elec 2 a fixed tarif
-        df_newTrends = pd.read_excel(
-            INPUT_FOLDER / Path("elec_prices_AURES.xlsx"),
+        df = pd.read_excel(
+            INPUT_FOLDER.parent / "Secures" / "prices" / f"{year}" / f"{get_country_correction_code()[country]}_DN_{year}_Normal.xlsx",
             engine="openpyxl",
-            sheet_name=f"shiny happy {year}",
-            header=3
-        ).dropna(axis=1).drop(0)
-        # replace "EPS" with nan and thenfrontfill:
-        df_newTrends = df_newTrends.replace("EPS", np.nan)
-        df_newTrends = df_newTrends.ffill().bfill()
+            sheet_name=f"EL_Price",
+            header=1
+        )[get_country_correction_code()[country]]
+
         # 24 hours of data are missing for the AURES prices, therefore we will repeat the last day
-        df_newTrends_1 = pd.concat([df_newTrends, df_newTrends.iloc[-24:, :]], axis=0).reset_index(drop=True)
+        df_1 = pd.concat([df, df.iloc[-24:, ]], axis=0).reset_index(drop=True)
         # €/MWh -> €/kWh -> cent/kWh -> cent/Wh
-        elec_price_1 = df_newTrends_1[get_country_correction_code()[country]].astype(float).to_numpy() / 1_000 * 100 / 1_000
+        elec_price_1 = df_1.astype(float).to_numpy() / 1_000 * 100 / 1_000
         price_df["electricity_1"] = elec_price_1
 
-        # save with additional  fixed tariff as price 2:
-       
-        elec_price_2 = elec_price_1 + grid_fees
+        # save with additional  fixed tariff:
+        elec_price_2 = elec_price_1 + 0.005  # cent/Wh
+        elec_price_3 = elec_price_1 + 0.01 # cent/Wh
+        elec_price_4 = elec_price_1 + 0.02 # cent/Wh
+        elec_price_5 = elec_price_1 + 0.04 # cent/Wh
+
         price_df["electricity_2"] = elec_price_2
+        price_df["electricity_3"] = elec_price_3
+        price_df["electricity_4"] = elec_price_4
+        price_df["electricity_5"] = elec_price_5
+
 
     else:  # prices are taken from ENTSO-E from 2019
         df = pd.read_csv(  # price is in cent/kWh
@@ -436,7 +439,15 @@ def create_energy_price_scenario_file(country: str, year: int) -> pd.DataFrame:
         elec_price_positive = (elec_price) / 1_000  # cent/kWh->cent/Wh
         # for 2020
         price_df["electricity_1"] = elec_price_positive
-        price_df["electricity_2"] = elec_price_positive + grid_fees
+        elec_price_2 = elec_price_positive + 0.005  # cent/Wh
+        elec_price_3 = elec_price_positive + 0.01 # cent/Wh
+        elec_price_4 = elec_price_positive + 0.02 # cent/Wh
+        elec_price_5 = elec_price_positive + 0.04 # cent/Wh
+
+        price_df["electricity_2"] = elec_price_2
+        price_df["electricity_3"] = elec_price_3
+        price_df["electricity_4"] = elec_price_4
+        price_df["electricity_5"] = elec_price_5
 
     # fill the other columns of the file
     price_df["region"] = country
@@ -449,13 +460,14 @@ def create_energy_price_scenario_file(country: str, year: int) -> pd.DataFrame:
 
     return price_df
 
-def create_energy_price_id_file():
+def create_energy_price_id_file(price_table: pd.DataFrame):
+    columns_to_ignore = ["region", "year", "id_hour", "electricity_feed_in_1", "unit", "gases_1"]
+    price_columns = [c for c in price_table.columns if c not in columns_to_ignore]
     df = pd.DataFrame(
         columns=["ID_EnergyPrice", "id_electricity", "id_electricity_feed_in", "price_unit"],
         data=[
-            [1, 1, 1, "cent/Wh"], 
-            [2, 2, 1, "cent/Wh"], 
-        ]
+            [i, i, 1, "cent/Wh"] for i in range(1, len(price_columns)+1) 
+        ] 
     )
     return df
 
@@ -652,7 +664,7 @@ def change_name_of_old_building_file(cfg: Config):
 def create_behavior_table(cfg: Config):
     # TODO copy the behavior profiles from the "testbed" and then check if the total demand is 
     # correctly taken from the "building table", same with appliance demand
-    path_2_testbed_behavior = Path(r"C:\Users\mascherbauer\OneDrive\PycharmProjects\FLEX\projects\Test_bed\input") / "OperationScenario_BehaviorProfile.xlsx"
+    path_2_testbed_behavior = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/projects/Test_bed/input") / "OperationScenario_BehaviorProfile.xlsx"
     destination = cfg.input / "OperationScenario_BehaviorProfile.xlsx"
     # copy file
     shutil.copy(src=path_2_testbed_behavior, dst=destination)
@@ -674,8 +686,14 @@ def create_input_excels(year: int,
                         country: str,
                     ):
     
-    project_name = f"{country}_{year}"
+    project_name = f"{country}_{year}_grid_fees"
     config = get_config(project_name=project_name)
+    if not any (config.input.iterdir()):
+        src = get_config(project_name=f"{country}_{year}").input
+        dst = config.input
+        shutil.rmtree(dst)
+        shutil.copytree(src, dst)
+
     change_name_of_old_building_file(cfg=config)
 
     df_buildings = load_buildings(year, country, cfg=config)
@@ -687,7 +705,7 @@ def create_input_excels(year: int,
     operation_scenario_component_pv = create_pv_id_table(df_buildings)
     region_scenario_table = create_operation_region_file(year, country)
     energy_price_table = create_energy_price_scenario_file(country, year)
-    energy_price_scenario_table = create_energy_price_id_file()
+    energy_price_scenario_table = create_energy_price_id_file(energy_price_table)
     boiler_table = create_boiler_table(year=year)
     dhw_table, df_buildings = create_dhw_table(df_buildings)
     heating_tank_table = create_heating_tank_table()
@@ -696,7 +714,7 @@ def create_input_excels(year: int,
     battery_table = create_battery_table()
     ev_table = create_EV_table()
     heating_element_table = create_heating_element_table()
-    behavior_component_table = create_behavior_component_table(country=country)
+    # behavior_component_table = create_behavior_component_table(country=country)
     create_behavior_table(cfg=config) # copys the input file from testbed because the other one is for a single house
 
     # save the csv files:
@@ -712,7 +730,7 @@ def create_input_excels(year: int,
     ev_table.to_csv(config.input / "OperationScenario_Component_Vehicle.csv", index=False, sep=";")
     heating_element_table.to_csv(config.input / "OperationScenario_Component_HeatingElement.csv", index=False, sep=";")
     energy_price_scenario_table.to_csv(config.input / "OperationScenario_Component_EnergyPrice.csv", sep=";", index=False)
-    behavior_component_table.to_csv(config.input / "OperationScenario_Component_Behavior.csv", sep=";", index=False)
+    # behavior_component_table.to_csv(config.input / "OperationScenario_Component_Behavior.csv", sep=";", index=False)
     LOGGER.info(f"created input csvs for {country} {year}")
 
     # delete the same excel files:
@@ -806,17 +824,22 @@ def cooling_to_scenario_table(scen_df: pd.DataFrame):
     return df
 
 def price_to_scenario_table(scen_df: pd.DataFrame):
-    scen_copy = scen_df.copy()
+    scen_copies = []
     scen_df["ID_EnergyPrice"] = 1
-    scen_copy["ID_EnergyPrice"] = 2
-    df = pd.concat([scen_df, scen_copy], axis=0)
+    scen_copies.append(scen_df)
+    for price in [1, 2, 3, 4, 5]:
+        scen_copy = scen_df.copy()
+        scen_copy["ID_EnergyPrice"] = price
+        scen_copies.append(scen_copy)
+
+    df = pd.concat(scen_copies, axis=0)
     return df
 
 def create_scenario_tables(country: str,
                            year: int,
                            ) -> None:
     # create config class with different project names, for country and year:
-    cfg = get_config(project_name=f"{country}_{year}")
+    cfg = get_config(project_name=f"{country}_{year}_grid_fees")
     clear_result_files(cfg)
     db = create_db_conn(config=cfg)
     
@@ -933,27 +956,27 @@ def copy_data_to_server(countries, years):
                 if dest_file_other.exists():
                     dest_file_other.unlink()
 
-def change_electricity_price_and_weather_data_to_SECURES():
+def change_weather_data_to_secures(country_list: list, years):
     """
     laod the weather files in each repo (2030 and 2050), no data for 2040.
     Exchange the temparature profile
 
     """
-    df = pd.read_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/projects/AUT_2020/input") / "OperationScenario_RegionWeather.csv")
-    df2 = pd.read_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/dump") / "Timeseries_48.208_16.395_SA3_1kWp_crystSi_14_0deg_-90deg_2019_2019.csv", sep=";")
-
-    
-    sec_temperature = pd.read_csv(Path(r"/home/users/pmascherbauer/Downloads/Future_RCP45/NUTS2_Europe") / "T2M_NUTS2_Europe_mean_rcp45_hourly_2001-2050.csv", sep=",", index_col=0)
+    sec_temperature = pd.read_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/projects/Secures/Future_RCP45/NUTS0_Europe") / "T2M_NUTS0_Europe_mean_rcp45_hourly_2001-2050.csv", sep=",", index_col=0)
     sec_temperature.index = pd.to_datetime(sec_temperature.index, format="%Y-%m-%d-%H")
-    temp_2020 = sec_temperature[sec_temperature.index.year == 2020]
 
-    sec_irradiance =  pd.read_csv(Path(r"/home/users/pmascherbauer/Downloads/Future_RCP45/NUTS2_Europe") / "GLO_NUTS2_Europe_mean_rcp45_hourly_2001-2050.csv", sep=",", index_col=0)
-    sec_irradiance.index = pd.to_datetime(sec_irradiance.index, format="%Y-%m-%d-%H")
+    for country in country_list:
+        for year in years:
+            df = pd.read_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/projects")/ f"{country}_{year}" / "input" / "OperationScenario_RegionWeather.csv")
+            if "radiation_unit,temperature" in df.columns:
+                df.drop(columns="radiation_unit,temperature", inplace=True)
+            temp_secures = sec_temperature[(sec_temperature.index.year == year)][get_country_correction_code()[country]].copy()
 
-    x = df.loc[["temperature", ""]]
+            df["temperature"] = temp_secures.to_numpy()
+            df.to_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/projects")/ f"{country}_{year}" / "input" / "OperationScenario_RegionWeather.csv", index=False)
+
 
 if __name__ == "__main__":
-    change_electricity_price_and_weather_data_to_SECURES()
     
     APPLICANCE_DEMAND_PER_PERSON = appliance_electricity_demand_per_person_EU()
     DHW_DEMAND_PER_PERSON = specific_DHW_per_person_EU()
@@ -961,23 +984,23 @@ if __name__ == "__main__":
         # 'BEL',
         # 'AUT',
         # 'HRV',
-        # # "CYP",
+        # "CYP",
         # 'CZE',
         # 'DNK',
         # 'FRA',
         # 'DEU',
         # 'LUX',
         # 'HUN',
-        # 'IRL',
+        'IRL',
         # 'ITA',
         # 'NLD',
-        # 'POL', # 2020 hat polen PV problem
+        # 'POL',
         # 'PRT',
         # 'SVK',
         # 'SVN',
         # 'ESP',
         # 'SWE',
-        'GRC',
+        # 'GRC',
         # 'LVA',
         # 'LTU',
         # # 'MLT',
@@ -987,7 +1010,9 @@ if __name__ == "__main__":
         # 'EST',
     ]
     # country_list = [ 'ROU',]#'MLT','LTU', 'GRC']
-    years = [2020, 2030, 2040, 2050]
+    years = [2030, 2050]  # only have secures prices for 2030 and 2050
+    change_weather_data_to_secures(country_list=country_list, years=years)
+
     main(country_list, years)
 
     # copy_data_to_server(countries=country_list, years=years)
