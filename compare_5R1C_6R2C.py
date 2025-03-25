@@ -21,8 +21,19 @@ from pathlib import Path
 from compare_results import CompareModels
 import tqdm
 import pickle  # Added for saving dictionary
+import logging
 
 
+log_dir = Path("/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C")
+log_file = log_dir / "compare_5R1C_6R2C.log"
+logging.basicConfig(
+    filename=log_file,
+    filemode='a',  # append mode
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+LOGGER = logging.getLogger(__name__)
 
 '''
 In this script I will first compare how the 5R1C compares to the 5R1C-rewritten.
@@ -266,13 +277,14 @@ def run_for_different_Cf_and_Hf(Cf_list, H_f_list):
     df_heating_dict = {}
     for Cf in tqdm.tqdm(Cf_list):
         for h, H_f in enumerate(H_f_list):
+            LOGGER.info(f"running Cf: {round(Cf / (scenario.building.Af*cp_water*3600),1)} - Hf: {round(H_f / (scenario.building.Af),1)} combination, scenario: {scenario_id}")
             # first we give a target indoor temp and solve by havin heating as a variable:
             model_6R2C_temp, solved = calculate_6R2C_with_specific_params(model=OptOperationModel(scenario), Htr_f=H_f, Cf=Cf, 
                                                                           target_indoor_temp=target_indoor_temp)
             if solved:
-                cf_per_square_meter = round(Cf / (scenario.building.Af*cp_water*3600))
-                hf_per_square_meter = round(H_f / (scenario.building.Af))
-                heating_solved[f"Cf:{round(cf_per_square_meter)}, Hf: {round(hf_per_square_meter)}"] = (Cf, H_f)
+                cf_per_square_meter = round(Cf / (scenario.building.Af*cp_water*3600),1)
+                hf_per_square_meter = round(H_f / (scenario.building.Af),1)
+                heating_solved[f"Cf:{cf_per_square_meter}, Hf: {hf_per_square_meter}"] = (Cf, H_f)
                 df = extract_results_from_model(model_6R2C_temp)
                 df["Heat_flow_to_room"] = calculate_Heating_flow_6R2C(model_6R2C_temp)
                 df_heating_dict[f"Cf:{cf_per_square_meter}, Hf: {hf_per_square_meter}"] = df
@@ -281,6 +293,9 @@ def run_for_different_Cf_and_Hf(Cf_list, H_f_list):
                 mse_heating = calc_mean_squared_error_heating(df["Q_RoomHeating"].to_numpy(), scenario_id=scenario_id)
                 mse_heat_flow_to_room = calc_mean_squared_error_heating(df["Heat_flow_to_room"].to_numpy(), scenario_id=scenario_id)
                 mse_heating_dict[f"Cf:{cf_per_square_meter}, Hf: {hf_per_square_meter}"] = mse_heating
+                LOGGER.info(f"Cf: {cf_per_square_meter} - Hf: {hf_per_square_meter} combination succesful")
+            else:
+                LOGGER.warning(f"Cf: {round(Cf / (scenario.building.Af*cp_water*3600), 1)} - Hf: {round(H_f / (scenario.building.Af),1)} combination infeasable!  scenario: {scenario_id}")
 
     return mse_heating_dict, heating_solved, df_heating_dict
 
@@ -298,6 +313,8 @@ if __name__ == "__main__":
     # add to diss and paper
     Cf_Hf_dict = {}
     for scenario_id in range(1, 10):
+        LOGGER.info(f"=========================================")
+        LOGGER.info(f"starting scnenario {scenario_id}")
         mother_operation = MotherOperationScenario(config=config)
         orig_opt_instance = OptInstance().create_instance()
         scenario = OperationScenario(scenario_id=scenario_id, config=config, tables=mother_operation)
@@ -321,7 +338,7 @@ if __name__ == "__main__":
         Cf_list = [x*scenario.building.Af*4200 for x in np.arange(0.5, 11.5, 0.5)] #11
         # Heat transfer resistance (W/K) between floor and indoor air temp is assumed to be between 1 and 10 W/K per square meter of floor heating
         # In literature (https://doi.org/10.1016/j.enbuild.2013.07.065) H_f is between 8 and 11 (measured)
-        H_f_list = [x*scenario.building.Af for x in np.arange(6, 15.5, 0.5)] #15
+        H_f_list = [x*scenario.building.Af for x in np.arange(5, 15.5, 0.5)] #15
 
         mse_heating_dict, heating_solved, df_heating_dict = run_for_different_Cf_and_Hf(Cf_list, H_f_list)
 
@@ -368,7 +385,7 @@ if __name__ == "__main__":
         results_6R2C_final.to_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / f"Scenario_{scenario_id}_optimzation.csv")
         results_6R2C_final_higher_Q_max.to_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / f"Scenario_{scenario_id}_optimzation_high_Q_max.csv")
 
-        
+        LOGGER.info(f"finished scenario {scenario_id}")
         
         # compare_IDA_ICE_6R2C_5R1C(
         #     model_6R2C=new_6R2C_model,
@@ -386,15 +403,16 @@ if __name__ == "__main__":
             try:
                 with open(cf_hf_dict_path, 'rb') as f:
                     Cf_Hf_dict = pickle.load(f)
-                print(f"Loaded existing Cf_Hf_dict from {cf_hf_dict_path}")
+                LOGGER.info(f"Loaded existing Cf_Hf_dict from {cf_hf_dict_path}")
                 Cf_Hf_dict[scenario_id] = (best_Cf, best_Hf)
             except Exception as e:
-                print(f"{e}")
+                LOGGER.error(f"{e}")
         else:
             Cf_Hf_dict[scenario_id] = (best_Cf, best_Hf)
 
         with open(cf_hf_dict_path, 'wb') as f:
             pickle.dump(Cf_Hf_dict, f)
+        LOGGER.info(f"saved {Cf_Hf_dict} to logfile for scenario {scenario_id}")
 
 
     

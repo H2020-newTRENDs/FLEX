@@ -17,6 +17,7 @@ import re
 import os
 import sys
 import matplotlib
+import pickle
 
 # Get the absolute path of the directory two levels up
 two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -26,8 +27,14 @@ from basics.db import DB
 from config import config, get_config
 from models.operation.enums import OperationTable, OperationScenarioComponent
 
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.INFO)
+
+#log_file = Path("/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / "compare_6R2C_results.log"
+#logging.basicConfig(
+#    filename=log_file,
+#    filemode='a',  # append mode
+#)
+#logger = logging.getLogger(__name__)
+#logger.setLevel(level=logging.INFO)
 
 
 class CompareModels:
@@ -60,6 +67,40 @@ class CompareModels:
         self.cooling_status = {1: "no cooling",
                                2: "cooling"}
         self.heating_system = ["ideal", "floor_heating"]
+        #self.Q_RoomHeating_6R2C_optimization, self.T_Room_6R2C_optimization, self.T_BuildingMass_6R2C_optimization, self.E_HP_out_6R2C_optimization = self.load_6R2C_results(reference=False)
+        #self.Q_RoomHeating_6R2C_high_Qmax, self.T_Room_6R2C_high_Qmax, self.T_BuildingMass_6R2C_high_Qmax, self.E_HP_out_6R2C_high_Qmax = self.load_6R2C_results(high_Q_max=True)
+        #self.Q_RoomHeating_6R2C_reference, self.T_Room_6R2C_reference, self.T_BuildingMass_6R2C_reference, self.E_HP_out_6R2C_reference = self.load_6R2C_results(reference=True)
+
+    def load_6R2C_results(self, reference: bool, high_Q_max: bool = False)->pd.DataFrame:
+        path = Path("/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C")
+        Q_RoomHeating_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
+        T_Room_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
+        T_BuildingMass_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
+        E_HP_out_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
+        for scenario_id in np.arange(1,10):
+            if high_Q_max:
+                df = pd.read_csv(path / f"Scenario_{scenario_id}_optimization_high_Q_max.csv")
+            elif reference:
+                df = pd.read_csv(path / f"Scenario_{scenario_id}_reference.csv")
+            else:
+                df = pd.read_csv(path / f"Scenario_{scenario_id}_optimization.csv")
+            Q_RoomHeating_dfs[scenario_id] = df["Q_RoomHeating"].to_numpy()
+            T_Room_dfs[scenario_id] = df["T_Room"].to_numpy()
+            T_BuildingMass_dfs[scenario_id] = df["T_BuildingMass"].to_numpy()
+            E_HP_out_dfs[scenario_id] = df["E_Heating_HP_out"].to_numpy()
+        
+        Q_RoomHeating_dfs.columns = self.reorder_table(Q_RoomHeating_dfs.columns.map(self.building_names))
+        T_Room_dfs.columns = self.reorder_table(T_Room_dfs.columns.map(self.building_names))
+        T_BuildingMass_dfs.columns = self.reorder_table(T_BuildingMass_dfs.columns.map(self.building_names))
+        E_HP_out_dfs.columns = self.reorder_table(E_HP_out_dfs.columns.map(self.building_names))
+        return Q_RoomHeating_dfs, T_Room_dfs, T_BuildingMass_dfs, E_HP_out_dfs
+    
+
+    def load_6R2C_parameters_dict(self):
+        cf_hf_dict_path = Path("/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / "Cf_Hf_dict.pkl"
+        with open(cf_hf_dict_path, 'rb') as f:
+            Cf_Hf_dict = pickle.load(f)
+        return Cf_Hf_dict
 
     def check_price_scenario_name(self, prize_scenario: str):
         if "cooling" in prize_scenario:
@@ -1248,23 +1289,24 @@ class CompareModels:
         self.plot_relative_cooling_cost_reduction(prices=price_scenarios,
                                                   cooling=cooling)  # no floor heating with cooling
 
-    def compare_daily_peaks(self):
+    def compare_daily_heat_demand_peaks(self):
         floor_heating = True
         cooling = False
         cop = self.read_COP(table_name=OperationTable.ResultRefHour.value)
 
         dfs = []
-        for price in ["price2", "price3", "price4"]:
-            opt_5R1C = self.read_heat_demand(table_name=OperationTable.ResultOptHour.value, prize_scenario=price, cooling=False) / cop
-            opt_IDA_floor = self.read_daniel_heat_demand(price=price, cooling=False, floor_heating=True) / cop
-            opt_IDA_ideal = self.read_daniel_heat_demand(price=price, cooling=False, floor_heating=False) / cop
+
+        opt_5R1C = self.read_heat_demand(table_name=OperationTable.ResultOptHour.value, prize_scenario="price2", cooling=False) / cop
+        opt_IDA_floor = self.read_daniel_heat_demand(price="price2", cooling=False, floor_heating=True) / cop
+        opt_IDA_ideal = self.read_daniel_heat_demand(price="price2", cooling=False, floor_heating=False) / cop
+        #opt_6R2C = self.load_6R2C_results(scenario_id=)
             
-            opt_5R1C["type"] = "5R1C"
-            opt_IDA_floor["type"] = "IDA floor"
-            opt_IDA_ideal["type"] = "IDA ideal"
-            df = pd.concat([opt_5R1C, opt_IDA_floor, opt_IDA_ideal], axis=0)
-            df["price scenario"] = price[-1]
-            dfs.append(df)
+        opt_5R1C["type"] = "5R1C"
+        opt_IDA_floor["type"] = "IDA ICE floor heating"
+        opt_IDA_ideal["type"] = "IDA ICE ideal heating"
+        df = pd.concat([opt_5R1C, opt_IDA_floor, opt_IDA_ideal], axis=0)
+        #df["price scenario"] = price[-1]
+        dfs.append(df)
         big_df = pd.concat(dfs)
 
         big_df["days"] = (big_df.index-1) // 24 + 1
@@ -1283,13 +1325,12 @@ class CompareModels:
         plt.show()
 
     def main(self):
-        price_scenarios = ["basic", "price2", "price3", "price4"]
-        price_scenarios = ["price2"]
+        price_scenarios = ["basic", "price2",] #"price3", "price4"]  # only look at price 2 and basic which is without optim
 
         # self.indoor_temp_to_csv(cooling=False)
         # self.indoor_temp_to_csv(cooling=True)# was only relevant for Daniel
 
-        # self.compare_daily_peaks()
+        self.compare_daily_heat_demand_peaks()
         self.shifted_electrity_demand()
         # self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
         # self.plot_yearly_heat_demand_floor_ideal_not_optimized()
