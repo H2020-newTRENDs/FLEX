@@ -28,13 +28,13 @@ from config import config, get_config
 from models.operation.enums import OperationTable, OperationScenarioComponent
 
 
-#log_file = Path("/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / "compare_6R2C_results.log"
-#logging.basicConfig(
+# log_file = Path("/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / "compare_6R2C_results.log"
+# logging.basicConfig(
 #    filename=log_file,
 #    filemode='a',  # append mode
-#)
-#logger = logging.getLogger(__name__)
-#logger.setLevel(level=logging.INFO)
+# )
+# logger = logging.getLogger(__name__)
+# logger.setLevel(level=logging.INFO)
 
 
 class CompareModels:
@@ -70,31 +70,101 @@ class CompareModels:
         #self.Q_RoomHeating_6R2C_optimization, self.T_Room_6R2C_optimization, self.T_BuildingMass_6R2C_optimization, self.E_HP_out_6R2C_optimization = self.load_6R2C_results(reference=False)
         #self.Q_RoomHeating_6R2C_high_Qmax, self.T_Room_6R2C_high_Qmax, self.T_BuildingMass_6R2C_high_Qmax, self.E_HP_out_6R2C_high_Qmax = self.load_6R2C_results(high_Q_max=True)
         #self.Q_RoomHeating_6R2C_reference, self.T_Room_6R2C_reference, self.T_BuildingMass_6R2C_reference, self.E_HP_out_6R2C_reference = self.load_6R2C_results(reference=True)
-
-    def load_6R2C_results(self, reference: bool, high_Q_max: bool = False)->pd.DataFrame:
+    def load_6R2C_Q_max_resuts(self):
         path = Path("/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C")
         Q_RoomHeating_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
         T_Room_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
         T_BuildingMass_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
         E_HP_out_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
         for scenario_id in np.arange(1,10):
-            if high_Q_max:
-                df = pd.read_csv(path / f"Scenario_{scenario_id}_optimization_high_Q_max.csv")
-            elif reference:
+            df = pd.read_csv(path / f"Scenario_{scenario_id}_optimzation_high_Q_max.csv")
+            Q_RoomHeating_dfs[scenario_id] = df["Q_RoomHeating"].to_numpy()
+            T_Room_dfs[scenario_id] = df["T_Room"].to_numpy()
+            T_BuildingMass_dfs[scenario_id] = df["T_BuildingMass"].to_numpy()
+            E_HP_out_dfs[scenario_id] = df["E_Heating_HP_out"].to_numpy()
+        self.Q_RoomHeating_optimization_6R2C_Q_max = Q_RoomHeating_dfs.copy()
+        self.Q_RoomHeating_optimization_6R2C_Q_max.columns = self.Q_RoomHeating_optimization_6R2C_Q_max.columns.map(self.building_names)
+        self.Q_RoomHeating_optimization_6R2C_Q_max = self.reorder_table(self.Q_RoomHeating_optimization_6R2C_Q_max)
+        self.T_Room_optimization_6R2C_Q_max = T_Room_dfs.copy()
+        self.T_Room_optimization_6R2C_Q_max.columns = self.T_Room_optimization_6R2C_Q_max.columns.map(self.building_names)
+        self.T_Room_optimization_6R2C_Q_max = self.reorder_table(self.T_Room_optimization_6R2C_Q_max)
+        self.T_BuildingMass_optimization_6R2C_Q_max = T_BuildingMass_dfs.copy()
+        self.T_BuildingMass_optimization_6R2C_Q_max.columns = self.T_BuildingMass_optimization_6R2C_Q_max.columns.map(self.building_names)
+        self.T_BuildingMass_optimization_6R2C_Q_max = self.reorder_table(self.T_BuildingMass_optimization_6R2C_Q_max)
+        self.E_HP_out_optimization_6R2C_Q_max = E_HP_out_dfs.copy()
+        self.E_HP_out_optimization_6R2C_Q_max.columns = self.E_HP_out_optimization_6R2C_Q_max.columns.map(self.building_names)
+        self.E_HP_out_optimization_6R2C_Q_max = self.reorder_table(self.E_HP_out_optimization_6R2C_Q_max)
+
+
+    def load_6R2C_results(self, reference: bool)->pd.DataFrame:
+        path = Path("/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C")
+        Q_RoomHeating_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
+        T_Room_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
+        T_BuildingMass_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
+        E_HP_out_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
+        for scenario_id in np.arange(1,10):
+            if reference:
                 df = pd.read_csv(path / f"Scenario_{scenario_id}_reference.csv")
             else:
-                df = pd.read_csv(path / f"Scenario_{scenario_id}_optimization.csv")
+                df = pd.read_csv(path / f"Scenario_{scenario_id}_optimzation.csv")
             Q_RoomHeating_dfs[scenario_id] = df["Q_RoomHeating"].to_numpy()
             T_Room_dfs[scenario_id] = df["T_Room"].to_numpy()
             T_BuildingMass_dfs[scenario_id] = df["T_BuildingMass"].to_numpy()
             E_HP_out_dfs[scenario_id] = df["E_Heating_HP_out"].to_numpy()
         
-        Q_RoomHeating_dfs.columns = self.reorder_table(Q_RoomHeating_dfs.columns.map(self.building_names))
-        T_Room_dfs.columns = self.reorder_table(T_Room_dfs.columns.map(self.building_names))
-        T_BuildingMass_dfs.columns = self.reorder_table(T_BuildingMass_dfs.columns.map(self.building_names))
-        E_HP_out_dfs.columns = self.reorder_table(E_HP_out_dfs.columns.map(self.building_names))
-        return Q_RoomHeating_dfs, T_Room_dfs, T_BuildingMass_dfs, E_HP_out_dfs
-    
+        if reference:
+            self.Q_RoomHeating_reference_6R2C = Q_RoomHeating_dfs.copy()
+            self.Q_RoomHeating_reference_6R2C.columns = self.Q_RoomHeating_reference_6R2C.columns.map(self.building_names)
+            self.Q_RoomHeating_reference_6R2C = self.reorder_table(self.Q_RoomHeating_reference_6R2C)
+            self.T_Room_reference_6R2C = T_Room_dfs.copy()
+            self.T_Room_reference_6R2C.columns = self.T_Room_reference_6R2C.columns.map(self.building_names)
+            self.T_Room_reference_6R2C = self.reorder_table(self.T_Room_reference_6R2C)
+            self.T_BuildingMass_reference_6R2C = T_BuildingMass_dfs.copy()
+            self.T_BuildingMass_reference_6R2C.columns = self.T_BuildingMass_reference_6R2C.columns.map(self.building_names)
+            self.T_BuildingMass_reference_6R2C = self.reorder_table(self.T_BuildingMass_reference_6R2C)
+            self.E_HP_out_reference_6R2C = E_HP_out_dfs.copy()
+            self.E_HP_out_reference_6R2C.columns = self.E_HP_out_reference_6R2C.columns.map(self.building_names)
+            self.E_HP_out_reference_6R2C = self.reorder_table(self.E_HP_out_reference_6R2C)
+
+
+        else:
+            self.Q_RoomHeating_optimization_6R2C = Q_RoomHeating_dfs.copy()
+            self.Q_RoomHeating_optimization_6R2C.columns = self.Q_RoomHeating_optimization_6R2C.columns.map(self.building_names)
+            self.Q_RoomHeating_optimization_6R2C = self.reorder_table(self.Q_RoomHeating_optimization_6R2C)
+            self.T_Room_optimization_6R2C = T_Room_dfs.copy()
+            self.T_Room_optimization_6R2C.columns = self.T_Room_optimization_6R2C.columns.map(self.building_names)
+            self.T_Room_optimization_6R2C = self.reorder_table(self.T_Room_optimization_6R2C)
+            self.T_BuildingMass_optimization_6R2C = T_BuildingMass_dfs.copy()
+            self.T_BuildingMass_optimization_6R2C.columns = self.T_BuildingMass_optimization_6R2C.columns.map(self.building_names)
+            self.T_BuildingMass_optimization_6R2C = self.reorder_table(self.T_BuildingMass_optimization_6R2C)
+            self.E_HP_out_optimization_6R2C = E_HP_out_dfs.copy()
+            self.E_HP_out_optimization_6R2C.columns = self.E_HP_out_optimization_6R2C.columns.map(self.building_names)
+            self.E_HP_out_optimization_6R2C = self.reorder_table(self.E_HP_out_optimization_6R2C)
+        
+
+        Q_RoomHeating_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
+        T_Room_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
+        T_BuildingMass_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
+        E_HP_out_dfs = pd.DataFrame(columns=list(np.arange(1,10)))
+        for scenario_id in np.arange(1,10):
+            df = pd.read_csv(path / f"Scenario_{scenario_id}_optimization_fixed_indoor_temp.csv")
+            Q_RoomHeating_dfs[scenario_id] = df["Q_RoomHeating"].to_numpy()
+            T_Room_dfs[scenario_id] = df["T_Room"].to_numpy()
+            T_BuildingMass_dfs[scenario_id] = df["T_BuildingMass"].to_numpy()
+            E_HP_out_dfs[scenario_id] = df["E_Heating_HP_out"].to_numpy()
+        self.Q_RoomHeating_optimization_6R2C_target_temp = Q_RoomHeating_dfs.copy()
+        self.Q_RoomHeating_optimization_6R2C_target_temp.columns = self.Q_RoomHeating_optimization_6R2C_target_temp.columns.map(self.building_names)
+        self.Q_RoomHeating_optimization_6R2C_target_temp = self.reorder_table(self.Q_RoomHeating_optimization_6R2C_target_temp)
+        self.T_Room_optimization_6R2C_target_temp = T_Room_dfs.copy()
+        self.T_Room_optimization_6R2C_target_temp.columns = self.T_Room_optimization_6R2C_target_temp.columns.map(self.building_names)
+        self.T_Room_optimization_6R2C_target_temp = self.reorder_table(self.T_Room_optimization_6R2C_target_temp)
+        self.T_BuildingMass_optimization_6R2C_target_temp = T_BuildingMass_dfs.copy()
+        self.T_BuildingMass_optimization_6R2C_target_temp.columns = self.T_BuildingMass_optimization_6R2C_target_temp.columns.map(self.building_names)
+        self.T_BuildingMass_optimization_6R2C_target_temp = self.reorder_table(self.T_BuildingMass_optimization_6R2C_target_temp)
+        self.E_HP_out_optimization_6R2C_target_temp = E_HP_out_dfs.copy()
+        self.E_HP_out_optimization_6R2C_target_temp.columns = self.E_HP_out_optimization_6R2C_target_temp.columns.map(self.building_names)
+        self.E_HP_out_optimization_6R2C_target_temp = self.reorder_table(self.E_HP_out_optimization_6R2C_target_temp)
+        
 
     def load_6R2C_parameters_dict(self):
         cf_hf_dict_path = Path("/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / "Cf_Hf_dict.pkl"
@@ -140,14 +210,14 @@ class CompareModels:
         """plot the electricity prices that are used in this paper and print their mean and std"""
         # plot the prices in one figure:
         price_table = self.db.read_dataframe(table_name=OperationTable.EnergyPriceProfile.value)
-        price_ids = [2, 3, 4]
+        price_ids = [2,]# 3, 4]
         fig = plt.figure()
         ax = plt.gca()
         colors = [self.blue, self.orange, self.green, self.red]
         for price_id in price_ids:
             column_name = f"electricity_{price_id}"
             price = price_table.loc[:, column_name].to_numpy() * 1000  # cent/kWh
-            ax.plot(np.arange(8760), price, label=f"Price scenario {price_id - 1}",
+            ax.plot(np.arange(8760), price, label=f"hourly price 2019",
                     linewidth=0.3,
                     alpha=0.9,
                     color=colors[price_id - 1])
@@ -203,15 +273,16 @@ class CompareModels:
             p = "price1"
         else:
             p = prize_scenario
-        scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", p)[0]), cooling)
+        # scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", p)[0]), cooling)
         demand = self.db.read_dataframe(table_name=table_name,
                                         column_names=["ID_Scenario", "Q_HeatingTank_bypass", "Hour"],
                                         )
         # split the demand into columns for every Scenario ID:
         df = demand.pivot_table(index="Hour", columns="ID_Scenario")
         # drop columns which are not in this price
-        df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
-        df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
+        # df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
+        df.columns = [col[1] for col in df.columns]
+        df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in df.columns]
         return self.reorder_table(df)
 
     def read_cooling_demand(self, table_name: str, prize_scenario: str, cooling: bool) -> pd.DataFrame:
@@ -235,12 +306,13 @@ class CompareModels:
             p = "price1"
         else:
             p = prize_scenario
-        scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", p)[0]), cooling)
+        # scenario_id = self.grab_scenario_ids_for_price(int(re.findall(r"\d", p)[0]), cooling)
         temp = self.db.read_dataframe(table_name=table_name,
                                       column_names=["ID_Scenario", "T_Room", "Hour"])
         df = temp.pivot_table(index="Hour", columns="ID_Scenario")
-        df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
-        df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
+        # df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
+        df.columns = [col[1] for col in df.columns]
+        df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in df.columns]
         return self.reorder_table(df)
 
     def read_indoor_temp_daniel(self, price, cooling: bool, floor_heating: bool) -> pd.DataFrame:
@@ -279,15 +351,16 @@ class CompareModels:
 
     def read_COP(self, table_name: str) -> pd.DataFrame:
         # cop is the same in alle price scenarios
-        scenario_id = self.grab_scenario_ids_for_price(id_price=1, cooling=False)  # cooling not needed for heating COP
+        # scenario_id = self.grab_scenario_ids_for_price(id_price=1, cooling=False)  # cooling not needed for heating COP
         cop = self.db.read_dataframe(table_name=table_name,
                                      column_names=["ID_Scenario", "SpaceHeatingHourlyCOP",
                                                    "Hour"])
         # split the demand into columns for every Scenario ID:
         df = cop.pivot_table(index="Hour", columns="ID_Scenario")
         # drop columns which are not in this price
-        df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
-        df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in scenario_id]
+        # df = df.iloc[:, [scen_id - 1 for scen_id in scenario_id]]
+        df.columns = [col[1] for col in df.columns]
+        df.columns = [self.scenario_id_2_building_name(scen_id) for scen_id in df.columns]
         return self.reorder_table(df)
 
     def read_COP_AC(self, table_name: str) -> pd.DataFrame:
@@ -307,16 +380,19 @@ class CompareModels:
         """ floor heatig does not have an impact because it is not explicitly modeled by the 5R1C"""
         price_profile = self.read_electricity_price(price_id).squeeze()
         heat_demand = self.read_heat_demand(table_name, price_id, cooling)
-        cool_demand = self.read_cooling_demand(table_name, price_id, cooling)
         COP_HP = self.read_COP(table_name)
-        COP_AC = self.read_COP_AC(table_name)
         electricity_heat = (heat_demand / COP_HP).reset_index(drop=True)
-        electricity_cool = (cool_demand / COP_AC).reset_index(drop=True)
-
         hourly_cost_heating = electricity_heat.mul(pd.Series(price_profile), axis=0)
-        hourly_cost_cooling = electricity_cool.mul(pd.Series(price_profile), axis=0)
 
-        hourly_cost = hourly_cost_heating + hourly_cost_cooling
+        if cooling:
+            cool_demand = self.read_cooling_demand(table_name, price_id, cooling)
+            COP_AC = self.read_COP_AC(table_name)
+            electricity_cool = (cool_demand / COP_AC).reset_index(drop=True)
+            hourly_cost_cooling = electricity_cool.mul(pd.Series(price_profile), axis=0)
+            hourly_cost = hourly_cost_heating + hourly_cost_cooling
+        else:
+            hourly_cost = hourly_cost_heating
+
         total_cost = hourly_cost.sum(axis=0)
         return pd.DataFrame(total_cost).transpose()
 
@@ -332,20 +408,34 @@ class CompareModels:
         total_cost = hourly_cost_cooling.sum(axis=0)
         return pd.DataFrame(total_cost).transpose()
 
+    def calculate_optimization_costs_6R2C(self, price_id, reference: bool):
+        price_profile = self.read_electricity_price(price_id).squeeze()
+        COP_HP = self.read_COP("OperationResult_OptimizationHour")
+        if reference:
+            electricity_heat = (self.Q_RoomHeating_reference_6R2C / COP_HP.reset_index(drop=True)).reset_index(drop=True)
+        else:
+            electricity_heat = (self.Q_RoomHeating_optimization_6R2C / COP_HP.reset_index(drop=True)).reset_index(drop=True)
+        hourly_cost_heating = electricity_heat.mul(pd.Series(price_profile), axis=0)
+        total_cost = hourly_cost_heating.sum(axis=0)
+        return pd.DataFrame(total_cost).transpose()
+
+
     def calculate_costs_daniel_opt(self, table_name: str, price_id: str, cooling: bool,
                                    floor_heating: bool) -> pd.DataFrame:
         price_profile = self.read_electricity_price(price_id).squeeze()
         COP_HP = self.read_COP(table_name)
         heat_demand = self.read_daniel_heat_demand(price=price_id, floor_heating=floor_heating, cooling=cooling)
         electricity_heat = (heat_demand / COP_HP).reset_index(drop=True)
-
-        COP_AC = self.read_COP_AC(table_name)
-        cooling_demand = self.read_daniel_cooling_demand(price=price_id)
-        electricity_cooling = (cooling_demand / COP_AC).reset_index(drop=True)
-
         hourly_cost_heating = electricity_heat.mul(pd.Series(price_profile), axis=0)
-        hourly_cost_cooling = electricity_cooling.mul(pd.Series(price_profile), axis=0)
-        hourly_cost = hourly_cost_heating + hourly_cost_cooling
+
+        if cooling:
+            COP_AC = self.read_COP_AC(table_name)
+            cooling_demand = self.read_daniel_cooling_demand(price=price_id)
+            electricity_cooling = (cooling_demand / COP_AC).reset_index(drop=True)
+            hourly_cost_cooling = electricity_cooling.mul(pd.Series(price_profile), axis=0)
+            hourly_cost = hourly_cost_heating + hourly_cost_cooling
+        else:
+            hourly_cost = hourly_cost_heating 
         total_cost = hourly_cost.sum(axis=0)
         return pd.DataFrame(total_cost).transpose()
 
@@ -367,14 +457,17 @@ class CompareModels:
         heat_demand = self.read_daniel_heat_demand(price="basic", cooling=cooling,
                                                    floor_heating=floor_heating)  # because here the indoor set temp is steady
         electricity_heat = (heat_demand / COP_HP).reset_index(drop=True)
-
-        COP_AC = self.read_COP_AC(table_name)
-        cooling_demand = self.read_daniel_cooling_demand(price="basic")
-        electricity_cooling = (cooling_demand / COP_AC).reset_index(drop=True)
-
         hourly_cost_heating = electricity_heat.mul(pd.Series(price_profile), axis=0)
-        hourly_cost_cooling = electricity_cooling.mul(pd.Series(price_profile), axis=0)
-        hourly_cost = hourly_cost_heating + hourly_cost_cooling
+
+        if cooling:
+            COP_AC = self.read_COP_AC(table_name)
+            cooling_demand = self.read_daniel_cooling_demand(price="basic")
+            electricity_cooling = (cooling_demand / COP_AC).reset_index(drop=True)
+            hourly_cost_cooling = electricity_cooling.mul(pd.Series(price_profile), axis=0)
+            hourly_cost = hourly_cost_heating + hourly_cost_cooling
+        else:
+            hourly_cost = hourly_cost_heating 
+
         total_cost = hourly_cost.sum(axis=0)
         return pd.DataFrame(total_cost).transpose()
 
@@ -752,14 +845,14 @@ class CompareModels:
 
     def plot_normalized_yearly_heat_demand_floor_ideal_not_optimized(self):
         """ plot the yearly heat demand for 5R1C, IDA ICE and IDA ICE Floor heating"""
-        plt.style.use("seaborn-paper")
         heat_5R1C = self.read_heat_demand(table_name=OperationTable.ResultRefHour.value,
                                           prize_scenario="basic",
                                           cooling=False).sum() / 1_000  # kWh
         heat_ida = self.read_daniel_heat_demand(price="basic", cooling=False, floor_heating=False).sum() / 1_000
         heat_ida_floor = self.read_daniel_heat_demand(price="basic", cooling=False, floor_heating=True).sum() / 1_000
-        plot_df = pd.concat([heat_5R1C, heat_ida, heat_ida_floor], axis=1)  # kWh
-        columns = ["5R1C", "IDA ICE ideal heating", "IDA ICE floor heating"]
+        heat_6R2C = self.Q_RoomHeating_reference_6R2C.sum() / 1_000
+        plot_df = pd.concat([heat_5R1C, heat_ida, heat_6R2C, heat_ida_floor], axis=1)  # kWh
+        columns = ["5R1C", "IDA ICE ideal heating", "6R2C", "IDA ICE floor heating"]
         plot_df.columns = columns
         building_df = self.db.read_dataframe(table_name=OperationScenarioComponent.Building.table_name, column_names=["ID_Building", "type", "Af"])
         building_df["index"] = building_df.loc[:, "ID_Building"].map(self.building_names)
@@ -770,9 +863,12 @@ class CompareModels:
         melted_df = plot_df_normalized.melt(id_vars="Building").rename(columns={"value": "heat demand (kWh/m$^2$)",
                                                                                 "variable": "model"})
 
-        sns.barplot(data=melted_df, x="Building", y="heat demand (kWh/m$^2$)", hue="model",
-                    palette=["blue", self.orange, "green"])
-        
+        sns.barplot(data=melted_df, 
+                    x="Building", 
+                    y="heat demand (kWh/m$^2$)", 
+                    hue="model",
+                    palette=sns.color_palette()#["blue", self.orange, "green", "red"]
+                )
         ax = plt.gca()
         ax.set_xticklabels([label.get_text().replace("_", " ") for label in ax.get_xticklabels()], rotation=45, ha='center')
         ax.get_yaxis().set_major_formatter(
@@ -789,70 +885,76 @@ class CompareModels:
         relative = (opt_df - ref_df) / ref_df * 100
         return relative
 
-    def plot_relative_cost_reduction_floor_ideal(self, prices):
+    def plot_relative_cost_reduction_floor_ideal(self):
         """ plot the relative cost reduction of ideal heating together with floor heating in comparison"""
-        plt.style.use("seaborn-paper")
         # create figure
-        fontsize = 14
-        fig2, axes2 = plt.subplots(nrows=1, ncols=3, figsize=(15, 10), sharex=True, sharey=True)
-        for i, price in enumerate(prices[1:]):  # skipping first price because its not optimised and static
-            # read and compare the total demand
-            costs_ref = self.calculate_costs(table_name=OperationTable.ResultRefHour.value,
-                                             price_id=price,
-                                             cooling=False)
-            costs_opt = self.calculate_costs(table_name=OperationTable.ResultOptHour.value,
-                                             price_id=price,
-                                             cooling=False)
-            relative_5R1C = self.calculate_relative_cost_change(opt_df=costs_opt, ref_df=costs_ref)
 
-            cost_daniel_ref = self.calculate_costs_daniel_ref(table_name=OperationTable.ResultRefHour.value,
-                                                              price_id=price,
-                                                              cooling=False,
-                                                              floor_heating=False)
-            cost_daniel_opt = self.calculate_costs_daniel_opt(table_name=OperationTable.ResultOptHour.value,
-                                                              price_id=price,
-                                                              cooling=False,
-                                                              floor_heating=False)
-            relative_ida = self.calculate_relative_cost_change(opt_df=cost_daniel_opt, ref_df=cost_daniel_ref)
+       
+        costs_ref = self.calculate_costs(table_name=OperationTable.ResultRefHour.value,
+                                            price_id="price2",
+                                            cooling=False)
+        costs_opt = self.calculate_costs(table_name=OperationTable.ResultOptHour.value,
+                                            price_id="price2",
+                                            cooling=False)
+        relative_5R1C = self.calculate_relative_cost_change(opt_df=costs_opt, ref_df=costs_ref)
 
-            cost_daniel_ref_floor = self.calculate_costs_daniel_ref(table_name=OperationTable.ResultRefHour.value,
-                                                                    price_id=price,
-                                                                    cooling=False,
-                                                                    floor_heating=True)
-            cost_daniel_opt_floor = self.calculate_costs_daniel_opt(table_name=OperationTable.ResultOptHour.value,
-                                                                    price_id=price,
-                                                                    cooling=False,
-                                                                    floor_heating=True)
-            relative_ida_floor = self.calculate_relative_cost_change(opt_df=cost_daniel_opt_floor,
-                                                                     ref_df=cost_daniel_ref_floor)
-            # plot the relative bars:
-            # create one pandas dataframe
-            plot_df = pd.concat([relative_5R1C.T, relative_ida.T, relative_ida_floor.T], axis=1).reset_index()
-            plot_df.columns = ["Building", "5R1C", "IDA ICE ideal heating", "IDA ICE floor heating"]
-            melted_df = plot_df.melt(id_vars="Building").rename(columns={"variable": "model",
-                                                                         "value": "change in cost (%)"})
-            ax = axes2.flatten()[i]
-            plot = sns.barplot(data=melted_df, x="Building", y="change in cost (%)", hue="model", ax=ax,
-                               palette=["blue", self.orange, "green"])
-            ax.set_title(f"price {i + 1}", fontsize=fontsize)
-            ax.set_xlabel("")
+        cost_daniel_ref = self.calculate_costs_daniel_ref(table_name=OperationTable.ResultRefHour.value,
+                                                            price_id="price2",
+                                                            cooling=False,
+                                                            floor_heating=False)
+        cost_daniel_opt = self.calculate_costs_daniel_opt(table_name=OperationTable.ResultOptHour.value,
+                                                            price_id="price2",
+                                                            cooling=False,
+                                                            floor_heating=False)
+        relative_ida = self.calculate_relative_cost_change(opt_df=cost_daniel_opt, ref_df=cost_daniel_ref)
 
-            # save legend
-            handles, labels = ax.get_legend_handles_labels()
-            by_label = dict(zip(labels, handles))
-            # remove legend from subplot
-            plot.legend().remove()
+        cost_daniel_ref_floor = self.calculate_costs_daniel_ref(table_name=OperationTable.ResultRefHour.value,
+                                                                price_id="price2",
+                                                                cooling=False,
+                                                                floor_heating=True)
+        cost_daniel_opt_floor = self.calculate_costs_daniel_opt(table_name=OperationTable.ResultOptHour.value,
+                                                                price_id="price2",
+                                                                cooling=False,
+                                                                floor_heating=True)
+        relative_ida_floor = self.calculate_relative_cost_change(opt_df=cost_daniel_opt_floor,
+                                                                    ref_df=cost_daniel_ref_floor)
+        
+        cost_6R2C_opt = self.calculate_optimization_costs_6R2C(price_id="price2", reference=False)
+        cost_6R2C_ref = self.calculate_optimization_costs_6R2C(price_id="price2", reference=True)
+        relative_6R2C = self.calculate_relative_cost_change(opt_df=cost_6R2C_opt, ref_df=cost_6R2C_ref)
+        
+        # plot the relative bars:
+        # create one pandas dataframe
+        plot_df = pd.concat([relative_5R1C.T, relative_ida.T,relative_6R2C.T, relative_ida_floor.T], axis=1).reset_index()
+        plot_df.columns = ["Building", "5R1C", "IDA ICE ideal heating", "6R2C", "IDA ICE floor heating"]
+        melted_df = plot_df.melt(id_vars="Building").rename(columns={"variable": "model",
+                                                                        "value": "change in cost (%)"})
 
+        fontsize = 12
+        fig = plt.figure()
+        plot = sns.barplot(data=melted_df, 
+                           x="Building", 
+                           y="change in cost (%)", 
+                           hue="model",
+                            palette=sns.color_palette()
+                        )
+        ax = fig.gca()
+        ax.set_xlabel("")
+        # save legend
+        handles, labels = ax.get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        # remove legend from subplot
+        plot.legend().remove()
         # plot legend in the top middle of the figure
-        fig2.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 0.92), loc="lower center",
-                    borderaxespad=0, ncol=4, bbox_transform=fig2.transFigure, fontsize=fontsize)
-        for i, ax in enumerate(fig2.axes):
-            ax.set_xticklabels([label.get_text().replace("_", " ") for label in ax.get_xticklabels()], rotation=45, ha='center', fontsize=fontsize)
-            ax.tick_params(axis='y', labelsize=fontsize)
-            ax.tick_params(axis='x', labelsize=fontsize)
-            ax.set_ylabel("change in cost (%)", fontsize=fontsize)
+        plt.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(0.5, 1.01), loc="lower center",
+                    borderaxespad=0, ncol=4, fontsize=8)
 
-        fig2.savefig(
+        ax.set_xticklabels([label.get_text().replace("_", " ") for label in ax.get_xticklabels()], rotation=45, ha='center', fontsize=fontsize)
+        ax.tick_params(axis='y', labelsize=fontsize)
+        ax.tick_params(axis='x', labelsize=fontsize)
+        ax.set_ylabel("change in cost (%)", fontsize=fontsize)
+
+        plt.savefig(
             self.figure_path / Path(f"cost_change_IDA_ICE.svg"))
         plt.close()
 
@@ -1124,8 +1226,7 @@ class CompareModels:
         fig_heat.show()
 
     def show_heat_demand_for_one_building_in_multiple_scenarios(self, price_id: str, building: str = "EZFH_5_B"):
-
-        plt.style.use("seaborn-paper")
+        self.load_6R2C_Q_max_resuts()
         floor_heating_df = self.read_daniel_heat_demand(price=price_id, cooling=False, floor_heating=True)
         floor_demand_ida = floor_heating_df[building].to_numpy() / 1_000  # kWh
 
@@ -1135,7 +1236,12 @@ class CompareModels:
         opt_demand_5R1C = self.read_heat_demand(table_name=OperationTable.ResultOptHour.value,
                                                 prize_scenario=price_id,
                                                 cooling=False)[building].to_numpy() / 1_000  # kWh
-        elec_price = self.read_electricity_price(price_id=price_id) * 1000  # cent/kWh
+        
+        opt_demand_6R2C = self.Q_RoomHeating_optimization_6R2C[building].to_numpy() / 1_000
+        opt_demand_6R2C_set_temp = self.Q_RoomHeating_optimization_6R2C_target_temp[building].to_numpy() / 1_000
+        opt_demand_6R2C_Q_max = self.Q_RoomHeating_optimization_6R2C_Q_max[building].to_numpy() / 1_000
+
+        elec_price = self.read_electricity_price(price_id=price_id).flatten() * 1000  # cent/kWh
         outside_temp = self.db.read_dataframe(table_name=OperationTable.RegionWeatherProfile.value,
                                        column_names=[f"temperature"]).to_numpy().flatten()
         solar_radiation = self.db.read_dataframe(table_name=OperationTable.RegionWeatherProfile.value,
@@ -1149,79 +1255,98 @@ class CompareModels:
         temp_5R1C = self.read_indoor_temp(table_name=OperationTable.ResultOptHour.value,
                                           prize_scenario=price_id,
                                           cooling=False)[building].to_numpy()
+        temp_6R2C = self.T_Room_optimization_6R2C[building].to_numpy()
+        temp_6R2C_set_temp = self.T_Room_optimization_6R2C_target_temp[building].to_numpy()
+        temp_6R2C_Q_max = self.T_Room_optimization_6R2C_Q_max[building].to_numpy()
         
         font_size = 14
-        fig, ax1= plt.subplots(nrows=1, ncols=1, 
-                                    #    sharex=True, 
-                                       figsize=(8, 5),
-                                    #    gridspec_kw={'height_ratios': [2, 1]}
-                                       )
+        # fig, ax1= plt.subplots(nrows=1, ncols=1, 
+        #                             #    sharex=True, 
+        #                                figsize=(8, 5),
+        #                             #    gridspec_kw={'height_ratios': [2, 1]}
+        #                                )
 
-        x_axis = np.arange(8760)
-        ax1.plot(x_axis, floor_demand_ida, label="IDA ICE with floor heating optimized", color="lawngreen")
-        ax1.plot(x_axis, ideal_demand_ida, label="IDA ICE with ideal heating optimized", color="green")
-        ax1.plot(x_axis, opt_demand_5R1C, label="5R1C optimized", color="firebrick")
-        # ax1.set_title(f"{building} in price scenario {int(price_id[-1])-1}")
-        ax1.set_ylabel("heat demand (kWh)", fontsize=font_size)
-        ax1.set_xlabel("hour", fontsize=font_size)
-        ax1.legend(fontsize=font_size)
-        ax1.tick_params(axis='x', labelsize=font_size)
-        ax1.tick_params(axis='y', labelsize=font_size)
-        # ax2.plot(x_axis, elec_price, label="electricity price", color="gold")
-        # ax2.set_ylabel("electricity price (cent/kWh)")
-        # ax2.set_xlabel("hours")
-        # ax2.legend()
-
-        plt.tight_layout()
-        fig.savefig(self.figure_path / f"Single_building_year_{building}.svg")
-        plt.close()
-        # week plot
+        # x_axis = np.arange(8760)
+        # ax1.plot(x_axis, floor_demand_ida, label="IDA ICE with floor heating optimized", color="lawngreen")
+        # ax1.plot(x_axis, ideal_demand_ida, label="IDA ICE with ideal heating optimized", color="green")
+        # ax1.plot(x_axis, opt_demand_5R1C, label="5R1C optimized", color="firebrick")
+        # ax1.plot(x_axis, opt_demand_6R2C, label="6R2C optimized", color="orange")
+        # ax1.set_ylabel("heat demand (kWh)", fontsize=font_size)
+        # ax1.set_xlabel("hour", fontsize=font_size)
+        # ax1.legend(fontsize=font_size)
+        # ax1.tick_params(axis='x', labelsize=font_size)
+        # ax1.tick_params(axis='y', labelsize=font_size)
+        # plt.tight_layout()
+        # fig.savefig(self.figure_path / f"Single_building_year_{building}.svg")
+        # plt.close()
+        
+        # week plot for heating
         week_number = 5
         font_size = 14
         x_axis = np.arange(24 * 7 * week_number, 24 * 7 * (week_number + 1))
         
         fig2, (ax3,ax4,) = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(15, 11))
-        ax3.plot(x_axis, floor_demand_ida[x_axis], label="IDA ICE with floor heating optimized", color="lawngreen", linestyle="--")
-        ax3.plot(x_axis, ideal_demand_ida[x_axis], label="IDA ICE with ideal heating optimized", color="green", linestyle=":", linewidth=2)
-        ax3.plot(x_axis, opt_demand_5R1C[x_axis], label="5R1C optimized", color="firebrick")
-        # ax3.set_title(f"{building} for price scenario {int(price_id[-1]) -1}")
+        ax3.plot(x_axis, ideal_demand_ida[x_axis], label="IDA ICE with ideal heating", color=sns.color_palette()[1], linestyle="-", marker="x", linewidth=1)
+        ax3.plot(x_axis, opt_demand_5R1C[x_axis], label="5R1C", color=sns.color_palette()[0], linewidth=2)
+
         ax3.set_ylabel("heat demand (kWh)", fontsize=font_size)
-        ax3.legend(fontsize=font_size)
+        ax3.legend(fontsize=font_size)        
+        ax4.plot(x_axis, temp_ideal_ida[x_axis], label="IDA ICE with ideal heating", color=sns.color_palette()[1], linestyle="-", marker="x", linewidth=1)
+        ax4.plot(x_axis, temp_5R1C[x_axis], label="5R1C = set temperature", color=sns.color_palette()[0], linewidth=2)
 
-        # ax5.plot(x_axis, elec_price[x_axis], label="electricity price", color="gold")
-        # ax5.legend(loc="upper left", fontsize=font_size)
-
-        # ax7 = ax5.twinx()
-        # ax7.plot(x_axis, outside_temp[x_axis], label="outside temperature", color="blue")
-        # ax7.legend(loc="lower right", fontsize=font_size)
-        # ax7.set_ylabel("outside temperature (°C)", fontsize=font_size)
-        
-        ax4.plot(x_axis, temp_floor_ida[x_axis], label="IDA ICE with floor heating optimized", color="lawngreen", linestyle="--")
-        ax4.plot(x_axis, temp_ideal_ida[x_axis], label="IDA ICE with ideal heating optimized", color="green", linestyle=":", linewidth=2)
-        ax4.plot(x_axis, temp_5R1C[x_axis], label="5R1C optimized", color="firebrick")
-        # ax4.set_title(f"indoor temperature {building} for price {price_id[-1]}")
         ax4.set_ylabel("indoor temperature (°C)", fontsize=font_size)
-        # ax4.legend()
-
         ax4.set_xlim(x_axis[0], x_axis[-1])
         ax4.set_xticks(np.arange(x_axis[0], x_axis[-1], 24) + 12)
-        # ax5.set_ylabel("electricity price (cent/kWh)", fontsize=font_size)
+        ax4.set_ylim(20,23)
         ticks = np.array(["Mon", "Tue", "Wed", "Thur", "Fri", "Sat", "Sun"])
         ax4.set_xticklabels(ticks)
-        # ax5.tick_params(axis='y', labelsize=font_size)
-        # ax5.tick_params(axis='x', labelsize=font_size)
-        # ax7.tick_params(axis='y', labelsize=font_size)
         ax3.tick_params(axis='y', labelsize=font_size)
         ax4.tick_params(axis='y', labelsize=font_size)
         ax4.tick_params(axis='x', labelsize=font_size)
         ax4.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: int(x)))
 
         plt.tight_layout()
-        fig2.savefig(self.figure_path / f"Single_building_week_{building}.svg")
+        fig2.savefig(self.figure_path / f"Single_building_week_{building}_radiators.svg")
+        plt.close()
+
+        # week plot for floor heating
+        week_number = 5
+        font_size = 14
+        x_axis = np.arange(24 * 7 * week_number, 24 * 7 * (week_number + 1))
+        
+        fig2, (ax3,ax4,) = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(15, 11))
+        ax3.plot(x_axis, floor_demand_ida[x_axis], label="IDA ICE with floor heating", color=sns.color_palette()[3], linestyle="-", marker="x", linewidth=1)
+        ax3.plot(x_axis, opt_demand_5R1C[x_axis], label="5R1C", color=sns.color_palette()[0], linewidth=2)
+        ax3.plot(x_axis, opt_demand_6R2C[x_axis], label="6R2C", color=sns.color_palette()[2], linestyle="--")
+        ax3.plot(x_axis, opt_demand_6R2C_set_temp[x_axis], label="6R2C with set temperature", color=sns.color_palette()[4], linestyle="--", marker="o", markersize=4, linewidth=1)
+        # ax3.plot(x_axis, opt_demand_6R2C_Q_max[x_axis], label="6R2C Q_max", color=sns.color_palette()[5], linestyle="--")
+
+
+        ax3.set_ylabel("heat demand (kWh)", fontsize=font_size)
+        ax3.legend(fontsize=font_size)    
+        ax4.plot(x_axis, temp_5R1C[x_axis], label="5R1C = set temperature", color=sns.color_palette()[0], linewidth=2)
+        ax4.plot(x_axis, temp_floor_ida[x_axis], label="IDA ICE with floor heating", color=sns.color_palette()[3], linestyle="-", marker="x", linewidth=0.5)
+        ax4.plot(x_axis, temp_6R2C[x_axis], label="6R2C with set temperature", color=sns.color_palette()[2],  linestyle="--")
+        ax4.plot(x_axis, temp_6R2C_set_temp[x_axis], label="6R2C", color=sns.color_palette()[4],  linestyle="--", marker="o", markersize=4, linewidth=1)
+
+        # ax4.plot(x_axis, temp_6R2C_Q_max[x_axis], label="6R2C Q_max", color=sns.color_palette()[5],  linestyle="--")
+
+        ax4.set_ylabel("indoor temperature (°C)", fontsize=font_size)
+        ax4.set_xlim(x_axis[0], x_axis[-1])
+        ax4.set_xticks(np.arange(x_axis[0], x_axis[-1], 24) + 12)
+        ax4.set_ylim(20,23)
+        ticks = np.array(["Mon", "Tue", "Wed", "Thur", "Fri", "Sat", "Sun"])
+        ax4.set_xticklabels(ticks)
+        ax3.tick_params(axis='y', labelsize=font_size)
+        ax4.tick_params(axis='y', labelsize=font_size)
+        ax4.tick_params(axis='x', labelsize=font_size)
+        ax4.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: round(x,1)))
+
+        plt.tight_layout()
+        fig2.savefig(self.figure_path / f"Single_building_week_{building}_floor_heating.svg")
         plt.close()
 
     def shifted_electrity_demand(self):
-        prices = ["price2", "price3", "price4"]
         cop = self.read_COP(table_name=OperationTable.ResultRefHour.value)
 
         ref_5R1C = self.read_heat_demand(table_name=OperationTable.ResultRefHour.value, prize_scenario="basic", cooling=False) / cop
@@ -1231,34 +1356,36 @@ class CompareModels:
         total_5R1C = ref_5R1C.sum(axis=0)
         total_IDA_floor = ref_IDA_floor.sum(axis=0)
         total_IDA_ideal = ref_IDA_ideal.sum(axis=0)
+        total_6R2C = self.Q_RoomHeating_reference_6R2C.sum(axis=0)
 
-        dfs = []
-        for price in prices:
-            opt_5R1C = self.read_heat_demand(table_name=OperationTable.ResultOptHour.value, prize_scenario=price, cooling=False) / cop
-            opt_IDA_floor = self.read_daniel_heat_demand(price=price, cooling=False, floor_heating=True) / cop
-            opt_IDA_ideal = self.read_daniel_heat_demand(price=price, cooling=False, floor_heating=False) / cop
+        opt_5R1C = self.read_heat_demand(table_name=OperationTable.ResultOptHour.value, prize_scenario="price2", cooling=False) / cop
+        opt_IDA_floor = self.read_daniel_heat_demand(price="price2", cooling=False, floor_heating=True) / cop
+        opt_IDA_ideal = self.read_daniel_heat_demand(price="price2", cooling=False, floor_heating=False) / cop
 
-            RC_shifted = ref_5R1C - opt_5R1C
-            IDA_shifted_floor = ref_IDA_floor - opt_IDA_floor
-            IDA_shifted_ideal = ref_IDA_ideal - opt_IDA_ideal
+        RC_shifted = ref_5R1C - opt_5R1C
+        IDA_shifted_floor = ref_IDA_floor - opt_IDA_floor
+        IDA_shifted_ideal = ref_IDA_ideal - opt_IDA_ideal
+        R62C_shifted = self.Q_RoomHeating_reference_6R2C - self.Q_RoomHeating_optimization_6R2C
 
-            RC_shifted[RC_shifted<0] = 0
-            IDA_shifted_floor[IDA_shifted_floor<0] = 0
-            IDA_shifted_ideal[IDA_shifted_ideal<0] = 0
+        RC_shifted[RC_shifted<0] = 0
+        IDA_shifted_floor[IDA_shifted_floor<0] = 0
+        IDA_shifted_ideal[IDA_shifted_ideal<0] = 0
+        R62C_shifted[R62C_shifted<0] = 0
 
-            RC_shifted_sum = RC_shifted.sum()
-            IDA_shifted_floor_sum = IDA_shifted_floor.sum()
-            IDA_shifted_ideal_sum = IDA_shifted_ideal.sum()
+        RC_shifted_sum = RC_shifted.sum()
+        IDA_shifted_floor_sum = IDA_shifted_floor.sum()
+        IDA_shifted_ideal_sum = IDA_shifted_ideal.sum()
+        R6C2_shifted_sum = R62C_shifted.sum()
 
-            RC_shifted_perc = RC_shifted_sum / total_5R1C
-            IDA_shifted_perc_floor = IDA_shifted_floor_sum / total_IDA_floor
-            IDA_shifted_perc_ideal = IDA_shifted_ideal_sum / total_IDA_ideal
+        RC_shifted_perc = RC_shifted_sum / total_5R1C
+        IDA_shifted_perc_floor = IDA_shifted_floor_sum / total_IDA_floor
+        IDA_shifted_perc_ideal = IDA_shifted_ideal_sum / total_IDA_ideal
+        R62C_shifted_perc = R6C2_shifted_sum / total_6R2C
 
-            df = pd.concat([RC_shifted_perc, IDA_shifted_perc_ideal, IDA_shifted_perc_floor], axis=1).rename(columns={0: "5R1C", 2: "IDA ICE floor heating", 1: "IDA ICE ideal heating"})
-            df["price scenario"] = price[-1]
-            dfs.append(df)
+        df = pd.concat([RC_shifted_perc, IDA_shifted_perc_ideal, R62C_shifted_perc, IDA_shifted_perc_floor], axis=1).rename(columns={0: "5R1C", 3: "IDA ICE floor heating", 2: "6R2C", 1: "IDA ICE ideal heating"}).reset_index()
 
-        final_df = pd.concat(dfs).reset_index().melt(id_vars=["price scenario", "index"], var_name="model", value_name="shifted electricity")
+
+        final_df = df.melt(id_vars=["index"], var_name="model", value_name="shifted electricity")
 
         font_size = 14
         fig = plt.figure(figsize=(12,8))
@@ -1323,18 +1450,24 @@ class CompareModels:
         plt.tight_layout()
         plt.savefig(self.figure_path / "daily_peaks_over_all_price_scenarios.png")
         plt.show()
-
+    
     def main(self):
+        # laod 6R2C results
+        self.load_6R2C_results(reference=True)
+        self.load_6R2C_results(reference=False)
         price_scenarios = ["basic", "price2",] #"price3", "price4"]  # only look at price 2 and basic which is without optim
+        self.show_elec_prices()
+        self.show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price2",)# building="EZFH_9_B")
 
         # self.indoor_temp_to_csv(cooling=False)
         # self.indoor_temp_to_csv(cooling=True)# was only relevant for Daniel
 
-        self.compare_daily_heat_demand_peaks()
+        # self.compare_daily_heat_demand_peaks()
         self.shifted_electrity_demand()
+        self.show_rmse(prizes=price_scenarios)
         # self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
         # self.plot_yearly_heat_demand_floor_ideal_not_optimized()
-        # self.plot_relative_cost_reduction_floor_ideal(prices=price_scenarios)
+        # self.plot_relative_cost_reduction_floor_ideal()
 
         # run through results: run takes scenarios, floor_heating, cooling as input
         # run it with floor heating and without cooling (not included in floor heating)
@@ -1348,9 +1481,7 @@ class CompareModels:
 
 
 if __name__ == "__main__":
-    # CompareModels("5R1C_validation").show_elec_prices()
-    # CompareModels("5R1C_validation").show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price4",
-    #                                                                                          building="EZFH_9_B")
+
     CompareModels("5R1C_validation").main()
 
     # TODO Cooling demand plot passt nicht

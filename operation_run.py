@@ -12,7 +12,7 @@ from operation_init import ProjectOperationInit
 from models.operation.enums import OperationScenarioComponent
 from scipy.optimize import least_squares, minimize
 from basics.db import DB
-from projects.Philipp_5R1C.compare_results import CompareModels
+# from projects.Philipp_5R1C.compare_results import CompareModels
 import matplotlib.pyplot as plt
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -435,6 +435,6 @@ def run_ref_with_set_temp_from_opt_and_change_Cm_factor(scenario_ids):
 if __name__ == "__main__":
 
     SCENARIO_IDS = np.arange(1, 10)
-    # run_scenarios(SCENARIO_IDS)
-    run_ref_with_set_temp_from_opt_and_change_Cm_factor(SCENARIO_IDS)
+    run_scenarios(SCENARIO_IDS)
+#     run_ref_with_set_temp_from_opt_and_change_Cm_factor(SCENARIO_IDS)
 
