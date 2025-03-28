@@ -425,9 +425,12 @@ if __name__ == "__main__":
         # In literature (https://doi.org/10.1016/j.enbuild.2013.07.065) H_f is between 8 and 11 (measured)
         H_f_list = [x*scenario.building.Af for x in np.arange(3, 12.5, 0.5)] #15
 
-        heating_solved, df_heating_dict = run_for_different_Cf_and_Hf(Cf_list=Cf_list, H_f_list=H_f_list, 
-                                                                                        scenario=scenario, target_indoor_temp=target_indoor_temp, scenario_id=scenario_id, max_workers=20
-                                                                           )
+        heating_solved, df_heating_dict = run_for_different_Cf_and_Hf(
+            Cf_list=Cf_list, 
+            H_f_list=H_f_list, 
+            scenario=scenario, target_indoor_temp=target_indoor_temp, scenario_id=scenario_id, 
+            max_workers=20
+        )
         
         mses = {}
         for name, df in df_heating_dict.items():
@@ -435,13 +438,12 @@ if __name__ == "__main__":
             mses[name] = mse_heating
 
         best_heating_key, min_mse_heating = min(mses.items(), key=lambda x: x[1])
-        results_target_heating = df_heating_dict[best_heating_key]  
-        best_Cm = calc_new_Cm(scenario=scenario, Cf=best_Cf)
-
-        LOGGER.info(f"Best combination identified for sceanrio: {scenario_id} = {best_heating_key}")
-        # use the results from runs with target room temperature instead
+        results_target_heating = df_heating_dict[best_heating_key] 
         best_key = best_heating_key
-        best_Cf, best_Hf = heating_solved[best_key]
+        best_Cf, best_Hf = heating_solved[best_key] 
+        best_Cm = calc_new_Cm(scenario=scenario, Cf=best_Cf)
+        LOGGER.info(f"Best combination identified for sceanrio: {scenario_id} = {best_heating_key}")
+
         new_6R2C_simulation, solve_status = optimize_6R2C(
             model=OptOperationModel(scenario),
             Htr_f=best_Hf,
@@ -467,9 +469,13 @@ if __name__ == "__main__":
         results_6R2C_final = extract_results_from_model(new_6R2C_model)
 
         # calcaulte the 6R2C model when also following the 5R1C indoor temp:
-
-        model_6R2C_temp, solved = calculate_6R2C_with_specific_params(model=OptOperationModel(scenario), Htr_f=best_Hf, Cf=best_Cf, new_Cm=best_Cm,
-                                                            target_indoor_temp=target_indoor_temp)
+        model_6R2C_temp, solved = calculate_6R2C_with_specific_params(
+            model=OptOperationModel(scenario), 
+            Htr_f=best_Hf, 
+            Cf=best_Cf, 
+            new_Cm=best_Cm,
+            target_indoor_temp=target_indoor_temp
+        )
         result_6R2C_set_temp = extract_results_from_model(model_6R2C_temp)
 
         Q_max = target_heating.max()
@@ -495,17 +501,14 @@ if __name__ == "__main__":
 
         LOGGER.info(f"finished scenario {scenario_id}")
         
-        compare_IDA_ICE_6R2C_5R1C(
-            model_6R2C=model_6R2C_temp,
-            model_5R1C=optimized_5R1C_model,
-            scenario_id=scenario_id
-        )
+        # compare_IDA_ICE_6R2C_5R1C(
+        #     model_6R2C=model_6R2C_temp,
+        #     model_5R1C=optimized_5R1C_model,
+        #     scenario_id=scenario_id
+        # )
     
         # Save the Cf_Hf_dict for future use
-        output_dir = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C/")
-        output_dir.mkdir(parents=True, exist_ok=True)
-        cf_hf_dict_path = output_dir / "Cf_Hf_dict.pkl"
-        
+        cf_hf_dict_path = result_path / "Cf_Hf_dict.pkl"
         # Save using pickle
         if cf_hf_dict_path.exists():
             try:

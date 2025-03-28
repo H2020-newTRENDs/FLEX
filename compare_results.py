@@ -1359,8 +1359,8 @@ class CompareModels:
         R62C_shifted_perc = R6C2_shifted_sum / total_6R2C
         R62C_shifted_forced_perc = R62C_shifted_forced_sum / total_6R2C_forced
 
-        df = pd.concat([RC_shifted_perc, IDA_shifted_perc_ideal, R62C_shifted_perc, IDA_shifted_perc_floor], axis=1).rename(
-            columns={0: "5R1C", 3: "IDA ICE floor heating", 2: "6R2C", 1: "IDA ICE ideal heating", }
+        df = pd.concat([RC_shifted_perc, IDA_shifted_perc_ideal, R62C_shifted_perc, IDA_shifted_perc_floor, R62C_shifted_forced_perc], axis=1).rename(
+            columns={0: "5R1C", 3: "IDA ICE floor heating", 2: "6R2C", 1: "IDA ICE ideal heating", 4: "6R2C set temp"}
             ).reset_index()
 
 
@@ -1455,10 +1455,10 @@ class CompareModels:
         self.show_chosen_Cf_and_Hf_for_6R2C_model()
         price_scenarios = ["basic", "price2",] #"price3", "price4"]  # only look at price 2 and basic which is without optim
         # self.show_elec_prices()
-        self.show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price2", building="MFH_1_B")
-        # self.shifted_electrity_demand()
-        # self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
-        # self.plot_relative_cost_reduction_floor_ideal()
+        self.show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price2", building="EZFH_9_B")
+        self.shifted_electrity_demand()
+        self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
+        self.plot_relative_cost_reduction_floor_ideal()
         self.show_plotly_comparison(prices=price_scenarios, cooling=False, floor_heating=True)
         
 
