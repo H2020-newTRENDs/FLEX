@@ -469,11 +469,7 @@ class OptOperationModel(OperationModel):
         instance = OptConfig(self).config_instance(instance)
         instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 
-        solver = pyo.SolverFactory("gurobi")
-        solver.options["FeasibilityTol"] = 1e-9  # Tighten feasibility tolerance
-        solver.options["OptimalityTol"] = 1e-9  # Improve optimality precision
-        solver.options["NumericFocus"] = 2  # Increase numerical stability
-        solver.options["BarConvTol"] = 1e-10  # Improve convergence tolerance    
+        solver = pyo.SolverFactory("gurobi")  
         results = solver.solve(instance, tee=False)
         if results.solver.termination_condition == TerminationCondition.optimal:
             instance.solutions.load_from(results)
