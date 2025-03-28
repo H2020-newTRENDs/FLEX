@@ -684,9 +684,9 @@ def create_behavior_component_table(country: str):
 
 def create_input_excels(year: int,
                         country: str,
+                        project_name: str
                     ):
     
-    project_name = f"{country}_{year}_grid_fees"
     config = get_config(project_name=project_name)
     if not any (config.input.iterdir()):
         src = get_config(project_name=f"{country}_{year}").input
@@ -827,7 +827,7 @@ def price_to_scenario_table(scen_df: pd.DataFrame):
     scen_copies = []
     scen_df["ID_EnergyPrice"] = 1
     scen_copies.append(scen_df)
-    for price in [1, 2, 3, 4, 5]:
+    for price in [2, 3, 4, 5]:
         scen_copy = scen_df.copy()
         scen_copy["ID_EnergyPrice"] = price
         scen_copies.append(scen_copy)
@@ -837,9 +837,10 @@ def price_to_scenario_table(scen_df: pd.DataFrame):
 
 def create_scenario_tables(country: str,
                            year: int,
+                           project_name: str
                            ) -> None:
     # create config class with different project names, for country and year:
-    cfg = get_config(project_name=f"{country}_{year}_grid_fees")
+    cfg = get_config(project_name=project_name)
     clear_result_files(cfg)
     db = create_db_conn(config=cfg)
     
@@ -919,8 +920,9 @@ def main(country_list: list, years: list):
     # use multiprocessing to speed it up creating all the input data:
     input_list = [(year, country) for country in country_list for year in years ]
     for (year, country) in input_list:
-        create_input_excels(year=year, country=country)
-        create_scenario_tables(year=year, country=country)
+        project_name = f"{country}_{year}_grid_fees"
+        create_input_excels(year=year, country=country, project_name=project_name)
+        create_scenario_tables(year=year, country=country, project_name=project_name)
     # number_of_physical_cores = 2# int(multiprocessing.cpu_count() / 2)
     # Parallel(n_jobs=number_of_physical_cores)(delayed(create_input_excels)(*inst) for inst in input_list)
 
@@ -981,33 +983,33 @@ if __name__ == "__main__":
     APPLICANCE_DEMAND_PER_PERSON = appliance_electricity_demand_per_person_EU()
     DHW_DEMAND_PER_PERSON = specific_DHW_per_person_EU()
     country_list = [
-        # 'BEL',
-        # 'AUT',
-        # 'HRV',
+        'BEL',
+        'AUT',
+        'HRV',
         # "CYP",
-        # 'CZE',
-        # 'DNK',
-        # 'FRA',
-        # 'DEU',
-        # 'LUX',
-        # 'HUN',
+        'CZE',
+        'DNK',
+        'FRA',
+        'DEU',
+        'LUX',
+        'HUN',
         'IRL',
-        # 'ITA',
-        # 'NLD',
-        # 'POL',
-        # 'PRT',
-        # 'SVK',
-        # 'SVN',
-        # 'ESP',
-        # 'SWE',
-        # 'GRC',
-        # 'LVA',
-        # 'LTU',
-        # # 'MLT',
-        # 'ROU',
-        # 'BGR',
-        # 'FIN',
-        # 'EST',
+        'ITA',
+        'NLD',
+        'POL',
+        'PRT',
+        'SVK',
+        'SVN',
+        'ESP',
+        'SWE',
+        'GRC',
+        'LVA',
+        'LTU',
+        # 'MLT',
+        'ROU',
+        'BGR',
+        'FIN',
+        'EST',
     ]
     # country_list = [ 'ROU',]#'MLT','LTU', 'GRC']
     years = [2030, 2050]  # only have secures prices for 2030 and 2050

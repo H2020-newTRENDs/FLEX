@@ -9,6 +9,8 @@ import pandas as pd
 from utils.db import DB
 import seaborn as sns
 import matplotlib.pyplot as plt
+
+
 def delete_result_files(conf):
     # Iterate through each item in the directory
     for item in Path(conf.output).iterdir():
@@ -117,33 +119,33 @@ def summarize_indoor_set_temps(country_list):
 
 if __name__ == "__main__":
     country_list = [
-            # "AUT",  
-            # "BEL", 
-            # "POL",
-            # # "CYP", 
-            # "PRT",
-            # "DNK", 
-            # "FRA", 
-            # "CZE",  
-            # "DEU", 
-            # "HRV",
-            # "HUN", 
-            # "ITA",  
-            # "LUX",
-            # "NLD",
-            # "SVK",
-            # "SVN",
-            # 'IRL', 
-            # 'ESP',  
-            # 'SWE',
-            # 'GRC',
-            # 'LVA',  
-            # 'LTU',
-            # # 'MLT',
-            # 'ROU',
-            # 'BGR',  
-            # 'FIN',
-            # 'EST',
+            "AUT",  
+            "BEL", 
+            "POL",
+            # "CYP", 
+            "PRT",
+            "DNK", 
+            "FRA", 
+            "CZE",  
+            "DEU", 
+            "HRV",
+            "HUN", 
+            "ITA",  
+            "LUX",
+            "NLD",
+            "SVK",
+            "SVN",
+            'IRL', 
+            'ESP',  
+            'SWE',
+            'GRC',
+            'LVA',  
+            'LTU',
+            # 'MLT',
+            'ROU',
+            'BGR',  
+            'FIN',
+            'EST',
         ]
 
     years = [2030, 2050]#2030, 2040]
