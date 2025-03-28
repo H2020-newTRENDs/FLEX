@@ -556,7 +556,7 @@ def optimize_6R2C(
     m.Htr_f = pyo.Param(initialize=Htr_f)
 
     m.T_floor = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 45))
-    m.FloorTemperatureStartValue = pyo.Param(initialize=25)  # 25°C
+    m.FloorTemperatureStartValue = pyo.Param(initialize=28)  # 25°C
     
     if not simulation:
         def max_HP_power(m, t):

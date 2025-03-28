@@ -1259,27 +1259,7 @@ class CompareModels:
         temp_6R2C_set_temp = self.T_Room_optimization_6R2C_target_temp[building].to_numpy()
         temp_6R2C_Q_max = self.T_Room_optimization_6R2C_Q_max[building].to_numpy()
         
-        font_size = 14
-        # fig, ax1= plt.subplots(nrows=1, ncols=1, 
-        #                             #    sharex=True, 
-        #                                figsize=(8, 5),
-        #                             #    gridspec_kw={'height_ratios': [2, 1]}
-        #                                )
-
-        # x_axis = np.arange(8760)
-        # ax1.plot(x_axis, floor_demand_ida, label="IDA ICE with floor heating optimized", color="lawngreen")
-        # ax1.plot(x_axis, ideal_demand_ida, label="IDA ICE with ideal heating optimized", color="green")
-        # ax1.plot(x_axis, opt_demand_5R1C, label="5R1C optimized", color="firebrick")
-        # ax1.plot(x_axis, opt_demand_6R2C, label="6R2C optimized", color="orange")
-        # ax1.set_ylabel("heat demand (kWh)", fontsize=font_size)
-        # ax1.set_xlabel("hour", fontsize=font_size)
-        # ax1.legend(fontsize=font_size)
-        # ax1.tick_params(axis='x', labelsize=font_size)
-        # ax1.tick_params(axis='y', labelsize=font_size)
-        # plt.tight_layout()
-        # fig.savefig(self.figure_path / f"Single_building_year_{building}.svg")
-        # plt.close()
-        
+        font_size = 14        
         # week plot for heating
         week_number = 5
         font_size = 14
@@ -1303,7 +1283,7 @@ class CompareModels:
         ax3.tick_params(axis='y', labelsize=font_size)
         ax4.tick_params(axis='y', labelsize=font_size)
         ax4.tick_params(axis='x', labelsize=font_size)
-        ax4.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: int(x)))
+        ax4.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: round(x,1)))
 
         plt.tight_layout()
         fig2.savefig(self.figure_path / f"Single_building_week_{building}_radiators.svg")
@@ -1357,6 +1337,7 @@ class CompareModels:
         total_IDA_floor = ref_IDA_floor.sum(axis=0)
         total_IDA_ideal = ref_IDA_ideal.sum(axis=0)
         total_6R2C = self.Q_RoomHeating_reference_6R2C.sum(axis=0)
+        total_6R2C_forced = self.Q_RoomHeating_optimization_6R2C_target_temp.sum(axis=0)
 
         opt_5R1C = self.read_heat_demand(table_name=OperationTable.ResultOptHour.value, prize_scenario="price2", cooling=False) / cop
         opt_IDA_floor = self.read_daniel_heat_demand(price="price2", cooling=False, floor_heating=True) / cop
@@ -1366,23 +1347,29 @@ class CompareModels:
         IDA_shifted_floor = ref_IDA_floor - opt_IDA_floor
         IDA_shifted_ideal = ref_IDA_ideal - opt_IDA_ideal
         R62C_shifted = self.Q_RoomHeating_reference_6R2C - self.Q_RoomHeating_optimization_6R2C
+        R62C_shifted_forced = self.Q_RoomHeating_optimization_6R2C_target_temp - self.Q_RoomHeating_reference_6R2C
 
         RC_shifted[RC_shifted<0] = 0
         IDA_shifted_floor[IDA_shifted_floor<0] = 0
         IDA_shifted_ideal[IDA_shifted_ideal<0] = 0
         R62C_shifted[R62C_shifted<0] = 0
+        R62C_shifted_forced[R62C_shifted_forced<0] = 0
 
         RC_shifted_sum = RC_shifted.sum()
         IDA_shifted_floor_sum = IDA_shifted_floor.sum()
         IDA_shifted_ideal_sum = IDA_shifted_ideal.sum()
         R6C2_shifted_sum = R62C_shifted.sum()
+        R62C_shifted_forced_sum = R62C_shifted_forced.sum()
 
         RC_shifted_perc = RC_shifted_sum / total_5R1C
         IDA_shifted_perc_floor = IDA_shifted_floor_sum / total_IDA_floor
         IDA_shifted_perc_ideal = IDA_shifted_ideal_sum / total_IDA_ideal
         R62C_shifted_perc = R6C2_shifted_sum / total_6R2C
+        R62C_shifted_forced_perc = R62C_shifted_forced_sum / total_6R2C_forced
 
-        df = pd.concat([RC_shifted_perc, IDA_shifted_perc_ideal, R62C_shifted_perc, IDA_shifted_perc_floor], axis=1).rename(columns={0: "5R1C", 3: "IDA ICE floor heating", 2: "6R2C", 1: "IDA ICE ideal heating"}).reset_index()
+        df = pd.concat([RC_shifted_perc, IDA_shifted_perc_ideal, R62C_shifted_perc, IDA_shifted_perc_floor], axis=1).rename(
+            columns={0: "5R1C", 3: "IDA ICE floor heating", 2: "6R2C", 1: "IDA ICE ideal heating", }
+            ).reset_index()
 
 
         final_df = df.melt(id_vars=["index"], var_name="model", value_name="shifted electricity")
@@ -1450,24 +1437,46 @@ class CompareModels:
         plt.tight_layout()
         plt.savefig(self.figure_path / "daily_peaks_over_all_price_scenarios.png")
         plt.show()
-    
+
+    def show_chosen_Cf_and_Hf_for_6R2C_model(self):
+        with open(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C/")/"Cf_Hf_dict.pkl", 'rb') as f:
+            Cf_Hf_dict = pickle.load(f)
+        new_dict = {self.building_names[i]: value for i,value in Cf_Hf_dict.items()}
+        df = pd.DataFrame.from_dict(
+            new_dict,
+            orient='index',
+            columns=['Cf', 'Hf']
+        )
+        df["Cf"] = df["Cf"] / 4200
+        building_df = self.db.read_dataframe(table_name=OperationScenarioComponent.Building.table_name, column_names=["ID_Building", "type", "Af"])
+        building_df["index"] = building_df.loc[:, "ID_Building"].map(self.building_names)
+        merged = pd.merge(right=df.reset_index(), left=building_df.loc[:,["index", "Af"]], on="index")
+        merged["Cf_liter"] = merged["Cf"] / 4200 / merged["Af"]
+        merged["Hf W/m2"] = merged["Hf"] / merged["Af"]
+
+
     def main(self):
         # laod 6R2C results
         self.load_6R2C_results(reference=True)
         self.load_6R2C_results(reference=False)
+
         price_scenarios = ["basic", "price2",] #"price3", "price4"]  # only look at price 2 and basic which is without optim
-        self.show_elec_prices()
-        self.show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price2",)# building="EZFH_9_B")
+        # self.show_elec_prices()
+        # self.show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price2", building="EZFH_9_B")
+        # self.shifted_electrity_demand()
+        self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
+        # self.plot_relative_cost_reduction_floor_ideal()
+        # self.show_plotly_comparison(prices=price_scenarios, cooling=False, floor_heating=True)
+        
+
+
 
         # self.indoor_temp_to_csv(cooling=False)
         # self.indoor_temp_to_csv(cooling=True)# was only relevant for Daniel
 
         # self.compare_daily_heat_demand_peaks()
-        self.shifted_electrity_demand()
-        self.show_rmse(prizes=price_scenarios)
-        # self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
+        # self.show_rmse(prizes=price_scenarios)
         # self.plot_yearly_heat_demand_floor_ideal_not_optimized()
-        # self.plot_relative_cost_reduction_floor_ideal()
 
         # run through results: run takes scenarios, floor_heating, cooling as input
         # run it with floor heating and without cooling (not included in floor heating)
@@ -1476,7 +1485,6 @@ class CompareModels:
         # self.run(price_scenarios, floor_heating=False, cooling=False)
         # self.run(price_scenarios, floor_heating=False, cooling=True)
 
-        self.show_plotly_comparison(prices=price_scenarios, cooling=False, floor_heating=True)
 
 
 
