@@ -142,6 +142,9 @@ def compare_IDA_ICE_6R2C_5R1C(model_6R2C: OptOperationModel, model_5R1C: OptOper
 
     T_room_5R1C = np.array(list(model_5R1C.T_Room.extract_values().values()))
     T_room_6R2C = np.array(list(model_6R2C.T_Room.extract_values().values()))
+    T_upper_6R2C = np.array(list(model_6R2C.upper_room_temperature.extract_values().values()))
+    T_lower_6R2C = np.array(list(model_6R2C.lower_room_temperature.extract_values().values()))
+
     
     Q_RoomHeating_5R1C = np.array(list(model_5R1C.Q_RoomHeating.extract_values().values()))
     Q_RoomHeating_6R2C = np.array(list(model_6R2C.Q_RoomHeating.extract_values().values()))
@@ -157,10 +160,14 @@ def compare_IDA_ICE_6R2C_5R1C(model_6R2C: OptOperationModel, model_5R1C: OptOper
     fig.add_trace(go.Scatter(x=x_axis, y=IDA_ICE_T_room, mode='lines', name="IDA ICE"), row=1, col=1)
     fig.add_trace(go.Scatter(x=x_axis, y=T_room_5R1C, mode='lines', name="5R1C"), row=1, col=1)
     fig.add_trace(go.Scatter(x=x_axis, y=T_room_6R2C, mode='lines', name="6R2C"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_axis, y=T_upper_6R2C, mode='lines', name="6R2C upper"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_axis, y=T_lower_6R2C, mode='lines', name="6R2C lower"), row=1, col=1)
+
 
     fig.add_trace(go.Scatter(x=x_axis, y=IDA_ICE_heating, mode='lines', name="IDA ICE"), row=2, col=1)
     fig.add_trace(go.Scatter(x=x_axis, y=Q_RoomHeating_5R1C, mode='lines', name="5R1C"), row=2, col=1)
     fig.add_trace(go.Scatter(x=x_axis, y=Q_RoomHeating_6R2C, mode='lines', name="6R2C"), row=2, col=1)
+    
 
     fig.add_trace(go.Scatter(x=x_axis, y=T_BuildingMass_6R2C, mode='lines', name="6R2C mass"), row=3, col=1)
     fig.add_trace(go.Scatter(x=x_axis, y=T_BuildingMass_5R1C, mode='lines', name="5R1C mass"), row=3, col=1)
@@ -235,9 +242,10 @@ def calc_mean_squared_error_temperature(T_room_array: np.array, scenario_id):
     return mse
 
 
-def calc_mean_squared_error_heating(heating_array: np.array, scenario_id):
+def calc_mean_squared_error_heating(heating_array: np.array, scenario_id, ref_heating):
     IDA_ICE_heating = load_IDA_ICE_heating(scenario_id=scenario_id)
     squared_errors = (IDA_ICE_heating - heating_array) ** 2
+    squared_errors[ref_heating==0] = 0
     mse = np.mean(squared_errors)
     return mse
 
@@ -271,87 +279,109 @@ def calculate_Heating_flow_6R2C(model):
     Q_RoomHeating = (results["T_floor"] - results["T_Room"]) * extract_static_value_from_model(model, static_values_to_extract="Htr_f")
     return Q_RoomHeating
 
-# def process_single_combination(args):
-#     Cf, H_f, scenario, target_indoor_temp, scenario_id = args
-#     cp_water = 4200 / 3600
-#     cf_per_square_meter = round(Cf / (scenario.building.Af * cp_water * 3600), 1)
-#     hf_per_square_meter = round(H_f / scenario.building.Af, 1)
+def calc_new_Cm(scenario: OperationScenario, Cf):
+    return (scenario.building.CM_factor - Cf / scenario.building.Af) * scenario.building.Af
 
-#     model_6R2C_temp, solved = calculate_6R2C_with_specific_params(
-#         model=OptOperationModel(scenario),
-#         Htr_f=H_f,
-#         Cf=Cf,
-#         target_indoor_temp=target_indoor_temp
-#     )
+def process_single_combination(args):
+    Cf, H_f, scenario, target_indoor_temp = args
+    cp_water = 4200 / 3600
+    cf_per_square_meter = round(Cf / (scenario.building.Af * cp_water * 3600), 1)
+    hf_per_square_meter = round(H_f / scenario.building.Af, 1)
+    # reduce the Cm Factor by the Cf factor to avoid double counting
+    new_Cm = calc_new_Cm(scenario=scenario, Cf=Cf)
+    if new_Cm < 0:
+        LOGGER.warning(f"Cf:{cf_per_square_meter}, is higher than initial thermal mass in scenario {scenario_id}")
+        return (key, None, None)
+    model_6R2C_temp, solved = calculate_6R2C_with_specific_params(
+        model=OptOperationModel(scenario),
+        Htr_f=H_f,
+        Cf=Cf,
+        new_Cm=new_Cm,
+        target_indoor_temp=target_indoor_temp
+    )
 
-#     key = f"Cf:{cf_per_square_meter}, Hf: {hf_per_square_meter}"
+    key = f"Cf:{cf_per_square_meter}, Hf: {hf_per_square_meter}"
 
-#     if solved:
-#         df = extract_results_from_model(model_6R2C_temp)
-#         df["Heat_flow_to_room"] = calculate_Heating_flow_6R2C(model_6R2C_temp)
-#         mse_heating = calc_mean_squared_error_heating(
-#             df["Q_RoomHeating"].to_numpy(), scenario_id=scenario_id
-#         )
+    if solved:
+        df = extract_results_from_model(model_6R2C_temp)
 
-#         return (key, mse_heating, (Cf, H_f), df)
-#     else:
-#         return (key, None, None, None)
 
-# def run_for_different_Cf_and_Hf(Cf_list, H_f_list, scenario, target_indoor_temp, scenario_id, max_workers=2):
-#     args_list = [
-#         (Cf, H_f, scenario, target_indoor_temp, scenario_id)
-#         for Cf in Cf_list
-#         for H_f in H_f_list
-#     ]
+        return (key, (Cf, H_f), df)
+    else:
+        return (key, None, None)
 
+def run_for_different_Cf_and_Hf(Cf_list, H_f_list, scenario: OperationScenario, target_indoor_temp, scenario_id, max_workers=2):
+    del scenario.db
+    import pickle
+    def find_unpickleable_attributes(obj):
+        unpickable = []
+        for attr_name in dir(obj):
+            if attr_name.startswith('__'):
+                continue
+            attr = getattr(obj, attr_name)
+            try:
+                pickle.dumps(attr)
+            except Exception as e:
+                # print(f"Attribute '{attr_name}' is not pickleable: {e}")
+                unpickable.append(attr_name)
+        return unpickable
+
+    # Use this function:
+    unpickable = find_unpickleable_attributes(scenario)
+    for attr_name in unpickable:
+        if attr_name in scenario.__dict__:
+            delattr(scenario, attr_name)
+    
+    args_list = [
+        (Cf, H_f, scenario, target_indoor_temp)
+        for Cf in Cf_list
+        for H_f in H_f_list
+    ]
+    heating_solved = {}
+    df_heating_dict = {}
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        results = list(tqdm.tqdm(executor.map(process_single_combination, args_list), total=len(args_list)))
+
+    for key, params, df in results:
+        if df is not None:
+            heating_solved[key] = params
+            df_heating_dict[key] = df
+        else:
+            LOGGER.warning(f"{key} combination infeasible! scenario: {scenario_id}")
+
+    return heating_solved, df_heating_dict
+
+# def run_for_different_Cf_and_Hf(Cf_list, H_f_list):
+#     cp_water =  4200 / 3600
 #     mse_heating_dict = {}
 #     heating_solved = {}
 #     df_heating_dict = {}
+#     model_base = OptOperationModel(scenario)
+#     for Cf in tqdm.tqdm(Cf_list):
+#         for h, H_f in enumerate(H_f_list):
+#             LOGGER.info(f"running Cf: {round(Cf / (scenario.building.Af*cp_water*3600),1)} - Hf: {round(H_f / (scenario.building.Af),1)} combination, scenario: {scenario_id}")
+#             # first we give a target indoor temp and solve by havin heating as a variable:
+#             model_6R2C_temp, solved = calculate_6R2C_with_specific_params(model=model_base, Htr_f=H_f, Cf=Cf, 
+#                                                                           target_indoor_temp=target_indoor_temp)
+#             if solved:
+#                 cf_per_square_meter = round(Cf / (scenario.building.Af*cp_water*3600),1)
+#                 hf_per_square_meter = round(H_f / (scenario.building.Af),1)
+#                 heating_solved[f"Cf:{cf_per_square_meter}, Hf: {hf_per_square_meter}"] = (Cf, H_f)
+#                 df = extract_results_from_model(model_6R2C_temp)
+#                 df["Heat_flow_to_room"] = calculate_Heating_flow_6R2C(model_6R2C_temp)
+#                 df_heating_dict[f"Cf:{cf_per_square_meter}, Hf: {hf_per_square_meter}"] = df
 
-#     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-#         results = list(tqdm.tqdm(executor.map(process_single_combination, args_list), total=len(args_list)))
 
-#     for key, mse_heating, params, df in results:
-#         if mse_heating is not None:
-#             mse_heating_dict[key] = mse_heating
-#             heating_solved[key] = params
-#             df_heating_dict[key] = df
-#         else:
-#             LOGGER.warning(f"{key} combination infeasible! scenario: {scenario_id}")
+#                 mse_heating = calc_mean_squared_error_heating(df["Q_RoomHeating"].to_numpy(), scenario_id=scenario_id)
+#                 mse_heat_flow_to_room = calc_mean_squared_error_heating(df["Heat_flow_to_room"].to_numpy(), scenario_id=scenario_id)
+#                 mse_heating_dict[f"Cf:{cf_per_square_meter}, Hf: {hf_per_square_meter}"] = mse_heating
+#                 LOGGER.info(f"Cf: {cf_per_square_meter} - Hf: {hf_per_square_meter} combination succesful")
+#             else:
+#                 LOGGER.warning(f"Cf: {round(Cf / (scenario.building.Af*cp_water*3600), 1)} - Hf: {round(H_f / (scenario.building.Af),1)} combination infeasable!  scenario: {scenario_id}")
 
 #     return mse_heating_dict, heating_solved, df_heating_dict
 
-def run_for_different_Cf_and_Hf(Cf_list, H_f_list):
-    cp_water =  4200 / 3600
-    mse_heating_dict = {}
-    heating_solved = {}
-    df_heating_dict = {}
-    model_base = OptOperationModel(scenario)
-    for Cf in tqdm.tqdm(Cf_list):
-        for h, H_f in enumerate(H_f_list):
-            LOGGER.info(f"running Cf: {round(Cf / (scenario.building.Af*cp_water*3600),1)} - Hf: {round(H_f / (scenario.building.Af),1)} combination, scenario: {scenario_id}")
-            # first we give a target indoor temp and solve by havin heating as a variable:
-            model_6R2C_temp, solved = calculate_6R2C_with_specific_params(model=model_base, Htr_f=H_f, Cf=Cf, 
-                                                                          target_indoor_temp=target_indoor_temp)
-            if solved:
-                cf_per_square_meter = round(Cf / (scenario.building.Af*cp_water*3600),1)
-                hf_per_square_meter = round(H_f / (scenario.building.Af),1)
-                heating_solved[f"Cf:{cf_per_square_meter}, Hf: {hf_per_square_meter}"] = (Cf, H_f)
-                df = extract_results_from_model(model_6R2C_temp)
-                df["Heat_flow_to_room"] = calculate_Heating_flow_6R2C(model_6R2C_temp)
-                df_heating_dict[f"Cf:{cf_per_square_meter}, Hf: {hf_per_square_meter}"] = df
-
-
-                mse_heating = calc_mean_squared_error_heating(df["Q_RoomHeating"].to_numpy(), scenario_id=scenario_id)
-                mse_heat_flow_to_room = calc_mean_squared_error_heating(df["Heat_flow_to_room"].to_numpy(), scenario_id=scenario_id)
-                mse_heating_dict[f"Cf:{cf_per_square_meter}, Hf: {hf_per_square_meter}"] = mse_heating
-                LOGGER.info(f"Cf: {cf_per_square_meter} - Hf: {hf_per_square_meter} combination succesful")
-            else:
-                LOGGER.warning(f"Cf: {round(Cf / (scenario.building.Af*cp_water*3600), 1)} - Hf: {round(H_f / (scenario.building.Af),1)} combination infeasable!  scenario: {scenario_id}")
-
-    return mse_heating_dict, heating_solved, df_heating_dict
-
-def run_6R2C_with_best_params_and_indoor_set_temp():
+def run_6R2C_with_best_params_and_indoor_set_temp(scenario_id):
     path = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C/")
     cf_hf_dict_path = path / "Cf_Hf_dict.pkl"
     with open(cf_hf_dict_path, 'rb') as f:
@@ -363,10 +393,7 @@ def run_6R2C_with_best_params_and_indoor_set_temp():
         scenario = OperationScenario(scenario_id=scenario_id, config=cfg, tables=mother_operation)
         target_indoor_temp = load_IDA_ICE_indoor_temp(scenario_id)
         best_Cf, best_Hf = Cf_Hf_dict[scenario_id]
-        model_6R2C_temp, solved = calculate_6R2C_with_specific_params(model=OptOperationModel(scenario), Htr_f=best_Hf, Cf=best_Cf, 
-                                                            target_indoor_temp=target_indoor_temp)
-        df = extract_results_from_model(model_6R2C_temp)
-        df.to_csv(path / f"Scenario_{scenario_id}_optimization_fixed_indoor_temp.csv")
+
 
         
 if __name__ == "__main__":
@@ -393,17 +420,24 @@ if __name__ == "__main__":
         optimized_5R1C_model, solve_status = model_5R1C.solve(orig_opt_instance)
 
         # water per square meter floor heating is asumed to be between 1 and 5 liters:
-        Cf_list = [x*scenario.building.Af*4200 for x in np.arange(5, 20.5, 0.5)] #11
+        Cf_list = [x*scenario.building.Af*4200 for x in np.arange(5, 40.5, 0.5)] #11
         # Heat transfer resistance (W/K) between floor and indoor air temp is assumed to be between 1 and 10 W/K per square meter of floor heating
         # In literature (https://doi.org/10.1016/j.enbuild.2013.07.065) H_f is between 8 and 11 (measured)
         H_f_list = [x*scenario.building.Af for x in np.arange(3, 12.5, 0.5)] #15
 
-        mse_heating_dict, heating_solved, df_heating_dict = run_for_different_Cf_and_Hf(Cf_list=Cf_list, H_f_list=H_f_list, 
-                                                                                        # scenario=scenario, target_indoor_temp=target_indoor_temp, scenario_id=scenario_id
-                                                                                        )
+        heating_solved, df_heating_dict = run_for_different_Cf_and_Hf(Cf_list=Cf_list, H_f_list=H_f_list, 
+                                                                                        scenario=scenario, target_indoor_temp=target_indoor_temp, scenario_id=scenario_id, max_workers=20
+                                                                           )
+        
+        mses = {}
+        for name, df in df_heating_dict.items():
+            mse_heating = calc_mean_squared_error_heating( df["Q_RoomHeating"].to_numpy(), scenario_id=scenario_id, ref_heating=model_5R1C.Q_RoomHeating )
+            mses[name] = mse_heating
 
-        best_heating_key, min_mse_heating = min(mse_heating_dict.items(), key=lambda x: x[1])
-        results_target_heating = df_heating_dict[best_heating_key]    
+        best_heating_key, min_mse_heating = min(mses.items(), key=lambda x: x[1])
+        results_target_heating = df_heating_dict[best_heating_key]  
+        best_Cm = calc_new_Cm(scenario=scenario, Cf=best_Cf)
+
         LOGGER.info(f"Best combination identified for sceanrio: {scenario_id} = {best_heating_key}")
         # use the results from runs with target room temperature instead
         best_key = best_heating_key
@@ -412,6 +446,7 @@ if __name__ == "__main__":
             model=OptOperationModel(scenario),
             Htr_f=best_Hf,
             Cf=best_Cf,
+            Cm=best_Cm,
             simulation=True
         )
         results_6R2C_final_simulation = extract_results_from_model(new_6R2C_simulation, values_to_extract=["Q_RoomHeating", "T_surface", "T_Room", "T_BuildingMass", "T_floor", "T_outside"])
@@ -426,16 +461,24 @@ if __name__ == "__main__":
         new_6R2C_model, solve_status = optimize_6R2C(
             model=model1,
             Htr_f=best_Hf,
-            Cf=best_Cf
+            Cf=best_Cf,
+            Cm=best_Cm
         )
         results_6R2C_final = extract_results_from_model(new_6R2C_model)
+
+        # calcaulte the 6R2C model when also following the 5R1C indoor temp:
+
+        model_6R2C_temp, solved = calculate_6R2C_with_specific_params(model=OptOperationModel(scenario), Htr_f=best_Hf, Cf=best_Cf, new_Cm=best_Cm,
+                                                            target_indoor_temp=target_indoor_temp)
+        result_6R2C_set_temp = extract_results_from_model(model_6R2C_temp)
 
         Q_max = target_heating.max()
         model1.SpaceHeating_MaxBoilerPower = Q_max
         new_6R2C_model_higher_Q_max, solve_status = optimize_6R2C(
             model=model1,
             Htr_f=best_Hf,
-            Cf=best_Cf
+            Cf=best_Cf,
+            Cm=best_Cm
         )
         results_6R2C_final_higher_Q_max = extract_results_from_model(new_6R2C_model_higher_Q_max)
 
@@ -444,17 +487,19 @@ if __name__ == "__main__":
         results_6R2C_final_simulation["E_Heating_HP_out"] = results_6R2C_final_simulation["Q_RoomHeating"] / results_6R2C_final["SpaceHeatingHourlyCOP"]
 
         # save results to csv:
-        results_6R2C_final_simulation.to_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / f"Scenario_{scenario_id}_reference.csv")
-        results_6R2C_final.to_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / f"Scenario_{scenario_id}_optimzation.csv")
-        results_6R2C_final_higher_Q_max.to_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / f"Scenario_{scenario_id}_optimzation_high_Q_max.csv")
+        result_path = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C")
+        results_6R2C_final_simulation.to_csv(result_path / f"Scenario_{scenario_id}_reference.csv")
+        results_6R2C_final.to_csv(result_path / f"Scenario_{scenario_id}_optimzation.csv")
+        results_6R2C_final_higher_Q_max.to_csv(result_path / f"Scenario_{scenario_id}_optimzation_high_Q_max.csv")
+        result_6R2C_set_temp.to_csv(result_path / f"Scenario_{scenario_id}_optimization_fixed_indoor_temp.csv")
 
         LOGGER.info(f"finished scenario {scenario_id}")
         
-        # compare_IDA_ICE_6R2C_5R1C(
-        #     model_6R2C=new_6R2C_model,
-        #     model_5R1C=optimized_5R1C_model,
-        #     scenario_id=scenario_id
-        # )
+        compare_IDA_ICE_6R2C_5R1C(
+            model_6R2C=model_6R2C_temp,
+            model_5R1C=optimized_5R1C_model,
+            scenario_id=scenario_id
+        )
     
         # Save the Cf_Hf_dict for future use
         output_dir = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C/")

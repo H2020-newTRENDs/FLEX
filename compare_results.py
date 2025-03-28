@@ -486,7 +486,7 @@ class CompareModels:
         # compare hourly demand
         column_number = len(list(demand_list[0].columns))
         x_axis = np.arange(8760)
-        colors = ["blue", "orange", "green", "red"]
+
 
         fig = make_subplots(
             rows=column_number,
@@ -496,10 +496,12 @@ class CompareModels:
         )
         for j, demand in enumerate(demand_list):
             for i, column_name in enumerate(sorted(list(demand.columns))):
+                r, g, b = sns.color_palette()[j]
+                rgba_color = f'rgba({int(r*255)}, {int(g*255)}, {int(b*255)}, {1})'
                 fig.add_trace(
                     go.Scatter(x=x_axis, y=demand[column_name],
                                name=demand_names[j],
-                               line=dict(color=colors[j])),
+                               line=dict(color=rgba_color)),
 
                     row=i + 1,
                     col=1,
@@ -1116,54 +1118,44 @@ class CompareModels:
         temperature_daniel_ref = self.read_indoor_temp_daniel(price="basic", cooling=cooling,
                                                               floor_heating=floor_heating)
         cooling_demand_daniel_ref = self.read_daniel_cooling_demand(price="basic")
-        for price in prices:
-            # heat demand
-            heat_demand_opt = self.read_heat_demand(table_name=OperationTable.ResultOptHour.value,
-                                                    prize_scenario=price,
-                                                    cooling=cooling)
-            heat_demand_daniel = self.read_daniel_heat_demand(price=price, cooling=cooling, floor_heating=floor_heating)
 
-            # temperature
+        # heat demand
+        heat_demand_opt = self.read_heat_demand(table_name=OperationTable.ResultOptHour.value,
+                                                prize_scenario="price2",
+                                                cooling=cooling)
+        heat_demand_daniel = self.read_daniel_heat_demand(price="price2", cooling=cooling, floor_heating=floor_heating)
+        opt_demand_6R2C_set_temp = self.Q_RoomHeating_optimization_6R2C_target_temp
 
-            indoor_temp_daniel_opt = self.read_indoor_temp_daniel(price=price, cooling=cooling,
-                                                                  floor_heating=floor_heating)
-            indoor_temp_opt = self.read_indoor_temp(table_name=OperationTable.ResultOptHour.value,
-                                                    prize_scenario=price,
-                                                    cooling=cooling)
-            indoor_temp_ref = self.read_indoor_temp(table_name=OperationTable.ResultRefHour.value,
-                                                    prize_scenario=price,
-                                                    cooling=cooling)
+        # temperature
 
-            if cooling:
-                ac = "with cooling"
-            else:
-                ac = "no cooling"
-            if floor_heating:
-                system = "floor heating"
-            else:
-                system = "ideal"
-            self.compare_hourly_profile([heat_demand_IDA_ref, heat_demand_ref, heat_demand_daniel, heat_demand_opt],
-                                        ["IDA ICE", "5R1C", "IDA ICE optimized", "5R1C optimized"],
-                                        f"heat demand {price}, {ac}, Heating system: {system}")
+        indoor_temp_daniel_opt = self.read_indoor_temp_daniel(price="price2", cooling=cooling,
+                                                                floor_heating=floor_heating)
+        indoor_temp_opt = self.read_indoor_temp(table_name=OperationTable.ResultOptHour.value,
+                                                prize_scenario="price2",
+                                                cooling=cooling)
+        indoor_temp_ref = self.read_indoor_temp(table_name=OperationTable.ResultRefHour.value,
+                                                prize_scenario="price2",
+                                                cooling=cooling)
+        indoor_temp_6R2C = self.T_Room_optimization_6R2C_target_temp
 
-            self.compare_hourly_profile(
-                [indoor_temp_ref, temperature_daniel_ref, indoor_temp_daniel_opt, indoor_temp_opt],
-                ["5R1C", "IDA ICE", "IDA ICE optimized", "5R1C optimized"],
-                f"indoor temperature {price}, {ac}, Heating system: {system}")
+        if cooling:
+            ac = "with cooling"
+        else:
+            ac = "no cooling"
+        if floor_heating:
+            system = "floor heating"
+        else:
+            system = "ideal"
+        self.compare_hourly_profile([heat_demand_IDA_ref, heat_demand_ref, heat_demand_daniel, heat_demand_opt, opt_demand_6R2C_set_temp, ],
+                                    ["IDA ICE", "5R1C", "IDA ICE optimized", "5R1C optimized", "6R2C"],
+                                    f"heat demand, {ac}, Heating system: {system}")
 
-            if cooling:
-                cooling_demand_opt = self.read_cooling_demand(table_name=OperationTable.ResultOptHour.value,
-                                                              prize_scenario=price,
-                                                              cooling=cooling)
-                cooling_demand_ref = self.read_cooling_demand(table_name=OperationTable.ResultRefHour.value,
-                                                              prize_scenario=price,
-                                                              cooling=cooling)
-                cooling_demand_daniel_opt = self.read_daniel_cooling_demand(price=price)
+        self.compare_hourly_profile(
+            [indoor_temp_ref, temperature_daniel_ref, indoor_temp_daniel_opt, indoor_temp_opt, indoor_temp_6R2C],
+            ["5R1C", "IDA ICE", "IDA ICE optimized", "5R1C optimized", "6R2C"],
+            f"indoor temperature, {ac}, Heating system: {system}")
 
-                self.compare_hourly_profile(
-                    [cooling_demand_ref, cooling_demand_daniel_ref, cooling_demand_daniel_opt, cooling_demand_opt],
-                    ["5R1C", "IDA ICE", "IDA ICE optimized", "5R1C optimized"],
-                    f"cooling demand {price}")
+       
 
     def calculate_RMSE(self, profile_IDA_ICE: np.array, profile_5R1C: np.array) -> float:
         MSE = np.square(np.subtract(profile_IDA_ICE, profile_5R1C)).mean()
@@ -1447,26 +1439,27 @@ class CompareModels:
             orient='index',
             columns=['Cf', 'Hf']
         )
-        df["Cf"] = df["Cf"] / 4200
         building_df = self.db.read_dataframe(table_name=OperationScenarioComponent.Building.table_name, column_names=["ID_Building", "type", "Af"])
         building_df["index"] = building_df.loc[:, "ID_Building"].map(self.building_names)
         merged = pd.merge(right=df.reset_index(), left=building_df.loc[:,["index", "Af"]], on="index")
         merged["Cf_liter"] = merged["Cf"] / 4200 / merged["Af"]
         merged["Hf W/m2"] = merged["Hf"] / merged["Af"]
 
+        print(merged.loc[:,["index", "Cf_liter", "Hf W/m2"]])
+
 
     def main(self):
         # laod 6R2C results
         self.load_6R2C_results(reference=True)
         self.load_6R2C_results(reference=False)
-
+        self.show_chosen_Cf_and_Hf_for_6R2C_model()
         price_scenarios = ["basic", "price2",] #"price3", "price4"]  # only look at price 2 and basic which is without optim
         # self.show_elec_prices()
-        # self.show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price2", building="EZFH_9_B")
+        self.show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price2", building="MFH_1_B")
         # self.shifted_electrity_demand()
-        self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
+        # self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
         # self.plot_relative_cost_reduction_floor_ideal()
-        # self.show_plotly_comparison(prices=price_scenarios, cooling=False, floor_heating=True)
+        self.show_plotly_comparison(prices=price_scenarios, cooling=False, floor_heating=True)
         
 
 

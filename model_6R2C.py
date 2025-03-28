@@ -374,6 +374,7 @@ def calculate_6R2C_with_specific_params(
     model: OperationModel,
     Htr_f: float,
     Cf: float,
+    new_Cm: float,
     target_indoor_temp: np.array = None,
 
 ):
@@ -404,7 +405,7 @@ def calculate_6R2C_with_specific_params(
     m.Htr_is = pyo.Param(initialize=model.Htr_is)
     m.Hve = pyo.Param(initialize=model.Hve)
     m.PHI_ia = pyo.Param(initialize=model.PHI_ia)
-    m.Cm = pyo.Param(initialize=model.Cm)
+    m.Cm = pyo.Param(initialize=new_Cm)
     m.BuildingMassTemperatureStartValue = pyo.Param(initialize=model.BuildingMassTemperatureStartValue)
 
     # set up variables
@@ -467,7 +468,7 @@ def calculate_6R2C_with_specific_params(
     def set_lower_room_temp_bound(m, t):
         if m.reference_Q_RoomHeating[t] > 0:
             return m.T_Room[t] >= m.target_indoor_temperature[t]   
-        elif m.reference_Q_RoomHeating[t] == 0 and m.target_indoor_temperature[t] > m.lower_room_temperature[t]:
+        elif m.reference_Q_RoomHeating[t] == 0 and m.target_indoor_temperature[t] < m.lower_room_temperature[t]:
             return m.T_Room[t] >= m.target_indoor_temperature[t]
         else:
             return m.T_Room[t] >= m.lower_room_temperature[t] 
@@ -507,6 +508,7 @@ def optimize_6R2C(
     model: OperationModel,
     Htr_f: float,
     Cf: float,
+    Cm: float,
     simulation: bool = False
 
 ):
@@ -540,7 +542,7 @@ def optimize_6R2C(
     m.Htr_is = pyo.Param(initialize=model.Htr_is)
     m.Hve = pyo.Param(initialize=model.Hve)
     m.PHI_ia = pyo.Param(initialize=model.PHI_ia)
-    m.Cm = pyo.Param(initialize=model.Cm)
+    m.Cm = pyo.Param(initialize=Cm)
     m.BuildingMassTemperatureStartValue = pyo.Param(initialize=model.BuildingMassTemperatureStartValue)
 
     # set up variables
