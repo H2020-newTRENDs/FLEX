@@ -875,7 +875,7 @@ class CompareModels:
         ax.set_xticklabels([label.get_text().replace("_", " ") for label in ax.get_xticklabels()], rotation=45, ha='center')
         ax.get_yaxis().set_major_formatter(
             ticker.FuncFormatter(lambda x, p: format(int(x), ',').replace(",", " ")))
-        legend = ax.legend()
+        legend = ax.legend(loc="upper right")
         legend.set_title(None)
         ax.set_xlabel("")
         plt.tight_layout()
@@ -1259,7 +1259,7 @@ class CompareModels:
         
         fig2, (ax3,ax4,) = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(15, 11))
         ax3.plot(x_axis, ideal_demand_ida[x_axis], label="IDA ICE with ideal heating", color=sns.color_palette()[1], linestyle="-", marker="x", linewidth=1)
-        ax3.plot(x_axis, opt_demand_5R1C[x_axis], label="5R1C", color=sns.color_palette()[0], linewidth=2)
+        ax3.plot(x_axis, opt_demand_5R1C[x_axis], label="5R1C = set temperature", color=sns.color_palette()[0], linewidth=2)
 
         ax3.set_ylabel("heat demand (kWh)", fontsize=font_size)
         ax3.legend(fontsize=font_size)        
@@ -1288,9 +1288,9 @@ class CompareModels:
         
         fig2, (ax3,ax4,) = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(15, 11))
         ax3.plot(x_axis, floor_demand_ida[x_axis], label="IDA ICE with floor heating", color=sns.color_palette()[3], linestyle="-", marker="x", linewidth=1)
-        ax3.plot(x_axis, opt_demand_5R1C[x_axis], label="5R1C", color=sns.color_palette()[0], linewidth=2)
-        ax3.plot(x_axis, opt_demand_6R2C[x_axis], label="6R2C", color=sns.color_palette()[2], linestyle="--")
-        ax3.plot(x_axis, opt_demand_6R2C_set_temp[x_axis], label="6R2C with set temperature", color=sns.color_palette()[4], linestyle="--", marker="o", markersize=4, linewidth=1)
+        ax3.plot(x_axis, opt_demand_5R1C[x_axis], label="5R1C = set temperature", color=sns.color_palette()[0], linewidth=2)
+        ax3.plot(x_axis, opt_demand_6R2C[x_axis], label="6R2C optimized", color=sns.color_palette()[2], linestyle="--")
+        ax3.plot(x_axis, opt_demand_6R2C_set_temp[x_axis], label="6R2C following set temperature", color=sns.color_palette()[4], linestyle="--", marker="o", markersize=4, linewidth=1)
         # ax3.plot(x_axis, opt_demand_6R2C_Q_max[x_axis], label="6R2C Q_max", color=sns.color_palette()[5], linestyle="--")
 
 
@@ -1377,7 +1377,7 @@ class CompareModels:
         )
         ax.tick_params(axis='y', labelsize=font_size)
         ax.tick_params(axis='x', labelsize=font_size)
-        ax.legend(fontsize=font_size)
+        ax.legend(fontsize=font_size, loc="upper left")
         ax.set_xlabel("")
         ax.set_ylabel("shifted electricity in (%)", fontsize=font_size)
         ax.set_xticklabels([label.get_text().replace("_", " ") for label in ax.get_xticklabels()], rotation=45, ha='center', fontsize=font_size)
@@ -1459,7 +1459,7 @@ class CompareModels:
         self.shifted_electrity_demand()
         self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
         self.plot_relative_cost_reduction_floor_ideal()
-        self.show_plotly_comparison(prices=price_scenarios, cooling=False, floor_heating=True)
+        # self.show_plotly_comparison(prices=price_scenarios, cooling=False, floor_heating=True)
         
 
 
