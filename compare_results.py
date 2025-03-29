@@ -57,6 +57,16 @@ def create_heat_map_of_mse(mses: dict, figure_path: Path, result_path: Path, sce
         result_path=result_path, 
         max_thermal_power=max_thermal_power
     )
+      
+    cf_hf_dict_path = Path("/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / "Cf_Hf_dict.pkl"
+    if cf_hf_dict_path.exists():
+        with open(cf_hf_dict_path, 'rb') as f:
+            Cf_Hf_dict = pickle.load(f)
+    else:
+        Cf_Hf_dict = {}
+    Cf_Hf_dict[scenario_id] = (min_feasable_Cf, min_feasable_Hf)
+    with open(cf_hf_dict_path, 'wb') as f:
+        pickle.dump(Cf_Hf_dict, f) 
     
     masked_heatmap_data = heatmap_data.copy()    
     for inf_val in infeasable_mses:
@@ -371,7 +381,7 @@ class CompareModels:
         
 
     def load_6R2C_parameters_dict(self):
-        cf_hf_dict_path = Path("/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / "Cf_Hf_dict.pkl"
+        cf_hf_dict_path = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / "Cf_Hf_dict.pkl"
         with open(cf_hf_dict_path, 'rb') as f:
             Cf_Hf_dict = pickle.load(f)
         return Cf_Hf_dict
@@ -1674,10 +1684,10 @@ class CompareModels:
         building_df = self.db.read_dataframe(table_name=OperationScenarioComponent.Building.table_name, column_names=["ID_Building", "type", "Af"])
         building_df["index"] = building_df.loc[:, "ID_Building"].map(self.building_names)
         merged = pd.merge(right=df.reset_index(), left=building_df.loc[:,["index", "Af"]], on="index")
-        merged["Cf_liter"] = merged["Cf"] / 4200 / merged["Af"]
-        merged["Hf W/m2"] = merged["Hf"] / merged["Af"]
+        merged["Cf"] = merged["Cf"] 
+        merged["Hf"] = merged["Hf"] 
 
-        print(merged.loc[:,["index", "Cf_liter", "Hf W/m2"]])
+        print(merged.loc[:,["index", "Cf", "Hf"]])
 
 
     def main(self):
@@ -1687,7 +1697,7 @@ class CompareModels:
         self.show_chosen_Cf_and_Hf_for_6R2C_model()
         price_scenarios = ["basic", "price2",] #"price3", "price4"]  # only look at price 2 and basic which is without optim
         # self.show_elec_prices()
-        self.show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price2", building="EZFH_1_B")
+        self.show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price2", building="EZFH_9_B")
         self.shifted_electrity_demand()
         self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
         self.plot_relative_cost_reduction_floor_ideal()
@@ -1710,11 +1720,59 @@ class CompareModels:
         # self.run(price_scenarios, floor_heating=False, cooling=True)
 
 
+    def find_correlation_for_Cf_and_Hf(self):
+        building_table = self.db.read_dataframe(table_name=OperationScenarioComponent.Building.table_name)
+        building_table["ID_Building"] = building_table["ID_Building"].map(self.building_names)
+        heat_5R1C = self.read_heat_demand(table_name=OperationTable.ResultRefHour.value,
+                                    prize_scenario="basic",
+                                    cooling=False).sum() / 1_000  # kWh
+        merged1 = pd.merge(left=building_table, right=heat_5R1C.reset_index().rename(columns={"index": "ID_Building", 0:"heat demand (kWh/m2)"}), on="ID_Building")
+        columns2_corr = ["ID_Building", "Af", "Hop", "Htr_w", "Hve", "CM_factor", "Am_factor", "effective_window_area_west_east", "effective_window_area_south", "effective_window_area_north", "heat demand (kWh/m2)"]
+        
+        ch_hf_dict = self.load_6R2C_parameters_dict()
+        df = pd.DataFrame(ch_hf_dict, index=["Cf", "Hf"])
+        df.columns = [self.building_names[col] for col in df.columns]
+        merged2 = pd.merge(left=merged1[columns2_corr], right=df.T.reset_index().rename(columns={"index": "ID_Building"}), on="ID_Building")
+        merged2.columns = [str(col) for col in merged2.columns]
 
+        from sklearn.ensemble import RandomForestRegressor
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import mean_absolute_error, r2_score
+        X = merged2[['Af', 'Hop', 'Htr_w', 'Hve', 'CM_factor', 'Am_factor', "effective_window_area_west_east", "effective_window_area_south", "effective_window_area_north", "heat demand (kWh/m2)"]]
 
+        y_Cf = merged2['Cf']
+        y_Hf = merged2['Hf']
+        X_train, X_test, y_Cf_train, y_Cf_test, y_Hf_train, y_Hf_test = train_test_split(
+            X, y_Cf, y_Hf, test_size=0.3, random_state=42
+        )
+
+        rf_Cf = RandomForestRegressor(n_estimators=100, random_state=42)
+        rf_Cf.fit(X_train, y_Cf_train)
+        y_Cf_pred_rf = rf_Cf.predict(X_test)
+        print("Random Forest Cf model:")
+        print("R²:", r2_score(y_Cf_test, y_Cf_pred_rf))
+        print("MAE:", mean_absolute_error(y_Cf_test, y_Cf_pred_rf))
+
+        rf_Hf = RandomForestRegressor(n_estimators=100, random_state=42)
+        rf_Hf.fit(X_train, y_Hf_train)
+        y_Hf_pred_rf = rf_Hf.predict(X_test)
+        print("\nRandom Forest Hf model:")
+        print("R²:", r2_score(y_Hf_test, y_Hf_pred_rf))
+        print("MAE:", mean_absolute_error(y_Hf_test, y_Hf_pred_rf))
+
+        correlation_matrix = merged2.corr(numeric_only=True)
+        # Display correlations of C_f and H_f with other variables
+        cf_corr = correlation_matrix["Cf"].sort_values(ascending=False)
+        hf_corr = correlation_matrix["Hf"].sort_values(ascending=False)
+        
+        plt.figure(figsize=(12, 8))
+        sns.heatmap(correlation_matrix.loc[:, ["Cf", "Hf"]].sort_values(by="Hf"), annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5, linecolor='white')
+        plt.tight_layout()
+        plt.show()
 
 if __name__ == "__main__":
-    check_6R2C() # to re-compute the 6R2C in optimization mode
+    # check_6R2C() # to re-compute the 6R2C in optimization mode
     CompareModels("5R1C_validation").main()
+    # CompareModels("5R1C_validation").find_correlation_for_Cf_and_Hf()
 
     # TODO Cooling demand plot passt nicht
