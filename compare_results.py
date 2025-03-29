@@ -18,6 +18,8 @@ import os
 import sys
 import matplotlib
 import pickle
+from joblib import Parallel, delayed
+from tqdm import tqdm
 
 # Get the absolute path of the directory two levels up
 two_levels_up = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -26,15 +28,217 @@ sys.path.insert(0, two_levels_up)
 from basics.db import DB
 from config import config, get_config
 from models.operation.enums import OperationTable, OperationScenarioComponent
+from compare_5R1C_6R2C import calc_new_Cm, extract_results_from_model
+from models.operation.model_opt import OptOperationModel, OptInstance
+from model_6R2C import optimize_6R2C, calculate_6R2C_with_specific_params
+from models.operation.scenario import OperationScenario, MotherOperationScenario
 
 
-# log_file = Path("/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C") / "compare_6R2C_results.log"
-# logging.basicConfig(
-#    filename=log_file,
-#    filemode='a',  # append mode
-# )
-# logger = logging.getLogger(__name__)
-# logger.setLevel(level=logging.INFO)
+
+
+def load_all_results(scen_id):
+    result_path = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C")
+    with open(result_path / f"all_results_scenario_{scen_id}.pkl", "rb") as file:
+        df_dict = pickle.load(file)
+    return df_dict
+
+def create_heat_map_of_mse(mses: dict, figure_path: Path, result_path: Path, scenario_id: int, scenario, max_thermal_power):
+    heatmap_df = pd.DataFrame(
+        [(Cf, Hf, mse) for (Cf, Hf), mse in mses.items()],
+        columns=['Cf', 'Hf', 'MSE']
+    )
+    heatmap_data = heatmap_df.pivot(index='Hf', columns='Cf', values='MSE')
+
+    # find the minimum values with which the optimziation is still feasable:
+    min_feasable_Cf, min_feasable_Hf, infeasable_mses = find_optimal_solution_under_max_heating_contraint(
+        heatmap_df=heatmap_df, 
+        scenario=scenario, 
+        scenario_id=scenario_id,
+        result_path=result_path, 
+        max_thermal_power=max_thermal_power
+    )
+    
+    masked_heatmap_data = heatmap_data.copy()    
+    for inf_val in infeasable_mses:
+        masked_heatmap_data.replace(inf_val, np.nan, inplace=True)
+    masked_array =np.ma.masked_invalid(masked_heatmap_data)
+
+    min_val = heatmap_data.loc[min_feasable_Hf, min_feasable_Cf]
+    min_coords = np.where(heatmap_data == min_val)
+    min_y, min_x = min_coords[0][0], min_coords[1][0]
+    plt.figure(figsize=(10, 8))
+    cmap = plt.cm.viridis.copy()
+    cmap.set_bad(color='lightgrey')
+    ax = sns.heatmap(
+        data=heatmap_data,
+        cmap=cmap, 
+        cbar_kws={'label': 'MSE'},
+        vmin=min(list(mses.values())),
+        vmax=max(list(mses.values())),
+        
+    )
+    ax.add_patch(plt.Rectangle((min_x, min_y), 1, 1, fill=False, edgecolor='red', linewidth=3))
+    plt.xlabel(r"Cf factor (J/m$^{2}$K)")
+    plt.ylabel(r"Hf factor (W/m$^{2}$K)")
+    ax.set_xticklabels([f'{int(float(label.get_text()))}' for label in ax.get_xticklabels()])
+    plt.savefig(figure_path / f"MSE_Cf_Hf_scenario_{scenario_id}.svg")
+
+
+def find_unpickleable_attributes(obj):
+    unpickable = []
+    for attr_name in dir(obj):
+        if attr_name.startswith('__'):
+            continue
+        attr = getattr(obj, attr_name)
+        try:
+            pickle.dumps(attr)
+        except Exception as e:
+            # print(f"Attribute '{attr_name}' is not pickleable: {e}")
+            unpickable.append(attr_name)
+    return unpickable
+
+def unpickle_obj(obj):
+    # Use this function:
+    unpickable = find_unpickleable_attributes(obj)
+    for attr_name in unpickable:
+        if attr_name in obj.__dict__:
+            delattr(obj, attr_name)
+    return obj
+
+
+
+def find_optimal_solution_under_max_heating_contraint(heatmap_df, scenario, scenario_id, result_path, max_thermal_power):
+    def process_row(row):
+        Cf = row["Cf"]*scenario.building.Af 
+        Cf_factor = row["Cf"]
+        Hf_factor = row["Hf"]
+        Hf = row["Hf"]*scenario.building.Af
+        Cm = calc_new_Cm(scenario=scenario, Cf=Cf)
+
+        # calculate the reference case for 6R2C model
+        new_6R2C_simulation, solved = optimize_6R2C(  
+            model=OptOperationModel(scenario),
+            Htr_f=Hf,
+            Cf=Cf,
+            Cm=Cm,
+            floor_temp_start_value=25,
+            simulation=True
+        )
+        if not solved:
+            return None
+        results_6R2C_final_simulation = extract_results_from_model(new_6R2C_simulation, values_to_extract=["Q_RoomHeating", "T_surface", "T_Room", "T_BuildingMass", "T_floor", "T_outside"])
+        T_floor_start = results_6R2C_final_simulation["T_floor"].to_numpy()[20]
+        
+        # calculate the optimziation with 6R2C model and check if its feasable with the contraints
+        new_6R2C_model, solve_status = optimize_6R2C(
+            model=OptOperationModel(scenario),
+            Htr_f=Hf,
+            Cf=Cf,
+            Cm=Cm,
+            floor_temp_start_value=T_floor_start,
+            max_thermal_power=max_thermal_power
+        )
+        if solve_status:
+            results_6R2C_final = extract_results_from_model(new_6R2C_model)
+
+            # also calculate the optimization with fixed indoor set temp from IDA ICE
+            target_indoor_temp = load_IDA_ICE_indoor_temp(scenario_id, )
+            model_6R2C_temp, _ = calculate_6R2C_with_specific_params(
+                model=OptOperationModel(scenario), 
+                Htr_f=Hf, 
+                Cf=Cf, 
+                new_Cm=Cm,
+                target_indoor_temp=target_indoor_temp
+            )
+            result_6R2C_set_temp = extract_results_from_model(model_6R2C_temp)
+            return {
+                'Cf': Cf_factor,
+                'Hf': Hf_factor,
+                'MSE': row["MSE"],
+                'optimized_results': results_6R2C_final,
+                'simulation_results': results_6R2C_final_simulation,
+                'set_temp_results': result_6R2C_set_temp
+            }
+        return None
+
+    infeasable_mses = []
+    for _, row in heatmap_df.sort_values(by="MSE").iterrows():
+        result = process_row(row)
+        if result:
+            break
+        else:
+            infeasable_mses.append(row["MSE"])
+        
+
+    best_Cf = result["Cf"]
+    best_Hf = result["Hf"]
+
+    # save results
+    results_6R2C_final_simulation = result["simulation_results"]
+    results_6R2C_final = result["optimized_results"]
+    result_6R2C_set_temp = result["set_temp_results"]
+    results_6R2C_final_simulation["ElectricityPrice"] = results_6R2C_final["ElectricityPrice"]
+    results_6R2C_final_simulation["E_Heating_HP_out"] = results_6R2C_final_simulation["Q_RoomHeating"] / results_6R2C_final["SpaceHeatingHourlyCOP"]
+    results_6R2C_final_simulation.to_csv(result_path / f"Scenario_{scenario_id}_reference.csv")
+    results_6R2C_final.to_csv(result_path / f"Scenario_{scenario_id}_optimzation.csv")
+    result_6R2C_set_temp.to_csv(result_path / f"Scenario_{scenario_id}_optimization_fixed_indoor_temp.csv")
+
+    return best_Cf, best_Hf, infeasable_mses
+
+
+def check_6R2C():
+    cfg = get_config("5R1C_6R2C")
+    figure_path = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/figure/5R1C_validation")
+    result_path = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C")
+
+    for scenario_id in np.arange(1, 10):
+        print(f"starting scenario {scenario_id}")
+        mother_operation = MotherOperationScenario(config=cfg)
+        orig_opt_instance = OptInstance().create_instance()
+        scenario = OperationScenario(scenario_id=scenario_id, config=cfg, tables=mother_operation)
+        model_5R1C = OptOperationModel(scenario)
+        optimized_5R1C_model, solve_status = model_5R1C.solve(orig_opt_instance)
+        results_5R1C = extract_results_from_model(optimized_5R1C_model, values_to_extract=["Q_RoomHeating", "T_Room", "T_BuildingMass", "T_outside"])
+        max_thermal_power = results_5R1C["Q_RoomHeating"].max()
+
+        result_dict = load_all_results(scenario_id)
+        mses = {}
+        for name, df in result_dict.items():
+            mse_heating = calc_mean_squared_error_heating( df["Q_RoomHeating"].to_numpy(), scenario_id=scenario_id, ref_heating=model_5R1C.Q_RoomHeating )
+            Cf, Hf = float(name.split(",")[0].replace("Cf:","")), float(name.split(",")[1].replace("Hf:",""))
+            mses[(Cf, Hf)] = mse_heating
+
+        scenario = unpickle_obj(scenario)
+        # create heatmap of results:
+        create_heat_map_of_mse(
+            mses=mses, 
+            figure_path=figure_path, 
+            result_path=result_path, 
+            scenario_id=scenario_id, 
+            scenario=scenario, 
+            max_thermal_power=max_thermal_power
+        )
+
+def calc_mean_squared_error_heating(heating_array: np.array, scenario_id, ref_heating):
+    IDA_ICE_heating = load_IDA_ICE_heating(scenario_id=scenario_id)
+    squared_errors = (IDA_ICE_heating - heating_array) ** 2
+    squared_errors[ref_heating==0] = 0
+    mse = np.mean(squared_errors)
+    return mse
+
+def load_IDA_ICE_indoor_temp(scenario_id: int, ):
+    CM = CompareModels(get_config("5R1C_validation").project_name)
+    df = CM.read_indoor_temp_daniel(price="price2", cooling=False, floor_heating=True)
+    name_to_id = {value: key for key, value in CM.building_names.items()}
+    df.columns = [name_to_id[col] for col in df.columns]
+    return df[scenario_id].to_numpy()
+
+def load_IDA_ICE_heating(scenario_id: int, ) -> np.array:
+    CM = CompareModels(get_config("5R1C_validation").project_name)
+    df = CM.read_daniel_heat_demand(price="price2", cooling=False, floor_heating=True)
+    name_to_id = {value: key for key, value in CM.building_names.items()}
+    df.columns = [name_to_id[col] for col in df.columns]
+    return df[scenario_id].to_numpy()
 
 
 class CompareModels:
@@ -1115,9 +1319,11 @@ class CompareModels:
                                                 cooling=cooling)
         # ref IDA ICE is the one where the indoor set temp is not changed (price_1)
         heat_demand_IDA_ref = self.read_daniel_heat_demand(price="basic", cooling=cooling, floor_heating=floor_heating)
+        heat_demand_6R2C_ref = self.Q_RoomHeating_reference_6R2C
+        heat_demand_6R2C_opt = self.Q_RoomHeating_optimization_6R2C
+
         temperature_daniel_ref = self.read_indoor_temp_daniel(price="basic", cooling=cooling,
                                                               floor_heating=floor_heating)
-        cooling_demand_daniel_ref = self.read_daniel_cooling_demand(price="basic")
 
         # heat demand
         heat_demand_opt = self.read_heat_demand(table_name=OperationTable.ResultOptHour.value,
@@ -1137,6 +1343,7 @@ class CompareModels:
                                                 prize_scenario="price2",
                                                 cooling=cooling)
         indoor_temp_6R2C = self.T_Room_optimization_6R2C_target_temp
+        indoor_temp_6R2C_ref = self.T_Room_reference_6R2C
 
         if cooling:
             ac = "with cooling"
@@ -1146,13 +1353,13 @@ class CompareModels:
             system = "floor heating"
         else:
             system = "ideal"
-        self.compare_hourly_profile([heat_demand_IDA_ref, heat_demand_ref, heat_demand_daniel, heat_demand_opt, opt_demand_6R2C_set_temp, ],
-                                    ["IDA ICE", "5R1C", "IDA ICE optimized", "5R1C optimized", "6R2C"],
+        self.compare_hourly_profile([heat_demand_IDA_ref, heat_demand_ref, heat_demand_6R2C_ref, heat_demand_daniel, heat_demand_opt, opt_demand_6R2C_set_temp, heat_demand_6R2C_opt],
+                                    ["IDA ICE", "5R1C ref", "6R2C ref","IDA ICE optimized", "5R1C optimized", "6R2C following set temp", "6R2C"],
                                     f"heat demand, {ac}, Heating system: {system}")
 
         self.compare_hourly_profile(
-            [indoor_temp_ref, temperature_daniel_ref, indoor_temp_daniel_opt, indoor_temp_opt, indoor_temp_6R2C],
-            ["5R1C", "IDA ICE", "IDA ICE optimized", "5R1C optimized", "6R2C"],
+            [indoor_temp_ref, indoor_temp_6R2C_ref, temperature_daniel_ref, indoor_temp_daniel_opt, indoor_temp_opt, indoor_temp_6R2C],
+            ["5R1C", "6R2C", "IDA ICE", "IDA ICE optimized", "5R1C optimized", "6R2C optimized"],
             f"indoor temperature, {ac}, Heating system: {system}")
 
        
@@ -1328,8 +1535,8 @@ class CompareModels:
         total_5R1C = ref_5R1C.sum(axis=0)
         total_IDA_floor = ref_IDA_floor.sum(axis=0)
         total_IDA_ideal = ref_IDA_ideal.sum(axis=0)
-        total_6R2C = self.Q_RoomHeating_reference_6R2C.sum(axis=0)
-        total_6R2C_forced = self.Q_RoomHeating_optimization_6R2C_target_temp.sum(axis=0)
+        total_6R2C = (self.Q_RoomHeating_reference_6R2C / cop).sum(axis=0)
+        total_6R2C_forced = (self.Q_RoomHeating_optimization_6R2C_target_temp / cop).sum(axis=0)
 
         opt_5R1C = self.read_heat_demand(table_name=OperationTable.ResultOptHour.value, prize_scenario="price2", cooling=False) / cop
         opt_IDA_floor = self.read_daniel_heat_demand(price="price2", cooling=False, floor_heating=True) / cop
@@ -1338,8 +1545,8 @@ class CompareModels:
         RC_shifted = ref_5R1C - opt_5R1C
         IDA_shifted_floor = ref_IDA_floor - opt_IDA_floor
         IDA_shifted_ideal = ref_IDA_ideal - opt_IDA_ideal
-        R62C_shifted = self.Q_RoomHeating_reference_6R2C - self.Q_RoomHeating_optimization_6R2C
-        R62C_shifted_forced = self.Q_RoomHeating_optimization_6R2C_target_temp - self.Q_RoomHeating_reference_6R2C
+        R62C_shifted = (self.Q_RoomHeating_reference_6R2C - self.Q_RoomHeating_optimization_6R2C) / cop
+        R62C_shifted_forced = (self.Q_RoomHeating_optimization_6R2C_target_temp - self.Q_RoomHeating_reference_6R2C) / cop
 
         RC_shifted[RC_shifted<0] = 0
         IDA_shifted_floor[IDA_shifted_floor<0] = 0
@@ -1360,17 +1567,15 @@ class CompareModels:
         R62C_shifted_forced_perc = R62C_shifted_forced_sum / total_6R2C_forced
 
         df = pd.concat([RC_shifted_perc, IDA_shifted_perc_ideal, R62C_shifted_perc, IDA_shifted_perc_floor, R62C_shifted_forced_perc], axis=1).rename(
-            columns={0: "5R1C", 3: "IDA ICE floor heating", 2: "6R2C", 1: "IDA ICE ideal heating", 4: "6R2C set temp"}
+            columns={0: "5R1C", 3: "IDA ICE floor heating", 2: "6R2C optimized", 1: "IDA ICE ideal heating", 4: "6R2C following set temperature"}
             ).reset_index()
-
-
-        final_df = df.melt(id_vars=["index"], var_name="model", value_name="shifted electricity")
+        relative_df = df.melt(id_vars=["index"], var_name="model", value_name="shifted electricity")
 
         font_size = 14
         fig = plt.figure(figsize=(12,8))
         ax = plt.gca()
         sns.barplot(
-            data=final_df,
+            data=relative_df,
             x="index",
             y="shifted electricity",
             hue="model"
@@ -1383,9 +1588,36 @@ class CompareModels:
         ax.set_xticklabels([label.get_text().replace("_", " ") for label in ax.get_xticklabels()], rotation=45, ha='center', fontsize=font_size)
         ax.yaxis.set_major_formatter(ticker.PercentFormatter(1))
         plt.tight_layout()
-        fig.savefig(self.figure_path / f"Shifted_electricity_demand_IDA_ICE.svg")
+        fig.savefig(self.figure_path / f"Relative_Shifted_electricity_demand_IDA_ICE.svg")
         plt.show()
 
+
+        absolute_df = pd.concat([RC_shifted_sum, IDA_shifted_ideal_sum, R6C2_shifted_sum, IDA_shifted_floor_sum, R62C_shifted_forced_sum], axis=1).rename(
+                columns={0: "5R1C", 3: "IDA ICE floor heating", 2: "6R2C optimized", 1: "IDA ICE ideal heating", 4: "6R2C following set temperature"}
+        ).reset_index()
+        absolute = absolute_df.melt(id_vars=["index"], var_name="model", value_name="shifted electricity")
+        absolute["shifted electricity"] = absolute["shifted electricity"] / 1_000  # kWh
+        fig = plt.figure(figsize=(12,8))
+        ax = plt.gca()
+        sns.barplot(
+            data=absolute,
+            x="index",
+            y="shifted electricity",
+            hue="model"
+        )
+        ax.tick_params(axis='y', labelsize=font_size)
+        ax.tick_params(axis='x', labelsize=font_size)
+        ax.legend(fontsize=font_size, loc="upper left")
+        ax.set_xlabel("")
+        ax.set_ylabel("shifted electricity in kWh", fontsize=font_size)
+        ax.set_xticklabels([label.get_text().replace("_", " ") for label in ax.get_xticklabels()], rotation=45, ha='center', fontsize=font_size)
+        plt.tight_layout()
+        fig.savefig(self.figure_path / f"Absolute_Shifted_electricity_demand_IDA_ICE.svg")
+        plt.show()
+
+        # calculate the error made for shifted electricity in relative and absolute terms is the same
+        absolute_df["absolute error"] = absolute_df["6R2C optimized"] / absolute_df["5R1C"] * 100
+        print(absolute_df[["index", "absolute error"]])
 
     def run(self, price_scenarios: list, floor_heating: bool, cooling: bool):
         # self.show_rmse(prizes=price_scenarios, floor_heating=floor_heating, cooling=cooling)
@@ -1455,13 +1687,12 @@ class CompareModels:
         self.show_chosen_Cf_and_Hf_for_6R2C_model()
         price_scenarios = ["basic", "price2",] #"price3", "price4"]  # only look at price 2 and basic which is without optim
         # self.show_elec_prices()
-        self.show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price2", building="EZFH_9_B")
+        self.show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price2", building="EZFH_1_B")
         self.shifted_electrity_demand()
         self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
         self.plot_relative_cost_reduction_floor_ideal()
-        # self.show_plotly_comparison(prices=price_scenarios, cooling=False, floor_heating=True)
+        self.show_plotly_comparison(prices=price_scenarios, cooling=False, floor_heating=True)
         
-
 
 
         # self.indoor_temp_to_csv(cooling=False)
@@ -1481,8 +1712,9 @@ class CompareModels:
 
 
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
+    check_6R2C() # to re-compute the 6R2C in optimization mode
     CompareModels("5R1C_validation").main()
 
     # TODO Cooling demand plot passt nicht

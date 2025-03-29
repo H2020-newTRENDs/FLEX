@@ -18,7 +18,6 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from model_6R2C import rewritten_5R1C_optimziation, find_6R2C_params, calculate_6R2C_with_specific_params, optimize_6R2C
 from pathlib import Path
-from compare_results import CompareModels
 import tqdm
 import pickle  # Added for saving dictionary
 import logging
@@ -121,19 +120,7 @@ def show_important_dual_variables(orig_model, new_model):
     fig.show()
 
 
-def load_IDA_ICE_indoor_temp(scenario_id: int, ):
-    CM = CompareModels(get_config("5R1C_validation").project_name)
-    df = CM.read_indoor_temp_daniel(price="price2", cooling=False, floor_heating=True)
-    name_to_id = {value: key for key, value in CM.building_names.items()}
-    df.columns = [name_to_id[col] for col in df.columns]
-    return df[scenario_id].to_numpy()
 
-def load_IDA_ICE_heating(scenario_id: int, ) -> np.array:
-    CM = CompareModels(get_config("5R1C_validation").project_name)
-    df = CM.read_daniel_heat_demand(price="price2", cooling=False, floor_heating=True)
-    name_to_id = {value: key for key, value in CM.building_names.items()}
-    df.columns = [name_to_id[col] for col in df.columns]
-    return df[scenario_id].to_numpy()
 
 
 def compare_IDA_ICE_6R2C_5R1C(model_6R2C: OptOperationModel, model_5R1C: OptOperationModel, scenario_id: int):
@@ -242,12 +229,7 @@ def calc_mean_squared_error_temperature(T_room_array: np.array, scenario_id):
     return mse
 
 
-def calc_mean_squared_error_heating(heating_array: np.array, scenario_id, ref_heating):
-    IDA_ICE_heating = load_IDA_ICE_heating(scenario_id=scenario_id)
-    squared_errors = (IDA_ICE_heating - heating_array) ** 2
-    squared_errors[ref_heating==0] = 0
-    mse = np.mean(squared_errors)
-    return mse
+
 
 
 
@@ -284,8 +266,7 @@ def calc_new_Cm(scenario: OperationScenario, Cf):
 
 def process_single_combination(args):
     Cf, H_f, scenario, target_indoor_temp = args
-    cp_water = 4200 / 3600
-    cf_per_square_meter = round(Cf / (scenario.building.Af * cp_water * 3600), 1)
+    cf_per_square_meter = round(Cf / scenario.building.Af, 1)
     hf_per_square_meter = round(H_f / scenario.building.Af, 1)
     # reduce the Cm Factor by the Cf factor to avoid double counting
     new_Cm = calc_new_Cm(scenario=scenario, Cf=Cf)
@@ -381,18 +362,21 @@ def run_for_different_Cf_and_Hf(Cf_list, H_f_list, scenario: OperationScenario, 
 
 #     return mse_heating_dict, heating_solved, df_heating_dict
 
-def run_6R2C_with_best_params_and_indoor_set_temp(scenario_id):
-    path = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C/")
-    cf_hf_dict_path = path / "Cf_Hf_dict.pkl"
-    with open(cf_hf_dict_path, 'rb') as f:
-        Cf_Hf_dict = pickle.load(f)
-    for scenario_id in range(1, 10):
-        cfg = get_config(project_name="5R1C_6R2C")
-        mother_operation = MotherOperationScenario(config=cfg)
-        orig_opt_instance = OptInstance().create_instance()
-        scenario = OperationScenario(scenario_id=scenario_id, config=cfg, tables=mother_operation)
-        target_indoor_temp = load_IDA_ICE_indoor_temp(scenario_id)
-        best_Cf, best_Hf = Cf_Hf_dict[scenario_id]
+def load_IDA_ICE_indoor_temp(scenario_id: int, ):
+    from compare_results import CompareModels
+    CM = CompareModels(get_config("5R1C_validation").project_name)
+    df = CM.read_indoor_temp_daniel(price="price2", cooling=False, floor_heating=True)
+    name_to_id = {value: key for key, value in CM.building_names.items()}
+    df.columns = [name_to_id[col] for col in df.columns]
+    return df[scenario_id].to_numpy()
+
+def load_IDA_ICE_heating(scenario_id: int, ) -> np.array:
+    from compare_results import CompareModels
+    CM = CompareModels(get_config("5R1C_validation").project_name)
+    df = CM.read_daniel_heat_demand(price="price2", cooling=False, floor_heating=True)
+    name_to_id = {value: key for key, value in CM.building_names.items()}
+    df.columns = [name_to_id[col] for col in df.columns]
+    return df[scenario_id].to_numpy()
 
 
         
@@ -404,6 +388,7 @@ if __name__ == "__main__":
             scenario_components=OperationScenarioComponent,
         )
     init.main()
+    result_path = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C")
 
     Cf_Hf_dict = {}
     for scenario_id in range(1, 10):
@@ -418,12 +403,13 @@ if __name__ == "__main__":
 
         model_5R1C = OptOperationModel(scenario)
         optimized_5R1C_model, solve_status = model_5R1C.solve(orig_opt_instance)
-
+        results_5R1C = extract_results_from_model(optimized_5R1C_model, values_to_extract=["Q_RoomHeating", "T_Room", "T_BuildingMass", "T_outside"])
+        
         # water per square meter floor heating is asumed to be between 1 and 5 liters:
-        Cf_list = [x*scenario.building.Af*4200 for x in np.arange(5, 40.5, 0.5)] #11
+        Cf_list = [x*scenario.building.Af for x in np.arange(5_000, 250_000, 5_000)] #11
         # Heat transfer resistance (W/K) between floor and indoor air temp is assumed to be between 1 and 10 W/K per square meter of floor heating
         # In literature (https://doi.org/10.1016/j.enbuild.2013.07.065) H_f is between 8 and 11 (measured)
-        H_f_list = [x*scenario.building.Af for x in np.arange(3, 12.5, 0.5)] #15
+        H_f_list = [x*scenario.building.Af for x in np.arange(2, 11.5, 0.5)] #15
 
         heating_solved, df_heating_dict = run_for_different_Cf_and_Hf(
             Cf_list=Cf_list, 
@@ -431,99 +417,95 @@ if __name__ == "__main__":
             scenario=scenario, target_indoor_temp=target_indoor_temp, scenario_id=scenario_id, 
             max_workers=20
         )
+        # save for later
+        with open(result_path / f"all_results_scenario_{scenario_id}.pkl", "wb") as file:
+            pickle.dump(df_heating_dict, file)
+        LOGGER.info(f"saved result pickle for scenario: {scenario_id}")
         
-        mses = {}
-        for name, df in df_heating_dict.items():
-            mse_heating = calc_mean_squared_error_heating( df["Q_RoomHeating"].to_numpy(), scenario_id=scenario_id, ref_heating=model_5R1C.Q_RoomHeating )
-            mses[name] = mse_heating
+        # mses = {}
+        # for name, df in df_heating_dict.items():
+        #     mse_heating = calc_mean_squared_error_heating( df["Q_RoomHeating"].to_numpy(), scenario_id=scenario_id, ref_heating=model_5R1C.Q_RoomHeating )
+        #     mses[name] = mse_heating
 
-        best_heating_key, min_mse_heating = min(mses.items(), key=lambda x: x[1])
-        results_target_heating = df_heating_dict[best_heating_key] 
-        best_key = best_heating_key
-        best_Cf, best_Hf = heating_solved[best_key] 
-        best_Cm = calc_new_Cm(scenario=scenario, Cf=best_Cf)
-        LOGGER.info(f"Best combination identified for sceanrio: {scenario_id} = {best_heating_key}")
+        # best_heating_key, min_mse_heating = min(mses.items(), key=lambda x: x[1])
+        # results_target_heating = df_heating_dict[best_heating_key] 
+        # best_key = best_heating_key
+        # best_Cf, best_Hf = heating_solved[best_key] 
+        # best_Cm = calc_new_Cm(scenario=scenario, Cf=best_Cf)
+        # LOGGER.info(f"Best combination identified for sceanrio: {scenario_id} = {best_heating_key}")
 
-        new_6R2C_simulation, solve_status = optimize_6R2C(
-            model=OptOperationModel(scenario),
-            Htr_f=best_Hf,
-            Cf=best_Cf,
-            Cm=best_Cm,
-            simulation=True
-        )
-        results_6R2C_final_simulation = extract_results_from_model(new_6R2C_simulation, values_to_extract=["Q_RoomHeating", "T_surface", "T_Room", "T_BuildingMass", "T_floor", "T_outside"])
-        # take Q_max from 6R2C simulation for 6R2C optimziation:
-        E_max = np.max(results_6R2C_final_simulation["Q_RoomHeating"].to_numpy().flatten() / model_5R1C.SpaceHeatingHourlyCOP.flatten())
-        # integrate Q_max into 6R2C:
-        model1 = OptOperationModel(scenario)
-        if E_max > model1.SpaceHeating_MaxBoilerPower:
-            model1.SpaceHeating_MaxBoilerPower = E_max
-            LOGGER.info(f"E_max needed to be increased for scenario {scenario_id}")
-        # TODO either set the max heating to the max of IDA ICE to make it comparable or leave it (usually is restricted by room temperature anyways) but for comparison of Peak Consumption!
-        new_6R2C_model, solve_status = optimize_6R2C(
-            model=model1,
-            Htr_f=best_Hf,
-            Cf=best_Cf,
-            Cm=best_Cm
-        )
-        results_6R2C_final = extract_results_from_model(new_6R2C_model)
-
-        # calcaulte the 6R2C model when also following the 5R1C indoor temp:
-        model_6R2C_temp, solved = calculate_6R2C_with_specific_params(
-            model=OptOperationModel(scenario), 
-            Htr_f=best_Hf, 
-            Cf=best_Cf, 
-            new_Cm=best_Cm,
-            target_indoor_temp=target_indoor_temp
-        )
-        result_6R2C_set_temp = extract_results_from_model(model_6R2C_temp)
-
-        Q_max = target_heating.max()
-        model1.SpaceHeating_MaxBoilerPower = Q_max
-        new_6R2C_model_higher_Q_max, solve_status = optimize_6R2C(
-            model=model1,
-            Htr_f=best_Hf,
-            Cf=best_Cf,
-            Cm=best_Cm
-        )
-        results_6R2C_final_higher_Q_max = extract_results_from_model(new_6R2C_model_higher_Q_max)
-
-        # electricity demand of HP have to be recalculated because of the wrong static COP
-        results_6R2C_final_simulation["ElectricityPrice"] = results_6R2C_final["ElectricityPrice"]
-        results_6R2C_final_simulation["E_Heating_HP_out"] = results_6R2C_final_simulation["Q_RoomHeating"] / results_6R2C_final["SpaceHeatingHourlyCOP"]
-
-        # save results to csv:
-        result_path = Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/FLEX/data/output/5R1C_6R2C")
-        results_6R2C_final_simulation.to_csv(result_path / f"Scenario_{scenario_id}_reference.csv")
-        results_6R2C_final.to_csv(result_path / f"Scenario_{scenario_id}_optimzation.csv")
-        results_6R2C_final_higher_Q_max.to_csv(result_path / f"Scenario_{scenario_id}_optimzation_high_Q_max.csv")
-        result_6R2C_set_temp.to_csv(result_path / f"Scenario_{scenario_id}_optimization_fixed_indoor_temp.csv")
-
-        LOGGER.info(f"finished scenario {scenario_id}")
-        
-        # compare_IDA_ICE_6R2C_5R1C(
-        #     model_6R2C=model_6R2C_temp,
-        #     model_5R1C=optimized_5R1C_model,
-        #     scenario_id=scenario_id
+        # new_6R2C_simulation, solve_status = optimize_6R2C(
+        #     model=OptOperationModel(scenario),
+        #     Htr_f=best_Hf,
+        #     Cf=best_Cf,
+        #     Cm=best_Cm,
+        #     floor_temp_start_value=25,
+        #     simulation=True
         # )
-    
-        # Save the Cf_Hf_dict for future use
-        cf_hf_dict_path = result_path / "Cf_Hf_dict.pkl"
-        # Save using pickle
-        if cf_hf_dict_path.exists():
-            try:
-                with open(cf_hf_dict_path, 'rb') as f:
-                    Cf_Hf_dict = pickle.load(f)
-                LOGGER.info(f"Loaded existing Cf_Hf_dict from {cf_hf_dict_path}")
-                Cf_Hf_dict[scenario_id] = (best_Cf, best_Hf)
-            except Exception as e:
-                LOGGER.error(f"{e}")
-        else:
-            Cf_Hf_dict[scenario_id] = (best_Cf, best_Hf)
+        # results_6R2C_final_simulation = extract_results_from_model(new_6R2C_simulation, values_to_extract=["Q_RoomHeating", "T_surface", "T_Room", "T_BuildingMass", "T_floor", "T_outside"])
+        # # take Q_max from 6R2C simulation for 6R2C optimziation:
+        # E_max = np.max(results_6R2C_final_simulation["Q_RoomHeating"].to_numpy().flatten()[20:] / model_5R1C.SpaceHeatingHourlyCOP.flatten()[20:])
+        # # take the floor temperature start value from the simulation hour 20 to get a realistic value:
+        # T_floor_start = results_6R2C_final_simulation["T_floor"].to_numpy()[20]
+        # # integrate Q_max into 6R2C:
+        # max_thermal_power = results_5R1C["Q_RoomHeating"].max()
 
-        with open(cf_hf_dict_path, 'wb') as f:
-            pickle.dump(Cf_Hf_dict, f)
-        LOGGER.info(f"saved {Cf_Hf_dict} to logfile for scenario {scenario_id}")
+        # # TODO either set the max heating to the max of IDA ICE to make it comparable or leave it (usually is restricted by room temperature anyways) but for comparison of Peak Consumption!
+        # new_6R2C_model, solve_status = optimize_6R2C(
+        #     model=OptOperationModel(scenario),
+        #     Htr_f=best_Hf,
+        #     Cf=best_Cf,
+        #     Cm=best_Cm,
+        #     max_thermal_power=max_thermal_power,
+        #     floor_temp_start_value=T_floor_start
+        # )
+        # results_6R2C_final = extract_results_from_model(new_6R2C_model)
+
+        # # calcaulte the 6R2C model when also following the 5R1C indoor temp:
+        # model_6R2C_temp, solved = calculate_6R2C_with_specific_params(
+        #     model=OptOperationModel(scenario), 
+        #     Htr_f=best_Hf, 
+        #     Cf=best_Cf, 
+        #     new_Cm=best_Cm,
+        #     target_indoor_temp=target_indoor_temp
+        # )
+        # result_6R2C_set_temp = extract_results_from_model(model_6R2C_temp)
+
+
+        # # electricity demand of HP have to be recalculated because of the wrong static COP
+        # results_6R2C_final_simulation["ElectricityPrice"] = results_6R2C_final["ElectricityPrice"]
+        # results_6R2C_final_simulation["E_Heating_HP_out"] = results_6R2C_final_simulation["Q_RoomHeating"] / results_6R2C_final["SpaceHeatingHourlyCOP"]
+
+        # # save results to csv:
+        # results_6R2C_final_simulation.to_csv(result_path / f"Scenario_{scenario_id}_reference.csv")
+        # results_6R2C_final.to_csv(result_path / f"Scenario_{scenario_id}_optimzation.csv")
+        # result_6R2C_set_temp.to_csv(result_path / f"Scenario_{scenario_id}_optimization_fixed_indoor_temp.csv")
+
+        # LOGGER.info(f"finished scenario {scenario_id}")
+        
+        # # compare_IDA_ICE_6R2C_5R1C(
+        # #     model_6R2C=model_6R2C_temp,
+        # #     model_5R1C=optimized_5R1C_model,
+        # #     scenario_id=scenario_id
+        # # )
+    
+        # # Save the Cf_Hf_dict for future use
+        # cf_hf_dict_path = result_path / "Cf_Hf_dict.pkl"
+        # # Save using pickle
+        # if cf_hf_dict_path.exists():
+        #     try:
+        #         with open(cf_hf_dict_path, 'rb') as f:
+        #             Cf_Hf_dict = pickle.load(f)
+        #         LOGGER.info(f"Loaded existing Cf_Hf_dict from {cf_hf_dict_path}")
+        #         Cf_Hf_dict[scenario_id] = (best_Cf, best_Hf)
+        #     except Exception as e:
+        #         LOGGER.error(f"{e}")
+        # else:
+        #     Cf_Hf_dict[scenario_id] = (best_Cf, best_Hf)
+
+        # with open(cf_hf_dict_path, 'wb') as f:
+        #     pickle.dump(Cf_Hf_dict, f)
+        # LOGGER.info(f"saved {Cf_Hf_dict} to logfile for scenario {scenario_id}")
 
 
     

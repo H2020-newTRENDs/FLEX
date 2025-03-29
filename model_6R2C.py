@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 from models.operation.model_base import OperationScenario, OperationModel
 from pyomo.opt import TerminationCondition
-
+from typing import Optional
 
 
 
@@ -509,6 +509,8 @@ def optimize_6R2C(
     Htr_f: float,
     Cf: float,
     Cm: float,
+    floor_temp_start_value: float,
+    max_thermal_power: float = Optional,
     simulation: bool = False
 
 ):
@@ -527,6 +529,7 @@ def optimize_6R2C(
         m.ElectricityPrice = pyo.Param(m.t, initialize={t: model.ElectricityPrice[t-1] for t in m.t})
         m.SpaceHeatingHourlyCOP = pyo.Param(m.t, initialize={t: model.SpaceHeatingHourlyCOP[t-1] for t in m.t})
         m.E_max = pyo.Param(initialize=model.SpaceHeating_MaxBoilerPower)
+        m.Q_max = pyo.Param(initialize=max_thermal_power)
 
     max_temp, min_temp = model.generate_target_indoor_temperature(temperature_offset=3)
     m.lower_room_temperature = pyo.Param(m.t, initialize={t: min_temp[t-1] for t in m.t})
@@ -558,12 +561,16 @@ def optimize_6R2C(
     m.Htr_f = pyo.Param(initialize=Htr_f)
 
     m.T_floor = pyo.Var(m.t, within=pyo.NonNegativeReals, bounds=(20, 45))
-    m.FloorTemperatureStartValue = pyo.Param(initialize=28)  # 25°C
+    m.FloorTemperatureStartValue = pyo.Param(initialize=floor_temp_start_value)  
     
     if not simulation:
         def max_HP_power(m, t):
             return m.Q_RoomHeating[t] <= m.E_max * m.SpaceHeatingHourlyCOP[t]
         m.max_hp_power_rule = pyo.Constraint(m.t, rule=max_HP_power)
+
+        def max_thermal_power(m, t):
+            return m.Q_RoomHeating[t] <= m.Q_max
+        m.max_thermal_power_rule = pyo.Constraint(m.t, rule=max_thermal_power)
 
     def calc_supply_of_space_heating(m, t):
         return m.Q_RoomHeating[t] == m.E_Heating_HP_out[t] * m.SpaceHeatingHourlyCOP[t]
@@ -619,7 +626,7 @@ def optimize_6R2C(
     
     m.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
     solver = pyo.SolverFactory("gurobi")    
-    results = solver.solve(m, tee=True)
+    results = solver.solve(m, tee=False)
     if results.solver.termination_condition == TerminationCondition.optimal:
         solve_status=True
         m.solutions.load_from(results)
