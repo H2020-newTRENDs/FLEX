@@ -6,11 +6,13 @@ from pathlib import Path
 from utils.db import init_project_db
 from projects.analysis.main_operation import run_operation_model_parallel
 import pandas as pd
-from utils.db import DB
+from utils.db import DB, fetch_input_tables
 import seaborn as sns
 import matplotlib.pyplot as plt
-
-
+from models.operation.scenario import OperationScenario
+from models.operation.model_opt import OptOperationModel
+import numpy as np
+from joblib import Parallel, delayed
 
 def delete_result_files(conf):
     # Iterate through each item in the directory
@@ -115,38 +117,68 @@ def summarize_indoor_set_temps(country_list):
     plt.savefig(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/testing/Country_level_prosumaging/figures_grid_fees") / "Corrected_indoor_set_temps.svg")
 
 
+def get_installed_HP_capacity(cfg):
+    db = DB(path=cfg.sqlite_path)  
+    scenario_table = db.read_dataframe(table_name="OperationScenario")
+    scenario_table_real = scenario_table.loc[(scenario_table["ID_EnergyPrice"]==1) & (scenario_table["ID_SpaceCoolingTechnology"]==1), :]
+    input_tables = fetch_input_tables(cfg)
+    power_list = []
+    for scenario_id in scenario_table_real["ID_Scenario"]:
+        scenario = OperationScenario(config=cfg, scenario_id=scenario_id, input_tables=input_tables)
+        model = OptOperationModel(scenario)
+        power_list.append(model.SpaceHeating_MaxBoilerPower * scenario_table_real.loc[scenario_table_real["ID_Scenario"]==scenario_id, "number_of_buildings"].values[0] / 1_000_000)  # MWh
 
+    total_installed_elec_power = np.array(power_list).sum()
+    print(f"calculated total install HP power for {cfg.project_name}")
+    return total_installed_elec_power
 
+def save_installed_HP_capacity(country_list, years):
+    def compute_capacity(country, year):
+        cfg = get_config(f"{country}_{year}_grid_fees")
+        total_power = get_installed_HP_capacity(cfg)
+        return country, year, total_power
+    
+    results = Parallel(n_jobs=-1)(
+        delayed(compute_capacity)(country, year)
+        for country in country_list
+        for year in years
+    )
+
+    df = pd.DataFrame(index=years, columns=country_list)
+    for country, year, total_power in results:
+        df.loc[year, country] = total_power
+
+    df.to_csv(Path(r"/home/users/pmascherbauer/projects4/workspace_philippm/testing/Country_level_prosumaging") / "Installed_HP_capacity_per_country.csv", sep=";")
 
 if __name__ == "__main__":
     country_list = [
-            # "AUT",  
-            # "BEL", 
-            # "POL",
-            # # "CYP", 
-            # "PRT",
-            # "DNK", 
-            # "FRA", 
-            # "CZE",  
-            # "DEU", 
-            # "HRV",
-            # "HUN", 
-            # "ITA",  
-            # "LUX",
-            # "NLD",
-            # "SVK",
-            # "SVN",
-            # 'IRL', 
-            # 'ESP',  
-            # 'SWE',
-            # 'GRC',
-            # 'LVA',  
-            # 'LTU',
+            "AUT",  
+            "BEL", 
+            "POL",
+            # "CYP", 
+            "PRT",
+            "DNK", 
+            "FRA", 
+            "CZE",  
+            "DEU", 
+            "HRV",
+            "HUN", 
+            "ITA",  
+            "LUX",
+            "NLD",
+            "SVK",
+            "SVN",
+            'IRL', 
+            'ESP',  
+            'SWE',
+            'GRC',
+            'LVA',  
+            'LTU',
             # 'MLT',
-            # 'ROU',
-            # 'BGR',  
-            # 'FIN',
-            # 'EST',
+            'ROU',
+            'BGR',  
+            'FIN',
+            'EST',
         ]
 
     years = [2030, 2050]#2030, 2040]
@@ -155,9 +187,10 @@ if __name__ == "__main__":
             cfg = get_config(f"{country}_{year}_grid_fees")
             # run_only_ref_model_and_change_indoor_set_temp_until_correct(cfg)
 
-            run_flex_operation_model(cfg, task_number=10)
+            run_flex_operation_model(cfg, task_number=20)
             pass
-
+        
+    # save_installed_HP_capacity(country_list, years)
     # summarize_indoor_set_temps(country_list)
     # cfg = get_config("AUT_2030")
     # run_flex_operation_model(cfg, task_number=1)

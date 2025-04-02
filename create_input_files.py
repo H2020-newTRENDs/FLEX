@@ -1013,7 +1013,7 @@ if __name__ == "__main__":
     ]
     # country_list = [ 'ROU',]#'MLT','LTU', 'GRC']
     years = [2030, 2050]  # only have secures prices for 2030 and 2050
-    change_weather_data_to_secures(country_list=country_list, years=years)
+    # change_weather_data_to_secures(country_list=country_list, years=years)
 
     main(country_list, years)
 
