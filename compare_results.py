@@ -68,29 +68,29 @@ def create_heat_map_of_mse(mses: dict, figure_path: Path, result_path: Path, sce
     with open(cf_hf_dict_path, 'wb') as f:
         pickle.dump(Cf_Hf_dict, f) 
     
-    masked_heatmap_data = heatmap_data.copy()    
-    for inf_val in infeasable_mses:
-        masked_heatmap_data.replace(inf_val, np.nan, inplace=True)
-    masked_array =np.ma.masked_invalid(masked_heatmap_data)
 
-    min_val = heatmap_data.loc[min_feasable_Hf, min_feasable_Cf]
+    heatmap_data.columns = (heatmap_data.columns / 1_000).astype(int)
+    min_val = heatmap_data.loc[min_feasable_Hf, int(min_feasable_Cf/1_000)]
     min_coords = np.where(heatmap_data == min_val)
     min_y, min_x = min_coords[0][0], min_coords[1][0]
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(8, 6))
     cmap = plt.cm.viridis.copy()
     cmap.set_bad(color='lightgrey')
     ax = sns.heatmap(
         data=heatmap_data,
         cmap=cmap, 
-        cbar_kws={'label': 'MSE'},
+        cbar_kws={'label': 'MSE'}, 
         vmin=min(list(mses.values())),
         vmax=max(list(mses.values())),
-        
     )
+    # Remove colorbar ticks
+    ax.collections[0].colorbar.ax.set_yticks([])
     ax.add_patch(plt.Rectangle((min_x, min_y), 1, 1, fill=False, edgecolor='red', linewidth=3))
-    plt.xlabel(r"Cf factor (J/m$^{2}$K)")
-    plt.ylabel(r"Hf factor (W/m$^{2}$K)")
-    ax.set_xticklabels([f'{int(float(label.get_text()))}' for label in ax.get_xticklabels()])
+    plt.xlabel(r"Cf factor (kJ/m$^{2}$K)", fontsize=12)
+    plt.ylabel(r"Hf factor (W/m$^{2}$K)", fontsize=12)
+
+    ax.set_xticklabels([f'{int(float(label.get_text()))}' for label in ax.get_xticklabels()], fontsize=12)
+    ax.set_yticklabels(ax.get_yticklabels(), fontsize=12)
     plt.savefig(figure_path / f"MSE_Cf_Hf_scenario_{scenario_id}.svg")
 
 
