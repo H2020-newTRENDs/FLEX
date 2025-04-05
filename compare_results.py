@@ -1468,42 +1468,49 @@ class CompareModels:
         temp_6R2C_set_temp = self.T_Room_optimization_6R2C_target_temp[building].to_numpy()
         temp_6R2C_Q_max = self.T_Room_optimization_6R2C_Q_max[building].to_numpy()
         
-        font_size = 14        
         # week plot for heating
         week_number = 5
-        font_size = 14
+        plt.rcParams.update({
+            'axes.labelsize': 18,    # x and y axis labels
+            'axes.titlesize': 18,    # subplot titles
+            'xtick.labelsize': 18,   # x-axis tick labels
+            'ytick.labelsize': 18,   # y-axis tick labels
+            'legend.fontsize': 18,   # legend text size
+        })
         x_axis = np.arange(24 * 7 * week_number, 24 * 7 * (week_number + 1))
         
-        fig2, (ax3,ax4,) = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(15, 11))
+        fig2, (ax3,ax4,) = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(13, 9))
         ax3.plot(x_axis, ideal_demand_ida[x_axis], label="IDA ICE with ideal heating", color=sns.color_palette()[1], linestyle="-", marker="x", linewidth=1)
         ax3.plot(x_axis, opt_demand_5R1C[x_axis], label="5R1C = set temperature", color=sns.color_palette()[0], linewidth=2)
 
-        ax3.set_ylabel("heat demand (kWh)", fontsize=font_size)
-        ax3.legend(fontsize=font_size)        
+        ax3.set_ylabel("heat demand (kW)", )
+        ax3.legend()        
         ax4.plot(x_axis, temp_ideal_ida[x_axis], label="IDA ICE with ideal heating", color=sns.color_palette()[1], linestyle="-", marker="x", linewidth=1)
         ax4.plot(x_axis, temp_5R1C[x_axis], label="5R1C = set temperature", color=sns.color_palette()[0], linewidth=2)
 
-        ax4.set_ylabel("indoor temperature (°C)", fontsize=font_size)
+        ax4.set_ylabel("indoor temperature (°C)", )
         ax4.set_xlim(x_axis[0], x_axis[-1])
         ax4.set_xticks(np.arange(x_axis[0], x_axis[-1], 24) + 12)
         ax4.set_ylim(20,23)
         ticks = np.array(["Mon", "Tue", "Wed", "Thur", "Fri", "Sat", "Sun"])
         ax4.set_xticklabels(ticks)
-        ax3.tick_params(axis='y', labelsize=font_size)
-        ax4.tick_params(axis='y', labelsize=font_size)
-        ax4.tick_params(axis='x', labelsize=font_size)
-        ax4.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: round(x,1)))
+        ax3.tick_params(axis='y',)
+        ax4.tick_params(axis='y',)
+        ax4.tick_params(axis='x',)
+        # ax4.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: round(x,1)))
+        ax4.yaxis.set_major_locator(plt.MultipleLocator(1))
 
         plt.tight_layout()
         fig2.savefig(self.figure_path / f"Single_building_week_{building}_radiators.svg")
+        plt.show()
         plt.close()
 
         # week plot for floor heating
         week_number = 5
-        font_size = 14
+        font_size = 16
         x_axis = np.arange(24 * 7 * week_number, 24 * 7 * (week_number + 1))
         
-        fig2, (ax3,ax4,) = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(15, 11))
+        fig2, (ax3,ax4,) = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(13, 9))
         ax3.plot(x_axis, floor_demand_ida[x_axis], label="IDA ICE with floor heating", color=sns.color_palette()[3], linestyle="-", marker="x", linewidth=1)
         ax3.plot(x_axis, opt_demand_5R1C[x_axis], label="5R1C = set temperature", color=sns.color_palette()[0], linewidth=2)
         ax3.plot(x_axis, opt_demand_6R2C[x_axis], label="6R2C optimized", color=sns.color_palette()[2], linestyle="--")
@@ -1511,8 +1518,8 @@ class CompareModels:
         # ax3.plot(x_axis, opt_demand_6R2C_Q_max[x_axis], label="6R2C Q_max", color=sns.color_palette()[5], linestyle="--")
 
 
-        ax3.set_ylabel("heat demand (kWh)", fontsize=font_size)
-        ax3.legend(fontsize=font_size)    
+        ax3.set_ylabel("heat demand (kW)", )
+        ax3.legend()    
         ax4.plot(x_axis, temp_5R1C[x_axis], label="5R1C = set temperature", color=sns.color_palette()[0], linewidth=2)
         ax4.plot(x_axis, temp_floor_ida[x_axis], label="IDA ICE with floor heating", color=sns.color_palette()[3], linestyle="-", marker="x", linewidth=0.5)
         ax4.plot(x_axis, temp_6R2C[x_axis], label="6R2C with set temperature", color=sns.color_palette()[2],  linestyle="--")
@@ -1520,7 +1527,7 @@ class CompareModels:
 
         # ax4.plot(x_axis, temp_6R2C_Q_max[x_axis], label="6R2C Q_max", color=sns.color_palette()[5],  linestyle="--")
 
-        ax4.set_ylabel("indoor temperature (°C)", fontsize=font_size)
+        ax4.set_ylabel("indoor temperature (°C)", )
         ax4.set_xlim(x_axis[0], x_axis[-1])
         ax4.set_xticks(np.arange(x_axis[0], x_axis[-1], 24) + 12)
         ax4.set_ylim(20,23)
@@ -1529,10 +1536,12 @@ class CompareModels:
         ax3.tick_params(axis='y', labelsize=font_size)
         ax4.tick_params(axis='y', labelsize=font_size)
         ax4.tick_params(axis='x', labelsize=font_size)
-        ax4.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: round(x,1)))
+        # ax4.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: round(x,1)))
+        ax4.yaxis.set_major_locator(plt.MultipleLocator(1))
 
         plt.tight_layout()
         fig2.savefig(self.figure_path / f"Single_building_week_{building}_floor_heating.svg")
+        plt.show()
         plt.close()
 
     def shifted_electrity_demand(self):
@@ -1581,7 +1590,7 @@ class CompareModels:
             ).reset_index()
         relative_df = df.melt(id_vars=["index"], var_name="model", value_name="shifted electricity")
 
-        font_size = 14
+        font_size = 18
         fig = plt.figure(figsize=(12,8))
         ax = plt.gca()
         sns.barplot(
@@ -1606,7 +1615,7 @@ class CompareModels:
                 columns={0: "5R1C", 3: "IDA ICE floor heating", 2: "6R2C optimized", 1: "IDA ICE ideal heating", 4: "6R2C following set temperature"}
         ).reset_index()
         absolute = absolute_df.melt(id_vars=["index"], var_name="model", value_name="shifted electricity")
-        absolute["shifted electricity"] = absolute["shifted electricity"] / 1_000  # kWh
+        absolute["shifted electricity"] = absolute["shifted electricity"] / 1_000 / 1_000  # MWh
         fig = plt.figure(figsize=(12,8))
         ax = plt.gca()
         sns.barplot(
@@ -1619,7 +1628,7 @@ class CompareModels:
         ax.tick_params(axis='x', labelsize=font_size)
         ax.legend(fontsize=font_size, loc="upper left")
         ax.set_xlabel("")
-        ax.set_ylabel("shifted electricity in kWh", fontsize=font_size)
+        ax.set_ylabel("shifted electricity in MWh", fontsize=font_size)
         ax.set_xticklabels([label.get_text().replace("_", " ") for label in ax.get_xticklabels()], rotation=45, ha='center', fontsize=font_size)
         plt.tight_layout()
         fig.savefig(self.figure_path / f"Absolute_Shifted_electricity_demand_IDA_ICE.svg")
@@ -1697,11 +1706,11 @@ class CompareModels:
         self.show_chosen_Cf_and_Hf_for_6R2C_model()
         price_scenarios = ["basic", "price2",] #"price3", "price4"]  # only look at price 2 and basic which is without optim
         # self.show_elec_prices()
-        self.show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price2", building="EZFH_9_B")
+        # self.show_heat_demand_for_one_building_in_multiple_scenarios(price_id="price2", building="EZFH_9_B")
         self.shifted_electrity_demand()
-        self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
-        self.plot_relative_cost_reduction_floor_ideal()
-        self.show_plotly_comparison(prices=price_scenarios, cooling=False, floor_heating=True)
+        # self.plot_normalized_yearly_heat_demand_floor_ideal_not_optimized()
+        # self.plot_relative_cost_reduction_floor_ideal()
+        # self.show_plotly_comparison(prices=price_scenarios, cooling=False, floor_heating=True)
         
 
 
