@@ -182,6 +182,7 @@ class OptInstance:
         m.Grid2Load = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Grid2Bat = pyo.Var(m.t, within=pyo.NonNegativeReals)
         m.Grid2EV = pyo.Var(m.t, within=pyo.NonNegativeReals)
+        m.GridMax = pyo.Var(domain=pyo.NonNegativeReals)
 
         # Electric Load and Electricity fed back to the grid
         m.Load = pyo.Var(m.t, within=pyo.NonNegativeReals)
@@ -453,8 +454,12 @@ class OptInstance:
 
     @staticmethod
     def setup_objective(m):
+        def max_grid_constraint_rule(m, t):
+            return m.GridMax >= m.Grid[t]
+        m.max_grid_constraint = pyo.Constraint(m.t, rule=max_grid_constraint_rule)
+
         def minimize_cost(m):
-            rule = sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t)
+            rule = (sum(m.Grid[t] * m.ElectricityPrice[t] + m.Fuel[t] * m.FuelPrice[t] - m.Feed2Grid[t] * m.FiT[t] for t in m.t) + 5 * m.GridMax)  # added 50€/kWh ->5cent/Wh peak demand,  GridMax is in W
             return rule
         m.total_operation_cost_rule = pyo.Objective(rule=minimize_cost, sense=pyo.minimize)
 

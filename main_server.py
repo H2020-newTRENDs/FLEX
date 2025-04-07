@@ -152,27 +152,27 @@ def save_installed_HP_capacity(country_list, years):
 
 if __name__ == "__main__":
     country_list = [
-            "AUT",  
-            "BEL", 
-            "POL",
-            # "CYP", 
-            "PRT",
-            "DNK", 
-            "FRA", 
-            "CZE",  
-            "DEU", 
-            "HRV",
-            "HUN", 
-            "ITA",  
-            "LUX",
-            "NLD",
-            "SVK",
-            "SVN",
-            'IRL', 
-            'ESP',  
-            'SWE',
-            'GRC',
-            'LVA',  
+            # "AUT",  
+            # "BEL", 
+            # "POL",
+            # # "CYP", 
+            # "PRT",
+            # "DNK", 
+            # "FRA", 
+            # "CZE",  
+            # "DEU", 
+            # "HRV",
+            # "HUN", 
+            # "ITA",  
+            # "LUX",
+            # "NLD",
+            # "SVK",
+            # "SVN",
+            # 'IRL', 
+            # 'ESP',  
+            # 'SWE',
+            # 'GRC',
+            # 'LVA',  
             'LTU',
             # 'MLT',
             'ROU',
@@ -184,7 +184,7 @@ if __name__ == "__main__":
     years = [2030, 2050]#2030, 2040]
     for country in country_list:
         for year in years:
-            cfg = get_config(f"{country}_{year}_grid_fees")
+            cfg = get_config(f"{country}_{year}_peak_price")
             # run_only_ref_model_and_change_indoor_set_temp_until_correct(cfg)
 
             run_flex_operation_model(cfg, task_number=20)

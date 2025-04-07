@@ -920,7 +920,7 @@ def main(country_list: list, years: list):
     # use multiprocessing to speed it up creating all the input data:
     input_list = [(year, country) for country in country_list for year in years ]
     for (year, country) in input_list:
-        project_name = f"{country}_{year}_grid_fees"
+        project_name = f"{country}_{year}_peak_price"
         create_input_excels(year=year, country=country, project_name=project_name)
         create_scenario_tables(year=year, country=country, project_name=project_name)
     # number_of_physical_cores = 2# int(multiprocessing.cpu_count() / 2)
